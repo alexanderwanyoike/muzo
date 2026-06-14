@@ -67,23 +67,43 @@ impl LibraryRepository for SqliteLibraryRepository {
             .next()
             .map_err(|e| RepositoryError::Io(e.to_string()))?
         {
-            Some(row) => {
-                let id: String = row.get(0).map_err(|e| RepositoryError::Io(e.to_string()))?;
-                let name: String = row.get(1).map_err(|e| RepositoryError::Io(e.to_string()))?;
-                let kind: String = row.get(2).map_err(|e| RepositoryError::Io(e.to_string()))?;
-                let location: String =
-                    row.get(3).map_err(|e| RepositoryError::Io(e.to_string()))?;
-
-                Ok(Some(Library::new(
-                    LibraryId(id),
-                    LibraryName(name),
-                    kind_from_str(&kind)?,
-                    LibraryLocation(location),
-                )))
-            }
+            Some(row) => read_library(row).map(Some),
             None => Ok(None),
         }
     }
+
+    fn list(&self) -> Result<Vec<Library>, RepositoryError> {
+        let conn = self.connection.lock().expect("repository mutex poisoned");
+        let mut stmt = conn
+            .prepare("SELECT id, name, kind, location FROM libraries ORDER BY rowid")
+            .map_err(|e| RepositoryError::Io(e.to_string()))?;
+        let mut rows = stmt
+            .query([])
+            .map_err(|e| RepositoryError::Io(e.to_string()))?;
+
+        let mut result = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| RepositoryError::Io(e.to_string()))?
+        {
+            result.push(read_library(row)?);
+        }
+        Ok(result)
+    }
+}
+
+fn read_library(row: &rusqlite::Row<'_>) -> Result<Library, RepositoryError> {
+    let id: String = row.get(0).map_err(|e| RepositoryError::Io(e.to_string()))?;
+    let name: String = row.get(1).map_err(|e| RepositoryError::Io(e.to_string()))?;
+    let kind: String = row.get(2).map_err(|e| RepositoryError::Io(e.to_string()))?;
+    let location: String = row.get(3).map_err(|e| RepositoryError::Io(e.to_string()))?;
+
+    Ok(Library::new(
+        LibraryId(id),
+        LibraryName(name),
+        kind_from_str(&kind)?,
+        LibraryLocation(location),
+    ))
 }
 
 fn kind_to_str(kind: LibraryKind) -> &'static str {
