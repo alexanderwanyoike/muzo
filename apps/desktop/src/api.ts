@@ -17,3 +17,7 @@ export async function addLibrary(input: {
   };
   return invoke<LibraryDto>("add_library", { input: dto });
 }
+
+export async function listLibraries(): Promise<LibraryDto[]> {
+  return invoke<LibraryDto[]>("list_libraries");
+}

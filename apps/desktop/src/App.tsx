@@ -1,9 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddLibraryForm from "./AddLibraryForm";
+import LibraryList from "./LibraryList";
+import { listLibraries } from "./api";
 import type { LibraryDto } from "./types";
 
+interface ListError {
+  kind: string;
+  message?: string;
+}
+
 export default function App() {
-  const [added, setAdded] = useState<LibraryDto | null>(null);
+  const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setError(null);
+    try {
+      setLibraries(await listLibraries());
+    } catch (err) {
+      const e = err as ListError;
+      setError(e.message ?? "Could not load libraries.");
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
 
   return (
     <main className="app">
@@ -14,12 +36,20 @@ export default function App() {
 
       <section className="app__section">
         <h2>Add a library</h2>
-        <AddLibraryForm onAdded={setAdded} />
+        <AddLibraryForm onAdded={refresh} />
+      </section>
 
-        {added && (
-          <p className="app__success" role="status">
-            Added <strong>{added.name}</strong> at {added.location}.
+      <section className="app__section">
+        <h2>Libraries</h2>
+        {error && (
+          <p role="alert" className="app__error">
+            {error}
           </p>
+        )}
+        {libraries === null ? (
+          <p className="app__placeholder">Loading...</p>
+        ) : (
+          <LibraryList libraries={libraries} />
         )}
       </section>
     </main>
