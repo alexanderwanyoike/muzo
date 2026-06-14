@@ -49,5 +49,6 @@ up on changes that happened while Muzo was closed) is handled by re-running
   the safety net - call this out in tests.
 - Debouncing rapid saves (e.g. tag editor saving a file) belongs in the
   infrastructure impl, not the use case.
-- This card does not cover Dropbox sync. Dropbox is a polling-or-webhooks
-  model, not a filesystem watcher, and lands in sprint 02.
+- This card does not cover Dropbox sync. Dropbox is a polling + manual refresh
+  model (decided - see the sprint 01 README), not a filesystem watcher, and
+  lands in sprint 02.
