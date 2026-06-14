@@ -1,0 +1,26 @@
+{
+  "name": "muzo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Muzo - a desktop music player built with Tauri. Multiple libraries, playlists, recursive folder sync.",
+  "license": "UNLICENSED",
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.10.0",
+    "yarn": ">=1.22.22"
+  },
+  "scripts": {
+    "desktop": "yarn workspace @muzo/desktop",
+    "desktop:dev": "yarn workspace @muzo/desktop dev",
+    "desktop:build": "yarn workspace @muzo/desktop build",
+    "desktop:tauri": "yarn workspace @muzo/desktop tauri",
+    "lint": "yarn workspaces run lint",
+    "typecheck": "yarn workspaces run typecheck",
+    "test": "yarn workspaces run test",
+    "clean": "yarn workspaces run clean && rm -rf node_modules"
+  }
+}

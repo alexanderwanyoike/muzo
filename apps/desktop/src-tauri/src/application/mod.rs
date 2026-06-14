@@ -1,0 +1,7 @@
+//! Application layer.
+//!
+//! Use cases (commands and queries) that orchestrate domain objects with
+//! ports defined in the domain layer. Has no knowledge of Tauri, serde on
+//! the wire, or any concrete adapter.
+
+pub mod ping;
