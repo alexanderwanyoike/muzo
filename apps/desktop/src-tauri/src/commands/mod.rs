@@ -5,4 +5,5 @@
 //! serialisable DTO. No domain logic lives here.
 
 pub mod add_library;
+pub mod list_libraries;
 pub mod ping;
