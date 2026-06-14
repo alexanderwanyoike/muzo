@@ -4,4 +4,6 @@
 //! ports defined in the domain layer. Has no knowledge of Tauri, serde on
 //! the wire, or any concrete adapter.
 
+pub mod add_library;
+pub mod error;
 pub mod ping;

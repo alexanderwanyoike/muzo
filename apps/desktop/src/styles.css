@@ -45,3 +45,85 @@ html,
   border-radius: 12px;
   color: var(--fg-muted);
 }
+
+.app__section {
+  margin-top: 2rem;
+}
+
+.app__section h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.app__success {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-elevated);
+  border-radius: 8px;
+  color: var(--fg-muted);
+}
+
+.add-library-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background-color: var(--bg-elevated);
+  border-radius: 12px;
+}
+
+.add-library-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--fg-muted);
+}
+
+.add-library-form__field input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #2a2d36;
+  border-radius: 6px;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.add-library-form__field button {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #2a2d36;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.add-library-form button[type="submit"] {
+  align-self: flex-start;
+  padding: 0.6rem 1.2rem;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--accent);
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.add-library-form button[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.add-library-form__error {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  background-color: #3a1f24;
+  border-radius: 6px;
+  color: #f5b8c0;
+  font-size: 0.875rem;
+}

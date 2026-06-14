@@ -4,4 +4,5 @@
 //! must stay thin: validate input, call a use case, map the result to a
 //! serialisable DTO. No domain logic lives here.
 
+pub mod add_library;
 pub mod ping;
