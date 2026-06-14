@@ -65,3 +65,35 @@ fn adding_two_libraries_with_distinct_ids_stores_both() {
         "second library is retrievable"
     );
 }
+
+#[test]
+fn list_returns_every_persisted_library_in_insertion_order() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let repo = SqliteLibraryRepository::new(conn);
+
+    let a = make_library("First", "/a");
+    let b = make_library("Second", "/b");
+    repo.add(&a).unwrap();
+    repo.add(&b).unwrap();
+
+    let listed = repo.list().expect("list should succeed");
+
+    assert_eq!(listed.len(), 2);
+    assert_eq!(listed[0], a, "first added comes back first");
+    assert_eq!(listed[1], b, "second added comes back second");
+}
+
+#[test]
+fn list_returns_an_empty_vec_when_no_libraries_have_been_added() {
+    let conn = rusqlite::Connection::open_in_memory().unwrap();
+    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let repo = SqliteLibraryRepository::new(conn);
+
+    let listed = repo.list().expect("list should succeed");
+
+    assert!(
+        listed.is_empty(),
+        "fresh database should yield an empty list"
+    );
+}

@@ -40,7 +40,8 @@ pub fn run() {
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::ping::ping,
-            commands::add_library::add_library
+            commands::add_library::add_library,
+            commands::list_libraries::list_libraries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

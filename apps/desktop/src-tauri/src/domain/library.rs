@@ -65,6 +65,7 @@ impl std::error::Error for RepositoryError {}
 pub trait LibraryRepository {
     fn add(&self, library: &Library) -> Result<(), RepositoryError>;
     fn find_by_id(&self, id: &LibraryId) -> Result<Option<Library>, RepositoryError>;
+    fn list(&self) -> Result<Vec<Library>, RepositoryError>;
 }
 
 /// Generate a fresh, stable, unique [`LibraryId`] for a new library.
