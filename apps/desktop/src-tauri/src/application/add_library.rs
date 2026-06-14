@@ -74,6 +74,10 @@ mod tests {
                 .find(|l| l.id() == id)
                 .cloned())
         }
+
+        fn list(&self) -> Result<Vec<Library>, RepositoryError> {
+            Ok(self.libraries.lock().unwrap().clone())
+        }
     }
 
     #[test]
@@ -152,6 +156,9 @@ mod tests {
             }
             fn find_by_id(&self, _id: &LibraryId) -> Result<Option<Library>, RepositoryError> {
                 Ok(None)
+            }
+            fn list(&self) -> Result<Vec<Library>, RepositoryError> {
+                Ok(Vec::new())
             }
         }
 
