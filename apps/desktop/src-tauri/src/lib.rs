@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use infrastructure::fs_track_audio_reader::FsTrackAudioReader;
 use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
 use infrastructure::sqlite_library_repository::SqliteLibraryRepository;
 use infrastructure::sqlite_track_repository::SqliteTrackRepository;
@@ -23,6 +24,7 @@ pub struct AppState {
     pub track_repository: Arc<SqliteTrackRepository>,
     pub walker: Arc<WalkdirWalker>,
     pub metadata_reader: Arc<LoftyMetadataReader>,
+    pub audio_reader: Arc<FsTrackAudioReader>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,6 +46,7 @@ pub fn run() {
         )),
         walker: Arc::new(WalkdirWalker::new()),
         metadata_reader: Arc::new(LoftyMetadataReader::new()),
+        audio_reader: Arc::new(FsTrackAudioReader::new()),
     };
 
     tauri::Builder::default()
@@ -56,6 +59,7 @@ pub fn run() {
             commands::list_libraries::list_libraries,
             commands::scan_library::scan_library,
             commands::scan_library::list_tracks,
+            commands::load_track_audio_source::load_track_audio_source,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

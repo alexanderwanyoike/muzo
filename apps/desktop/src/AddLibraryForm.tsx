@@ -14,9 +14,19 @@ export default function AddLibraryForm({ onAdded }: AddLibraryFormProps) {
   const [submitting, setSubmitting] = useState(false);
 
   async function handleBrowse() {
-    const selected = await open({ directory: true, multiple: false });
-    if (typeof selected === "string") {
-      setLocation(selected);
+    setError(null);
+    try {
+      const selected = await open({ directory: true, multiple: false });
+      if (typeof selected === "string") {
+        setLocation(selected);
+        if (name.trim() === "") {
+          setName(selected.split(/[\\/]/).filter(Boolean).at(-1) ?? selected);
+        }
+      }
+    } catch {
+      setError(
+        "Could not open the folder picker. If this is running in a browser, start Muzo with yarn desktop:dev.",
+      );
     }
   }
 

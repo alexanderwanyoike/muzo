@@ -44,3 +44,15 @@ export interface TrackDto {
 export async function listTracks(libraryId: string): Promise<TrackDto[]> {
   return invoke<TrackDto[]>("list_tracks", { libraryId });
 }
+
+export interface TrackAudioSourceDto {
+  mimeType: string;
+  bytes: number[];
+}
+
+export async function loadTrackAudioSource(input: {
+  libraryId: string;
+  trackId: string;
+}): Promise<TrackAudioSourceDto> {
+  return invoke<TrackAudioSourceDto>("load_track_audio_source", { input });
+}

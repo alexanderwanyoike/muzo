@@ -13,7 +13,10 @@ describe("LibraryList", () => {
         libraries={[]}
         trackCounts={NO_COUNTS}
         scanningLibraryId={null}
+        selectedLibraryId={null}
         onScan={() => {}}
+        onSelect={() => {}}
+        renderTracks={() => null}
       />,
     );
 
@@ -41,7 +44,10 @@ describe("LibraryList", () => {
         libraries={libraries}
         trackCounts={NO_COUNTS}
         scanningLibraryId={null}
+        selectedLibraryId={null}
         onScan={() => {}}
+        onSelect={() => {}}
+        renderTracks={() => null}
       />,
     );
 
@@ -65,7 +71,10 @@ describe("LibraryList", () => {
         libraries={libraries}
         trackCounts={{ "lib-1": 1, "lib-2": 42 }}
         scanningLibraryId={null}
+        selectedLibraryId={null}
         onScan={() => {}}
+        onSelect={() => {}}
+        renderTracks={() => null}
       />,
     );
 
@@ -73,9 +82,9 @@ describe("LibraryList", () => {
     expect(screen.getByText("42 tracks")).toBeDefined();
   });
 
-  it("triggers onScan with the library id when Scan is clicked", async () => {
+  it("triggers onSelect with the library id when expand is clicked", async () => {
     const user = userEvent.setup();
-    const onScan = vi.fn();
+    const onSelect = vi.fn();
     const libraries: LibraryDto[] = [
       { id: "lib-1", name: "One", kind: "filesystem", location: "/a" },
     ];
@@ -85,16 +94,18 @@ describe("LibraryList", () => {
         libraries={libraries}
         trackCounts={NO_COUNTS}
         scanningLibraryId={null}
-        onScan={onScan}
+        selectedLibraryId={null}
+        onScan={() => {}}
+        onSelect={onSelect}
+        renderTracks={() => null}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /scan/i }));
-
-    expect(onScan).toHaveBeenCalledWith("lib-1");
+    await user.click(screen.getByRole("button", { name: /show tracks/i }));
+    expect(onSelect).toHaveBeenCalledWith("lib-1");
   });
 
-  it("disables the Scan button and shows Scanning while a scan is in progress", () => {
+  it("renders track content for the selected library via renderTracks", () => {
     const libraries: LibraryDto[] = [
       { id: "lib-1", name: "One", kind: "filesystem", location: "/a" },
     ];
@@ -103,12 +114,14 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={libraries}
         trackCounts={NO_COUNTS}
-        scanningLibraryId="lib-1"
+        scanningLibraryId={null}
+        selectedLibraryId="lib-1"
         onScan={() => {}}
+        onSelect={() => {}}
+        renderTracks={(id) => <p>Tracks for {id}</p>}
       />,
     );
 
-    const button = screen.getByRole("button", { name: /scanning/i });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Tracks for lib-1")).toBeDefined();
   });
 });
