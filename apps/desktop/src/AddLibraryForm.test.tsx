@@ -73,6 +73,19 @@ describe("AddLibraryForm", () => {
     ).toBe("/home/user/Picked");
   });
 
+  it("shows an error when the folder picker cannot open", async () => {
+    const user = userEvent.setup();
+    mockedOpenDialog.mockRejectedValueOnce(new Error("dialog unavailable"));
+
+    render(<AddLibraryForm onAdded={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: /browse/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/could not open the folder picker/i)).toBeDefined(),
+    );
+  });
+
   it("shows an error message when invoke rejects", async () => {
     const user = userEvent.setup();
     mockedInvoke.mockRejectedValueOnce({ kind: "emptyName" });

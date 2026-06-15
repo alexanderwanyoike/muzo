@@ -39,8 +39,16 @@ export default function LibraryList({
         const count = trackCounts[library.id] ?? 0;
         const isScanning = scanningLibraryId === library.id;
         const isSelected = selectedLibraryId === library.id;
+        const trackContent = isSelected ? TrackListSlot(library.id) : null;
         return (
-          <li key={library.id} className="library-list__item">
+          <li
+            key={library.id}
+            className={
+              isSelected
+                ? "library-list__item library-list__item--selected"
+                : "library-list__item"
+            }
+          >
             <div className="library-list__row">
               <button
                 type="button"
@@ -66,15 +74,16 @@ export default function LibraryList({
                   type="button"
                   disabled={isScanning}
                   onClick={() => onScan(library.id)}
+                  aria-label={`Scan source ${library.name}`}
                 >
                   {isScanning ? "Scanning..." : "Scan"}
                 </button>
               </div>
             </div>
 
-            {isSelected && (
+            {trackContent && (
               <div className="library-list__tracks">
-                {TrackListSlot(library.id)}
+                {trackContent}
               </div>
             )}
           </li>

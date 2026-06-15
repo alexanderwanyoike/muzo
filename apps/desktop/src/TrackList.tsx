@@ -7,6 +7,8 @@ interface TrackListProps {
   currentTrackId: string | null;
   isPlaying: boolean;
   onPlayTrack: (track: TrackDto) => void;
+  refreshKey?: number;
+  onTracksLoaded?: (libraryId: string, trackCount: number) => void;
 }
 
 export default function TrackList({
@@ -14,6 +16,8 @@ export default function TrackList({
   currentTrackId,
   isPlaying,
   onPlayTrack,
+  refreshKey = 0,
+  onTracksLoaded,
 }: TrackListProps) {
   const [tracks, setTracks] = useState<TrackDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,10 @@ export default function TrackList({
     setError(null);
     listTracks(libraryId)
       .then((result) => {
-        if (!cancelled) setTracks(result);
+        if (!cancelled) {
+          setTracks(result);
+          onTracksLoaded?.(libraryId, result.length);
+        }
       })
       .catch((err: { message?: string }) => {
         if (!cancelled) {
@@ -34,7 +41,7 @@ export default function TrackList({
     return () => {
       cancelled = true;
     };
-  }, [libraryId]);
+  }, [libraryId, onTracksLoaded, refreshKey]);
 
   if (error) {
     return <p className="track-list__error">{error}</p>;
