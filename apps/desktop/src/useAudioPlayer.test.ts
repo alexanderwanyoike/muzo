@@ -3,8 +3,13 @@ import { renderHook, act } from "@testing-library/react";
 import { useAudioPlayer } from "./useAudioPlayer";
 import type { TrackDto } from "./api";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  convertFileSrc: vi.fn((path: string) => `asset://${path}`),
+const apiMocks = vi.hoisted(() => ({
+  loadTrackAudioSource: vi.fn(),
+}));
+
+vi.mock("./api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./api")>()),
+  loadTrackAudioSource: apiMocks.loadTrackAudioSource,
 }));
 
 type Listener = (event: unknown) => void;
@@ -58,7 +63,20 @@ class MockAudio {
 beforeEach(() => {
   MockAudio.instances = [];
   MockAudio.nextPlayError = null;
+  apiMocks.loadTrackAudioSource.mockReset();
+  apiMocks.loadTrackAudioSource.mockResolvedValue({
+    mimeType: "audio/mpeg",
+    bytes: [1, 2, 3],
+  });
   vi.stubGlobal("Audio", MockAudio);
+  Object.defineProperty(URL, "createObjectURL", {
+    configurable: true,
+    value: vi.fn(() => "blob:track-audio"),
+  });
+  Object.defineProperty(URL, "revokeObjectURL", {
+    configurable: true,
+    value: vi.fn(),
+  });
 });
 
 const track: TrackDto = {
@@ -77,15 +95,20 @@ describe("useAudioPlayer", () => {
     expect(result.current.current).toBeNull();
   });
 
-  it("loads the converted file source and waits for the audio engine to start", () => {
+  it("loads a blob audio source and waits for the audio engine to start", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
-    act(() => {
+    await act(async () => {
       result.current.play(track);
     });
 
     const audio = MockAudio.instances[0];
-    expect(audio.src).toBe("asset:///music/Eagles/Hotel California.mp3");
+    expect(apiMocks.loadTrackAudioSource).toHaveBeenCalledWith({
+      libraryId: "lib-1",
+      trackId: "trk-1",
+    });
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(audio.src).toBe("blob:track-audio");
     expect(audio.load).toHaveBeenCalledOnce();
     expect(result.current.current).toEqual(track);
     expect(result.current.status).toBe("loading");
@@ -97,10 +120,10 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("playing");
   });
 
-  it("toggles between playing and paused", () => {
+  it("toggles between playing and paused", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
-    act(() => {
+    await act(async () => {
       result.current.play(track);
     });
     act(() => {
@@ -124,10 +147,10 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("playing");
   });
 
-  it("updates position when seek is called", () => {
+  it("updates position when seek is called", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
-    act(() => {
+    await act(async () => {
       result.current.play(track);
     });
     act(() => {
@@ -167,10 +190,10 @@ describe("useAudioPlayer", () => {
     expect(result.current.current).toBeNull();
   });
 
-  it("reports an error when the audio element fails to load the source", () => {
+  it("reports an error when the audio element fails to load the source", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
-    act(() => {
+    await act(async () => {
       result.current.play(track);
     });
     act(() => {
@@ -192,5 +215,18 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("error");
     expect(result.current.playbackError).toContain("NotSupportedError");
     expect(result.current.playbackError).toContain("The element has no supported sources.");
+  });
+
+  it("reports an error when the track audio source cannot be loaded", async () => {
+    apiMocks.loadTrackAudioSource.mockRejectedValue(new Error("track file is missing"));
+    const { result } = renderHook(() => useAudioPlayer());
+
+    await act(async () => {
+      result.current.play(track);
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.playbackError).toContain("Could not play this track");
+    expect(result.current.playbackError).toContain("track file is missing");
   });
 });

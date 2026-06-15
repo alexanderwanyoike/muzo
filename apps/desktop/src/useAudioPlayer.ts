@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
-import type { TrackDto } from "./api";
+import { loadTrackAudioSource, type TrackDto } from "./api";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -35,6 +34,8 @@ interface AudioElementLike {
 
 export function useAudioPlayer(): AudioPlayer {
   const audioRef = useRef<AudioElementLike | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const playRequestRef = useRef(0);
   const [current, setCurrent] = useState<TrackDto | null>(null);
   const [status, setStatus] = useState<PlayerStatus>("idle");
   const [positionSeconds, setPositionSeconds] = useState(0);
@@ -82,6 +83,10 @@ export function useAudioPlayer(): AudioPlayer {
       audio.removeEventListener("waiting", onWaiting);
       audio.removeEventListener("stalled", onWaiting);
       audio.removeEventListener("error", onError);
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
       cleanup();
     };
   }, []);
@@ -89,17 +94,14 @@ export function useAudioPlayer(): AudioPlayer {
   const play = useCallback((track: TrackDto) => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.src = convertFileSrc(track.filePath);
-    audio.load();
+    const requestId = playRequestRef.current + 1;
+    playRequestRef.current = requestId;
     setCurrent(track);
     setPositionSeconds(0);
     setDurationSeconds(track.durationSeconds || 0);
     setPlaybackError(null);
     setStatus("loading");
-    void Promise.resolve(audio.play()).catch((err: unknown) => {
-      setStatus("error");
-      setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
-    });
+    void loadAndPlayTrack(audio, track, requestId, playRequestRef, objectUrlRef, setStatus, setPlaybackError);
   }, []);
 
   const toggle = useCallback(() => {
@@ -158,6 +160,48 @@ export function useAudioPlayer(): AudioPlayer {
       setVolume,
     ],
   );
+}
+
+async function loadAndPlayTrack(
+  audio: AudioElementLike,
+  track: TrackDto,
+  requestId: number,
+  playRequestRef: React.MutableRefObject<number>,
+  objectUrlRef: React.MutableRefObject<string | null>,
+  setStatus: React.Dispatch<React.SetStateAction<PlayerStatus>>,
+  setPlaybackError: React.Dispatch<React.SetStateAction<string | null>>,
+) {
+  let source;
+  try {
+    source = await loadTrackAudioSource({
+      libraryId: track.libraryId,
+      trackId: track.id,
+    });
+  } catch (err) {
+    if (requestId !== playRequestRef.current) return;
+    setStatus("error");
+    setPlaybackError(formatPlaybackError("The audio source could not be loaded", err));
+    return;
+  }
+
+  if (requestId !== playRequestRef.current) return;
+  const objectUrl = URL.createObjectURL(
+    new Blob([new Uint8Array(source.bytes)], { type: source.mimeType }),
+  );
+  if (objectUrlRef.current) {
+    URL.revokeObjectURL(objectUrlRef.current);
+  }
+  objectUrlRef.current = objectUrl;
+  audio.src = objectUrl;
+  audio.load();
+
+  try {
+    await Promise.resolve(audio.play());
+  } catch (err) {
+    if (requestId !== playRequestRef.current) return;
+    setStatus("error");
+    setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
+  }
 }
 
 function createAudioElement(): { audio: AudioElementLike; cleanup: () => void } {

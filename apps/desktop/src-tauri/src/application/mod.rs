@@ -7,5 +7,6 @@
 pub mod add_library;
 pub mod error;
 pub mod list_libraries;
+pub mod load_track_audio_source;
 pub mod ping;
 pub mod scan_library;
