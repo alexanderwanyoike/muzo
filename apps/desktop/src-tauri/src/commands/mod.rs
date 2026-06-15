@@ -7,3 +7,4 @@
 pub mod add_library;
 pub mod list_libraries;
 pub mod ping;
+pub mod scan_library;
