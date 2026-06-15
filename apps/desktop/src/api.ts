@@ -21,3 +21,26 @@ export async function addLibrary(input: {
 export async function listLibraries(): Promise<LibraryDto[]> {
   return invoke<LibraryDto[]>("list_libraries");
 }
+
+export interface ScanReport {
+  tracksScanned: number;
+}
+
+export async function scanLibrary(libraryId: string): Promise<ScanReport> {
+  return invoke<ScanReport>("scan_library", {
+    input: { libraryId },
+  });
+}
+
+export interface TrackDto {
+  id: string;
+  libraryId: string;
+  title: string;
+  artist: string;
+  durationSeconds: number;
+  filePath: string;
+}
+
+export async function listTracks(libraryId: string): Promise<TrackDto[]> {
+  return invoke<TrackDto[]>("list_tracks", { libraryId });
+}
