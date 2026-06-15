@@ -43,7 +43,7 @@ export function useAudioPlayer(): AudioPlayer {
   const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   useEffect(() => {
-    const audio = createAudioElement();
+    const { audio, cleanup } = createAudioElement();
     audioRef.current = audio;
 
     const onTimeUpdate = () => setPositionSeconds(audio.currentTime);
@@ -82,6 +82,7 @@ export function useAudioPlayer(): AudioPlayer {
       audio.removeEventListener("waiting", onWaiting);
       audio.removeEventListener("stalled", onWaiting);
       audio.removeEventListener("error", onError);
+      cleanup();
     };
   }, []);
 
@@ -95,9 +96,9 @@ export function useAudioPlayer(): AudioPlayer {
     setDurationSeconds(track.durationSeconds || 0);
     setPlaybackError(null);
     setStatus("loading");
-    void Promise.resolve(audio.play()).catch(() => {
+    void Promise.resolve(audio.play()).catch((err: unknown) => {
       setStatus("error");
-      setPlaybackError("Could not play this track. The audio engine rejected playback.");
+      setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
     });
   }, []);
 
@@ -107,9 +108,9 @@ export function useAudioPlayer(): AudioPlayer {
     if (audio.paused) {
       setPlaybackError(null);
       setStatus("loading");
-      void Promise.resolve(audio.play()).catch(() => {
+      void Promise.resolve(audio.play()).catch((err: unknown) => {
         setStatus("error");
-        setPlaybackError("Could not play this track. The audio engine rejected playback.");
+        setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
       });
     } else {
       audio.pause();
@@ -159,11 +160,42 @@ export function useAudioPlayer(): AudioPlayer {
   );
 }
 
-function createAudioElement(): AudioElementLike {
+function createAudioElement(): { audio: AudioElementLike; cleanup: () => void } {
   if (typeof Audio !== "undefined") {
-    return new Audio() as unknown as AudioElementLike;
+    const audio = new Audio() as unknown as AudioElementLike;
+    const maybeDomAudio = audio as Partial<HTMLAudioElement>;
+    maybeDomAudio.preload = "auto";
+    if (maybeDomAudio.style) {
+      maybeDomAudio.style.display = "none";
+    }
+    if (typeof document !== "undefined" && maybeDomAudio instanceof Node) {
+      document.body.appendChild(maybeDomAudio);
+      return {
+        audio,
+        cleanup: () => maybeDomAudio.remove?.(),
+      };
+    }
+    return { audio, cleanup: () => {} };
   }
-  return createStubAudioElement();
+  return { audio: createStubAudioElement(), cleanup: () => {} };
+}
+
+function formatPlaybackError(reason: string, err: unknown): string {
+  if (err instanceof Error) {
+    return `Could not play this track. ${reason}: ${err.name}: ${err.message}`;
+  }
+  if (isErrorLike(err)) {
+    return `Could not play this track. ${reason}: ${err.name}: ${err.message}`;
+  }
+  if (typeof err === "string" && err.trim() !== "") {
+    return `Could not play this track. ${reason}: ${err}`;
+  }
+  return `Could not play this track. ${reason}.`;
+}
+
+function isErrorLike(err: unknown): err is { name: string; message: string } {
+  if (!err || typeof err !== "object") return false;
+  return "name" in err && "message" in err && typeof err.name === "string" && typeof err.message === "string";
 }
 
 function createStubAudioElement(): AudioElementLike {

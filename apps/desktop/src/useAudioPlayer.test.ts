@@ -11,6 +11,7 @@ type Listener = (event: unknown) => void;
 
 class MockAudio {
   static instances: MockAudio[] = [];
+  static nextPlayError: Error | null = null;
 
   src = "";
   currentTime = 0;
@@ -25,6 +26,11 @@ class MockAudio {
   }
 
   play() {
+    if (MockAudio.nextPlayError) {
+      const error = MockAudio.nextPlayError;
+      MockAudio.nextPlayError = null;
+      return Promise.reject(error);
+    }
     this.paused = false;
     this.listeners.get("play")?.forEach((fn) => fn({}));
     return Promise.resolve();
@@ -51,6 +57,7 @@ class MockAudio {
 
 beforeEach(() => {
   MockAudio.instances = [];
+  MockAudio.nextPlayError = null;
   vi.stubGlobal("Audio", MockAudio);
 });
 
@@ -172,5 +179,18 @@ describe("useAudioPlayer", () => {
 
     expect(result.current.status).toBe("error");
     expect(result.current.playbackError).toMatch(/could not play/i);
+  });
+
+  it("includes the rejected play error details", async () => {
+    MockAudio.nextPlayError = new DOMException("The element has no supported sources.", "NotSupportedError");
+    const { result } = renderHook(() => useAudioPlayer());
+
+    await act(async () => {
+      result.current.play(track);
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.playbackError).toContain("NotSupportedError");
+    expect(result.current.playbackError).toContain("The element has no supported sources.");
   });
 });
