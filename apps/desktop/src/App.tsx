@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
+import TrackList from "./TrackList";
+import NowPlayingBar from "./NowPlayingBar";
+import { useAudioPlayer } from "./useAudioPlayer";
 import { listLibraries, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
@@ -10,10 +13,23 @@ interface ListError {
 }
 
 export default function App() {
+  const {
+    current,
+    status,
+    positionSeconds,
+    durationSeconds,
+    volume,
+    play,
+    toggle,
+    seek,
+    setVolume,
+  } = useAudioPlayer();
+
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
@@ -61,8 +77,12 @@ export default function App() {
     }
   }
 
+  function handleSelect(libraryId: string | null) {
+    setSelectedLibraryId(libraryId);
+  }
+
   return (
-    <main className="app">
+    <main className="app app--has-player">
       <header className="app__header">
         <h1>Muzo</h1>
         <p className="app__tagline">Your music, your libraries.</p>
@@ -92,10 +112,31 @@ export default function App() {
             libraries={libraries}
             trackCounts={trackCounts}
             scanningLibraryId={scanningLibraryId}
+            selectedLibraryId={selectedLibraryId}
             onScan={handleScan}
+            onSelect={handleSelect}
+            renderTracks={(libraryId) => (
+              <TrackList
+                libraryId={libraryId}
+                currentTrackId={current?.id ?? null}
+                isPlaying={status === "playing"}
+                onPlayTrack={play}
+              />
+            )}
           />
         )}
       </section>
+
+      <NowPlayingBar
+        current={current}
+        status={status}
+        positionSeconds={positionSeconds}
+        durationSeconds={durationSeconds}
+        volume={volume}
+        onToggle={toggle}
+        onSeek={seek}
+        onSetVolume={setVolume}
+      />
     </main>
   );
 }

@@ -4,6 +4,7 @@ import App from "./App";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  convertFileSrc: vi.fn((path: string) => `asset://${path}`),
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
@@ -36,8 +37,6 @@ describe("App", () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByText("My Music")).toBeDefined(),
-    );
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
   });
 });
