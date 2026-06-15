@@ -28,7 +28,7 @@ export default function LibraryList({
   if (libraries.length === 0) {
     return (
       <p className="library-list__empty">
-        No libraries yet. Add one above to get started.
+        No libraries yet. Add one in Settings.
       </p>
     );
   }

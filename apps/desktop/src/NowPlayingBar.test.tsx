@@ -14,20 +14,22 @@ const track: TrackDto = {
 };
 
 describe("NowPlayingBar", () => {
-  it("renders nothing when there is no current track", () => {
-    const { container } = render(
+  it("renders an idle transport when there is no current track", () => {
+    render(
       <NowPlayingBar
         current={null}
         status="idle"
         positionSeconds={0}
         durationSeconds={0}
         volume={1}
+        playbackError={null}
         onToggle={() => {}}
         onSeek={() => {}}
         onSetVolume={() => {}}
       />,
     );
-    expect(container.innerHTML).toBe("");
+    expect(screen.getByText("Not Playing")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Play" }).hasAttribute("disabled")).toBe(true);
   });
 
   it("shows the track title and artist when a track is loaded", () => {
@@ -38,6 +40,7 @@ describe("NowPlayingBar", () => {
         positionSeconds={0}
         durationSeconds={391}
         volume={1}
+        playbackError={null}
         onToggle={() => {}}
         onSeek={() => {}}
         onSetVolume={() => {}}
@@ -59,6 +62,7 @@ describe("NowPlayingBar", () => {
         positionSeconds={0}
         durationSeconds={391}
         volume={1}
+        playbackError={null}
         onToggle={onToggle}
         onSeek={() => {}}
         onSetVolume={() => {}}
@@ -77,6 +81,7 @@ describe("NowPlayingBar", () => {
         positionSeconds={120}
         durationSeconds={391}
         volume={1}
+        playbackError={null}
         onToggle={() => {}}
         onSeek={() => {}}
         onSetVolume={() => {}}
@@ -94,6 +99,7 @@ describe("NowPlayingBar", () => {
         positionSeconds={120}
         durationSeconds={391}
         volume={1}
+        playbackError={null}
         onToggle={() => {}}
         onSeek={() => {}}
         onSetVolume={() => {}}
@@ -102,5 +108,23 @@ describe("NowPlayingBar", () => {
 
     expect(screen.getByText("2:00")).toBeDefined();
     expect(screen.getByText("6:31")).toBeDefined();
+  });
+
+  it("shows playback errors", () => {
+    render(
+      <NowPlayingBar
+        current={track}
+        status="error"
+        positionSeconds={0}
+        durationSeconds={391}
+        volume={1}
+        playbackError="Could not play this track."
+        onToggle={() => {}}
+        onSeek={() => {}}
+        onSetVolume={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Could not play this track.")).toBeDefined();
   });
 });

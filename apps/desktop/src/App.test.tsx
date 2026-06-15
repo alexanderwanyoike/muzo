@@ -44,6 +44,30 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("No music yet")).toBeDefined());
   });
 
+  it("keeps library import controls out of the main listening view", async () => {
+    mockedInvoke.mockResolvedValue([]);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("No music yet")).toBeDefined());
+    expect(screen.queryByRole("button", { name: /browse/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /add library/i })).toBeNull();
+  });
+
+  it("shows library import controls in settings", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockResolvedValue([]);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("No music yet")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
+    expect(screen.getByRole("button", { name: /browse/i })).toBeDefined();
+    expect(screen.getByRole("button", { name: /add library/i })).toBeDefined();
+  });
+
   it("loads libraries on mount and renders them", async () => {
     mockedInvoke.mockResolvedValue([library]);
 

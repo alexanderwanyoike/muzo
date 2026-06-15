@@ -40,15 +40,18 @@ button {
 .app-shell {
   min-height: 100vh;
   display: grid;
+  grid-template-rows: 86px minmax(0, 1fr);
   grid-template-columns: 280px minmax(0, 1fr);
   background: var(--panel);
 }
 
 .app--has-player {
-  padding-bottom: 88px;
+  padding-bottom: 0;
 }
 
 .app-sidebar {
+  grid-row: 2;
+  grid-column: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -99,7 +102,37 @@ button {
   border-top: 1px solid var(--line-dark);
 }
 
+.app-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.2rem 0;
+}
+
+.app-sidebar__nav-item {
+  width: 100%;
+  min-height: 34px;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #d8d1c5;
+  text-align: left;
+  font-weight: 700;
+}
+
+.app-sidebar__nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.app-sidebar__nav-item--active {
+  background: #34343b;
+  color: #fffaf0;
+}
+
 .app-content {
+  grid-row: 2;
+  grid-column: 2;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -187,6 +220,17 @@ button {
 
 .app-content__empty p {
   margin: 0;
+}
+
+.app-content__empty-action {
+  margin-top: 1rem;
+  min-height: 34px;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid #bba98f;
+  border-radius: 6px;
+  background: #fffdf7;
+  color: var(--text);
+  font-weight: 700;
 }
 
 .app__error,
@@ -417,19 +461,20 @@ button {
 }
 
 .now-playing-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  min-height: 88px;
+  grid-row: 1;
+  grid-column: 1 / -1;
+  min-height: 86px;
   display: grid;
   grid-template-columns: minmax(180px, 1fr) minmax(280px, 2fr) minmax(150px, 1fr);
   align-items: center;
   gap: 1rem;
   padding: 0.85rem 1rem;
   color: var(--text-inverse);
-  background: linear-gradient(180deg, #2d2d33, #17171b);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+    #1d1d22;
   border-top: 1px solid #050506;
+  border-bottom: 1px solid #050506;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
   z-index: 100;
 }
@@ -456,6 +501,15 @@ button {
   font-size: 0.82rem;
 }
 
+.now-playing-bar__error {
+  margin-top: 0.12rem;
+  color: #ffc7b8;
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .now-playing-bar__controls {
   min-width: 0;
   display: grid;
@@ -474,6 +528,11 @@ button {
   background: #f8efe1;
   color: #17120e;
   font-size: 0.82rem;
+}
+
+.now-playing-bar__play:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
 }
 
 .now-playing-bar__time {
@@ -517,11 +576,68 @@ button {
   accent-color: var(--accent);
 }
 
+.settings-view {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.settings-view__section {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.45fr) minmax(260px, 0.55fr);
+  gap: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.settings-view__section h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.settings-view__section p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.settings-view__sources {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.settings-view__sources li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fffdf7;
+}
+
+.settings-view__sources span {
+  font-weight: 700;
+}
+
+.settings-view__sources code {
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .add-library-form {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  padding: 0 0.5rem 0.2rem;
+  padding: 0;
 }
 
 .add-library-form__field {
@@ -530,6 +646,10 @@ button {
   gap: 0.28rem;
   color: #c8c1b8;
   font-size: 0.78rem;
+}
+
+.settings-view .add-library-form__field {
+  color: var(--text-muted);
 }
 
 .add-library-form__field input {
@@ -542,6 +662,12 @@ button {
   color: var(--text-inverse);
 }
 
+.settings-view .add-library-form__field input {
+  background-color: #fffdf7;
+  border-color: var(--line);
+  color: var(--text);
+}
+
 .add-library-form__field button {
   align-self: flex-start;
   padding: 0.3rem 0.65rem;
@@ -549,6 +675,12 @@ button {
   background: #24242a;
   color: var(--text-inverse);
   font-size: 0.8rem;
+}
+
+.settings-view .add-library-form__field button {
+  border-color: var(--line);
+  background: #fffdf7;
+  color: var(--text);
 }
 
 .add-library-form button[type="submit"] {
@@ -572,15 +704,29 @@ button {
 @media (max-width: 820px) {
   .app-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
 
   .app-sidebar {
+    grid-row: 2;
+    grid-column: 1;
     max-height: none;
   }
 
   .now-playing-bar {
+    grid-row: 1;
+    grid-column: 1;
     grid-template-columns: 1fr;
     gap: 0.65rem;
+  }
+
+  .app-content {
+    grid-row: 3;
+    grid-column: 1;
+  }
+
+  .settings-view__section {
+    grid-template-columns: 1fr;
   }
 
   .track-list__row {

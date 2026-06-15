@@ -10,12 +10,19 @@ vi.mock("@tauri-apps/api/core", () => ({
 type Listener = (event: unknown) => void;
 
 class MockAudio {
+  static instances: MockAudio[] = [];
+
   src = "";
   currentTime = 0;
   duration = 0;
   volume = 1;
   paused = true;
+  load = vi.fn();
   private listeners = new Map<string, Set<Listener>>();
+
+  constructor() {
+    MockAudio.instances.push(this);
+  }
 
   play() {
     this.paused = false;
@@ -37,9 +44,13 @@ class MockAudio {
   removeEventListener(type: string, listener: Listener) {
     this.listeners.get(type)?.delete(listener);
   }
+  emit(type: string) {
+    this.listeners.get(type)?.forEach((fn) => fn({}));
+  }
 }
 
 beforeEach(() => {
+  MockAudio.instances = [];
   vi.stubGlobal("Audio", MockAudio);
 });
 
@@ -49,7 +60,7 @@ const track: TrackDto = {
   title: "Hotel California",
   artist: "Eagles",
   durationSeconds: 391,
-  filePath: "asset://localhost/music/Hotel%20California.mp3",
+  filePath: "/music/Eagles/Hotel California.mp3",
 };
 
 describe("useAudioPlayer", () => {
@@ -59,14 +70,23 @@ describe("useAudioPlayer", () => {
     expect(result.current.current).toBeNull();
   });
 
-  it("sets the current track and switches to playing when play is called", () => {
+  it("loads the converted file source and waits for the audio engine to start", () => {
     const { result } = renderHook(() => useAudioPlayer());
 
     act(() => {
       result.current.play(track);
     });
 
+    const audio = MockAudio.instances[0];
+    expect(audio.src).toBe("asset:///music/Eagles/Hotel California.mp3");
+    expect(audio.load).toHaveBeenCalledOnce();
     expect(result.current.current).toEqual(track);
+    expect(result.current.status).toBe("loading");
+
+    act(() => {
+      audio.emit("playing");
+    });
+
     expect(result.current.status).toBe("playing");
   });
 
@@ -75,6 +95,9 @@ describe("useAudioPlayer", () => {
 
     act(() => {
       result.current.play(track);
+    });
+    act(() => {
+      MockAudio.instances[0].emit("playing");
     });
     expect(result.current.status).toBe("playing");
 
@@ -85,6 +108,11 @@ describe("useAudioPlayer", () => {
 
     act(() => {
       result.current.toggle();
+    });
+    expect(result.current.status).toBe("loading");
+
+    act(() => {
+      MockAudio.instances[0].emit("playing");
     });
     expect(result.current.status).toBe("playing");
   });
@@ -130,5 +158,19 @@ describe("useAudioPlayer", () => {
 
     expect(result.current.status).toBe("idle");
     expect(result.current.current).toBeNull();
+  });
+
+  it("reports an error when the audio element fails to load the source", () => {
+    const { result } = renderHook(() => useAudioPlayer());
+
+    act(() => {
+      result.current.play(track);
+    });
+    act(() => {
+      MockAudio.instances[0].emit("error");
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.playbackError).toMatch(/could not play/i);
   });
 });

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import type { TrackDto } from "./api";
 
-export type PlayerStatus = "idle" | "playing" | "paused";
+export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
 export interface AudioPlayerState {
   current: TrackDto | null;
@@ -10,6 +10,7 @@ export interface AudioPlayerState {
   positionSeconds: number;
   durationSeconds: number;
   volume: number;
+  playbackError: string | null;
 }
 
 export interface AudioPlayer extends AudioPlayerState {
@@ -25,6 +26,7 @@ interface AudioElementLike {
   duration: number;
   volume: number;
   paused: boolean;
+  load: () => void;
   play: () => Promise<void> | void;
   pause: () => void;
   addEventListener: (type: string, listener: (event: unknown) => void) => void;
@@ -38,6 +40,7 @@ export function useAudioPlayer(): AudioPlayer {
   const [positionSeconds, setPositionSeconds] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [volume, setVolumeState] = useState(1);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   useEffect(() => {
     const audio = createAudioElement();
@@ -46,21 +49,39 @@ export function useAudioPlayer(): AudioPlayer {
     const onTimeUpdate = () => setPositionSeconds(audio.currentTime);
     const onDurationChange = () => setDurationSeconds(audio.duration || 0);
     const onEnded = () => setStatus("paused");
-    const onPlay = () => setStatus("playing");
+    const onPlaying = () => {
+      setPlaybackError(null);
+      setStatus("playing");
+    };
     const onPause = () => setStatus("paused");
+    const onWaiting = () => {
+      setStatus((previous) =>
+        previous === "playing" || previous === "loading" ? "loading" : previous,
+      );
+    };
+    const onError = () => {
+      setStatus("error");
+      setPlaybackError("Could not play this track. The audio source failed to load.");
+    };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("ended", onEnded);
-    audio.addEventListener("play", onPlay);
+    audio.addEventListener("playing", onPlaying);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("stalled", onWaiting);
+    audio.addEventListener("error", onError);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("durationchange", onDurationChange);
       audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("playing", onPlaying);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("stalled", onWaiting);
+      audio.removeEventListener("error", onError);
     };
   }, []);
 
@@ -68,17 +89,28 @@ export function useAudioPlayer(): AudioPlayer {
     const audio = audioRef.current;
     if (!audio) return;
     audio.src = convertFileSrc(track.filePath);
-    void audio.play();
+    audio.load();
     setCurrent(track);
     setPositionSeconds(0);
     setDurationSeconds(track.durationSeconds || 0);
+    setPlaybackError(null);
+    setStatus("loading");
+    void Promise.resolve(audio.play()).catch(() => {
+      setStatus("error");
+      setPlaybackError("Could not play this track. The audio engine rejected playback.");
+    });
   }, []);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
     if (audio.paused) {
-      void audio.play();
+      setPlaybackError(null);
+      setStatus("loading");
+      void Promise.resolve(audio.play()).catch(() => {
+        setStatus("error");
+        setPlaybackError("Could not play this track. The audio engine rejected playback.");
+      });
     } else {
       audio.pause();
     }
@@ -106,6 +138,7 @@ export function useAudioPlayer(): AudioPlayer {
       positionSeconds,
       durationSeconds,
       volume,
+      playbackError,
       play,
       toggle,
       seek,
@@ -117,6 +150,7 @@ export function useAudioPlayer(): AudioPlayer {
       positionSeconds,
       durationSeconds,
       volume,
+      playbackError,
       play,
       toggle,
       seek,
@@ -169,9 +203,10 @@ function createStubAudioElement(): AudioElementLike {
     get paused() {
       return state.paused;
     },
+    load: () => {},
     play: () => {
       state.paused = false;
-      listeners.get("play")?.forEach((fn) => fn({}));
+      listeners.get("playing")?.forEach((fn) => fn({}));
       return Promise.resolve();
     },
     pause: () => {

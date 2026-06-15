@@ -3,10 +3,11 @@ import type { TrackDto } from "./api";
 
 interface NowPlayingBarProps {
   current: TrackDto | null;
-  status: "idle" | "playing" | "paused";
+  status: "idle" | "loading" | "playing" | "paused" | "error";
   positionSeconds: number;
   durationSeconds: number;
   volume: number;
+  playbackError: string | null;
   onToggle: () => void;
   onSeek: (seconds: number) => void;
   onSetVolume: (value: number) => void;
@@ -18,17 +19,18 @@ export default function NowPlayingBar({
   positionSeconds,
   durationSeconds,
   volume,
+  playbackError,
   onToggle,
   onSeek,
   onSetVolume,
 }: NowPlayingBarProps) {
-  if (!current) {
-    return null;
-  }
-
   const progress = durationSeconds > 0 ? (positionSeconds / durationSeconds) * 100 : 0;
+  const title = current?.title ?? "Not Playing";
+  const artist = current?.artist ?? "Select a track";
+  const isPlayable = current !== null;
 
   function handleProgressBarClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (!isPlayable || durationSeconds <= 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const fraction = x / rect.width;
@@ -38,8 +40,11 @@ export default function NowPlayingBar({
   return (
     <div className="now-playing-bar">
       <div className="now-playing-bar__track">
-        <div className="now-playing-bar__title">{current.title}</div>
-        <div className="now-playing-bar__artist">{current.artist}</div>
+        <div className="now-playing-bar__title">{title}</div>
+        <div className="now-playing-bar__artist">{artist}</div>
+        {playbackError && (
+          <div className="now-playing-bar__error">{playbackError}</div>
+        )}
       </div>
 
       <div className="now-playing-bar__controls">
@@ -48,8 +53,9 @@ export default function NowPlayingBar({
           className="now-playing-bar__play"
           onClick={onToggle}
           aria-label={status === "playing" ? "Pause" : "Play"}
+          disabled={!isPlayable}
         >
-          {status === "playing" ? "❚❚" : "▶"}
+          {status === "playing" ? "❚❚" : status === "loading" ? "…" : "▶"}
         </button>
 
         <span className="now-playing-bar__time">
@@ -64,6 +70,7 @@ export default function NowPlayingBar({
           aria-valuemin={0}
           aria-valuemax={Math.max(0, durationSeconds)}
           aria-valuenow={positionSeconds}
+          aria-disabled={!isPlayable}
           tabIndex={0}
         >
           <div

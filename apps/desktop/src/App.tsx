@@ -7,6 +7,8 @@ import { useAudioPlayer } from "./useAudioPlayer";
 import { listLibraries, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
+type ActiveView = "library" | "settings";
+
 interface ListError {
   kind: string;
   message?: string;
@@ -19,6 +21,7 @@ export default function App() {
     positionSeconds,
     durationSeconds,
     volume,
+    playbackError,
     play,
     toggle,
     seek,
@@ -31,6 +34,7 @@ export default function App() {
   const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>("library");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
@@ -74,11 +78,13 @@ export default function App() {
 
   function handleSelect(libraryId: string | null) {
     setSelectedLibraryId(libraryId);
+    setActiveView("library");
   }
 
   function handleLibraryAdded(library: LibraryDto) {
     setLibraries((prev) => (prev ? [...prev, library] : [library]));
     setSelectedLibraryId(library.id);
+    setActiveView("library");
     setTrackCounts((prev) => ({ ...prev, [library.id]: 0 }));
   }
 
@@ -103,8 +109,33 @@ export default function App() {
           </div>
         </header>
 
+        <nav className="app-sidebar__nav" aria-label="Primary">
+          <button
+            type="button"
+            className={
+              activeView === "library"
+                ? "app-sidebar__nav-item app-sidebar__nav-item--active"
+                : "app-sidebar__nav-item"
+            }
+            onClick={() => setActiveView("library")}
+          >
+            Songs
+          </button>
+          <button
+            type="button"
+            className={
+              activeView === "settings"
+                ? "app-sidebar__nav-item app-sidebar__nav-item--active"
+                : "app-sidebar__nav-item"
+            }
+            onClick={() => setActiveView("settings")}
+          >
+            Settings
+          </button>
+        </nav>
+
         <section className="app-sidebar__section">
-          <h2>Library</h2>
+          <h2>Sources</h2>
           {libraries === null ? (
             <p className="app__placeholder">Loading...</p>
           ) : (
@@ -119,31 +150,35 @@ export default function App() {
             />
           )}
         </section>
-
-        <section className="app-sidebar__section app-sidebar__section--add">
-          <h2>Add folder</h2>
-          <AddLibraryForm onAdded={handleLibraryAdded} />
-        </section>
       </aside>
 
       <section className="app-content">
-        <header className="app-content__toolbar">
-          <div>
-            <p className="app-content__eyebrow">Now browsing</p>
-            <h2>{selectedLibrary?.name ?? "No library selected"}</h2>
-          </div>
-          {selectedLibrary && (
-            <button
-              type="button"
-              className="app-content__scan"
-              disabled={scanningLibraryId === selectedLibrary.id}
-              onClick={() => handleScan(selectedLibrary.id)}
-              aria-label="Scan selected library"
-            >
-              {scanningLibraryId === selectedLibrary.id ? "Scanning..." : "Scan"}
-            </button>
-          )}
-        </header>
+        {activeView === "library" ? (
+          <header className="app-content__toolbar">
+            <div>
+              <p className="app-content__eyebrow">Library</p>
+              <h2>{selectedLibrary?.name ?? "Songs"}</h2>
+            </div>
+            {selectedLibrary && (
+              <button
+                type="button"
+                className="app-content__scan"
+                disabled={scanningLibraryId === selectedLibrary.id}
+                onClick={() => handleScan(selectedLibrary.id)}
+                aria-label="Scan selected library"
+              >
+                {scanningLibraryId === selectedLibrary.id ? "Scanning..." : "Scan"}
+              </button>
+            )}
+          </header>
+        ) : (
+          <header className="app-content__toolbar">
+            <div>
+              <p className="app-content__eyebrow">Preferences</p>
+              <h2>Settings</h2>
+            </div>
+          </header>
+        )}
 
         {error && (
           <p role="alert" className="app__error">
@@ -155,7 +190,35 @@ export default function App() {
             {scanMessage}
           </p>
         )}
-        {libraries === null ? (
+        {activeView === "settings" ? (
+          <div className="settings-view">
+            <section className="settings-view__section">
+              <div>
+                <h3>Library folders</h3>
+                <p>
+                  Add folders here. The listening view stays focused on browsing
+                  and playback.
+                </p>
+              </div>
+              <AddLibraryForm onAdded={handleLibraryAdded} />
+            </section>
+
+            <section className="settings-view__section">
+              <div>
+                <h3>Indexed sources</h3>
+                <p>{libraries?.length ?? 0} configured library folders.</p>
+              </div>
+              <ul className="settings-view__sources">
+                {(libraries ?? []).map((library) => (
+                  <li key={library.id}>
+                    <span>{library.name}</span>
+                    <code>{library.location}</code>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+        ) : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (
           <div className="app-content__tracks">
@@ -171,7 +234,14 @@ export default function App() {
         ) : (
           <div className="app-content__empty">
             <h2>No music yet</h2>
-            <p>Add a folder from the sidebar, scan it, then pick a track.</p>
+            <p>Add a folder in Settings, scan it, then pick a track.</p>
+            <button
+              type="button"
+              className="app-content__empty-action"
+              onClick={() => setActiveView("settings")}
+            >
+              Open Settings
+            </button>
           </div>
         )}
       </section>
@@ -182,6 +252,7 @@ export default function App() {
         positionSeconds={positionSeconds}
         durationSeconds={durationSeconds}
         volume={volume}
+        playbackError={playbackError}
         onToggle={toggle}
         onSeek={seek}
         onSetVolume={setVolume}
