@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
-import { listLibraries } from "./api";
+import { listLibraries, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
 interface ListError {
@@ -11,12 +11,26 @@ interface ListError {
 
 export default function App() {
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
+  const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
+  const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     setError(null);
     try {
-      setLibraries(await listLibraries());
+      const libs = await listLibraries();
+      setLibraries(libs);
+      const counts: Record<string, number> = {};
+      for (const lib of libs) {
+        try {
+          const tracks = await listTracks(lib.id);
+          counts[lib.id] = tracks.length;
+        } catch {
+          counts[lib.id] = 0;
+        }
+      }
+      setTrackCounts(counts);
     } catch (err) {
       const e = err as ListError;
       setError(e.message ?? "Could not load libraries.");
@@ -26,6 +40,26 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, []);
+
+  async function handleScan(libraryId: string) {
+    setScanningLibraryId(libraryId);
+    setScanMessage(null);
+    try {
+      const report = await scanLibrary(libraryId);
+      const tracks = await listTracks(libraryId);
+      setTrackCounts((prev) => ({ ...prev, [libraryId]: tracks.length }));
+      setScanMessage(
+        `Scanned ${report.tracksScanned} track${
+          report.tracksScanned === 1 ? "" : "s"
+        }.`,
+      );
+    } catch (err) {
+      const e = err as ListError;
+      setScanMessage(e.message ?? "Scan failed.");
+    } finally {
+      setScanningLibraryId(null);
+    }
+  }
 
   return (
     <main className="app">
@@ -46,10 +80,20 @@ export default function App() {
             {error}
           </p>
         )}
+        {scanMessage && (
+          <p role="status" className="app__info">
+            {scanMessage}
+          </p>
+        )}
         {libraries === null ? (
           <p className="app__placeholder">Loading...</p>
         ) : (
-          <LibraryList libraries={libraries} />
+          <LibraryList
+            libraries={libraries}
+            trackCounts={trackCounts}
+            scanningLibraryId={scanningLibraryId}
+            onScan={handleScan}
+          />
         )}
       </section>
     </main>
