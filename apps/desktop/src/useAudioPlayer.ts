@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { loadTrackAudioSource, type TrackDto } from "./api";
+import { prepareTrackAudioSource, type TrackDto } from "./api";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -34,14 +34,19 @@ interface AudioElementLike {
 
 export function useAudioPlayer(): AudioPlayer {
   const audioRef = useRef<AudioElementLike | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
   const playRequestRef = useRef(0);
+  const currentTrackIdRef = useRef<string | null>(null);
+  const statusRef = useRef<PlayerStatus>("idle");
   const [current, setCurrent] = useState<TrackDto | null>(null);
   const [status, setStatus] = useState<PlayerStatus>("idle");
   const [positionSeconds, setPositionSeconds] = useState(0);
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [volume, setVolumeState] = useState(1);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     const { audio, cleanup } = createAudioElement();
@@ -83,10 +88,7 @@ export function useAudioPlayer(): AudioPlayer {
       audio.removeEventListener("waiting", onWaiting);
       audio.removeEventListener("stalled", onWaiting);
       audio.removeEventListener("error", onError);
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
+      currentTrackIdRef.current = null;
       cleanup();
     };
   }, []);
@@ -94,14 +96,35 @@ export function useAudioPlayer(): AudioPlayer {
   const play = useCallback((track: TrackDto) => {
     const audio = audioRef.current;
     if (!audio) return;
+    if (currentTrackIdRef.current === track.id) {
+      if (statusRef.current === "loading") return;
+      if (audio.paused) {
+        setPlaybackError(null);
+        setStatus("loading");
+        void Promise.resolve(audio.play()).catch((err: unknown) => {
+          setStatus("error");
+          setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
+        });
+      }
+      return;
+    }
     const requestId = playRequestRef.current + 1;
     playRequestRef.current = requestId;
+    currentTrackIdRef.current = track.id;
     setCurrent(track);
     setPositionSeconds(0);
     setDurationSeconds(track.durationSeconds || 0);
     setPlaybackError(null);
     setStatus("loading");
-    void loadAndPlayTrack(audio, track, requestId, playRequestRef, objectUrlRef, setStatus, setPlaybackError);
+    void loadAndPlayTrack(
+      audio,
+      track,
+      requestId,
+      playRequestRef,
+      currentTrackIdRef,
+      setStatus,
+      setPlaybackError,
+    );
   }, []);
 
   const toggle = useCallback(() => {
@@ -167,32 +190,26 @@ async function loadAndPlayTrack(
   track: TrackDto,
   requestId: number,
   playRequestRef: React.MutableRefObject<number>,
-  objectUrlRef: React.MutableRefObject<string | null>,
+  currentTrackIdRef: React.MutableRefObject<string | null>,
   setStatus: React.Dispatch<React.SetStateAction<PlayerStatus>>,
   setPlaybackError: React.Dispatch<React.SetStateAction<string | null>>,
 ) {
   let source;
   try {
-    source = await loadTrackAudioSource({
+    source = await prepareTrackAudioSource({
       libraryId: track.libraryId,
       trackId: track.id,
     });
   } catch (err) {
     if (requestId !== playRequestRef.current) return;
+    currentTrackIdRef.current = null;
     setStatus("error");
     setPlaybackError(formatPlaybackError("The audio source could not be loaded", err));
     return;
   }
 
   if (requestId !== playRequestRef.current) return;
-  const objectUrl = URL.createObjectURL(
-    new Blob([new Uint8Array(source.bytes)], { type: source.mimeType }),
-  );
-  if (objectUrlRef.current) {
-    URL.revokeObjectURL(objectUrlRef.current);
-  }
-  objectUrlRef.current = objectUrl;
-  audio.src = objectUrl;
+  audio.src = source.url;
   audio.load();
 
   try {

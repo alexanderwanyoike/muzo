@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use infrastructure::fs_track_audio_reader::FsTrackAudioReader;
+use infrastructure::audio_stream_server::AudioStreamServer;
 use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
 use infrastructure::sqlite_library_repository::SqliteLibraryRepository;
 use infrastructure::sqlite_track_repository::SqliteTrackRepository;
@@ -24,7 +24,7 @@ pub struct AppState {
     pub track_repository: Arc<SqliteTrackRepository>,
     pub walker: Arc<WalkdirWalker>,
     pub metadata_reader: Arc<LoftyMetadataReader>,
-    pub audio_reader: Arc<FsTrackAudioReader>,
+    pub audio_stream_server: Arc<AudioStreamServer>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -38,6 +38,8 @@ pub fn run() {
         .unwrap_or_else(|e| panic!("could not open muzo sqlite at {:?}: {}", db_path, e));
     SqliteLibraryRepository::migrate(&connection).expect("could not migrate library schema");
     SqliteTrackRepository::migrate(&connection).expect("could not migrate track schema");
+    let audio_stream_server =
+        AudioStreamServer::start().expect("could not start audio stream server");
 
     let state = AppState {
         library_repository: Arc::new(SqliteLibraryRepository::new(connection)),
@@ -46,7 +48,7 @@ pub fn run() {
         )),
         walker: Arc::new(WalkdirWalker::new()),
         metadata_reader: Arc::new(LoftyMetadataReader::new()),
-        audio_reader: Arc::new(FsTrackAudioReader::new()),
+        audio_stream_server: Arc::new(audio_stream_server),
     };
 
     tauri::Builder::default()
@@ -59,7 +61,7 @@ pub fn run() {
             commands::list_libraries::list_libraries,
             commands::scan_library::scan_library,
             commands::scan_library::list_tracks,
-            commands::load_track_audio_source::load_track_audio_source,
+            commands::prepare_track_audio_source::prepare_track_audio_source,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

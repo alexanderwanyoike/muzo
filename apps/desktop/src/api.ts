@@ -45,14 +45,14 @@ export async function listTracks(libraryId: string): Promise<TrackDto[]> {
   return invoke<TrackDto[]>("list_tracks", { libraryId });
 }
 
-export interface TrackAudioSourceDto {
+export interface PreparedTrackAudioSourceDto {
   mimeType: string;
-  bytes: number[];
+  url: string;
 }
 
-export async function loadTrackAudioSource(input: {
+export async function prepareTrackAudioSource(input: {
   libraryId: string;
   trackId: string;
-}): Promise<TrackAudioSourceDto> {
-  return invoke<TrackAudioSourceDto>("load_track_audio_source", { input });
+}): Promise<PreparedTrackAudioSourceDto> {
+  return invoke<PreparedTrackAudioSourceDto>("prepare_track_audio_source", { input });
 }

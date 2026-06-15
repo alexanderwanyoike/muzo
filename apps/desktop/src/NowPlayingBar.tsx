@@ -24,18 +24,12 @@ export default function NowPlayingBar({
   onSeek,
   onSetVolume,
 }: NowPlayingBarProps) {
-  const progress = durationSeconds > 0 ? (positionSeconds / durationSeconds) * 100 : 0;
+  const progress = durationSeconds > 0 ? positionSeconds / durationSeconds : 0;
+  const boundedProgress = Math.min(1, Math.max(0, progress));
   const title = current?.title ?? "Not Playing";
   const artist = current?.artist ?? "Select a track";
   const isPlayable = current !== null;
-
-  function handleProgressBarClick(event: React.MouseEvent<HTMLDivElement>) {
-    if (!isPlayable || durationSeconds <= 0) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const fraction = x / rect.width;
-    onSeek(fraction * durationSeconds);
-  }
+  const canSeek = isPlayable && durationSeconds > 0;
 
   return (
     <div className="now-playing-bar">
@@ -62,20 +56,23 @@ export default function NowPlayingBar({
           {formatDuration(positionSeconds)}
         </span>
 
-        <div
-          className="now-playing-bar__progress"
-          onClick={handleProgressBarClick}
-          role="slider"
-          aria-label="Seek"
-          aria-valuemin={0}
-          aria-valuemax={Math.max(0, durationSeconds)}
-          aria-valuenow={positionSeconds}
-          aria-disabled={!isPlayable}
-          tabIndex={0}
-        >
-          <div
-            className="now-playing-bar__progress-fill"
-            style={{ width: `${progress}%` }}
+        <div className="now-playing-bar__progress-shell">
+          <div className="now-playing-bar__progress-track" aria-hidden="true">
+            <div
+              className="now-playing-bar__progress-fill"
+              style={{ transform: `scaleX(${boundedProgress})` }}
+            />
+          </div>
+          <input
+            type="range"
+            className="now-playing-bar__progress"
+            aria-label="Seek"
+            min={0}
+            max={Math.max(0, durationSeconds)}
+            step={1}
+            value={Math.min(positionSeconds, durationSeconds || 0)}
+            disabled={!canSeek}
+            onChange={(e) => onSeek(Number(e.target.value))}
           />
         </div>
 

@@ -227,6 +227,7 @@ export default function App() {
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}
+              onToggleCurrentTrack={toggle}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
             />

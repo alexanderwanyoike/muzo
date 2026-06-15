@@ -4,12 +4,12 @@ import { useAudioPlayer } from "./useAudioPlayer";
 import type { TrackDto } from "./api";
 
 const apiMocks = vi.hoisted(() => ({
-  loadTrackAudioSource: vi.fn(),
+  prepareTrackAudioSource: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
-  loadTrackAudioSource: apiMocks.loadTrackAudioSource,
+  prepareTrackAudioSource: apiMocks.prepareTrackAudioSource,
 }));
 
 type Listener = (event: unknown) => void;
@@ -63,20 +63,12 @@ class MockAudio {
 beforeEach(() => {
   MockAudio.instances = [];
   MockAudio.nextPlayError = null;
-  apiMocks.loadTrackAudioSource.mockReset();
-  apiMocks.loadTrackAudioSource.mockResolvedValue({
+  apiMocks.prepareTrackAudioSource.mockReset();
+  apiMocks.prepareTrackAudioSource.mockResolvedValue({
     mimeType: "audio/mpeg",
-    bytes: [1, 2, 3],
+    url: "http://127.0.0.1:49152/audio/trk-1",
   });
   vi.stubGlobal("Audio", MockAudio);
-  Object.defineProperty(URL, "createObjectURL", {
-    configurable: true,
-    value: vi.fn(() => "blob:track-audio"),
-  });
-  Object.defineProperty(URL, "revokeObjectURL", {
-    configurable: true,
-    value: vi.fn(),
-  });
 });
 
 const track: TrackDto = {
@@ -95,7 +87,7 @@ describe("useAudioPlayer", () => {
     expect(result.current.current).toBeNull();
   });
 
-  it("loads a blob audio source and waits for the audio engine to start", async () => {
+  it("loads a streaming audio source and waits for the audio engine to start", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
     await act(async () => {
@@ -103,12 +95,11 @@ describe("useAudioPlayer", () => {
     });
 
     const audio = MockAudio.instances[0];
-    expect(apiMocks.loadTrackAudioSource).toHaveBeenCalledWith({
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledWith({
       libraryId: "lib-1",
       trackId: "trk-1",
     });
-    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
-    expect(audio.src).toBe("blob:track-audio");
+    expect(audio.src).toBe("http://127.0.0.1:49152/audio/trk-1");
     expect(audio.load).toHaveBeenCalledOnce();
     expect(result.current.current).toEqual(track);
     expect(result.current.status).toBe("loading");
@@ -117,6 +108,28 @@ describe("useAudioPlayer", () => {
       audio.emit("playing");
     });
 
+    expect(result.current.status).toBe("playing");
+  });
+
+  it("does not reload the current track when play is called again", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+
+    await act(async () => {
+      result.current.play(track);
+    });
+    act(() => {
+      MockAudio.instances[0].emit("playing");
+      result.current.seek(42);
+    });
+
+    await act(async () => {
+      result.current.play(track);
+    });
+
+    const audio = MockAudio.instances[0];
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledOnce();
+    expect(audio.load).toHaveBeenCalledOnce();
+    expect(result.current.positionSeconds).toBe(42);
     expect(result.current.status).toBe("playing");
   });
 
@@ -218,7 +231,7 @@ describe("useAudioPlayer", () => {
   });
 
   it("reports an error when the track audio source cannot be loaded", async () => {
-    apiMocks.loadTrackAudioSource.mockRejectedValue(new Error("track file is missing"));
+    apiMocks.prepareTrackAudioSource.mockRejectedValue(new Error("track file is missing"));
     const { result } = renderHook(() => useAudioPlayer());
 
     await act(async () => {
