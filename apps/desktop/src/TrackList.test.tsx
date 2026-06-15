@@ -44,6 +44,7 @@ describe("TrackList", () => {
         currentTrackId={null}
         isPlaying={false}
         onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
       />,
     );
 
@@ -60,6 +61,7 @@ describe("TrackList", () => {
         currentTrackId={null}
         isPlaying={false}
         onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
       />,
     );
 
@@ -75,6 +77,7 @@ describe("TrackList", () => {
         currentTrackId={null}
         isPlaying={false}
         onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
       />,
     );
 
@@ -86,6 +89,7 @@ describe("TrackList", () => {
   it("calls onPlayTrack with the clicked track", async () => {
     const user = userEvent.setup();
     const onPlayTrack = vi.fn();
+    const onToggleCurrentTrack = vi.fn();
     mockedInvoke.mockResolvedValueOnce(sampleTracks);
     render(
       <TrackList
@@ -93,6 +97,7 @@ describe("TrackList", () => {
         currentTrackId={null}
         isPlaying={false}
         onPlayTrack={onPlayTrack}
+        onToggleCurrentTrack={onToggleCurrentTrack}
       />,
     );
 
@@ -100,6 +105,29 @@ describe("TrackList", () => {
     await user.click(screen.getByRole("button", { name: /play hotel california/i }));
 
     expect(onPlayTrack).toHaveBeenCalledWith(sampleTracks[0]);
+    expect(onToggleCurrentTrack).not.toHaveBeenCalled();
+  });
+
+  it("toggles the current track instead of reloading it", async () => {
+    const user = userEvent.setup();
+    const onPlayTrack = vi.fn();
+    const onToggleCurrentTrack = vi.fn();
+    mockedInvoke.mockResolvedValueOnce(sampleTracks);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId="trk-1"
+        isPlaying
+        onPlayTrack={onPlayTrack}
+        onToggleCurrentTrack={onToggleCurrentTrack}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /pause hotel california/i }));
+
+    expect(onToggleCurrentTrack).toHaveBeenCalledOnce();
+    expect(onPlayTrack).not.toHaveBeenCalled();
   });
 
   it("marks the current track row as current", async () => {
@@ -110,6 +138,7 @@ describe("TrackList", () => {
         currentTrackId="trk-2"
         isPlaying={false}
         onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
       />,
     );
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NowPlayingBar from "./NowPlayingBar";
 import type { TrackDto } from "./api";
@@ -108,6 +108,48 @@ describe("NowPlayingBar", () => {
 
     expect(screen.getByText("2:00")).toBeDefined();
     expect(screen.getByText("6:31")).toBeDefined();
+  });
+
+  it("seeks with a draggable progress slider", () => {
+    const onSeek = vi.fn();
+
+    render(
+      <NowPlayingBar
+        current={track}
+        status="playing"
+        positionSeconds={120}
+        durationSeconds={391}
+        volume={1}
+        playbackError={null}
+        onToggle={() => {}}
+        onSeek={onSeek}
+        onSetVolume={() => {}}
+      />,
+    );
+
+    const slider = screen.getByRole("slider", { name: "Seek" });
+    fireEvent.change(slider, { target: { value: "180" } });
+
+    expect(onSeek).toHaveBeenCalledWith(180);
+  });
+
+  it("aligns the visual progress fill to the current position", () => {
+    const { container } = render(
+      <NowPlayingBar
+        current={track}
+        status="playing"
+        positionSeconds={120}
+        durationSeconds={240}
+        volume={1}
+        playbackError={null}
+        onToggle={() => {}}
+        onSeek={() => {}}
+        onSetVolume={() => {}}
+      />,
+    );
+
+    const fill = container.querySelector<HTMLElement>(".now-playing-bar__progress-fill");
+    expect(fill?.style.transform).toBe("scaleX(0.5)");
   });
 
   it("shows playback errors", () => {

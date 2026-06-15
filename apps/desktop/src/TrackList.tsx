@@ -7,6 +7,7 @@ interface TrackListProps {
   currentTrackId: string | null;
   isPlaying: boolean;
   onPlayTrack: (track: TrackDto) => void;
+  onToggleCurrentTrack: () => void;
   refreshKey?: number;
   onTracksLoaded?: (libraryId: string, trackCount: number) => void;
 }
@@ -16,6 +17,7 @@ export default function TrackList({
   currentTrackId,
   isPlaying,
   onPlayTrack,
+  onToggleCurrentTrack,
   refreshKey = 0,
   onTracksLoaded,
 }: TrackListProps) {
@@ -61,6 +63,8 @@ export default function TrackList({
     <ol className="track-list">
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentTrackId;
+        const playButtonLabel =
+          isCurrent && isPlaying ? `Pause ${track.title}` : `Play ${track.title}`;
         const rowClass = isCurrent
           ? "track-list__row track-list__row--current"
           : "track-list__row";
@@ -73,8 +77,14 @@ export default function TrackList({
             <button
               type="button"
               className="track-list__play"
-              onClick={() => onPlayTrack(track)}
-              aria-label={`Play ${track.title}`}
+              onClick={() => {
+                if (isCurrent) {
+                  onToggleCurrentTrack();
+                } else {
+                  onPlayTrack(track);
+                }
+              }}
+              aria-label={playButtonLabel}
             >
               {isCurrent && isPlaying ? "❚❚" : "▶"}
             </button>
