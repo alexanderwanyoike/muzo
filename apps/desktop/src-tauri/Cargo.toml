@@ -22,6 +22,11 @@ serde_json = "1"
 ulid = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
 dirs = "5"
+walkdir = "2"
+lofty = "0.21"
+
+[dev-dependencies]
+tempfile = "3"
 
 # Force alloc-no-stdlib to 3.x across the tree. brotli 8.0.3 on crates.io
 # hard-pins it to 2.0.4 while its sibling brotli-decompressor 5.x uses 3.x,
