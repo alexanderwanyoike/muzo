@@ -46,12 +46,44 @@ impl AudioMetadataReader for LoftyMetadataReader {
             })
             .unwrap_or_else(|| "Unknown Artist".to_string());
 
+        let album = primary_tag
+            .and_then(|tag| tag.get_string(&lofty::tag::ItemKey::AlbumTitle))
+            .map(str::to_string);
+        let track_number = primary_tag
+            .and_then(|tag| tag.get_string(&lofty::tag::ItemKey::TrackNumber))
+            .and_then(parse_slash_prefixed_u32);
+        let disc_number = primary_tag
+            .and_then(|tag| tag.get_string(&lofty::tag::ItemKey::DiscNumber))
+            .and_then(parse_slash_prefixed_u32);
+        let genre = primary_tag
+            .and_then(|tag| tag.get_string(&lofty::tag::ItemKey::Genre))
+            .map(str::to_string);
+        let year = primary_tag
+            .and_then(|tag| tag.get_string(&lofty::tag::ItemKey::Year))
+            .or_else(|| {
+                primary_tag.and_then(|tag| tag.get_string(&lofty::tag::ItemKey::RecordingDate))
+            })
+            .and_then(parse_year);
+
         let duration_seconds = tagged.properties().duration().as_secs();
 
         Ok(AudioMetadata {
             title,
             artist,
+            album,
+            track_number,
+            disc_number,
+            genre,
+            year,
             duration_seconds,
         })
     }
+}
+
+fn parse_slash_prefixed_u32(value: &str) -> Option<u32> {
+    value.split('/').next()?.trim().parse().ok()
+}
+
+fn parse_year(value: &str) -> Option<i32> {
+    value.get(0..4)?.parse().ok()
 }

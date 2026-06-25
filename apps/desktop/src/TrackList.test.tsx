@@ -18,6 +18,12 @@ const sampleTracks: TrackDto[] = [
     libraryId: "lib-1",
     title: "Hotel California",
     artist: "Eagles",
+    album: "Hotel California",
+    trackNumber: 1,
+    discNumber: 1,
+    genre: "Rock",
+    year: 1976,
+    metadataOverridden: false,
     durationSeconds: 391,
     filePath: "/music/Eagles/Hotel California.mp3",
   },
@@ -26,6 +32,12 @@ const sampleTracks: TrackDto[] = [
     libraryId: "lib-1",
     title: "Take It Easy",
     artist: "Eagles",
+    album: null,
+    trackNumber: null,
+    discNumber: null,
+    genre: null,
+    year: null,
+    metadataOverridden: true,
     durationSeconds: 233,
     filePath: "/music/Eagles/Take It Easy.mp3",
   },
@@ -67,6 +79,72 @@ describe("TrackList", () => {
 
     await waitFor(() => expect(screen.getByText("6:31")).toBeDefined());
     expect(screen.getByText("3:53")).toBeDefined();
+  });
+
+  it("shows album metadata and override state in the track row", async () => {
+    mockedInvoke.mockResolvedValueOnce(sampleTracks);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+
+    expect(screen.getByText("Eagles - Hotel California")).toBeDefined();
+    expect(screen.getByText("Eagles - Edited in Muzo")).toBeDefined();
+  });
+
+  it("saves edited metadata and reloads the track list", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(sampleTracks)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([
+        {
+          ...sampleTracks[0],
+          title: "Hotel California Live",
+          metadataOverridden: true,
+        },
+      ]);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Hotel California Live");
+    await user.click(screen.getByRole("button", { name: "Save metadata" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("edit_track_metadata", {
+        input: {
+          libraryId: "lib-1",
+          trackId: "trk-1",
+          title: "Hotel California Live",
+          artist: "Eagles",
+          album: "Hotel California",
+          trackNumber: 1,
+          discNumber: 1,
+          genre: "Rock",
+          year: 1976,
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California Live")).toBeDefined(),
+    );
   });
 
   it("shows the empty state when the library has no tracks", async () => {

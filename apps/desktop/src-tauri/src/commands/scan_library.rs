@@ -63,6 +63,12 @@ pub struct TrackDto {
     pub library_id: String,
     pub title: String,
     pub artist: String,
+    pub album: Option<String>,
+    pub track_number: Option<u32>,
+    pub disc_number: Option<u32>,
+    pub genre: Option<String>,
+    pub year: Option<i32>,
+    pub metadata_overridden: bool,
     pub duration_seconds: u64,
     pub file_path: String,
 }
@@ -74,6 +80,12 @@ impl From<&Track> for TrackDto {
             library_id: track.library_id().0.clone(),
             title: track.title().0.clone(),
             artist: track.artist().0.clone(),
+            album: track.album().map(|album| album.0.clone()),
+            track_number: track.track_number().map(|track_number| track_number.0),
+            disc_number: track.disc_number().map(|disc_number| disc_number.0),
+            genre: track.genre().map(|genre| genre.0.clone()),
+            year: track.year().map(|year| year.0),
+            metadata_overridden: track.metadata_overridden(),
             duration_seconds: track.duration().0,
             file_path: track.file_path().0.display().to_string(),
         }
@@ -104,18 +116,36 @@ mod tests {
 
     use crate::domain::library::LibraryId;
     use crate::domain::track::{
-        FileMtime, FileSize, Track, TrackArtist, TrackDuration, TrackFilePath, TrackId, TrackTitle,
+        DiscNumber, FileMtime, FileSize, Track, TrackAlbum, TrackArtist, TrackDuration,
+        TrackFilePath, TrackGenre, TrackId, TrackMetadata, TrackMetadataOverride, TrackNumber,
+        TrackTitle, TrackYear,
     };
 
     use super::{ScanError, ScanErrorDto, TrackDto};
 
     #[test]
     fn track_dto_preserves_all_fields() {
-        let track = Track::new(
+        let track = Track::new_with_metadata(
             TrackId("trk-1".into()),
             LibraryId("lib-1".into()),
-            TrackTitle("Hotel California".into()),
-            TrackArtist("Eagles".into()),
+            TrackMetadata::new(
+                TrackTitle("Hotel California".into()),
+                TrackArtist("Eagles".into()),
+                Some(TrackAlbum("Hotel California".into())),
+                Some(TrackNumber(1)),
+                Some(DiscNumber(1)),
+                Some(TrackGenre("Rock".into())),
+                Some(TrackYear(1976)),
+            ),
+            TrackMetadataOverride::new(
+                Some(TrackTitle("Edited Hotel California".into())),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ),
             TrackDuration(391),
             TrackFilePath(PathBuf::from("/lib/Eagles/Hotel California.mp3")),
             FileSize(9_000_000),
@@ -126,8 +156,14 @@ mod tests {
 
         assert_eq!(dto.id, "trk-1");
         assert_eq!(dto.library_id, "lib-1");
-        assert_eq!(dto.title, "Hotel California");
+        assert_eq!(dto.title, "Edited Hotel California");
         assert_eq!(dto.artist, "Eagles");
+        assert_eq!(dto.album, Some("Hotel California".into()));
+        assert_eq!(dto.track_number, Some(1));
+        assert_eq!(dto.disc_number, Some(1));
+        assert_eq!(dto.genre, Some("Rock".into()));
+        assert_eq!(dto.year, Some(1976));
+        assert!(dto.metadata_overridden);
         assert_eq!(dto.duration_seconds, 391);
         assert_eq!(dto.file_path, "/lib/Eagles/Hotel California.mp3");
     }

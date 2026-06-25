@@ -9,3 +9,4 @@ pub mod list_libraries;
 pub mod ping;
 pub mod prepare_track_audio_source;
 pub mod scan_library;
+pub mod track_metadata;

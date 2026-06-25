@@ -15,6 +15,11 @@ pub struct WalkedFile {
 pub struct AudioMetadata {
     pub title: String,
     pub artist: String,
+    pub album: Option<String>,
+    pub track_number: Option<u32>,
+    pub disc_number: Option<u32>,
+    pub genre: Option<String>,
+    pub year: Option<i32>,
     pub duration_seconds: u64,
 }
 
@@ -122,11 +127,19 @@ pub fn scan_library(
     let mut scanned = 0;
     for file in walked {
         let metadata = reader.read(&file.path)?;
-        let track = Track::new(
+        let track = Track::new_with_metadata(
             crate::domain::track::generate_track_id(),
             library_id.clone(),
-            crate::domain::track::TrackTitle(metadata.title),
-            crate::domain::track::TrackArtist(metadata.artist),
+            crate::domain::track::TrackMetadata::new(
+                crate::domain::track::TrackTitle(metadata.title),
+                crate::domain::track::TrackArtist(metadata.artist),
+                metadata.album.map(crate::domain::track::TrackAlbum),
+                metadata.track_number.map(crate::domain::track::TrackNumber),
+                metadata.disc_number.map(crate::domain::track::DiscNumber),
+                metadata.genre.map(crate::domain::track::TrackGenre),
+                metadata.year.map(crate::domain::track::TrackYear),
+            ),
+            crate::domain::track::TrackMetadataOverride::empty(),
             crate::domain::track::TrackDuration(metadata.duration_seconds),
             crate::domain::track::TrackFilePath(file.path),
             crate::domain::track::FileSize(file.size),
@@ -252,6 +265,15 @@ mod tests {
                 .retain(|t| t.library_id() != library_id || t.file_path() != file_path);
             Ok(())
         }
+
+        fn update_metadata_override(
+            &self,
+            _library_id: &LibraryId,
+            _track_id: &crate::domain::track::TrackId,
+            _metadata_override: &crate::domain::track::TrackMetadataOverride,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
     }
 
     struct FakeWalker {
@@ -318,6 +340,11 @@ mod tests {
             AudioMetadata {
                 title: "Title".into(),
                 artist: "Artist".into(),
+                album: None,
+                track_number: None,
+                disc_number: None,
+                genre: None,
+                year: None,
                 duration_seconds: 200,
             },
         )]);
@@ -346,6 +373,63 @@ mod tests {
         assert_eq!(
             stored[0].duration(),
             crate::domain::track::TrackDuration(200)
+        );
+    }
+
+    #[test]
+    fn scan_library_persists_embedded_metadata_fields() {
+        let libraries = InMemoryLibraryRepository::new();
+        libraries.store(library_at("lib-1", "/music"));
+        let tracks = FakeTrackRepository::new();
+        let file_path = PathBuf::from("/music/track.mp3");
+        let walker = FakeWalker::with(vec![WalkedFile {
+            path: file_path.clone(),
+            size: 1_000,
+            mtime: 100,
+        }]);
+        let reader = FakeMetadataReader::with(vec![(
+            file_path,
+            AudioMetadata {
+                title: "Title".into(),
+                artist: "Artist".into(),
+                album: Some("Album".into()),
+                track_number: Some(7),
+                disc_number: Some(2),
+                genre: Some("Genre".into()),
+                year: Some(1999),
+                duration_seconds: 200,
+            },
+        )]);
+
+        scan_library(
+            &LibraryId("lib-1".into()),
+            &libraries,
+            &tracks,
+            &walker,
+            &reader,
+        )
+        .expect("scan should succeed");
+
+        let stored = tracks.stored();
+        assert_eq!(
+            stored[0].album(),
+            Some(&crate::domain::track::TrackAlbum("Album".into()))
+        );
+        assert_eq!(
+            stored[0].track_number(),
+            Some(crate::domain::track::TrackNumber(7))
+        );
+        assert_eq!(
+            stored[0].disc_number(),
+            Some(crate::domain::track::DiscNumber(2))
+        );
+        assert_eq!(
+            stored[0].genre(),
+            Some(&crate::domain::track::TrackGenre("Genre".into()))
+        );
+        assert_eq!(
+            stored[0].year(),
+            Some(crate::domain::track::TrackYear(1999))
         );
     }
 
@@ -386,6 +470,11 @@ mod tests {
             AudioMetadata {
                 title: "Title".into(),
                 artist: "Artist".into(),
+                album: None,
+                track_number: None,
+                disc_number: None,
+                genre: None,
+                year: None,
                 duration_seconds: 200,
             },
         )]);

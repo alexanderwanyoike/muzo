@@ -50,6 +50,11 @@ impl AudioMetadataReader for StemMetadataReader {
                 .map(|stem| stem.to_string_lossy().into_owned())
                 .unwrap_or_default(),
             artist: "Artist".into(),
+            album: None,
+            track_number: None,
+            disc_number: None,
+            genre: None,
+            year: None,
             duration_seconds: 120,
         })
     }
@@ -80,6 +85,11 @@ fn startup_reconciliation_inserts_and_removes_filesystem_tracks() {
         AudioMetadata {
             title: "Track".into(),
             artist: "Artist".into(),
+            album: None,
+            track_number: None,
+            disc_number: None,
+            genre: None,
+            year: None,
             duration_seconds: 120,
         },
     )]);
