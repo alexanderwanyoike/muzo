@@ -8,5 +8,6 @@ pub mod add_library;
 pub mod error;
 pub mod list_libraries;
 pub mod ping;
+pub mod reconcile_filesystem_libraries;
 pub mod resolve_track_audio_source;
 pub mod scan_library;

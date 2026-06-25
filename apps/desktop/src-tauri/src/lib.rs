@@ -7,6 +7,7 @@
 
 use std::sync::Arc;
 
+use application::reconcile_filesystem_libraries::reconcile_filesystem_libraries;
 use infrastructure::audio_stream_server::AudioStreamServer;
 use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
 use infrastructure::migrations::MIGRATIONS;
@@ -40,16 +41,41 @@ pub fn run() {
     MIGRATIONS
         .to_latest(&mut connection)
         .expect("could not migrate sqlite schema");
+
+    let library_repository = Arc::new(SqliteLibraryRepository::new(connection));
+    let track_repository = Arc::new(SqliteTrackRepository::new(
+        rusqlite::Connection::open(&db_path).expect("could not open tracks sqlite connection"),
+    ));
+    let walker = Arc::new(WalkdirWalker::new());
+    let metadata_reader = Arc::new(LoftyMetadataReader::new());
+
+    match reconcile_filesystem_libraries(
+        &*library_repository,
+        &*track_repository,
+        &*walker,
+        &*metadata_reader,
+    ) {
+        Ok(report) => {
+            for failure in report.failures {
+                eprintln!(
+                    "filesystem library reconciliation failed for {}: {}",
+                    failure.library_id, failure.message
+                );
+            }
+        }
+        Err(error) => {
+            eprintln!("filesystem library reconciliation failed: {}", error);
+        }
+    }
+
     let audio_stream_server =
         AudioStreamServer::start().expect("could not start audio stream server");
 
     let state = AppState {
-        library_repository: Arc::new(SqliteLibraryRepository::new(connection)),
-        track_repository: Arc::new(SqliteTrackRepository::new(
-            rusqlite::Connection::open(&db_path).expect("could not open tracks sqlite connection"),
-        )),
-        walker: Arc::new(WalkdirWalker::new()),
-        metadata_reader: Arc::new(LoftyMetadataReader::new()),
+        library_repository,
+        track_repository,
+        walker,
+        metadata_reader,
         audio_stream_server: Arc::new(audio_stream_server),
     };
 
