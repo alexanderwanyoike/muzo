@@ -1,7 +1,13 @@
 use std::num::NonZeroUsize;
 
-use muzo_desktop_lib::infrastructure::migrations::{current_schema_sql, MIGRATIONS};
+use muzo_desktop_lib::infrastructure::migrations::MIGRATIONS;
 use rusqlite_migration::SchemaVersion;
+
+const LEGACY_SCHEMA_SQL: &str = concat!(
+    include_str!("../migrations/0001_create_libraries.sql"),
+    "\n",
+    include_str!("../migrations/0002_create_tracks.sql")
+);
 
 #[test]
 fn fresh_database_reaches_the_current_schema() {
@@ -60,7 +66,7 @@ fn rerunning_migrations_against_current_schema_is_a_no_op() {
 #[test]
 fn legacy_inline_schema_database_is_adopted_without_losing_data() {
     let mut conn = rusqlite::Connection::open_in_memory().unwrap();
-    conn.execute_batch(current_schema_sql()).unwrap();
+    conn.execute_batch(LEGACY_SCHEMA_SQL).unwrap();
     conn.execute(
         "INSERT INTO libraries (id, name, kind, location) VALUES (?1, ?2, ?3, ?4)",
         ("lib-1", "Music", "Filesystem", "/music"),
