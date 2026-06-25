@@ -12,7 +12,7 @@ review: formalising SQLite migrations before more tables pile up.
 | #   | Card | Type | Blocks |
 | --- | --- | --- | --- |
 | 001 | [Formal SQLite migrations](./001-formal-sqlite-migrations.md) | Tech debt | 002, 003, 004 |
-| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) (planned) | Feature | 003 |
+| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | 003 |
 | 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) (planned) | Feature | - |
 | 004 | [Playlists core model](./004-playlists-core-model.md) (planned) | Feature | - |
 | 005 | [Play history and play counts](./005-play-history-and-play-counts.md) (planned) | Feature | - |
