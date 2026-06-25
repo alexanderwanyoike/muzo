@@ -6,10 +6,17 @@
 //! See AGENTS.md for the full layering rules.
 
 use std::sync::Arc;
+use std::time::Duration;
 
+use application::reconcile_filesystem_libraries::reconcile_filesystem_libraries;
+use application::scan_library::scan_library;
+use application::watch_filesystem_libraries::{
+    watch_filesystem_libraries, FilesystemLibraryChangeHandler,
+};
 use infrastructure::audio_stream_server::AudioStreamServer;
 use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
 use infrastructure::migrations::MIGRATIONS;
+use infrastructure::notify_filesystem_watcher::NotifyFilesystemLibraryWatcher;
 use infrastructure::sqlite_library_repository::SqliteLibraryRepository;
 use infrastructure::sqlite_track_repository::SqliteTrackRepository;
 use infrastructure::walkdir_walker::WalkdirWalker;
@@ -25,7 +32,30 @@ pub struct AppState {
     pub track_repository: Arc<SqliteTrackRepository>,
     pub walker: Arc<WalkdirWalker>,
     pub metadata_reader: Arc<LoftyMetadataReader>,
+    pub filesystem_watcher: Arc<NotifyFilesystemLibraryWatcher>,
     pub audio_stream_server: Arc<AudioStreamServer>,
+}
+
+pub(crate) fn filesystem_library_change_handler(
+    library_repository: Arc<SqliteLibraryRepository>,
+    track_repository: Arc<SqliteTrackRepository>,
+    walker: Arc<WalkdirWalker>,
+    metadata_reader: Arc<LoftyMetadataReader>,
+) -> FilesystemLibraryChangeHandler {
+    Arc::new(move |library_id| {
+        if let Err(error) = scan_library(
+            &library_id,
+            &*library_repository,
+            &*track_repository,
+            &*walker,
+            &*metadata_reader,
+        ) {
+            eprintln!(
+                "filesystem library reconciliation failed for {}: {}",
+                library_id, error
+            );
+        }
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -40,16 +70,69 @@ pub fn run() {
     MIGRATIONS
         .to_latest(&mut connection)
         .expect("could not migrate sqlite schema");
+
+    let library_repository = Arc::new(SqliteLibraryRepository::new(connection));
+    let track_repository = Arc::new(SqliteTrackRepository::new(
+        rusqlite::Connection::open(&db_path).expect("could not open tracks sqlite connection"),
+    ));
+    let walker = Arc::new(WalkdirWalker::new());
+    let metadata_reader = Arc::new(LoftyMetadataReader::new());
+    let filesystem_watcher = Arc::new(NotifyFilesystemLibraryWatcher::new(Duration::from_millis(
+        500,
+    )));
+
+    match reconcile_filesystem_libraries(
+        &*library_repository,
+        &*track_repository,
+        &*walker,
+        &*metadata_reader,
+    ) {
+        Ok(report) => {
+            for failure in report.failures {
+                eprintln!(
+                    "filesystem library reconciliation failed for {}: {}",
+                    failure.library_id, failure.message
+                );
+            }
+        }
+        Err(error) => {
+            eprintln!("filesystem library reconciliation failed: {}", error);
+        }
+    }
+
+    let on_filesystem_library_change = filesystem_library_change_handler(
+        Arc::clone(&library_repository),
+        Arc::clone(&track_repository),
+        Arc::clone(&walker),
+        Arc::clone(&metadata_reader),
+    );
+    match watch_filesystem_libraries(
+        &*library_repository,
+        &*filesystem_watcher,
+        on_filesystem_library_change,
+    ) {
+        Ok(report) => {
+            for failure in report.failures {
+                eprintln!(
+                    "filesystem library watcher failed for {}: {}",
+                    failure.library_id, failure.message
+                );
+            }
+        }
+        Err(error) => {
+            eprintln!("filesystem library watcher setup failed: {}", error);
+        }
+    }
+
     let audio_stream_server =
         AudioStreamServer::start().expect("could not start audio stream server");
 
     let state = AppState {
-        library_repository: Arc::new(SqliteLibraryRepository::new(connection)),
-        track_repository: Arc::new(SqliteTrackRepository::new(
-            rusqlite::Connection::open(&db_path).expect("could not open tracks sqlite connection"),
-        )),
-        walker: Arc::new(WalkdirWalker::new()),
-        metadata_reader: Arc::new(LoftyMetadataReader::new()),
+        library_repository,
+        track_repository,
+        walker,
+        metadata_reader,
+        filesystem_watcher,
         audio_stream_server: Arc::new(audio_stream_server),
     };
 

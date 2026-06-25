@@ -26,6 +26,7 @@ dirs = "5"
 walkdir = "2"
 lofty = "0.21"
 lazy_static = "1"
+notify = "8.2.0"
 
 [dev-dependencies]
 tempfile = "3"

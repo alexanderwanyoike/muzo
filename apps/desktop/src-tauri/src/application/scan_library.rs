@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::domain::library::{LibraryId, LibraryRepository, RepositoryError};
@@ -113,6 +114,11 @@ pub fn scan_library(
     let library_root = Path::new(library.location().0.as_str());
     let walked = walker.walk_audio_files(library_root)?;
 
+    let walked_paths = walked
+        .iter()
+        .map(|file| file.path.clone())
+        .collect::<HashSet<_>>();
+
     let mut scanned = 0;
     for file in walked {
         let metadata = reader.read(&file.path)?;
@@ -128,6 +134,12 @@ pub fn scan_library(
         );
         tracks.upsert(&track)?;
         scanned += 1;
+    }
+
+    for track in tracks.list_for_library(library_id)? {
+        if !walked_paths.contains(&track.file_path().0) {
+            tracks.delete_by_library_and_path(library_id, track.file_path())?;
+        }
     }
 
     Ok(ScanReport {
@@ -198,6 +210,10 @@ mod tests {
             Self::default()
         }
 
+        fn store(&self, track: Track) {
+            self.tracks.lock().unwrap().push(track);
+        }
+
         fn stored(&self) -> Vec<Track> {
             self.tracks.lock().unwrap().clone()
         }
@@ -227,9 +243,13 @@ mod tests {
         }
         fn delete_by_library_and_path(
             &self,
-            _library_id: &LibraryId,
-            _file_path: &crate::domain::track::TrackFilePath,
+            library_id: &LibraryId,
+            file_path: &crate::domain::track::TrackFilePath,
         ) -> Result<(), RepositoryError> {
+            self.tracks
+                .lock()
+                .unwrap()
+                .retain(|t| t.library_id() != library_id || t.file_path() != file_path);
             Ok(())
         }
     }
@@ -393,6 +413,40 @@ mod tests {
             tracks.stored().len(),
             1,
             "rescan must not duplicate the row"
+        );
+    }
+
+    #[test]
+    fn scan_library_removes_tracks_whose_files_are_no_longer_present() {
+        let libraries = InMemoryLibraryRepository::new();
+        libraries.store(library_at("lib-1", "/music"));
+        let tracks = FakeTrackRepository::new();
+        tracks.store(Track::new(
+            crate::domain::track::TrackId("trk-missing".into()),
+            LibraryId("lib-1".into()),
+            crate::domain::track::TrackTitle("Missing".into()),
+            crate::domain::track::TrackArtist("Artist".into()),
+            crate::domain::track::TrackDuration(200),
+            crate::domain::track::TrackFilePath(PathBuf::from("/music/missing.mp3")),
+            crate::domain::track::FileSize(1_000),
+            crate::domain::track::FileMtime(100),
+        ));
+        let walker = FakeWalker::with(vec![]);
+        let reader = FakeMetadataReader::with(vec![]);
+
+        let report = scan_library(
+            &LibraryId("lib-1".into()),
+            &libraries,
+            &tracks,
+            &walker,
+            &reader,
+        )
+        .expect("scan should succeed");
+
+        assert_eq!(report.tracks_scanned, 0);
+        assert!(
+            tracks.stored().is_empty(),
+            "tracks missing from the filesystem should be removed"
         );
     }
 
