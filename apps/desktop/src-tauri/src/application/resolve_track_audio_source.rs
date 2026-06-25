@@ -174,5 +174,14 @@ mod tests {
         ) -> Result<(), RepositoryError> {
             Ok(())
         }
+
+        fn update_metadata_override(
+            &self,
+            _library_id: &LibraryId,
+            _track_id: &TrackId,
+            _metadata_override: &crate::domain::track::TrackMetadataOverride,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
     }
 }

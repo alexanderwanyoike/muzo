@@ -138,6 +138,15 @@ mod tests {
                 .retain(|track| track.library_id() != library_id || track.file_path() != file_path);
             Ok(())
         }
+
+        fn update_metadata_override(
+            &self,
+            _library_id: &LibraryId,
+            _track_id: &crate::domain::track::TrackId,
+            _metadata_override: &crate::domain::track::TrackMetadataOverride,
+        ) -> Result<(), RepositoryError> {
+            Ok(())
+        }
     }
 
     struct FakeWalker {
@@ -211,6 +220,11 @@ mod tests {
             AudioMetadata {
                 title: "Title".into(),
                 artist: "Artist".into(),
+                album: None,
+                track_number: None,
+                disc_number: None,
+                genre: None,
+                year: None,
                 duration_seconds: 200,
             },
         )]);
@@ -244,6 +258,11 @@ mod tests {
             AudioMetadata {
                 title: "Title".into(),
                 artist: "Artist".into(),
+                album: None,
+                track_number: None,
+                disc_number: None,
+                genre: None,
+                year: None,
                 duration_seconds: 200,
             },
         )]);

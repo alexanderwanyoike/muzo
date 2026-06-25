@@ -147,6 +147,8 @@ pub fn run() {
             commands::scan_library::scan_library,
             commands::scan_library::list_tracks,
             commands::prepare_track_audio_source::prepare_track_audio_source,
+            commands::track_metadata::edit_track_metadata,
+            commands::track_metadata::clear_track_metadata_override,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

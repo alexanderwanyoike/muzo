@@ -76,6 +76,12 @@ const track: TrackDto = {
   libraryId: "lib-1",
   title: "Hotel California",
   artist: "Eagles",
+  album: "Hotel California",
+  trackNumber: 1,
+  discNumber: 1,
+  genre: "Rock",
+  year: 1976,
+  metadataOverridden: false,
   durationSeconds: 391,
   filePath: "/music/Eagles/Hotel California.mp3",
 };

@@ -37,12 +37,43 @@ export interface TrackDto {
   libraryId: string;
   title: string;
   artist: string;
+  album: string | null;
+  trackNumber: number | null;
+  discNumber: number | null;
+  genre: string | null;
+  year: number | null;
+  metadataOverridden: boolean;
   durationSeconds: number;
   filePath: string;
 }
 
 export async function listTracks(libraryId: string): Promise<TrackDto[]> {
   return invoke<TrackDto[]>("list_tracks", { libraryId });
+}
+
+export interface EditTrackMetadataInput {
+  libraryId: string;
+  trackId: string;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  trackNumber: number | null;
+  discNumber: number | null;
+  genre: string | null;
+  year: number | null;
+}
+
+export async function editTrackMetadata(
+  input: EditTrackMetadataInput,
+): Promise<void> {
+  return invoke<void>("edit_track_metadata", { input });
+}
+
+export async function clearTrackMetadataOverride(input: {
+  libraryId: string;
+  trackId: string;
+}): Promise<void> {
+  return invoke<void>("clear_track_metadata_override", { input });
 }
 
 export interface PreparedTrackAudioSourceDto {

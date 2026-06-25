@@ -5,6 +5,7 @@
 //! the wire, or any concrete adapter.
 
 pub mod add_library;
+pub mod edit_track_metadata;
 pub mod error;
 pub mod list_libraries;
 pub mod ping;

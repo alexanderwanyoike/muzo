@@ -2,8 +2,9 @@ use std::path::PathBuf;
 
 use muzo_desktop_lib::domain::library::LibraryId;
 use muzo_desktop_lib::domain::track::{
-    FileMtime, FileSize, Track, TrackArtist, TrackDuration, TrackFilePath, TrackId,
-    TrackRepository, TrackTitle,
+    DiscNumber, FileMtime, FileSize, Track, TrackAlbum, TrackArtist, TrackDuration, TrackFilePath,
+    TrackGenre, TrackId, TrackMetadata, TrackMetadataOverride, TrackNumber, TrackRepository,
+    TrackTitle, TrackYear,
 };
 use muzo_desktop_lib::infrastructure::migrations::MIGRATIONS;
 use muzo_desktop_lib::infrastructure::sqlite_track_repository::SqliteTrackRepository;
@@ -14,6 +15,27 @@ fn make_track(library: &str, path: &str, title: &str) -> Track {
         LibraryId(library.into()),
         TrackTitle(title.into()),
         TrackArtist("Artist".into()),
+        TrackDuration(200),
+        TrackFilePath(PathBuf::from(path)),
+        FileSize(1_000),
+        FileMtime(100),
+    )
+}
+
+fn make_track_with_metadata(library: &str, path: &str, title: &str) -> Track {
+    Track::new_with_metadata(
+        TrackId(format!("trk-{}", path)),
+        LibraryId(library.into()),
+        TrackMetadata::new(
+            TrackTitle(title.into()),
+            TrackArtist("Artist".into()),
+            Some(TrackAlbum("Album".into())),
+            Some(TrackNumber(7)),
+            Some(DiscNumber(2)),
+            Some(TrackGenre("Genre".into())),
+            Some(TrackYear(1999)),
+        ),
+        TrackMetadataOverride::empty(),
         TrackDuration(200),
         TrackFilePath(PathBuf::from(path)),
         FileSize(1_000),
@@ -109,4 +131,57 @@ fn delete_by_library_and_path_removes_only_the_matching_track() {
     let listed = repo.list_for_library(&LibraryId("lib-1".into())).unwrap();
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0].title(), &TrackTitle("B".into()));
+}
+
+#[test]
+fn upsert_persists_extended_file_metadata() {
+    let conn = migrated_connection();
+    let repo = SqliteTrackRepository::new(conn);
+
+    repo.upsert(&make_track_with_metadata("lib-1", "/m/a.mp3", "A"))
+        .unwrap();
+
+    let listed = repo.list_for_library(&LibraryId("lib-1".into())).unwrap();
+
+    assert_eq!(listed[0].album(), Some(&TrackAlbum("Album".into())));
+    assert_eq!(listed[0].track_number(), Some(TrackNumber(7)));
+    assert_eq!(listed[0].disc_number(), Some(DiscNumber(2)));
+    assert_eq!(listed[0].genre(), Some(&TrackGenre("Genre".into())));
+    assert_eq!(listed[0].year(), Some(TrackYear(1999)));
+}
+
+#[test]
+fn metadata_overrides_survive_rescan_upserts() {
+    let conn = migrated_connection();
+    let repo = SqliteTrackRepository::new(conn);
+
+    repo.upsert(&make_track_with_metadata("lib-1", "/m/a.mp3", "File Title"))
+        .unwrap();
+    repo.update_metadata_override(
+        &LibraryId("lib-1".into()),
+        &TrackId("trk-/m/a.mp3".into()),
+        &TrackMetadataOverride::new(
+            Some(TrackTitle("Edited Title".into())),
+            None,
+            Some(TrackAlbum("Edited Album".into())),
+            None,
+            None,
+            None,
+            None,
+        ),
+    )
+    .unwrap();
+
+    repo.upsert(&make_track_with_metadata(
+        "lib-1",
+        "/m/a.mp3",
+        "File Title After Rescan",
+    ))
+    .unwrap();
+
+    let listed = repo.list_for_library(&LibraryId("lib-1".into())).unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].title(), &TrackTitle("Edited Title".into()));
+    assert_eq!(listed[0].album(), Some(&TrackAlbum("Edited Album".into())));
+    assert!(listed[0].metadata_overridden());
 }
