@@ -2,8 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::application::add_library::{add_library as run_add_library, AddLibraryInput};
 use crate::application::error::AddLibraryError;
+use crate::application::watch_filesystem_libraries::watch_filesystem_library;
 use crate::domain::library::{Library, LibraryKind};
-use crate::AppState;
+use crate::{filesystem_library_change_handler, AppState};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,9 +88,27 @@ pub fn add_library(
         location: input.location,
     };
 
-    run_add_library(&*state.library_repository, input)
-        .map(LibraryDto::from)
-        .map_err(AddLibraryErrorDto::from)
+    let library =
+        run_add_library(&*state.library_repository, input).map_err(AddLibraryErrorDto::from)?;
+
+    if let Err(error) = watch_filesystem_library(
+        &library,
+        &*state.filesystem_watcher,
+        filesystem_library_change_handler(
+            state.library_repository.clone(),
+            state.track_repository.clone(),
+            state.walker.clone(),
+            state.metadata_reader.clone(),
+        ),
+    ) {
+        eprintln!(
+            "filesystem library watcher failed for {}: {}",
+            library.id(),
+            error
+        );
+    }
+
+    Ok(LibraryDto::from(library))
 }
 
 #[cfg(test)]

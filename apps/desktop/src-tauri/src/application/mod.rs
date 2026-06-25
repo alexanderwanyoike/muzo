@@ -11,3 +11,4 @@ pub mod ping;
 pub mod reconcile_filesystem_libraries;
 pub mod resolve_track_audio_source;
 pub mod scan_library;
+pub mod watch_filesystem_libraries;
