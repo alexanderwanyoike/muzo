@@ -5,7 +5,7 @@ use muzo_desktop_lib::domain::track::{
     FileMtime, FileSize, Track, TrackArtist, TrackDuration, TrackFilePath, TrackId,
     TrackRepository, TrackTitle,
 };
-use muzo_desktop_lib::infrastructure::sqlite_library_repository::SqliteLibraryRepository;
+use muzo_desktop_lib::infrastructure::migrations::MIGRATIONS;
 use muzo_desktop_lib::infrastructure::sqlite_track_repository::SqliteTrackRepository;
 
 fn make_track(library: &str, path: &str, title: &str) -> Track {
@@ -21,11 +21,15 @@ fn make_track(library: &str, path: &str, title: &str) -> Track {
     )
 }
 
+fn migrated_connection() -> rusqlite::Connection {
+    let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+    MIGRATIONS.to_latest(&mut conn).unwrap();
+    conn
+}
+
 #[test]
 fn upsert_inserts_a_new_track_that_can_be_listed_for_its_library() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
-    SqliteTrackRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteTrackRepository::new(conn);
 
     repo.upsert(&make_track("lib-1", "/m/a.mp3", "A")).unwrap();
@@ -40,9 +44,7 @@ fn upsert_inserts_a_new_track_that_can_be_listed_for_its_library() {
 
 #[test]
 fn upsert_on_conflicting_library_and_path_preserves_the_id_and_updates_other_fields() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
-    SqliteTrackRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteTrackRepository::new(conn);
 
     let original = make_track("lib-1", "/m/a.mp3", "Old Title");
@@ -76,9 +78,7 @@ fn upsert_on_conflicting_library_and_path_preserves_the_id_and_updates_other_fie
 
 #[test]
 fn list_for_library_only_returns_tracks_for_the_requested_library() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
-    SqliteTrackRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteTrackRepository::new(conn);
 
     repo.upsert(&make_track("lib-1", "/m/a.mp3", "A")).unwrap();
@@ -94,9 +94,7 @@ fn list_for_library_only_returns_tracks_for_the_requested_library() {
 
 #[test]
 fn delete_by_library_and_path_removes_only_the_matching_track() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
-    SqliteTrackRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteTrackRepository::new(conn);
 
     repo.upsert(&make_track("lib-1", "/m/a.mp3", "A")).unwrap();

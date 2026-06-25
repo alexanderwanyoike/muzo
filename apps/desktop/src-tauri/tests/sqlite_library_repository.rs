@@ -1,6 +1,7 @@
 use muzo_desktop_lib::domain::library::{
     Library, LibraryKind, LibraryLocation, LibraryName, LibraryRepository,
 };
+use muzo_desktop_lib::infrastructure::migrations::MIGRATIONS;
 use muzo_desktop_lib::infrastructure::sqlite_library_repository::SqliteLibraryRepository;
 
 fn make_library(name: &str, location: &str) -> Library {
@@ -12,10 +13,15 @@ fn make_library(name: &str, location: &str) -> Library {
     )
 }
 
+fn migrated_connection() -> rusqlite::Connection {
+    let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+    MIGRATIONS.to_latest(&mut conn).unwrap();
+    conn
+}
+
 #[test]
 fn a_library_added_to_sqlite_can_be_found_by_its_id() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteLibraryRepository::new(conn);
 
     let library = make_library("My Music", "/home/user/Music");
@@ -31,8 +37,7 @@ fn a_library_added_to_sqlite_can_be_found_by_its_id() {
 
 #[test]
 fn find_by_id_returns_none_when_the_library_is_not_there() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteLibraryRepository::new(conn);
 
     use muzo_desktop_lib::domain::library::LibraryId;
@@ -45,8 +50,7 @@ fn find_by_id_returns_none_when_the_library_is_not_there() {
 
 #[test]
 fn adding_two_libraries_with_distinct_ids_stores_both() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteLibraryRepository::new(conn);
 
     let a = make_library("First", "/a");
@@ -68,8 +72,7 @@ fn adding_two_libraries_with_distinct_ids_stores_both() {
 
 #[test]
 fn list_returns_every_persisted_library_in_insertion_order() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteLibraryRepository::new(conn);
 
     let a = make_library("First", "/a");
@@ -86,8 +89,7 @@ fn list_returns_every_persisted_library_in_insertion_order() {
 
 #[test]
 fn list_returns_an_empty_vec_when_no_libraries_have_been_added() {
-    let conn = rusqlite::Connection::open_in_memory().unwrap();
-    SqliteLibraryRepository::migrate(&conn).unwrap();
+    let conn = migrated_connection();
     let repo = SqliteLibraryRepository::new(conn);
 
     let listed = repo.list().expect("list should succeed");

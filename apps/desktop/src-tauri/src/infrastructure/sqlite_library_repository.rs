@@ -14,27 +14,11 @@ pub struct SqliteLibraryRepository {
 }
 
 impl SqliteLibraryRepository {
-    /// Wrap an existing, already-migrated connection.
+    /// Wrap an existing SQLite connection.
     pub fn new(connection: Connection) -> Self {
         Self {
             connection: Mutex::new(connection),
         }
-    }
-
-    /// Run idempotent schema migrations against the given connection. Safe to
-    /// call on every startup.
-    pub fn migrate(connection: &Connection) -> Result<(), RepositoryError> {
-        connection
-            .execute_batch(
-                "CREATE TABLE IF NOT EXISTS libraries (
-                    id       TEXT PRIMARY KEY NOT NULL,
-                    name     TEXT NOT NULL,
-                    kind     TEXT NOT NULL,
-                    location TEXT NOT NULL
-                );",
-            )
-            .map_err(|e| RepositoryError::Io(e.to_string()))?;
-        Ok(())
     }
 }
 
