@@ -5,6 +5,7 @@
 
 pub mod audio_stream_server;
 pub mod dropbox_api_client;
+pub mod dropbox_library_catalog;
 pub mod lofty_metadata_reader;
 pub mod migrations;
 pub mod notify_filesystem_watcher;
