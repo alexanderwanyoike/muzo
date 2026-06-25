@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use infrastructure::audio_stream_server::AudioStreamServer;
 use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
+use infrastructure::migrations::MIGRATIONS;
 use infrastructure::sqlite_library_repository::SqliteLibraryRepository;
 use infrastructure::sqlite_track_repository::SqliteTrackRepository;
 use infrastructure::walkdir_walker::WalkdirWalker;
@@ -34,10 +35,11 @@ pub fn run() {
     std::fs::create_dir_all(&muzo_dir).expect("could not create muzo data dir");
 
     let db_path = muzo_dir.join("muzo.sqlite");
-    let connection = rusqlite::Connection::open(&db_path)
+    let mut connection = rusqlite::Connection::open(&db_path)
         .unwrap_or_else(|e| panic!("could not open muzo sqlite at {:?}: {}", db_path, e));
-    SqliteLibraryRepository::migrate(&connection).expect("could not migrate library schema");
-    SqliteTrackRepository::migrate(&connection).expect("could not migrate track schema");
+    MIGRATIONS
+        .to_latest(&mut connection)
+        .expect("could not migrate sqlite schema");
     let audio_stream_server =
         AudioStreamServer::start().expect("could not start audio stream server");
 
