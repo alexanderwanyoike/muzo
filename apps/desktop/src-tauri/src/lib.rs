@@ -18,6 +18,7 @@ use infrastructure::lofty_metadata_reader::LoftyMetadataReader;
 use infrastructure::migrations::MIGRATIONS;
 use infrastructure::notify_filesystem_watcher::NotifyFilesystemLibraryWatcher;
 use infrastructure::sqlite_library_repository::SqliteLibraryRepository;
+use infrastructure::sqlite_playlist_repository::SqlitePlaylistRepository;
 use infrastructure::sqlite_track_repository::SqliteTrackRepository;
 use infrastructure::walkdir_walker::WalkdirWalker;
 
@@ -29,6 +30,7 @@ pub mod infrastructure;
 /// Shared application state, injected into Tauri commands via `State<AppState>`.
 pub struct AppState {
     pub library_repository: Arc<SqliteLibraryRepository>,
+    pub playlist_repository: Arc<SqlitePlaylistRepository>,
     pub track_repository: Arc<SqliteTrackRepository>,
     pub walker: Arc<WalkdirWalker>,
     pub metadata_reader: Arc<LoftyMetadataReader>,
@@ -72,6 +74,9 @@ pub fn run() {
         .expect("could not migrate sqlite schema");
 
     let library_repository = Arc::new(SqliteLibraryRepository::new(connection));
+    let playlist_repository = Arc::new(SqlitePlaylistRepository::new(
+        rusqlite::Connection::open(&db_path).expect("could not open playlists sqlite connection"),
+    ));
     let track_repository = Arc::new(SqliteTrackRepository::new(
         rusqlite::Connection::open(&db_path).expect("could not open tracks sqlite connection"),
     ));
@@ -129,6 +134,7 @@ pub fn run() {
 
     let state = AppState {
         library_repository,
+        playlist_repository,
         track_repository,
         walker,
         metadata_reader,
@@ -149,6 +155,11 @@ pub fn run() {
             commands::prepare_track_audio_source::prepare_track_audio_source,
             commands::track_metadata::edit_track_metadata,
             commands::track_metadata::clear_track_metadata_override,
+            commands::playlists::create_playlist,
+            commands::playlists::list_playlists,
+            commands::playlists::add_track_to_playlist,
+            commands::playlists::remove_playlist_entry,
+            commands::playlists::reorder_playlist_entries,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

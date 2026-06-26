@@ -5,4 +5,5 @@
 //! mapped at the boundary in `application` or `infrastructure`.
 
 pub mod library;
+pub mod playlist;
 pub mod track;
