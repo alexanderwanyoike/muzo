@@ -10,6 +10,7 @@ pub mod edit_track_metadata;
 pub mod error;
 pub mod list_libraries;
 pub mod ping;
+pub mod play_history;
 pub mod playlists;
 pub mod reconcile_filesystem_libraries;
 pub mod resolve_track_audio_source;

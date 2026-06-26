@@ -4,7 +4,7 @@ import LibraryList from "./LibraryList";
 import TrackList from "./TrackList";
 import NowPlayingBar from "./NowPlayingBar";
 import { useAudioPlayer } from "./useAudioPlayer";
-import { listLibraries, listTracks, scanLibrary } from "./api";
+import { listLibraries, listTrackPlayCounts, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
 type ActiveView = "library" | "settings";
@@ -15,6 +15,26 @@ interface ListError {
 }
 
 export default function App() {
+  const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
+  const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
+  const [trackPlayCounts, setTrackPlayCounts] = useState<Record<string, Record<string, number>>>({});
+  const [trackRefreshVersions, setTrackRefreshVersions] = useState<Record<string, number>>({});
+  const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>("library");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleTrackPlayRecorded = useCallback((track: { libraryId: string; id: string }) => {
+    setTrackPlayCounts((prev) => ({
+      ...prev,
+      [track.libraryId]: {
+        ...(prev[track.libraryId] ?? {}),
+        [track.id]: (prev[track.libraryId]?.[track.id] ?? 0) + 1,
+      },
+    }));
+  }, []);
+
   const {
     current,
     status,
@@ -26,16 +46,7 @@ export default function App() {
     toggle,
     seek,
     setVolume,
-  } = useAudioPlayer();
-
-  const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
-  const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
-  const [trackRefreshVersions, setTrackRefreshVersions] = useState<Record<string, number>>({});
-  const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<ActiveView>("library");
-  const [error, setError] = useState<string | null>(null);
+  } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
 
   const refresh = async () => {
     setError(null);
@@ -51,6 +62,35 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    if (!selectedLibraryId) {
+      return;
+    }
+
+    let cancelled = false;
+    listTrackPlayCounts(selectedLibraryId)
+      .then((counts) => {
+        if (cancelled) {
+          return;
+        }
+        setTrackPlayCounts((prev) => ({
+          ...prev,
+          [selectedLibraryId]: Object.fromEntries(
+            counts.map((count) => [count.trackId, count.playCount]),
+          ),
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTrackPlayCounts((prev) => ({ ...prev, [selectedLibraryId]: {} }));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLibraryId]);
 
   async function handleScan(libraryId: string) {
     setScanningLibraryId(libraryId);
@@ -230,6 +270,7 @@ export default function App() {
               onToggleCurrentTrack={toggle}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
+              playCounts={trackPlayCounts[selectedLibrary.id] ?? {}}
             />
           </div>
         ) : (

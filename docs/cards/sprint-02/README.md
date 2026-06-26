@@ -15,7 +15,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | 003 |
 | 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | - |
 | 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | - |
-| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) (planned) | Feature | - |
+| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) | Feature | - |
 | 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | 007 |
 | 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | - |
 

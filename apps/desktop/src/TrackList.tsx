@@ -15,6 +15,7 @@ interface TrackListProps {
   onToggleCurrentTrack: () => void;
   refreshKey?: number;
   onTracksLoaded?: (libraryId: string, trackCount: number) => void;
+  playCounts?: Record<string, number>;
 }
 
 export default function TrackList({
@@ -25,6 +26,7 @@ export default function TrackList({
   onToggleCurrentTrack,
   refreshKey = 0,
   onTracksLoaded,
+  playCounts = {},
 }: TrackListProps) {
   const [tracks, setTracks] = useState<TrackDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -176,6 +178,9 @@ export default function TrackList({
             <span className="track-list__duration">
               {formatDuration(track.durationSeconds)}
             </span>
+            <span className="track-list__play-count">
+              {formatPlayCount(playCounts[track.id] ?? 0)}
+            </span>
             <button
               type="button"
               className="track-list__edit"
@@ -297,6 +302,10 @@ interface MetadataDraft {
 function trackSubtitle(track: TrackDto): string {
   const source = track.album ?? (track.metadataOverridden ? "Edited in Muzo" : null);
   return source ? `${track.artist} - ${source}` : track.artist;
+}
+
+function formatPlayCount(count: number): string {
+  return `${count} ${count === 1 ? "play" : "plays"}`;
 }
 
 function textToMetadata(value: string): string | null {

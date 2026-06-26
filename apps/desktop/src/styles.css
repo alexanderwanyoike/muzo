@@ -366,7 +366,7 @@ button {
 
 .track-list__row {
   display: grid;
-  grid-template-columns: 42px 42px minmax(0, 1fr) 80px 64px;
+  grid-template-columns: 42px 42px minmax(0, 1fr) 80px 76px 64px;
   align-items: center;
   min-height: 44px;
   gap: 0.65rem;
@@ -422,6 +422,7 @@ button {
 
 .track-list__index,
 .track-list__duration,
+.track-list__play-count,
 .track-list__artist,
 .track-list__placeholder,
 .track-list__empty {
@@ -429,7 +430,8 @@ button {
 }
 
 .track-list__index,
-.track-list__duration {
+.track-list__duration,
+.track-list__play-count {
   font-size: 0.82rem;
   font-variant-numeric: tabular-nums;
 }
@@ -438,7 +440,8 @@ button {
   text-align: right;
 }
 
-.track-list__duration {
+.track-list__duration,
+.track-list__play-count {
   text-align: right;
 }
 

@@ -17,9 +17,9 @@ fn fresh_database_reaches_the_current_schema() {
 
     assert_eq!(
         MIGRATIONS.current_version(&conn).unwrap(),
-        SchemaVersion::Inside(NonZeroUsize::new(4).unwrap())
+        SchemaVersion::Inside(NonZeroUsize::new(5).unwrap())
     );
-    assert_eq!(user_version(&conn), 4);
+    assert_eq!(user_version(&conn), 5);
     assert_eq!(
         table_columns(&conn, "libraries"),
         vec!["id", "name", "kind", "location"]
@@ -54,6 +54,10 @@ fn fresh_database_reaches_the_current_schema() {
         table_columns(&conn, "playlist_entries"),
         vec!["id", "playlist_id", "track_id", "position"]
     );
+    assert_eq!(
+        table_columns(&conn, "play_history"),
+        vec!["id", "library_id", "track_id", "played_at_unix_seconds"]
+    );
 }
 
 #[test]
@@ -70,7 +74,7 @@ fn rerunning_migrations_against_current_schema_is_a_no_op() {
 
     assert_eq!(
         MIGRATIONS.current_version(&conn).unwrap(),
-        SchemaVersion::Inside(NonZeroUsize::new(4).unwrap())
+        SchemaVersion::Inside(NonZeroUsize::new(5).unwrap())
     );
     assert_eq!(
         conn.query_row("SELECT COUNT(*) FROM libraries", [], |row| row
@@ -110,7 +114,7 @@ fn legacy_inline_schema_database_is_adopted_without_losing_data() {
 
     assert_eq!(
         MIGRATIONS.current_version(&conn).unwrap(),
-        SchemaVersion::Inside(NonZeroUsize::new(4).unwrap())
+        SchemaVersion::Inside(NonZeroUsize::new(5).unwrap())
     );
     assert_eq!(
         conn.query_row("SELECT COUNT(*) FROM libraries", [], |row| row

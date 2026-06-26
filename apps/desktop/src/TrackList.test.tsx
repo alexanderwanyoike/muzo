@@ -81,6 +81,23 @@ describe("TrackList", () => {
     expect(screen.getByText("3:53")).toBeDefined();
   });
 
+  it("shows the play count for each track", async () => {
+    mockedInvoke.mockResolvedValueOnce(sampleTracks);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+        playCounts={{ "trk-1": 3, "trk-2": 1 }}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("3 plays")).toBeDefined());
+    expect(screen.getByText("1 play")).toBeDefined();
+  });
+
   it("shows album metadata and override state in the track row", async () => {
     mockedInvoke.mockResolvedValueOnce(sampleTracks);
     render(

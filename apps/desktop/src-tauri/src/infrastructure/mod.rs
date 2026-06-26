@@ -10,6 +10,7 @@ pub mod lofty_metadata_reader;
 pub mod migrations;
 pub mod notify_filesystem_watcher;
 pub mod sqlite_library_repository;
+pub mod sqlite_play_history_repository;
 pub mod sqlite_playlist_repository;
 pub mod sqlite_track_repository;
 pub mod walkdir_walker;

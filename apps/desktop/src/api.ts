@@ -87,3 +87,22 @@ export async function prepareTrackAudioSource(input: {
 }): Promise<PreparedTrackAudioSourceDto> {
   return invoke<PreparedTrackAudioSourceDto>("prepare_track_audio_source", { input });
 }
+
+export async function recordTrackPlay(input: {
+  libraryId: string;
+  trackId: string;
+}): Promise<void> {
+  return invoke<void>("record_track_play", { input });
+}
+
+export interface PlayCountDto {
+  trackId: string;
+  playCount: number;
+  lastPlayedAtUnixSeconds: number | null;
+}
+
+export async function listTrackPlayCounts(libraryId: string): Promise<PlayCountDto[]> {
+  return invoke<PlayCountDto[]>("list_track_play_counts", {
+    input: { libraryId },
+  });
+}

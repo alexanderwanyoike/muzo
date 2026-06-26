@@ -108,6 +108,38 @@ describe("App", () => {
     expect(screen.getByText("Hotel California")).toBeDefined();
   });
 
+  it("loads play counts for the selected library", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "list_tracks") return Promise.resolve([track]);
+      if (command === "list_track_play_counts") {
+        return Promise.resolve([
+          {
+            trackId: "trk-1",
+            playCount: 2,
+            lastPlayedAtUnixSeconds: 1_719_000_000,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", { name: "Show tracks for My Music" }),
+    );
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("list_track_play_counts", {
+        input: { libraryId: "lib-1" },
+      }),
+    );
+    expect(screen.getByText("2 plays")).toBeDefined();
+  });
+
   it("refreshes the visible track list after scanning an expanded library", async () => {
     const user = userEvent.setup();
     mockedInvoke.mockImplementation((command: string) => {
