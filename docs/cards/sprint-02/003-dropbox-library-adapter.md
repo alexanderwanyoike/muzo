@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: Pending
+- Status: Done
 - Blocks: -
 
 # Card 003 - Dropbox library adapter
@@ -47,19 +47,19 @@ separate follow-ups.
 
 ## Acceptance criteria
 
-- [ ] Dropbox scan use case rejects missing libraries.
-- [ ] Dropbox scan use case rejects non-Dropbox libraries.
-- [ ] Dropbox scan asks the remote catalog for files under the library
+- [x] Dropbox scan use case rejects missing libraries.
+- [x] Dropbox scan use case rejects non-Dropbox libraries.
+- [x] Dropbox scan asks the remote catalog for files under the library
       location using the caller's access token.
-- [ ] Dropbox scan persists supported audio files as tracks for the library.
-- [ ] Dropbox scan removes tracks whose remote paths are no longer returned.
-- [ ] Dropbox adapter filters out unsupported remote file extensions.
-- [ ] Dropbox adapter maps Dropbox path, size, and modified timestamp into
+- [x] Dropbox scan persists supported audio files as tracks for the library.
+- [x] Dropbox scan removes tracks whose remote paths are no longer returned.
+- [x] Dropbox adapter filters out unsupported remote file extensions.
+- [x] Dropbox adapter maps Dropbox path, size, and modified timestamp into
       application source-file metadata.
-- [ ] Domain layer has no Dropbox API, OAuth, HTTP, or serde dependency.
-- [ ] Tests cover the scan use case with a fake catalog and repository.
-- [ ] Tests cover the infrastructure adapter with a fake Dropbox API client.
-- [ ] All verification commands green.
+- [x] Domain layer has no Dropbox API, OAuth, HTTP, or serde dependency.
+- [x] Tests cover the scan use case with a fake catalog and repository.
+- [x] Tests cover the infrastructure adapter with a fake Dropbox API client.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 
