@@ -23,7 +23,9 @@ describe("ListTracksCommand", () => {
       },
     ];
     const trackRepository = {
+      deleteByLibraryAndPath: vi.fn(),
       listForLibrary: vi.fn().mockResolvedValue(tracks),
+      upsertScannedTrack: vi.fn(),
     };
 
     await expect(

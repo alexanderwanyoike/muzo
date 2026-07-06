@@ -1,15 +1,35 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import type { TrackDto } from "../../../src/api";
-import type { TrackRepository } from "../../application/interfaces/repository-interfaces";
+import type {
+  ScannedTrack,
+  TrackRepository,
+} from "../../application/interfaces/repository-interfaces";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
 export class SqliteTrackRepository implements TrackRepository {
   constructor(private readonly dbPath: string) {}
+
+  async deleteByLibraryAndPath(
+    libraryId: string,
+    filePath: string,
+  ): Promise<void> {
+    const SQL = await loadSqlModule();
+    const database = new SQL.Database(readFileSync(this.dbPath));
+    try {
+      database.run("DELETE FROM tracks WHERE library_id = ? AND file_path = ?", [
+        libraryId,
+        filePath,
+      ]);
+      saveDatabase(database, this.dbPath);
+    } finally {
+      database.close();
+    }
+  }
 
   async listForLibrary(libraryId: string): Promise<TrackDto[]> {
     if (!existsSync(this.dbPath)) {
@@ -45,6 +65,49 @@ export class SqliteTrackRepository implements TrackRepository {
       database.close();
     }
   }
+
+  async upsertScannedTrack(track: ScannedTrack): Promise<void> {
+    const SQL = await loadSqlModule();
+    const database = new SQL.Database(readFileSync(this.dbPath));
+    try {
+      database.run(
+        `INSERT INTO tracks (
+          id, library_id, title, artist, album, track_number, disc_number, genre, year,
+          duration_seconds, file_path, file_size, file_mtime
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(library_id, file_path) DO UPDATE SET
+          title = excluded.title,
+          artist = excluded.artist,
+          album = excluded.album,
+          track_number = excluded.track_number,
+          disc_number = excluded.disc_number,
+          genre = excluded.genre,
+          year = excluded.year,
+          duration_seconds = excluded.duration_seconds,
+          file_size = excluded.file_size,
+          file_mtime = excluded.file_mtime`,
+        [
+          track.id,
+          track.libraryId,
+          track.title,
+          track.artist,
+          track.album,
+          track.trackNumber,
+          track.discNumber,
+          track.genre,
+          track.year,
+          track.durationSeconds,
+          track.filePath,
+          track.fileSize,
+          track.fileMtime,
+        ],
+      );
+      saveDatabase(database, this.dbPath);
+    } finally {
+      database.close();
+    }
+  }
 }
 
 function loadSqlModule(): Promise<SqlJsStatic> {
@@ -55,6 +118,13 @@ function loadSqlModule(): Promise<SqlJsStatic> {
     },
   });
   return sqlModulePromise;
+}
+
+function saveDatabase(
+  database: InstanceType<SqlJsStatic["Database"]>,
+  dbPath: string,
+): void {
+  writeFileSync(dbPath, database.export());
 }
 
 function tableExists(

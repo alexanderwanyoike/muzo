@@ -16,6 +16,7 @@ describe("ListLibrariesCommand", () => {
     ];
     const libraryRepository = {
       add: vi.fn(),
+      findById: vi.fn(),
       list: vi.fn().mockResolvedValue(libraries),
     };
 
