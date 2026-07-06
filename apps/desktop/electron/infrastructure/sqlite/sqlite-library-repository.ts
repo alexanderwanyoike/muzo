@@ -14,7 +14,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
 
   async add(library: LibraryDto): Promise<void> {
     const SQL = await loadSqlModule();
-    const database = await this.openWritableDatabase(SQL);
+    const database = this.openDatabase(SQL);
     try {
       database.run(
         "INSERT INTO libraries (id, name, kind, location) VALUES (?, ?, ?, ?)",
@@ -62,21 +62,10 @@ export class SqliteLibraryRepository implements LibraryRepository {
     }
   }
 
-  private async openWritableDatabase(
-    SQL: SqlJsStatic,
-  ): Promise<InstanceType<SqlJsStatic["Database"]>> {
-    const database = existsSync(this.dbPath)
+  private openDatabase(SQL: SqlJsStatic): InstanceType<SqlJsStatic["Database"]> {
+    return existsSync(this.dbPath)
       ? new SQL.Database(readFileSync(this.dbPath))
       : new SQL.Database();
-    database.run(`
-      CREATE TABLE IF NOT EXISTS libraries (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        location TEXT NOT NULL
-      );
-    `);
-    return database;
   }
 
   private saveDatabase(database: InstanceType<SqlJsStatic["Database"]>): void {

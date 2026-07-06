@@ -8,6 +8,7 @@ import initSqlJs from "sql.js";
 import { describe, expect, it } from "vitest";
 
 import { SqliteLibraryRepository } from "./sqlite-library-repository";
+import { runSqliteMigrations } from "./sqlite-migrations";
 
 describe("Electron library repository", () => {
   it("lists libraries from the existing Muzo SQLite schema", async () => {
@@ -58,8 +59,9 @@ describe("Electron library repository", () => {
     ).resolves.toEqual([]);
   });
 
-  it("creates the database and persists a new library", async () => {
+  it("persists a new library after migrations have created the schema", async () => {
     const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
     const repository = new SqliteLibraryRepository(dbPath);
 
     await repository.add({
@@ -78,6 +80,20 @@ describe("Electron library repository", () => {
         location: "/music",
       },
     ]);
+  });
+
+  it("does not create schema as a repository side effect", async () => {
+    const dbPath = tempDatabasePath();
+    const repository = new SqliteLibraryRepository(dbPath);
+
+    await expect(
+      repository.add({
+        id: "lib-1",
+        name: "Local Music",
+        kind: "filesystem",
+        location: "/music",
+      }),
+    ).rejects.toThrow("no such table: libraries");
   });
 });
 
