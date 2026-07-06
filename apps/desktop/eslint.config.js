@@ -27,4 +27,10 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ["electron/**/*.ts"],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 );

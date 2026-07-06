@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 // Tauri spawns a Vite dev server with a fixed port and strict host settings.
 // See https://v2.tauri.app/start/frontend/vite/ for the reasoning.
 const host = process.env.TAURI_DEV_HOST;
+const port = Number(process.env.MUZO_DESKTOP_PORT ?? 1420);
 
 export default defineConfig(async () => ({
   plugins: [react()],
@@ -12,7 +13,7 @@ export default defineConfig(async () => ({
   // `test` is consumed by vitest, ignored by plain `vite build`.
   clearScreen: false,
   server: {
-    port: 1420,
+    port,
     strictPort: true,
     host: host || false,
     hmr: host
@@ -29,6 +30,6 @@ export default defineConfig(async () => ({
   test: {
     environment: "jsdom",
     globals: true,
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "electron/**/*.{test,spec}.ts"],
   },
 }));

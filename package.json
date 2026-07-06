@@ -16,6 +16,7 @@
   "scripts": {
     "desktop": "yarn workspace @muzo/desktop",
     "desktop:dev": "yarn workspace @muzo/desktop tauri dev",
+    "desktop:electron": "yarn workspace @muzo/desktop electron:dev",
     "desktop:vite": "yarn workspace @muzo/desktop dev",
     "desktop:build": "yarn workspace @muzo/desktop build",
     "desktop:tauri": "yarn workspace @muzo/desktop tauri",
