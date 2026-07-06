@@ -12,7 +12,6 @@ import initSqlJs, { type SqlJsStatic } from "sql.js";
 import {
   Umzug,
   type MigrationParams,
-  type RunnableMigration,
   type UmzugStorage,
 } from "umzug";
 
@@ -31,10 +30,7 @@ export async function runSqliteMigrations(dbPath: string): Promise<void> {
     : new SQL.Database();
 
   try {
-    ensureMigrationTable(database);
-
     const migrator = createMigrator(database);
-    await baselineExistingSchema(database, await migrator.migrations({ database }));
     await migrator.up();
 
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -72,6 +68,7 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
   constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
 
   async executed(): Promise<string[]> {
+    this.ensureTable();
     const result = this.database.exec(
       "SELECT name FROM electron_migrations ORDER BY version",
     );
@@ -82,6 +79,7 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
   }
 
   async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
+    this.ensureTable();
     this.database.run(
       "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
       [migrationVersion(name), name, Math.floor(Date.now() / 1000)],
@@ -91,7 +89,18 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
   async unlogMigration({
     name,
   }: MigrationParams<MigrationContext>): Promise<void> {
+    this.ensureTable();
     this.database.run("DELETE FROM electron_migrations WHERE name = ?", [name]);
+  }
+
+  private ensureTable(): void {
+    this.database.run(`
+      CREATE TABLE IF NOT EXISTS electron_migrations (
+        version INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        applied_at_unix_seconds INTEGER NOT NULL
+      );
+    `);
   }
 }
 
@@ -118,97 +127,9 @@ function migrationVersion(nameOrPath: string): number {
   return Number(match[1]);
 }
 
-function ensureMigrationTable(
-  database: InstanceType<SqlJsStatic["Database"]>,
-): void {
-  database.run(`
-    CREATE TABLE IF NOT EXISTS electron_migrations (
-      version INTEGER PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      applied_at_unix_seconds INTEGER NOT NULL
-    );
-  `);
-}
-
-async function baselineExistingSchema(
-  database: InstanceType<SqlJsStatic["Database"]>,
-  migrations: ReadonlyArray<RunnableMigration<MigrationContext>>,
-): Promise<void> {
-  const version = userVersion(database);
-  const detectedVersion = Math.max(version, detectLegacySchemaVersion(database));
-  if (detectedVersion === 0) {
-    return;
-  }
-
-  for (const migration of migrations) {
-    const versionFromPath = migrationVersion(migration.name);
-    if (versionFromPath <= detectedVersion) {
-      database.run(
-        "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
-        [versionFromPath, migration.name, Math.floor(Date.now() / 1000)],
-      );
-    }
-  }
-  setUserVersion(database, detectedVersion);
-}
-
-function detectLegacySchemaVersion(
-  database: InstanceType<SqlJsStatic["Database"]>,
-): number {
-  if (tableExists(database, "play_history")) {
-    return 5;
-  }
-  if (tableExists(database, "playlist_entries")) {
-    return 4;
-  }
-  if (tableHasColumn(database, "tracks", "override_year")) {
-    return 3;
-  }
-  if (tableExists(database, "tracks")) {
-    return 2;
-  }
-  if (tableExists(database, "libraries")) {
-    return 1;
-  }
-
-  return 0;
-}
-
-function userVersion(database: InstanceType<SqlJsStatic["Database"]>): number {
-  const result = database.exec("PRAGMA user_version");
-  return Number(result[0].values[0][0]);
-}
-
 function setUserVersion(
   database: InstanceType<SqlJsStatic["Database"]>,
   version: number,
 ): void {
   database.run(`PRAGMA user_version = ${version}`);
-}
-
-function tableExists(
-  database: InstanceType<SqlJsStatic["Database"]>,
-  tableName: string,
-): boolean {
-  const statement = database.prepare(
-    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
-  );
-  try {
-    statement.bind([tableName]);
-    return statement.step();
-  } finally {
-    statement.free();
-  }
-}
-
-function tableHasColumn(
-  database: InstanceType<SqlJsStatic["Database"]>,
-  tableName: string,
-  columnName: string,
-): boolean {
-  const result = database.exec(`PRAGMA table_info(${tableName})`);
-  if (result.length === 0) {
-    return false;
-  }
-  return result[0].values.some((row) => row[1] === columnName);
 }
