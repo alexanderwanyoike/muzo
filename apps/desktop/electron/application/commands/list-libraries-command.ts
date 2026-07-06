@@ -1,4 +1,4 @@
-import type { LibraryDto } from "../src/types";
+import type { LibraryDto } from "../../../src/types";
 import type { CommandDependencies, CommandHandler } from "./command-handler";
 
 export class ListLibrariesCommand implements CommandHandler {

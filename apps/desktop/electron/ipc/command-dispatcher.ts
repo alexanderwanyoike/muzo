@@ -1,8 +1,11 @@
-import { AddLibraryCommand } from "./add-library-command";
-import type { CommandDependencies, CommandHandler } from "./command-handler";
-import { createCommandDependencies } from "./dependencies";
-import { ListLibrariesCommand } from "./list-libraries-command";
-import { ListTracksCommand } from "./list-tracks-command";
+import { AddLibraryCommand } from "../application/commands/add-library-command";
+import type {
+  CommandDependencies,
+  CommandHandler,
+} from "../application/commands/command-handler";
+import { ListLibrariesCommand } from "../application/commands/list-libraries-command";
+import { ListTracksCommand } from "../application/commands/list-tracks-command";
+import { createCommandDependencies } from "../composition/dependencies";
 
 const commandHandlers = new Map<string, CommandHandler>(
   [

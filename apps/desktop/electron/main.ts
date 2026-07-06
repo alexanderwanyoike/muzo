@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { handleElectronCommand } from "./commands";
+import { handleElectronCommand } from "./ipc/command-dispatcher";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";

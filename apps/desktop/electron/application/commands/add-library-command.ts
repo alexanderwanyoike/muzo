@@ -1,4 +1,4 @@
-import type { AddLibraryInputDto, LibraryDto } from "../src/types";
+import type { AddLibraryInputDto, LibraryDto } from "../../../src/types";
 import type { CommandDependencies, CommandHandler } from "./command-handler";
 
 export class AddLibraryCommand implements CommandHandler {

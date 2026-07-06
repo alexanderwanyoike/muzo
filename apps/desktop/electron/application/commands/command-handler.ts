@@ -1,4 +1,7 @@
-import type { LibraryRepository, TrackRepository } from "./repository-ports";
+import type {
+  LibraryRepository,
+  TrackRepository,
+} from "../ports/repository-ports";
 
 export interface CommandDependencies {
   libraries: LibraryRepository;

@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { handleElectronCommand } from "./commands";
+import { handleElectronCommand } from "./command-dispatcher";
 
 describe("Electron command dispatcher", () => {
   it("routes registered commands to their handler", async () => {

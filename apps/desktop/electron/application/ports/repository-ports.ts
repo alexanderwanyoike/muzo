@@ -1,5 +1,5 @@
-import type { TrackDto } from "../src/api";
-import type { LibraryDto } from "../src/types";
+import type { TrackDto } from "../../../src/api";
+import type { LibraryDto } from "../../../src/types";
 
 export interface LibraryRepository {
   add(library: LibraryDto): Promise<void>;

@@ -3,8 +3,8 @@ import { createRequire } from "node:module";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
-import type { TrackDto } from "../src/api";
-import type { TrackRepository } from "./repository-ports";
+import type { TrackDto } from "../../../src/api";
+import type { TrackRepository } from "../../application/ports/repository-ports";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 

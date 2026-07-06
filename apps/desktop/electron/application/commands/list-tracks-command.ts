@@ -1,4 +1,4 @@
-import type { TrackDto } from "../src/api";
+import type { TrackDto } from "../../../src/api";
 import type { CommandDependencies, CommandHandler } from "./command-handler";
 
 export class ListTracksCommand implements CommandHandler {
