@@ -8,6 +8,7 @@ const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
 const container = createElectronContainer();
 const commandDispatcher = container.resolve("commandDispatcher");
+const migrateDatabase = container.resolve("migrateDatabase");
 
 async function createWindow() {
   const window = new BrowserWindow({
@@ -51,7 +52,8 @@ ipcMain.handle("muzo:open-directory", async () => {
   return result.canceled ? null : result.filePaths[0] ?? null;
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await migrateDatabase();
   void createWindow();
 
   app.on("activate", () => {

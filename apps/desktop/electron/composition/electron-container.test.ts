@@ -13,7 +13,10 @@ describe("Electron container", () => {
       dbPath: tempDatabasePath(),
       generateLibraryId: () => "lib-1",
     });
+    const migrateDatabase = container.resolve("migrateDatabase");
     const commandDispatcher = container.resolve("commandDispatcher");
+
+    await migrateDatabase();
 
     await expect(
       commandDispatcher.handleElectronCommand("add_library", {

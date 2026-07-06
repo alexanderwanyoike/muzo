@@ -1,6 +1,6 @@
 - Track: Migration
 - Type: Architecture
-- Status: Proposed
+- Status: In progress
 
 # Card 001 - Migrate desktop shell from Tauri/Rust to Electron/TypeScript
 
@@ -97,6 +97,30 @@ Deferred until after the migration:
 - Make Electron the default desktop dev/build path.
 - Update docs, package scripts, and agent instructions.
 - Remove Tauri, Rust source, Cargo files, and Rust verification commands.
+
+## Progress notes
+
+Completed Electron migration slices:
+
+- Runtime bridge and Electron shell boot the existing React app.
+- Electron command backend is modularised around commands, interfaces,
+  infrastructure, IPC, and Awilix composition.
+- Electron command parity exists for `add_library`, `list_libraries`, and
+  `list_tracks`.
+- Electron SQLite migrations create the current Rust schema and adopt legacy
+  inline library/track schemas without losing data.
+
+Remaining parity work:
+
+- `scan_library`.
+- Metadata reader and filesystem walker.
+- `prepare_track_audio_source`.
+- `edit_track_metadata` and `clear_track_metadata_override`.
+- `record_track_play` and `list_track_play_counts`.
+- Startup reconciliation and filesystem watching.
+- Playlist commands.
+- Dropbox backend.
+- Tauri/Rust removal after verified Electron parity.
 
 ## Acceptance criteria
 

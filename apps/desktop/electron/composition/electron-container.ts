@@ -17,6 +17,7 @@ import type {
   TrackRepository,
 } from "../application/interfaces/repository-interfaces";
 import { SqliteLibraryRepository } from "../infrastructure/sqlite/sqlite-library-repository";
+import { runSqliteMigrations } from "../infrastructure/sqlite/sqlite-migrations";
 import { SqliteTrackRepository } from "../infrastructure/sqlite/sqlite-track-repository";
 import { CommandDispatcher } from "../ipc/command-dispatcher";
 import { muzoDatabasePath } from "../paths";
@@ -36,6 +37,7 @@ export interface ElectronCradle {
   listTracksCommand: ListTracksCommand;
   commandHandlers: CommandHandler[];
   commandDispatcher: CommandDispatcher;
+  migrateDatabase: () => Promise<void>;
 }
 
 export function createElectronContainer(
@@ -48,6 +50,9 @@ export function createElectronContainer(
   container.register({
     dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
     generateLibraryId: asValue(options.generateLibraryId ?? ulid),
+    migrateDatabase: asFunction(
+      (dbPath: string) => () => runSqliteMigrations(dbPath),
+    ).singleton(),
     libraries: asClass(SqliteLibraryRepository).singleton(),
     tracks: asClass(SqliteTrackRepository).singleton(),
     addLibraryCommand: asClass(AddLibraryCommand).singleton(),
