@@ -5,33 +5,23 @@ import { describe, expect, it, vi } from "vitest";
 import { handleElectronCommand } from "./commands";
 
 describe("Electron command dispatcher", () => {
-  it("routes list_libraries to the configured library repository", async () => {
-    const libraries = {
-      list: vi.fn().mockResolvedValue([
-        {
-          id: "lib-1",
-          name: "Local Music",
-          kind: "filesystem",
-          location: "/music",
-        },
-      ]),
+  it("routes registered commands to their handler", async () => {
+    const dependencies = {
+      libraries: {
+        add: vi.fn(),
+        list: vi.fn().mockResolvedValue([]),
+      },
+      generateLibraryId: vi.fn(),
     };
 
     await expect(
-      handleElectronCommand("list_libraries", undefined, { libraries }),
-    ).resolves.toEqual([
-      {
-        id: "lib-1",
-        name: "Local Music",
-        kind: "filesystem",
-        location: "/music",
-      },
-    ]);
+      handleElectronCommand("list_libraries", undefined, dependencies),
+    ).resolves.toEqual([]);
 
-    expect(libraries.list).toHaveBeenCalledOnce();
+    expect(dependencies.libraries.list).toHaveBeenCalledOnce();
   });
 
-  it("rejects commands that have not been ported yet", async () => {
+  it("rejects unregistered commands", async () => {
     await expect(handleElectronCommand("scan_library")).rejects.toThrow(
       "Electron command is not implemented: scan_library",
     );
