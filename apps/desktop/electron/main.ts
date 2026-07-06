@@ -28,9 +28,19 @@ async function createWindow() {
   }
 }
 
-ipcMain.handle("muzo:invoke", (_event, command: string, args?: unknown) =>
-  handleElectronCommand(command, args),
-);
+ipcMain.handle("muzo:invoke", async (_event, command: string, args?: unknown) => {
+  try {
+    return {
+      ok: true,
+      value: await handleElectronCommand(command, args),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error,
+    };
+  }
+});
 
 ipcMain.handle("muzo:open-directory", async () => {
   const result = await dialog.showOpenDialog({

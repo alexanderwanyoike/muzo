@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname } from "node:path";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
@@ -9,6 +10,25 @@ let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
 export class SqliteLibraryRepository {
   constructor(private readonly dbPath: string) {}
+
+  async add(library: LibraryDto): Promise<void> {
+    const SQL = await loadSqlModule();
+    const database = await this.openWritableDatabase(SQL);
+    try {
+      database.run(
+        "INSERT INTO libraries (id, name, kind, location) VALUES (?, ?, ?, ?)",
+        [
+          library.id,
+          library.name,
+          libraryKindToDatabase(library.kind),
+          library.location,
+        ],
+      );
+      this.saveDatabase(database);
+    } finally {
+      database.close();
+    }
+  }
 
   async list(): Promise<LibraryDto[]> {
     if (!existsSync(this.dbPath)) {
@@ -40,6 +60,28 @@ export class SqliteLibraryRepository {
       database.close();
     }
   }
+
+  private async openWritableDatabase(
+    SQL: SqlJsStatic,
+  ): Promise<InstanceType<SqlJsStatic["Database"]>> {
+    const database = existsSync(this.dbPath)
+      ? new SQL.Database(readFileSync(this.dbPath))
+      : new SQL.Database();
+    database.run(`
+      CREATE TABLE IF NOT EXISTS libraries (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        location TEXT NOT NULL
+      );
+    `);
+    return database;
+  }
+
+  private saveDatabase(database: InstanceType<SqlJsStatic["Database"]>): void {
+    mkdirSync(dirname(this.dbPath), { recursive: true });
+    writeFileSync(this.dbPath, database.export());
+  }
 }
 
 function loadSqlModule(): Promise<SqlJsStatic> {
@@ -68,5 +110,14 @@ function libraryKindFromDatabase(kind: string): LibraryKindDto {
       return "dropbox";
     default:
       throw new Error(`unknown library kind in database: ${kind}`);
+  }
+}
+
+function libraryKindToDatabase(kind: LibraryKindDto): string {
+  switch (kind) {
+    case "filesystem":
+      return "Filesystem";
+    case "dropbox":
+      return "Dropbox";
   }
 }

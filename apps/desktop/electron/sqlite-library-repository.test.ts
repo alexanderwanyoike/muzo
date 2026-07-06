@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -57,4 +57,30 @@ describe("Electron library repository", () => {
       new SqliteLibraryRepository("/path/that/does/not/exist/muzo.sqlite").list(),
     ).resolves.toEqual([]);
   });
+
+  it("creates the database and persists a new library", async () => {
+    const dbPath = tempDatabasePath();
+    const repository = new SqliteLibraryRepository(dbPath);
+
+    await repository.add({
+      id: "lib-1",
+      name: "Local Music",
+      kind: "filesystem",
+      location: "/music",
+    });
+
+    expect(existsSync(dbPath)).toBe(true);
+    await expect(new SqliteLibraryRepository(dbPath).list()).resolves.toEqual([
+      {
+        id: "lib-1",
+        name: "Local Music",
+        kind: "filesystem",
+        location: "/music",
+      },
+    ]);
+  });
 });
+
+function tempDatabasePath(): string {
+  return join(tmpdir(), `muzo-${Date.now()}-${Math.random()}.sqlite`);
+}
