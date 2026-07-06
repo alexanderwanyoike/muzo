@@ -14,18 +14,15 @@ describe("ListLibrariesCommand", () => {
         location: "/music",
       },
     ];
-    const dependencies = {
-      libraries: {
-        add: vi.fn(),
-        list: vi.fn().mockResolvedValue(libraries),
-      },
-      generateLibraryId: vi.fn(),
+    const libraryRepository = {
+      add: vi.fn(),
+      list: vi.fn().mockResolvedValue(libraries),
     };
 
     await expect(
-      new ListLibrariesCommand().handle(undefined, dependencies),
+      new ListLibrariesCommand(libraryRepository).handle(),
     ).resolves.toEqual(libraries);
 
-    expect(dependencies.libraries.list).toHaveBeenCalledOnce();
+    expect(libraryRepository.list).toHaveBeenCalledOnce();
   });
 });

@@ -2,10 +2,12 @@ import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { handleElectronCommand } from "./commands";
+import { createElectronContainer } from "./composition/electron-container";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
+const container = createElectronContainer();
+const commandDispatcher = container.resolve("commandDispatcher");
 
 async function createWindow() {
   const window = new BrowserWindow({
@@ -32,7 +34,7 @@ ipcMain.handle("muzo:invoke", async (_event, command: string, args?: unknown) =>
   try {
     return {
       ok: true,
-      value: await handleElectronCommand(command, args),
+      value: await commandDispatcher.handleElectronCommand(command, args),
     };
   } catch (error) {
     return {
