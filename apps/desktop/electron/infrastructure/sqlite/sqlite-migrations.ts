@@ -2,7 +2,6 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
@@ -10,7 +9,12 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
-import { Umzug, type MigrationParams, type UmzugStorage } from "umzug";
+import {
+  Umzug,
+  type MigrationParams,
+  type RunnableMigration,
+  type UmzugStorage,
+} from "umzug";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
@@ -28,22 +32,9 @@ export async function runSqliteMigrations(dbPath: string): Promise<void> {
 
   try {
     ensureMigrationTable(database);
-    adoptLegacySchema(database);
 
-    const migrator = new Umzug<MigrationContext>({
-      context: { database },
-      logger: undefined,
-      migrations: migrationFiles().map((path) => ({
-        name: migrationName(path),
-        path,
-        up: async ({ context }) => {
-          context.database.run(readFileSync(path, "utf8"));
-          setUserVersion(context.database, migrationVersion(path));
-        },
-      })),
-      storage: new SqliteMigrationStorage(database),
-    });
-
+    const migrator = createMigrator(database);
+    await baselineExistingSchema(database, await migrator.migrations({ database }));
     await migrator.up();
 
     mkdirSync(dirname(dbPath), { recursive: true });
@@ -53,20 +44,41 @@ export async function runSqliteMigrations(dbPath: string): Promise<void> {
   }
 }
 
+function createMigrator(
+  database: InstanceType<SqlJsStatic["Database"]>,
+): Umzug<MigrationContext> {
+  return new Umzug<MigrationContext>({
+    context: { database },
+    logger: undefined,
+    migrations: {
+      glob: ["*.sql", { cwd: migrationsDir }],
+      resolve: ({ name, path }) => ({
+        name,
+        path,
+        up: async ({ context }) => {
+          if (!path) {
+            throw new Error(`missing migration path for ${name}`);
+          }
+          context.database.run(readFileSync(path, "utf8"));
+          setUserVersion(context.database, migrationVersion(name));
+        },
+      }),
+    },
+    storage: new SqliteMigrationStorage(database),
+  });
+}
+
 class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
   constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
 
   async executed(): Promise<string[]> {
     const result = this.database.exec(
-      "SELECT version FROM electron_migrations ORDER BY version",
+      "SELECT name FROM electron_migrations ORDER BY version",
     );
     if (result.length === 0) {
       return [];
     }
-    const migrationNames = migrationNamesByVersion();
-    return result[0].values
-      .map((row) => migrationNames.get(Number(row[0])))
-      .filter((name): name is string => name !== undefined);
+    return result[0].values.map((row) => String(row[0]));
   }
 
   async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
@@ -93,21 +105,8 @@ function loadSqlModule(): Promise<SqlJsStatic> {
   return sqlModulePromise;
 }
 
-function migrationFiles(): string[] {
-  return readdirSync(migrationsDir)
-    .filter((file) => file.endsWith(".sql"))
-    .sort()
-    .map((file) => join(migrationsDir, file));
-}
-
 function migrationName(path: string): string {
   return basename(path);
-}
-
-function migrationNamesByVersion(): Map<number, string> {
-  return new Map(
-    migrationFiles().map((path) => [migrationVersion(path), migrationName(path)]),
-  );
 }
 
 function migrationVersion(nameOrPath: string): number {
@@ -131,21 +130,22 @@ function ensureMigrationTable(
   `);
 }
 
-function adoptLegacySchema(
+async function baselineExistingSchema(
   database: InstanceType<SqlJsStatic["Database"]>,
-): void {
+  migrations: ReadonlyArray<RunnableMigration<MigrationContext>>,
+): Promise<void> {
   const version = userVersion(database);
   const detectedVersion = Math.max(version, detectLegacySchemaVersion(database));
   if (detectedVersion === 0) {
     return;
   }
 
-  for (const path of migrationFiles()) {
-    const versionFromPath = migrationVersion(path);
+  for (const migration of migrations) {
+    const versionFromPath = migrationVersion(migration.name);
     if (versionFromPath <= detectedVersion) {
       database.run(
         "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
-        [versionFromPath, migrationName(path), Math.floor(Date.now() / 1000)],
+        [versionFromPath, migration.name, Math.floor(Date.now() / 1000)],
       );
     }
   }
