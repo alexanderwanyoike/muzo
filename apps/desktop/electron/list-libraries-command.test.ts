@@ -19,6 +19,9 @@ describe("ListLibrariesCommand", () => {
         add: vi.fn(),
         list: vi.fn().mockResolvedValue(libraries),
       },
+      tracks: {
+        listForLibrary: vi.fn(),
+      },
       generateLibraryId: vi.fn(),
     };
 

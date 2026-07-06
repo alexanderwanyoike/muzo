@@ -1,12 +1,8 @@
-import type { LibraryDto } from "../src/types";
-
-export interface LibraryRepository {
-  add(library: LibraryDto): Promise<void>;
-  list(): Promise<LibraryDto[]>;
-}
+import type { LibraryRepository, TrackRepository } from "./repository-ports";
 
 export interface CommandDependencies {
   libraries: LibraryRepository;
+  tracks: TrackRepository;
   generateLibraryId: () => string;
 }
 

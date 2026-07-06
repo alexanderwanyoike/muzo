@@ -5,10 +5,11 @@ import { dirname } from "node:path";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import type { LibraryDto, LibraryKindDto } from "../src/types";
+import type { LibraryRepository } from "./repository-ports";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
-export class SqliteLibraryRepository {
+export class SqliteLibraryRepository implements LibraryRepository {
   constructor(private readonly dbPath: string) {}
 
   async add(library: LibraryDto): Promise<void> {

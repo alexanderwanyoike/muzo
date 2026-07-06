@@ -11,6 +11,9 @@ describe("Electron command dispatcher", () => {
         add: vi.fn(),
         list: vi.fn().mockResolvedValue([]),
       },
+      tracks: {
+        listForLibrary: vi.fn(),
+      },
       generateLibraryId: vi.fn(),
     };
 

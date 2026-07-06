@@ -77,6 +77,9 @@ function dependenciesWithId(id: string) {
       add: vi.fn(),
       list: vi.fn(),
     },
+    tracks: {
+      listForLibrary: vi.fn(),
+    },
     generateLibraryId: () => id,
   };
 }
