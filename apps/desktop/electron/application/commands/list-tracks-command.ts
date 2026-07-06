@@ -1,12 +1,15 @@
 import type { TrackDto } from "../../../src/api";
-import type { CommandDependencies, CommandHandler } from "./command-handler";
+import type { TrackRepository } from "../interfaces/repository-interfaces";
+import type { CommandHandler } from "./command-handler";
 
 export class ListTracksCommand implements CommandHandler {
   readonly command = "list_tracks";
 
-  handle(args: unknown, dependencies: CommandDependencies): Promise<TrackDto[]> {
+  constructor(private readonly tracks: TrackRepository) {}
+
+  handle(args: unknown): Promise<TrackDto[]> {
     const { libraryId } = parseListTracksArgs(args);
-    return dependencies.tracks.listForLibrary(libraryId);
+    return this.tracks.listForLibrary(libraryId);
   }
 }
 

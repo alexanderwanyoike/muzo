@@ -22,21 +22,14 @@ describe("ListTracksCommand", () => {
         filePath: "/music/song.mp3",
       },
     ];
-    const dependencies = {
-      libraries: {
-        add: vi.fn(),
-        list: vi.fn(),
-      },
-      tracks: {
-        listForLibrary: vi.fn().mockResolvedValue(tracks),
-      },
-      generateLibraryId: vi.fn(),
+    const trackRepository = {
+      listForLibrary: vi.fn().mockResolvedValue(tracks),
     };
 
     await expect(
-      new ListTracksCommand().handle({ libraryId: "lib-1" }, dependencies),
+      new ListTracksCommand(trackRepository).handle({ libraryId: "lib-1" }),
     ).resolves.toEqual(tracks);
 
-    expect(dependencies.tracks.listForLibrary).toHaveBeenCalledWith("lib-1");
+    expect(trackRepository.listForLibrary).toHaveBeenCalledWith("lib-1");
   });
 });

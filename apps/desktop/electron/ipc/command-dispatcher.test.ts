@@ -2,30 +2,27 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { handleElectronCommand } from "./command-dispatcher";
+import { CommandDispatcher } from "./command-dispatcher";
 
 describe("Electron command dispatcher", () => {
   it("routes registered commands to their handler", async () => {
-    const dependencies = {
-      libraries: {
-        add: vi.fn(),
-        list: vi.fn().mockResolvedValue([]),
-      },
-      tracks: {
-        listForLibrary: vi.fn(),
-      },
-      generateLibraryId: vi.fn(),
+    const handler = {
+      command: "list_libraries",
+      handle: vi.fn().mockResolvedValue([]),
     };
+    const dispatcher = new CommandDispatcher([handler]);
 
     await expect(
-      handleElectronCommand("list_libraries", undefined, dependencies),
+      dispatcher.handleElectronCommand("list_libraries"),
     ).resolves.toEqual([]);
 
-    expect(dependencies.libraries.list).toHaveBeenCalledOnce();
+    expect(handler.handle).toHaveBeenCalledWith(undefined);
   });
 
   it("rejects unregistered commands", async () => {
-    await expect(handleElectronCommand("scan_library")).rejects.toThrow(
+    const dispatcher = new CommandDispatcher([]);
+
+    await expect(dispatcher.handleElectronCommand("scan_library")).rejects.toThrow(
       "Electron command is not implemented: scan_library",
     );
   });

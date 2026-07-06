@@ -1,13 +1,16 @@
 import type { AddLibraryInputDto, LibraryDto } from "../../../src/types";
-import type { CommandDependencies, CommandHandler } from "./command-handler";
+import type { LibraryRepository } from "../interfaces/repository-interfaces";
+import type { CommandHandler } from "./command-handler";
 
 export class AddLibraryCommand implements CommandHandler {
   readonly command = "add_library";
 
-  async handle(
-    args: unknown,
-    dependencies: CommandDependencies,
-  ): Promise<LibraryDto> {
+  constructor(
+    private readonly libraries: LibraryRepository,
+    private readonly generateLibraryId: () => string,
+  ) {}
+
+  async handle(args: unknown): Promise<LibraryDto> {
     const input = parseAddLibraryArgs(args);
 
     if (input.name.trim().length === 0) {
@@ -19,12 +22,12 @@ export class AddLibraryCommand implements CommandHandler {
     }
 
     const library: LibraryDto = {
-      id: dependencies.generateLibraryId(),
+      id: this.generateLibraryId(),
       name: input.name,
       kind: input.kind,
       location: input.location,
     };
-    await dependencies.libraries.add(library);
+    await this.libraries.add(library);
     return library;
   }
 }
