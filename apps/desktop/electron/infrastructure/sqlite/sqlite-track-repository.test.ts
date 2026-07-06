@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -8,6 +8,7 @@ import initSqlJs from "sql.js";
 import { describe, expect, it } from "vitest";
 
 import { SqliteTrackRepository } from "./sqlite-track-repository";
+import { runSqliteMigrations } from "./sqlite-migrations";
 
 describe("Electron track repository", () => {
   it("lists tracks for a library with displayed metadata and override state", async () => {
@@ -117,7 +118,103 @@ describe("Electron track repository", () => {
       new SqliteTrackRepository(dbPath).listForLibrary("lib-1"),
     ).resolves.toEqual([]);
   });
+
+  it("upserts scanned tracks without overwriting metadata overrides", async () => {
+    const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
+    const repository = new SqliteTrackRepository(dbPath);
+
+    await repository.upsertScannedTrack({
+      id: "trk-1",
+      libraryId: "lib-1",
+      title: "File Title",
+      artist: "File Artist",
+      album: "File Album",
+      trackNumber: 1,
+      discNumber: null,
+      genre: null,
+      year: null,
+      durationSeconds: 120,
+      filePath: "/music/song.mp3",
+      fileSize: 1000,
+      fileMtime: 123,
+    });
+    await setOverrideTitle(dbPath, "trk-1", "Edited Title");
+
+    await repository.upsertScannedTrack({
+      id: "trk-new",
+      libraryId: "lib-1",
+      title: "Updated File Title",
+      artist: "Updated Artist",
+      album: "Updated Album",
+      trackNumber: 2,
+      discNumber: 1,
+      genre: "Rock",
+      year: 2001,
+      durationSeconds: 180,
+      filePath: "/music/song.mp3",
+      fileSize: 2000,
+      fileMtime: 456,
+    });
+
+    await expect(repository.listForLibrary("lib-1")).resolves.toEqual([
+      {
+        id: "trk-1",
+        libraryId: "lib-1",
+        title: "Edited Title",
+        artist: "Updated Artist",
+        album: "Updated Album",
+        trackNumber: 2,
+        discNumber: 1,
+        genre: "Rock",
+        year: 2001,
+        metadataOverridden: true,
+        durationSeconds: 180,
+        filePath: "/music/song.mp3",
+      },
+    ]);
+  });
+
+  it("deletes tracks by library and path", async () => {
+    const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
+    const repository = new SqliteTrackRepository(dbPath);
+    await repository.upsertScannedTrack({
+      id: "trk-1",
+      libraryId: "lib-1",
+      title: "Song",
+      artist: "Artist",
+      album: null,
+      trackNumber: null,
+      discNumber: null,
+      genre: null,
+      year: null,
+      durationSeconds: 120,
+      filePath: "/music/song.mp3",
+      fileSize: 1000,
+      fileMtime: 123,
+    });
+
+    await repository.deleteByLibraryAndPath("lib-1", "/music/song.mp3");
+
+    await expect(repository.listForLibrary("lib-1")).resolves.toEqual([]);
+  });
 });
+
+async function setOverrideTitle(
+  dbPath: string,
+  trackId: string,
+  title: string,
+): Promise<void> {
+  const SQL = await initSqlJs();
+  const database = new SQL.Database(readFileSync(dbPath));
+  database.run("UPDATE tracks SET override_title = ? WHERE id = ?", [
+    title,
+    trackId,
+  ]);
+  writeFileSync(dbPath, database.export());
+  database.close();
+}
 
 function tempDatabasePath(): string {
   return join(tmpdir(), `muzo-${Date.now()}-${Math.random()}.sqlite`);

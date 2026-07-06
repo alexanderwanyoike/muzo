@@ -22,8 +22,10 @@ describe("Electron command dispatcher", () => {
   it("rejects unregistered commands", async () => {
     const dispatcher = new CommandDispatcher([]);
 
-    await expect(dispatcher.handleElectronCommand("scan_library")).rejects.toThrow(
-      "Electron command is not implemented: scan_library",
+    await expect(
+      dispatcher.handleElectronCommand("prepare_track_audio_source"),
+    ).rejects.toThrow(
+      "Electron command is not implemented: prepare_track_audio_source",
     );
   });
 });

@@ -59,6 +59,26 @@ describe("Electron library repository", () => {
     ).resolves.toEqual([]);
   });
 
+  it("finds a library by id", async () => {
+    const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
+    const repository = new SqliteLibraryRepository(dbPath);
+    await repository.add({
+      id: "lib-1",
+      name: "Local Music",
+      kind: "filesystem",
+      location: "/music",
+    });
+
+    await expect(repository.findById("lib-1")).resolves.toEqual({
+      id: "lib-1",
+      name: "Local Music",
+      kind: "filesystem",
+      location: "/music",
+    });
+    await expect(repository.findById("missing")).resolves.toBeNull();
+  });
+
   it("persists a new library after migrations have created the schema", async () => {
     const dbPath = tempDatabasePath();
     await runSqliteMigrations(dbPath);

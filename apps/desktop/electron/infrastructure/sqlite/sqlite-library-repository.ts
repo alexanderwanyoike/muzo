@@ -31,6 +31,31 @@ export class SqliteLibraryRepository implements LibraryRepository {
     }
   }
 
+  async findById(libraryId: string): Promise<LibraryDto | null> {
+    if (!existsSync(this.dbPath)) {
+      return null;
+    }
+
+    const SQL = await loadSqlModule();
+    const database = new SQL.Database(readFileSync(this.dbPath));
+    try {
+      const statement = database.prepare(
+        "SELECT id, name, kind, location FROM libraries WHERE id = ?",
+      );
+      try {
+        statement.bind([libraryId]);
+        if (!statement.step()) {
+          return null;
+        }
+        return libraryFromRow(statement.getAsObject());
+      } finally {
+        statement.free();
+      }
+    } finally {
+      database.close();
+    }
+  }
+
   async list(): Promise<LibraryDto[]> {
     if (!existsSync(this.dbPath)) {
       return [];
@@ -45,13 +70,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
       try {
         const libraries: LibraryDto[] = [];
         while (statement.step()) {
-          const row = statement.getAsObject() as Record<string, unknown>;
-          libraries.push({
-            id: stringColumn(row, "id"),
-            name: stringColumn(row, "name"),
-            kind: libraryKindFromDatabase(stringColumn(row, "kind")),
-            location: stringColumn(row, "location"),
-          });
+          libraries.push(libraryFromRow(statement.getAsObject()));
         }
         return libraries;
       } finally {
@@ -72,6 +91,15 @@ export class SqliteLibraryRepository implements LibraryRepository {
     mkdirSync(dirname(this.dbPath), { recursive: true });
     writeFileSync(this.dbPath, database.export());
   }
+}
+
+function libraryFromRow(row: Record<string, unknown>): LibraryDto {
+  return {
+    id: stringColumn(row, "id"),
+    name: stringColumn(row, "name"),
+    kind: libraryKindFromDatabase(stringColumn(row, "kind")),
+    location: stringColumn(row, "location"),
+  };
 }
 
 function loadSqlModule(): Promise<SqlJsStatic> {

@@ -65,6 +65,7 @@ describe("AddLibraryCommand", () => {
 function libraryRepository() {
   return {
     add: vi.fn(),
+    findById: vi.fn(),
     list: vi.fn(),
   };
 }
