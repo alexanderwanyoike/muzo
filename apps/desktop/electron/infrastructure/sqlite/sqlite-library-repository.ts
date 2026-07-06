@@ -5,7 +5,7 @@ import { dirname } from "node:path";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import type { LibraryDto, LibraryKindDto } from "../../../src/types";
-import type { LibraryRepository } from "../../application/ports/repository-ports";
+import type { LibraryRepository } from "../../application/interfaces/repository-interfaces";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
