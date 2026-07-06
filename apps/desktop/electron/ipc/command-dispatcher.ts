@@ -3,9 +3,9 @@ import type { CommandHandler } from "../application/commands/command-handler";
 export class CommandDispatcher {
   private readonly commandHandlers: Map<string, CommandHandler>;
 
-  constructor(handlers: CommandHandler[]) {
+  constructor(commandHandlers: CommandHandler[]) {
     this.commandHandlers = new Map(
-      handlers.map((handler) => [handler.command, handler]),
+      commandHandlers.map((handler) => [handler.command, handler]),
     );
   }
 

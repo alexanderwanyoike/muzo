@@ -5,17 +5,18 @@ import { tmpdir } from "node:os";
 
 import { describe, expect, it } from "vitest";
 
-import { ElectronContainer } from "./electron-container";
+import { createElectronContainer } from "./electron-container";
 
-describe("ElectronContainer", () => {
+describe("Electron container", () => {
   it("wires command handlers with infrastructure dependencies", async () => {
-    const container = new ElectronContainer({
+    const container = createElectronContainer({
       dbPath: tempDatabasePath(),
       generateLibraryId: () => "lib-1",
     });
+    const commandDispatcher = container.resolve("commandDispatcher");
 
     await expect(
-      container.commandDispatcher.handleElectronCommand("add_library", {
+      commandDispatcher.handleElectronCommand("add_library", {
         input: {
           name: "Local Music",
           kind: "filesystem",
@@ -30,7 +31,7 @@ describe("ElectronContainer", () => {
     });
 
     await expect(
-      container.commandDispatcher.handleElectronCommand("list_libraries"),
+      commandDispatcher.handleElectronCommand("list_libraries"),
     ).resolves.toEqual([
       {
         id: "lib-1",

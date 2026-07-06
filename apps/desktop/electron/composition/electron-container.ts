@@ -1,8 +1,21 @@
+import {
+  asClass,
+  asFunction,
+  asValue,
+  createContainer,
+  InjectionMode,
+  type AwilixContainer,
+} from "awilix";
 import { ulid } from "ulid";
 
 import { AddLibraryCommand } from "../application/commands/add-library-command";
+import type { CommandHandler } from "../application/commands/command-handler";
 import { ListLibrariesCommand } from "../application/commands/list-libraries-command";
 import { ListTracksCommand } from "../application/commands/list-tracks-command";
+import type {
+  LibraryRepository,
+  TrackRepository,
+} from "../application/interfaces/repository-interfaces";
 import { SqliteLibraryRepository } from "../infrastructure/sqlite/sqlite-library-repository";
 import { SqliteTrackRepository } from "../infrastructure/sqlite/sqlite-track-repository";
 import { CommandDispatcher } from "../ipc/command-dispatcher";
@@ -13,19 +26,46 @@ export interface ElectronContainerOptions {
   generateLibraryId?: () => string;
 }
 
-export class ElectronContainer {
-  readonly commandDispatcher: CommandDispatcher;
+export interface ElectronCradle {
+  dbPath: string;
+  generateLibraryId: () => string;
+  libraries: LibraryRepository;
+  tracks: TrackRepository;
+  addLibraryCommand: AddLibraryCommand;
+  listLibrariesCommand: ListLibrariesCommand;
+  listTracksCommand: ListTracksCommand;
+  commandHandlers: CommandHandler[];
+  commandDispatcher: CommandDispatcher;
+}
 
-  constructor(options: ElectronContainerOptions = {}) {
-    const dbPath = options.dbPath ?? muzoDatabasePath();
-    const generateLibraryId = options.generateLibraryId ?? ulid;
-    const libraries = new SqliteLibraryRepository(dbPath);
-    const tracks = new SqliteTrackRepository(dbPath);
+export function createElectronContainer(
+  options: ElectronContainerOptions = {},
+): AwilixContainer<ElectronCradle> {
+  const container = createContainer<ElectronCradle>({
+    injectionMode: InjectionMode.CLASSIC,
+  });
 
-    this.commandDispatcher = new CommandDispatcher([
-      new AddLibraryCommand(libraries, generateLibraryId),
-      new ListLibrariesCommand(libraries),
-      new ListTracksCommand(tracks),
-    ]);
-  }
+  container.register({
+    dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
+    generateLibraryId: asValue(options.generateLibraryId ?? ulid),
+    libraries: asClass(SqliteLibraryRepository).singleton(),
+    tracks: asClass(SqliteTrackRepository).singleton(),
+    addLibraryCommand: asClass(AddLibraryCommand).singleton(),
+    listLibrariesCommand: asClass(ListLibrariesCommand).singleton(),
+    listTracksCommand: asClass(ListTracksCommand).singleton(),
+    commandHandlers: asFunction(
+      (
+        addLibraryCommand: AddLibraryCommand,
+        listLibrariesCommand: ListLibrariesCommand,
+        listTracksCommand: ListTracksCommand,
+      ) => [
+        addLibraryCommand,
+        listLibrariesCommand,
+        listTracksCommand,
+      ],
+    ).singleton(),
+    commandDispatcher: asClass(CommandDispatcher).singleton(),
+  });
+
+  return container;
 }
