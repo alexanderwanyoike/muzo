@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Tech debt
-- Status: Pending
+- Status: Done
 - Blocks: 002, 003, 004 (sprint 02 feature cards add new tables)
 
 # Card 001 - Formal SQLite migrations
@@ -80,34 +80,34 @@ repository impls lose their `migrate()` methods.
 
 ## Acceptance criteria
 
-- [ ] `rusqlite_migration` added to `Cargo.toml`.
-- [ ] New module `infrastructure::migrations` owns an ordered `Migrations`
+- [x] `rusqlite_migration` added to `Cargo.toml`.
+- [x] New module `infrastructure::migrations` owns an ordered `Migrations`
       struct with one `Migration` per currently-existing table:
       - `2026-06-15-create-libraries`
       - `2026-06-15-create-tracks`
-- [ ] Each migration's SQL is identical to the current `CREATE TABLE IF NOT
+- [x] Each migration's SQL is identical to the current `CREATE TABLE IF NOT
       EXISTS` body, so an existing dev/prod database with data is migrated
       cleanly to the tracked state.
-- [ ] `lib.rs` runs `MIGRATIONS.to_latest(&mut conn)` once on startup; the
+- [x] `lib.rs` runs `MIGRATIONS.to_latest(&mut conn)` once on startup; the
       per-repository `migrate()` calls are removed.
-- [ ] `SqliteLibraryRepository::migrate` and `SqliteTrackRepository::migrate`
+- [x] `SqliteLibraryRepository::migrate` and `SqliteTrackRepository::migrate`
       are deleted. Their construction (`new(conn)`) no longer assumes
       migrations have been run by the caller - `lib.rs` is the single place
       that owns migrations.
-- [ ] A `schema_migrations` (or `migration_status` - whatever the crate
+- [x] A `schema_migrations` (or `migration_status` - whatever the crate
       uses) table exists after the first migration run.
-- [ ] Re-running `to_latest` against an already-migrated database is a
+- [x] Re-running `to_latest` against an already-migrated database is a
       no-op (integration test).
-- [ ] A fresh database reaches the same schema as an existing one
+- [x] A fresh database reaches the same schema as an existing one
       (integration test: open in-memory, migrate, assert both tables exist
       and match expected column lists).
-- [ ] Existing repository integration tests still pass - no behaviour
+- [x] Existing repository integration tests still pass - no behaviour
       change from the user's perspective.
-- [ ] A `DELETEME` comment is **not** left behind. The migration history
+- [x] A `DELETEME` comment is **not** left behind. The migration history
       starts clean from this card; there is no "v0 baseline" hack.
-- [ ] The `migrations` module has a doc comment explaining how to add a
+- [x] The `migrations` module has a doc comment explaining how to add a
       future migration (one-line recipe).
-- [ ] All verification commands green.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 

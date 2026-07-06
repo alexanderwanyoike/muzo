@@ -6,7 +6,11 @@ Muzo treats your music collection as a set of **libraries** and **playlists**. A
 
 ## Status
 
-Pre-alpha. Scaffolded; no end-user features shipped yet. See [`docs/cards/`](./docs/cards) for planned work and [`docs/adr/`](./docs/adr) for decisions.
+Pre-alpha, but no longer just scaffolded. The local desktop player slice is
+usable: filesystem libraries can be added, scanned, kept in sync, browsed, and
+played with metadata editing and play counts. Sprint card status is tracked in
+[`docs/cards/`](./docs/cards); the next architectural step is the Electron
+migration card under [`docs/cards/migration/`](./docs/cards/migration/).
 
 ## Repository layout
 

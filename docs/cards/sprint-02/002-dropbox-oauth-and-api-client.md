@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: Pending
+- Status: Done
 - Blocks: 003
 
 # Card 002 - Dropbox OAuth and API client
@@ -45,24 +45,24 @@ card 003.
 
 ## Acceptance criteria
 
-- [ ] OAuth authorization URL uses Dropbox's authorize endpoint.
-- [ ] OAuth authorization URL includes `response_type=code`.
-- [ ] OAuth authorization URL includes `token_access_type=offline`.
-- [ ] OAuth authorization URL uses PKCE `S256` code challenge.
-- [ ] Token exchange posts to Dropbox's token endpoint with
+- [x] OAuth authorization URL uses Dropbox's authorize endpoint.
+- [x] OAuth authorization URL includes `response_type=code`.
+- [x] OAuth authorization URL includes `token_access_type=offline`.
+- [x] OAuth authorization URL uses PKCE `S256` code challenge.
+- [x] Token exchange posts to Dropbox's token endpoint with
       `grant_type=authorization_code`, `client_id`, authorization code, and
       code verifier.
-- [ ] Token refresh posts to Dropbox's token endpoint with
+- [x] Token refresh posts to Dropbox's token endpoint with
       `grant_type=refresh_token`, `client_id`, and refresh token.
-- [ ] Dropbox API client sends bearer-authenticated requests.
-- [ ] Recursive folder listing calls `/2/files/list_folder` and follows
+- [x] Dropbox API client sends bearer-authenticated requests.
+- [x] Recursive folder listing calls `/2/files/list_folder` and follows
       `/2/files/list_folder/continue` while `has_more` is true.
-- [ ] Folder listing returns file and folder metadata separately enough for
+- [x] Folder listing returns file and folder metadata separately enough for
       card 003 to filter playable files later.
-- [ ] Domain layer has no Dropbox, OAuth, HTTP, or serde dependency.
-- [ ] Tests cover PKCE URL construction, token exchange, refresh, and paged
+- [x] Domain layer has no Dropbox, OAuth, HTTP, or serde dependency.
+- [x] Tests cover PKCE URL construction, token exchange, refresh, and paged
       folder listing with a fake transport.
-- [ ] All verification commands green.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 

@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: Pending
+- Status: Done
 - Blocks: -
 
 # Card 005 - Play history and play counts

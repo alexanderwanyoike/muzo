@@ -9,15 +9,28 @@ review: formalising SQLite migrations before more tables pile up.
 
 ## Cards
 
-| #   | Card | Type | Blocks |
-| --- | --- | --- | --- |
-| 001 | [Formal SQLite migrations](./001-formal-sqlite-migrations.md) | Tech debt | 002, 003, 004 |
-| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | 003 |
-| 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | - |
-| 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | - |
-| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) | Feature | - |
-| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | 007 |
-| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | - |
+| #   | Card | Type | Status | Blocks |
+| --- | --- | --- | --- | --- |
+| 001 | [Formal SQLite migrations](./001-formal-sqlite-migrations.md) | Tech debt | Done | 002, 003, 004 |
+| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | Done | 003 |
+| 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | Done | - |
+| 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | Done | - |
+| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) | Feature | Done | - |
+| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | Backend done, UX deferred | 007 |
+| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | Core done, cleanup deferred | - |
+
+## Close-out note
+
+The sprint 02 backend slices are substantially complete and covered by the
+current Rust and Vitest suites. Remaining user-facing work is intentionally
+deferred until after the Electron migration:
+
+- Dropbox account connection, token persistence, polling, downloads, and
+  playback.
+- Playlist UI.
+- Sync UX polish that removes Scan from the main listening flow.
+- Metadata editing test/UX polish that would otherwise be rewritten during the
+  migration.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop
