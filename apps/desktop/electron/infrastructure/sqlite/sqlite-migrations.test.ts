@@ -121,6 +121,112 @@ describe("Electron SQLite migrations", () => {
       migratedDatabase.close();
     }
   });
+
+  it("adopts databases whose user version is behind the actual schema", async () => {
+    const dbPath = tempDatabasePath();
+    const database = await createLegacyInlineDatabase();
+    database.run(`
+      ALTER TABLE tracks ADD COLUMN album TEXT;
+      ALTER TABLE tracks ADD COLUMN track_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN disc_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN genre TEXT;
+      ALTER TABLE tracks ADD COLUMN year INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_title TEXT;
+      ALTER TABLE tracks ADD COLUMN override_artist TEXT;
+      ALTER TABLE tracks ADD COLUMN override_album TEXT;
+      ALTER TABLE tracks ADD COLUMN override_track_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_disc_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_genre TEXT;
+      ALTER TABLE tracks ADD COLUMN override_year INTEGER;
+      PRAGMA user_version = 2;
+    `);
+    writeDatabase(dbPath, database);
+
+    await runSqliteMigrations(dbPath);
+
+    const migratedDatabase = await openDatabase(dbPath);
+    try {
+      expect(userVersion(migratedDatabase)).toBe(5);
+      expect(tableColumns(migratedDatabase, "tracks")).toContain(
+        "override_year",
+      );
+      expect(tableColumns(migratedDatabase, "play_history")).toEqual([
+        "id",
+        "library_id",
+        "track_id",
+        "played_at_unix_seconds",
+      ]);
+    } finally {
+      migratedDatabase.close();
+    }
+  });
+
+  it("adopts migration rows written by the previous Electron migration runner", async () => {
+    const dbPath = tempDatabasePath();
+    const database = await createLegacyInlineDatabase();
+    database.run(`
+      ALTER TABLE tracks ADD COLUMN album TEXT;
+      ALTER TABLE tracks ADD COLUMN track_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN disc_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN genre TEXT;
+      ALTER TABLE tracks ADD COLUMN year INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_title TEXT;
+      ALTER TABLE tracks ADD COLUMN override_artist TEXT;
+      ALTER TABLE tracks ADD COLUMN override_album TEXT;
+      ALTER TABLE tracks ADD COLUMN override_track_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_disc_number INTEGER;
+      ALTER TABLE tracks ADD COLUMN override_genre TEXT;
+      ALTER TABLE tracks ADD COLUMN override_year INTEGER;
+      CREATE TABLE IF NOT EXISTS playlists (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS playlist_entries (
+        id TEXT PRIMARY KEY NOT NULL,
+        playlist_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        UNIQUE(playlist_id, position),
+        FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS play_history (
+        id TEXT PRIMARY KEY NOT NULL,
+        library_id TEXT NOT NULL,
+        track_id TEXT NOT NULL,
+        played_at_unix_seconds INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS electron_migrations (
+        version INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        applied_at_unix_seconds INTEGER NOT NULL
+      );
+      INSERT INTO electron_migrations (version, name, applied_at_unix_seconds)
+      VALUES
+        (3, 'track-metadata-overrides', 1),
+        (4, 'create-playlists', 1),
+        (5, 'create-play-history', 1);
+      PRAGMA user_version = 5;
+    `);
+    writeDatabase(dbPath, database);
+
+    await runSqliteMigrations(dbPath);
+
+    const migratedDatabase = await openDatabase(dbPath);
+    try {
+      expect(userVersion(migratedDatabase)).toBe(5);
+      expect(tableColumns(migratedDatabase, "tracks")).toContain(
+        "override_year",
+      );
+      expect(tableColumns(migratedDatabase, "play_history")).toEqual([
+        "id",
+        "library_id",
+        "track_id",
+        "played_at_unix_seconds",
+      ]);
+    } finally {
+      migratedDatabase.close();
+    }
+  });
 });
 
 async function openDatabase(dbPath: string): Promise<Database> {

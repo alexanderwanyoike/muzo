@@ -1,94 +1,24 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import { createRequire } from "node:module";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
+import { Umzug, type MigrationParams, type UmzugStorage } from "umzug";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
-const migrations = [
-  {
-    version: 1,
-    name: "create-libraries",
-    sql: `
-      CREATE TABLE IF NOT EXISTS libraries (
-        id       TEXT PRIMARY KEY NOT NULL,
-        name     TEXT NOT NULL,
-        kind     TEXT NOT NULL,
-        location TEXT NOT NULL
-      );
-    `,
-  },
-  {
-    version: 2,
-    name: "create-tracks",
-    sql: `
-      CREATE TABLE IF NOT EXISTS tracks (
-        id               TEXT PRIMARY KEY NOT NULL,
-        library_id       TEXT NOT NULL,
-        title            TEXT NOT NULL,
-        artist           TEXT NOT NULL,
-        duration_seconds INTEGER NOT NULL,
-        file_path        TEXT NOT NULL,
-        file_size        INTEGER NOT NULL,
-        file_mtime       INTEGER NOT NULL,
-        UNIQUE(library_id, file_path)
-      );
-    `,
-  },
-  {
-    version: 3,
-    name: "track-metadata-overrides",
-    sql: `
-      ALTER TABLE tracks ADD COLUMN album TEXT;
-      ALTER TABLE tracks ADD COLUMN track_number INTEGER;
-      ALTER TABLE tracks ADD COLUMN disc_number INTEGER;
-      ALTER TABLE tracks ADD COLUMN genre TEXT;
-      ALTER TABLE tracks ADD COLUMN year INTEGER;
-      ALTER TABLE tracks ADD COLUMN override_title TEXT;
-      ALTER TABLE tracks ADD COLUMN override_artist TEXT;
-      ALTER TABLE tracks ADD COLUMN override_album TEXT;
-      ALTER TABLE tracks ADD COLUMN override_track_number INTEGER;
-      ALTER TABLE tracks ADD COLUMN override_disc_number INTEGER;
-      ALTER TABLE tracks ADD COLUMN override_genre TEXT;
-      ALTER TABLE tracks ADD COLUMN override_year INTEGER;
-    `,
-  },
-  {
-    version: 4,
-    name: "create-playlists",
-    sql: `
-      CREATE TABLE IF NOT EXISTS playlists (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL
-      );
+interface MigrationContext {
+  database: InstanceType<SqlJsStatic["Database"]>;
+}
 
-      CREATE TABLE IF NOT EXISTS playlist_entries (
-        id TEXT PRIMARY KEY NOT NULL,
-        playlist_id TEXT NOT NULL,
-        track_id TEXT NOT NULL,
-        position INTEGER NOT NULL,
-        UNIQUE(playlist_id, position),
-        FOREIGN KEY(playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
-      );
-    `,
-  },
-  {
-    version: 5,
-    name: "create-play-history",
-    sql: `
-      CREATE TABLE IF NOT EXISTS play_history (
-        id TEXT PRIMARY KEY NOT NULL,
-        library_id TEXT NOT NULL,
-        track_id TEXT NOT NULL,
-        played_at_unix_seconds INTEGER NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_play_history_library_track
-      ON play_history(library_id, track_id);
-    `,
-  },
-];
+const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "migrations");
 
 export async function runSqliteMigrations(dbPath: string): Promise<void> {
   const SQL = await loadSqlModule();
@@ -97,40 +27,59 @@ export async function runSqliteMigrations(dbPath: string): Promise<void> {
     : new SQL.Database();
 
   try {
-    database.run(`
-      CREATE TABLE IF NOT EXISTS electron_migrations (
-        version INTEGER PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        applied_at_unix_seconds INTEGER NOT NULL
-      );
-    `);
+    ensureMigrationTable(database);
+    adoptLegacySchema(database);
 
-    let currentVersion = detectSchemaVersion(database);
-    for (const migration of migrations) {
-      if (migration.version <= currentVersion) {
-        continue;
-      }
+    const migrator = new Umzug<MigrationContext>({
+      context: { database },
+      logger: undefined,
+      migrations: migrationFiles().map((path) => ({
+        name: migrationName(path),
+        path,
+        up: async ({ context }) => {
+          context.database.run(readFileSync(path, "utf8"));
+          setUserVersion(context.database, migrationVersion(path));
+        },
+      })),
+      storage: new SqliteMigrationStorage(database),
+    });
 
-      database.run("BEGIN");
-      try {
-        database.run(migration.sql);
-        database.run(
-          "INSERT OR IGNORE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
-          [migration.version, migration.name, Math.floor(Date.now() / 1000)],
-        );
-        setUserVersion(database, migration.version);
-        database.run("COMMIT");
-        currentVersion = migration.version;
-      } catch (error) {
-        database.run("ROLLBACK");
-        throw error;
-      }
-    }
+    await migrator.up();
 
     mkdirSync(dirname(dbPath), { recursive: true });
     writeFileSync(dbPath, database.export());
   } finally {
     database.close();
+  }
+}
+
+class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
+  constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
+
+  async executed(): Promise<string[]> {
+    const result = this.database.exec(
+      "SELECT version FROM electron_migrations ORDER BY version",
+    );
+    if (result.length === 0) {
+      return [];
+    }
+    const migrationNames = migrationNamesByVersion();
+    return result[0].values
+      .map((row) => migrationNames.get(Number(row[0])))
+      .filter((name): name is string => name !== undefined);
+  }
+
+  async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
+    this.database.run(
+      "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
+      [migrationVersion(name), name, Math.floor(Date.now() / 1000)],
+    );
+  }
+
+  async unlogMigration({
+    name,
+  }: MigrationParams<MigrationContext>): Promise<void> {
+    this.database.run("DELETE FROM electron_migrations WHERE name = ?", [name]);
   }
 }
 
@@ -144,14 +93,68 @@ function loadSqlModule(): Promise<SqlJsStatic> {
   return sqlModulePromise;
 }
 
-function detectSchemaVersion(
+function migrationFiles(): string[] {
+  return readdirSync(migrationsDir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort()
+    .map((file) => join(migrationsDir, file));
+}
+
+function migrationName(path: string): string {
+  return basename(path);
+}
+
+function migrationNamesByVersion(): Map<number, string> {
+  return new Map(
+    migrationFiles().map((path) => [migrationVersion(path), migrationName(path)]),
+  );
+}
+
+function migrationVersion(nameOrPath: string): number {
+  const name = migrationName(nameOrPath);
+  const match = /^(\d{4})-/.exec(name);
+  if (!match) {
+    throw new Error(`invalid migration filename: ${name}`);
+  }
+  return Number(match[1]);
+}
+
+function ensureMigrationTable(
   database: InstanceType<SqlJsStatic["Database"]>,
-): number {
+): void {
+  database.run(`
+    CREATE TABLE IF NOT EXISTS electron_migrations (
+      version INTEGER PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      applied_at_unix_seconds INTEGER NOT NULL
+    );
+  `);
+}
+
+function adoptLegacySchema(
+  database: InstanceType<SqlJsStatic["Database"]>,
+): void {
   const version = userVersion(database);
-  if (version > 0) {
-    return version;
+  const detectedVersion = Math.max(version, detectLegacySchemaVersion(database));
+  if (detectedVersion === 0) {
+    return;
   }
 
+  for (const path of migrationFiles()) {
+    const versionFromPath = migrationVersion(path);
+    if (versionFromPath <= detectedVersion) {
+      database.run(
+        "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
+        [versionFromPath, migrationName(path), Math.floor(Date.now() / 1000)],
+      );
+    }
+  }
+  setUserVersion(database, detectedVersion);
+}
+
+function detectLegacySchemaVersion(
+  database: InstanceType<SqlJsStatic["Database"]>,
+): number {
   if (tableExists(database, "play_history")) {
     return 5;
   }
