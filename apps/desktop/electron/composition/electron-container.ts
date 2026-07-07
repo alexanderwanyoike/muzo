@@ -42,6 +42,7 @@ import type {
 } from "../application/interfaces/scan-interfaces";
 import { PrepareTrackAudioSourceApplicationService } from "../application/prepare-track-audio-source-service";
 import { PlaylistApplicationService } from "../application/playlist-service";
+import { ReconcileFilesystemLibrariesService } from "../application/reconcile-filesystem-libraries-service";
 import { NodeAudioStreamServer } from "../infrastructure/audio/node-audio-stream-server";
 import { ScanLibraryService } from "../application/scan-library-service";
 import { NodeAudioFileWalker } from "../infrastructure/filesystem/node-audio-file-walker";
@@ -81,6 +82,7 @@ export interface ElectronCradle {
   reader: AudioMetadataReader;
   playlistService: PlaylistApplicationService;
   prepareTrackAudioSourceService: PrepareTrackAudioSourceApplicationService;
+  reconcileFilesystemLibrariesService: ReconcileFilesystemLibrariesService;
   scanLibraryService: ScanLibraryService;
   addLibraryCommand: AddLibraryCommand;
   addTrackToPlaylistCommand: AddTrackToPlaylistCommand;
@@ -99,6 +101,10 @@ export interface ElectronCradle {
   commandHandlers: CommandHandler[];
   commandDispatcher: CommandDispatcher;
   migrateDatabase: () => Promise<void>;
+  reconcileFilesystemLibraries: () => Promise<{
+    librariesReconciled: number;
+    failures: Array<{ libraryId: string; message: string }>;
+  }>;
 }
 
 export function createElectronContainer(
@@ -129,6 +135,9 @@ export function createElectronContainer(
     playlistService: asClass(PlaylistApplicationService).singleton(),
     prepareTrackAudioSourceService: asClass(
       PrepareTrackAudioSourceApplicationService,
+    ).singleton(),
+    reconcileFilesystemLibrariesService: asClass(
+      ReconcileFilesystemLibrariesService,
     ).singleton(),
     scanLibraryService: asClass(ScanLibraryService).singleton(),
     addLibraryCommand: asClass(AddLibraryCommand).singleton(),
@@ -185,6 +194,10 @@ export function createElectronContainer(
       ],
     ).singleton(),
     commandDispatcher: asClass(CommandDispatcher).singleton(),
+    reconcileFilesystemLibraries: asFunction(
+      (reconcileFilesystemLibrariesService: ReconcileFilesystemLibrariesService) =>
+        () => reconcileFilesystemLibrariesService.reconcile(),
+    ).singleton(),
   });
 
   return container;

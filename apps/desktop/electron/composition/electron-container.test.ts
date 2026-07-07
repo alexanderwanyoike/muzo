@@ -18,6 +18,9 @@ describe("Electron container", () => {
       generatePlaylistId: () => "playlist-1",
     });
     const migrateDatabase = container.resolve("migrateDatabase");
+    const reconcileFilesystemLibraries = container.resolve(
+      "reconcileFilesystemLibraries",
+    );
     const commandDispatcher = container.resolve("commandDispatcher");
     const tracks = container.resolve("tracks");
 
@@ -54,6 +57,11 @@ describe("Electron container", () => {
         location: libraryRoot,
       },
     ]);
+
+    await expect(reconcileFilesystemLibraries()).resolves.toEqual({
+      librariesReconciled: 1,
+      failures: [],
+    });
 
     await tracks.upsertScannedTrack({
       id: "trk-1",
