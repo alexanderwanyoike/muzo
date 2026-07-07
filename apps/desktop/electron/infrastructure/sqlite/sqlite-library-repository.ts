@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { dirname } from "node:path";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
 import type { LibraryDto, LibraryKindDto } from "../../../src/types";
 import type { LibraryRepository } from "../../application/interfaces/repository-interfaces";
+import { locateSqlWasm } from "./sql-wasm-path";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
@@ -104,10 +104,7 @@ function libraryFromRow(row: Record<string, unknown>): LibraryDto {
 
 function loadSqlModule(): Promise<SqlJsStatic> {
   sqlModulePromise ??= initSqlJs({
-    locateFile: (file) => {
-      const require = createRequire(import.meta.url);
-      return require.resolve(`sql.js/dist/${file}`);
-    },
+    locateFile: locateSqlWasm,
   });
   return sqlModulePromise;
 }

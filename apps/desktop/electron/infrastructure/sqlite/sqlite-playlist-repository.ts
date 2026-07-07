@@ -1,5 +1,4 @@
 import { readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
@@ -8,6 +7,7 @@ import type {
   PlaylistEntryDto,
   PlaylistRepository,
 } from "../../application/interfaces/playlist-interfaces";
+import { locateSqlWasm } from "./sql-wasm-path";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
@@ -153,10 +153,7 @@ function listEntries(
 
 function loadSqlModule(): Promise<SqlJsStatic> {
   sqlModulePromise ??= initSqlJs({
-    locateFile: (file) => {
-      const require = createRequire(import.meta.url);
-      return require.resolve(`sql.js/dist/${file}`);
-    },
+    locateFile: locateSqlWasm,
   });
   return sqlModulePromise;
 }

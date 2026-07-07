@@ -18,6 +18,8 @@
     "desktop:dev": "yarn workspace @muzo/desktop electron:dev",
     "desktop:vite": "yarn workspace @muzo/desktop dev",
     "desktop:build": "yarn workspace @muzo/desktop build",
+    "desktop:package": "yarn workspace @muzo/desktop package",
+    "desktop:make": "yarn workspace @muzo/desktop make",
     "lint": "yarn workspaces run lint",
     "typecheck": "yarn workspaces run typecheck",
     "test": "yarn workspaces run test",

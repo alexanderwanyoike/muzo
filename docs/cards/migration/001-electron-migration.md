@@ -117,7 +117,6 @@ Completed Electron migration slices:
 
 Remaining parity work:
 
-- Add Electron distributable packaging.
 - Remove Tauri/Rust after verified Electron parity.
 
 ## Acceptance criteria
@@ -130,6 +129,7 @@ Remaining parity work:
 - [x] SQLite data created by the Rust/Tauri app remains readable.
 - [x] TypeScript tests cover the behavior currently covered by Rust unit and
       integration tests.
+- [x] Electron distributable packaging is configured.
 - [ ] `src-tauri/` is deleted only after Electron parity is verified.
 - [x] Documentation and scripts describe Electron as the desktop shell.
 
