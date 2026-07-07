@@ -123,7 +123,7 @@ export function createElectronContainer(
   options: ElectronContainerOptions = {},
 ): AwilixContainer<ElectronCradle> {
   const container = createContainer<ElectronCradle>({
-    injectionMode: InjectionMode.CLASSIC,
+    injectionMode: InjectionMode.PROXY,
   });
 
   container.register({
@@ -136,88 +136,160 @@ export function createElectronContainer(
     generateTrackId: asValue(options.generateTrackId ?? ulid),
     logger: asClass(ConsoleLogger).singleton(),
     migrateDatabase: asFunction(
-      (dbPath: string) => () => runSqliteMigrations(dbPath),
+      ({ dbPath }: ElectronCradle) => () => runSqliteMigrations(dbPath),
     ).singleton(),
-    libraries: asClass(SqliteLibraryRepository).singleton(),
-    playHistory: asClass(SqlitePlayHistoryRepository).singleton(),
-    playlists: asClass(SqlitePlaylistRepository).singleton(),
-    tracks: asClass(SqliteTrackRepository).singleton(),
+    libraries: asFunction(
+      ({ dbPath }: ElectronCradle) => new SqliteLibraryRepository(dbPath),
+    ).singleton(),
+    playHistory: asFunction(
+      ({ dbPath }: ElectronCradle) => new SqlitePlayHistoryRepository(dbPath),
+    ).singleton(),
+    playlists: asFunction(
+      ({ dbPath }: ElectronCradle) => new SqlitePlaylistRepository(dbPath),
+    ).singleton(),
+    tracks: asFunction(
+      ({ dbPath }: ElectronCradle) => new SqliteTrackRepository(dbPath),
+    ).singleton(),
     audioSources: asClass(NodeAudioStreamServer).singleton(),
     walker: asClass(NodeAudioFileWalker).singleton(),
     filesystemWatcher: asClass(NodeFilesystemLibraryWatcher).singleton(),
     reader: asClass(MusicMetadataReader).singleton(),
-    playlistService: asClass(PlaylistApplicationService).singleton(),
-    prepareTrackAudioSourceService: asClass(
-      PrepareTrackAudioSourceApplicationService,
+    playlistService: asFunction(
+      ({ playlists, generatePlaylistId, generatePlaylistEntryId }: ElectronCradle) =>
+        new PlaylistApplicationService(
+          playlists,
+          generatePlaylistId,
+          generatePlaylistEntryId,
+        ),
     ).singleton(),
-    reconcileFilesystemLibrariesService: asClass(
-      ReconcileFilesystemLibrariesService,
+    prepareTrackAudioSourceService: asFunction(
+      ({ tracks, audioSources }: ElectronCradle) =>
+        new PrepareTrackAudioSourceApplicationService(tracks, audioSources),
     ).singleton(),
-    scanLibraryService: asClass(ScanLibraryService).singleton(),
-    watchFilesystemLibrariesService: asClass(
-      WatchFilesystemLibrariesService,
+    reconcileFilesystemLibrariesService: asFunction(
+      ({ libraries, scanLibraryService }: ElectronCradle) =>
+        new ReconcileFilesystemLibrariesService(libraries, scanLibraryService),
     ).singleton(),
-    addLibraryCommand: asClass(AddLibraryCommand).singleton(),
-    addTrackToPlaylistCommand: asClass(AddTrackToPlaylistCommand).singleton(),
-    createPlaylistCommand: asClass(CreatePlaylistCommand).singleton(),
-    listPlaylistsCommand: asClass(ListPlaylistsCommand).singleton(),
-    listLibrariesCommand: asClass(ListLibrariesCommand).singleton(),
-    listTracksCommand: asClass(ListTracksCommand).singleton(),
-    listTrackPlayCountsCommand: asClass(ListTrackPlayCountsCommand).singleton(),
-    prepareTrackAudioSourceCommand: asClass(
-      PrepareTrackAudioSourceCommand,
+    scanLibraryService: asFunction(
+      ({ libraries, tracks, walker, reader, generateTrackId }: ElectronCradle) =>
+        new ScanLibraryService(
+          libraries,
+          tracks,
+          walker,
+          reader,
+          generateTrackId,
+        ),
     ).singleton(),
-    recordTrackPlayCommand: asClass(RecordTrackPlayCommand).singleton(),
-    removePlaylistEntryCommand: asClass(RemovePlaylistEntryCommand).singleton(),
-    reorderPlaylistEntriesCommand: asClass(
-      ReorderPlaylistEntriesCommand,
+    watchFilesystemLibrariesService: asFunction(
+      ({
+        libraries,
+        filesystemWatcher,
+        scanLibraryService,
+        logger,
+      }: ElectronCradle) =>
+        new WatchFilesystemLibrariesService(
+          libraries,
+          filesystemWatcher,
+          scanLibraryService,
+          logger,
+        ),
     ).singleton(),
-    scanLibraryCommand: asClass(ScanLibraryCommand).singleton(),
-    editTrackMetadataCommand: asClass(EditTrackMetadataCommand).singleton(),
-    clearTrackMetadataOverrideCommand: asClass(
-      ClearTrackMetadataOverrideCommand,
+    addLibraryCommand: asFunction(
+      ({
+        libraries,
+        generateLibraryId,
+        watchFilesystemLibrariesService,
+      }: ElectronCradle) =>
+        new AddLibraryCommand(
+          libraries,
+          generateLibraryId,
+          watchFilesystemLibrariesService,
+        ),
     ).singleton(),
-    commandHandlers: asFunction(
-      (
-        addLibraryCommand: AddLibraryCommand,
-        addTrackToPlaylistCommand: AddTrackToPlaylistCommand,
-        createPlaylistCommand: CreatePlaylistCommand,
-        listPlaylistsCommand: ListPlaylistsCommand,
-        listLibrariesCommand: ListLibrariesCommand,
-        listTracksCommand: ListTracksCommand,
-        listTrackPlayCountsCommand: ListTrackPlayCountsCommand,
-        prepareTrackAudioSourceCommand: PrepareTrackAudioSourceCommand,
-        recordTrackPlayCommand: RecordTrackPlayCommand,
-        removePlaylistEntryCommand: RemovePlaylistEntryCommand,
-        reorderPlaylistEntriesCommand: ReorderPlaylistEntriesCommand,
-        scanLibraryCommand: ScanLibraryCommand,
-        editTrackMetadataCommand: EditTrackMetadataCommand,
-        clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand,
-      ) => [
-        addLibraryCommand,
-        addTrackToPlaylistCommand,
-        createPlaylistCommand,
-        listPlaylistsCommand,
-        listLibrariesCommand,
-        listTracksCommand,
-        listTrackPlayCountsCommand,
-        prepareTrackAudioSourceCommand,
-        recordTrackPlayCommand,
-        removePlaylistEntryCommand,
-        reorderPlaylistEntriesCommand,
-        scanLibraryCommand,
-        editTrackMetadataCommand,
-        clearTrackMetadataOverrideCommand,
-      ],
+    addTrackToPlaylistCommand: asFunction(
+      ({ playlistService }: ElectronCradle) =>
+        new AddTrackToPlaylistCommand(playlistService),
     ).singleton(),
-    commandDispatcher: asClass(CommandDispatcher).singleton(),
+    createPlaylistCommand: asFunction(
+      ({ playlistService }: ElectronCradle) =>
+        new CreatePlaylistCommand(playlistService),
+    ).singleton(),
+    listPlaylistsCommand: asFunction(
+      ({ playlistService }: ElectronCradle) =>
+        new ListPlaylistsCommand(playlistService),
+    ).singleton(),
+    listLibrariesCommand: asFunction(
+      ({ libraries }: ElectronCradle) => new ListLibrariesCommand(libraries),
+    ).singleton(),
+    listTracksCommand: asFunction(
+      ({ tracks }: ElectronCradle) => new ListTracksCommand(tracks),
+    ).singleton(),
+    listTrackPlayCountsCommand: asFunction(
+      ({ playHistory }: ElectronCradle) =>
+        new ListTrackPlayCountsCommand(playHistory),
+    ).singleton(),
+    prepareTrackAudioSourceCommand: asFunction(
+      ({ prepareTrackAudioSourceService }: ElectronCradle) =>
+        new PrepareTrackAudioSourceCommand(prepareTrackAudioSourceService),
+    ).singleton(),
+    recordTrackPlayCommand: asFunction(
+      ({
+        playHistory,
+        generatePlayHistoryId,
+        currentUnixSeconds,
+      }: ElectronCradle) =>
+        new RecordTrackPlayCommand(
+          playHistory,
+          generatePlayHistoryId,
+          currentUnixSeconds,
+        ),
+    ).singleton(),
+    removePlaylistEntryCommand: asFunction(
+      ({ playlistService }: ElectronCradle) =>
+        new RemovePlaylistEntryCommand(playlistService),
+    ).singleton(),
+    reorderPlaylistEntriesCommand: asFunction(
+      ({ playlistService }: ElectronCradle) =>
+        new ReorderPlaylistEntriesCommand(playlistService),
+    ).singleton(),
+    scanLibraryCommand: asFunction(
+      ({ scanLibraryService }: ElectronCradle) =>
+        new ScanLibraryCommand(scanLibraryService),
+    ).singleton(),
+    editTrackMetadataCommand: asFunction(
+      ({ tracks }: ElectronCradle) => new EditTrackMetadataCommand(tracks),
+    ).singleton(),
+    clearTrackMetadataOverrideCommand: asFunction(
+      ({ tracks }: ElectronCradle) =>
+        new ClearTrackMetadataOverrideCommand(tracks),
+    ).singleton(),
+    commandHandlers: asFunction((cradle: ElectronCradle) => [
+      cradle.addLibraryCommand,
+      cradle.addTrackToPlaylistCommand,
+      cradle.createPlaylistCommand,
+      cradle.listPlaylistsCommand,
+      cradle.listLibrariesCommand,
+      cradle.listTracksCommand,
+      cradle.listTrackPlayCountsCommand,
+      cradle.prepareTrackAudioSourceCommand,
+      cradle.recordTrackPlayCommand,
+      cradle.removePlaylistEntryCommand,
+      cradle.reorderPlaylistEntriesCommand,
+      cradle.scanLibraryCommand,
+      cradle.editTrackMetadataCommand,
+      cradle.clearTrackMetadataOverrideCommand,
+    ]).singleton(),
+    commandDispatcher: asFunction(
+      ({ commandHandlers }: ElectronCradle) =>
+        new CommandDispatcher(commandHandlers),
+    ).singleton(),
     reconcileFilesystemLibraries: asFunction(
-      (reconcileFilesystemLibrariesService: ReconcileFilesystemLibrariesService) =>
-        () => reconcileFilesystemLibrariesService.reconcile(),
+      ({ reconcileFilesystemLibrariesService }: ElectronCradle) => () =>
+        reconcileFilesystemLibrariesService.reconcile(),
     ).singleton(),
     watchFilesystemLibraries: asFunction(
-      (watchFilesystemLibrariesService: WatchFilesystemLibrariesService) =>
-        () => watchFilesystemLibrariesService.watch(),
+      ({ watchFilesystemLibrariesService }: ElectronCradle) => () =>
+        watchFilesystemLibrariesService.watch(),
     ).singleton(),
   });
 

@@ -50,6 +50,8 @@ yarn desktop:dev             # run the desktop app in dev mode
 | --- | --- |
 | `yarn desktop:dev` | Run the Electron desktop app with HMR |
 | `yarn desktop:build` | Build the desktop frontend for Electron |
+| `yarn desktop:package` | Build an unpacked Electron app bundle |
+| `yarn desktop:make` | Build Electron distributable artifacts |
 | `yarn lint` | Lint every workspace |
 | `yarn typecheck` | Typecheck every workspace |
 | `yarn test` | Run tests in every workspace |

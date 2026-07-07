@@ -4,7 +4,6 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -14,6 +13,7 @@ import {
   type MigrationParams,
   type UmzugStorage,
 } from "umzug";
+import { locateSqlWasm } from "./sql-wasm-path";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
@@ -106,10 +106,7 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
 
 function loadSqlModule(): Promise<SqlJsStatic> {
   sqlModulePromise ??= initSqlJs({
-    locateFile: (file) => {
-      const require = createRequire(import.meta.url);
-      return require.resolve(`sql.js/dist/${file}`);
-    },
+    locateFile: locateSqlWasm,
   });
   return sqlModulePromise;
 }
