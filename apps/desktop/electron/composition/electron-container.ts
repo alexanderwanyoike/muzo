@@ -13,6 +13,10 @@ import type { CommandHandler } from "../application/commands/command-handler";
 import { ListLibrariesCommand } from "../application/commands/list-libraries-command";
 import { ListTracksCommand } from "../application/commands/list-tracks-command";
 import { ScanLibraryCommand } from "../application/commands/scan-library-command";
+import {
+  ClearTrackMetadataOverrideCommand,
+  EditTrackMetadataCommand,
+} from "../application/commands/track-metadata-command";
 import type {
   LibraryRepository,
   TrackRepository,
@@ -49,6 +53,8 @@ export interface ElectronCradle {
   listLibrariesCommand: ListLibrariesCommand;
   listTracksCommand: ListTracksCommand;
   scanLibraryCommand: ScanLibraryCommand;
+  editTrackMetadataCommand: EditTrackMetadataCommand;
+  clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand;
   commandHandlers: CommandHandler[];
   commandDispatcher: CommandDispatcher;
   migrateDatabase: () => Promise<void>;
@@ -77,17 +83,25 @@ export function createElectronContainer(
     listLibrariesCommand: asClass(ListLibrariesCommand).singleton(),
     listTracksCommand: asClass(ListTracksCommand).singleton(),
     scanLibraryCommand: asClass(ScanLibraryCommand).singleton(),
+    editTrackMetadataCommand: asClass(EditTrackMetadataCommand).singleton(),
+    clearTrackMetadataOverrideCommand: asClass(
+      ClearTrackMetadataOverrideCommand,
+    ).singleton(),
     commandHandlers: asFunction(
       (
         addLibraryCommand: AddLibraryCommand,
         listLibrariesCommand: ListLibrariesCommand,
         listTracksCommand: ListTracksCommand,
         scanLibraryCommand: ScanLibraryCommand,
+        editTrackMetadataCommand: EditTrackMetadataCommand,
+        clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand,
       ) => [
         addLibraryCommand,
         listLibrariesCommand,
         listTracksCommand,
         scanLibraryCommand,
+        editTrackMetadataCommand,
+        clearTrackMetadataOverrideCommand,
       ],
     ).singleton(),
     commandDispatcher: asClass(CommandDispatcher).singleton(),
