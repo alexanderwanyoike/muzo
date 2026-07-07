@@ -105,32 +105,33 @@ Completed Electron migration slices:
 - Runtime bridge and Electron shell boot the existing React app.
 - Electron command backend is modularised around commands, interfaces,
   infrastructure, IPC, and Awilix composition.
-- Electron command parity exists for `add_library`, `list_libraries`, and
-  `list_tracks`.
+- Electron command parity exists for local library, track metadata, playback
+  source, play history, and playlist backend commands.
 - Electron SQLite migrations create the current Rust schema and adopt legacy
   inline library/track schemas without losing data.
+- Electron metadata reading, filesystem scanning, startup reconciliation, and
+  filesystem watching are implemented.
+- Electron Dropbox OAuth, API client, catalog, and scan backend foundations are
+  implemented. Dropbox product UI, token storage, polling, downloads, and
+  playback remain deferred.
 
 Remaining parity work:
 
-- `scan_library`.
-- Metadata reader and filesystem walker.
-- `prepare_track_audio_source`.
-- `edit_track_metadata` and `clear_track_metadata_override`.
-- `record_track_play` and `list_track_play_counts`.
-- Startup reconciliation and filesystem watching.
-- Playlist commands.
-- Dropbox backend.
-- Tauri/Rust removal after verified Electron parity.
+- Make Electron the default desktop dev/build path.
+- Add Electron distributable packaging.
+- Remove Tauri/Rust after verified Electron parity.
+- Update documentation, scripts, and agent instructions to describe Electron as
+  the desktop shell.
 
 ## Acceptance criteria
 
-- [ ] React code calls a local runtime bridge, not Tauri or Electron directly.
-- [ ] Electron app boots the current desktop UI in development.
-- [ ] Existing local-library workflows work in Electron: add, list, scan, play,
+- [x] React code calls a local runtime bridge, not Tauri or Electron directly.
+- [x] Electron app boots the current desktop UI in development.
+- [x] Existing local-library workflows work in Electron: add, list, scan, play,
       edit metadata, record play counts.
-- [ ] Startup reconciliation and filesystem watching work in Electron.
-- [ ] SQLite data created by the Rust/Tauri app remains readable.
-- [ ] TypeScript tests cover the behavior currently covered by Rust unit and
+- [x] Startup reconciliation and filesystem watching work in Electron.
+- [x] SQLite data created by the Rust/Tauri app remains readable.
+- [x] TypeScript tests cover the behavior currently covered by Rust unit and
       integration tests.
 - [ ] `src-tauri/` is deleted only after Electron parity is verified.
 - [ ] Documentation and scripts describe Electron as the desktop shell.
