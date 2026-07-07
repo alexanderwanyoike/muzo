@@ -3,12 +3,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElectronContainer } from "./composition/electron-container";
+import { runStartupTasks } from "./startup";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
 const container = createElectronContainer();
 const commandDispatcher = container.resolve("commandDispatcher");
 const migrateDatabase = container.resolve("migrateDatabase");
+const reconcileFilesystemLibraries = container.resolve(
+  "reconcileFilesystemLibraries",
+);
 
 async function createWindow() {
   const window = new BrowserWindow({
@@ -53,7 +57,11 @@ ipcMain.handle("muzo:open-directory", async () => {
 });
 
 app.whenReady().then(async () => {
-  await migrateDatabase();
+  await runStartupTasks({
+    migrateDatabase,
+    reconcileFilesystemLibraries,
+    logError: console.error,
+  });
   void createWindow();
 
   app.on("activate", () => {
