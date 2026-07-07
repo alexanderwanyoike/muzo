@@ -1,16 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TrackList from "./TrackList";
 import type { TrackDto } from "./api";
+import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-import { invoke } from "@tauri-apps/api/core";
-
-const mockedInvoke = invoke as unknown as ReturnType<typeof vi.fn>;
+let mockedInvoke: ReturnType<typeof vi.fn>;
 
 const sampleTracks: TrackDto[] = [
   {
@@ -44,7 +39,15 @@ const sampleTracks: TrackDto[] = [
 ];
 
 beforeEach(() => {
-  mockedInvoke.mockReset();
+  const runtime = installTestRuntime({
+    invoke: vi.fn(),
+    openDirectory: vi.fn().mockResolvedValue(null),
+  });
+  mockedInvoke = runtime.invoke as ReturnType<typeof vi.fn>;
+});
+
+afterEach(() => {
+  removeTestRuntime();
 });
 
 describe("TrackList", () => {

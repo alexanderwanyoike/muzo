@@ -4,7 +4,7 @@ Read this before doing anything in this repo. It applies to humans and to AI age
 
 ## Project at a glance
 
-**Muzo** is a Tauri-based desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
+**Muzo** is an Electron-based desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
 
 ## House rules
 
@@ -15,12 +15,12 @@ These are not negotiable.
 - Write a failing test first. Watch it fail. Make it pass. Refactor.
 - No production code without a failing test that justifies it.
 - Tests live next to the code they exercise. Rust tests in the same module (`#[cfg(test)] mod tests`). TS tests as `*.test.ts(x)` next to the unit under test.
-- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, Tauri commands). End-to-end tests only where the value justifies the cost.
+- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, Electron IPC commands). End-to-end tests only where the value justifies the cost.
 - Tests are behaviour names, not implementation names: `it_adds_a_track_to_the_library`, not `test1`.
 
 ### 2. Domain-Driven Design
 
-- The **domain layer** (`domain` module/crate) holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Tauri, Tokio, filesystem, HTTP, or serde on the wire.
+- The **domain layer** holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Electron, Node, filesystem, HTTP, or wire DTOs.
 - Frameworks point **inward** at the domain. The domain never imports them.
 - Define **repositories** as traits in the domain; implement them in infrastructure.
 - Value objects over primitives. A `LibraryPath` is not a `String`.
@@ -34,7 +34,7 @@ Layering, inner to outer:
 domain        <- entities, value objects, domain services, repository traits
 application   <- use cases (commands/queries), orchestrates domain + ports
 infrastructure <- repository implementations, filesystem/Dropbox adapters, persistence
-ui / tauri    <- React frontend + Tauri commands; the outermost edge
+ui / electron <- React frontend + Electron IPC; the outermost edge
 ```
 
 - Dependencies only point inward.
@@ -62,15 +62,14 @@ ui / tauri    <- React frontend + Tauri commands; the outermost edge
 
 ```
 apps/
-  desktop/                 @muzo/desktop  - Tauri + React app
+  desktop/                 @muzo/desktop  - Electron + React app
     src/                   React frontend (TS)
-    src-tauri/             Rust backend, single crate, modules:
-      src/
-        domain/            entities, value objects, repository traits
-        application/       use cases (commands/queries)
-        infrastructure/    fs adapter, dropbox adapter, sqlite, etc.
-        commands/          Tauri command handlers (the edge)
-        lib.rs
+    electron/              Electron main process backend:
+      application/         use cases, commands, interfaces
+      infrastructure/      filesystem, Dropbox, SQLite, metadata, audio
+      ipc/                 Electron IPC dispatch
+      composition/         Awilix IoC container
+    src-tauri/             Legacy Rust backend pending deletion
 packages/                  future shared TS packages
 docs/
   cards/<sprint>/          sprint cards, one file per card
@@ -114,9 +113,10 @@ chore(repo): init yarn workspaces
 
 - **Package manager:** Yarn (classic) workspaces. Always. No npm, no pnpm, no bun.
 - **Node:** `>= 20.10`.
-- **Rust:** stable toolchain. Format with `cargo fmt`, lint with `cargo clippy -D warnings`.
 - **Frontend:** React + TypeScript + Vite.
-- **Tauri:** v2.
+- **Desktop shell:** Electron.
+- **Legacy Rust/Tauri:** `apps/desktop/src-tauri` remains temporarily during
+  cutover. Do not add new product behavior there.
 
 ### Before you push
 
@@ -133,7 +133,8 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --all
 yarn desktop:build
 ```
 
-If any of those fails, the card is not done.
+If any of those fails, the card is not done. The Cargo checks can be removed
+only in the PR that deletes `apps/desktop/src-tauri`.
 
 ## Cards and sprints
 

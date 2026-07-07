@@ -8,7 +8,6 @@
     "electron:dev": "concurrently -k -n vite,electron \"vite --port ${MUZO_DESKTOP_PORT:-1420}\" \"wait-on http://localhost:${MUZO_DESKTOP_PORT:-1420} && MUZO_ELECTRON_DEV_URL=http://localhost:${MUZO_DESKTOP_PORT:-1420} NODE_OPTIONS='--import tsx' electron electron/main.ts\"",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
     "lint": "eslint src electron --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -16,8 +15,6 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.1.1",
-    "@tauri-apps/plugin-dialog": "^2.7.1",
     "awilix": "13.0.5",
     "chokidar": "5.0.0",
     "music-metadata": "11.13.0",
@@ -29,7 +26,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
-    "@tauri-apps/cli": "^2.1.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
