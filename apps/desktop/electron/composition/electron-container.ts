@@ -33,6 +33,7 @@ import type {
   LibraryRepository,
   TrackRepository,
 } from "../application/interfaces/repository-interfaces";
+import type { Logger } from "../application/interfaces/logger-interfaces";
 import type { PlayHistoryRepository } from "../application/interfaces/play-history-interfaces";
 import type { PlaylistRepository } from "../application/interfaces/playlist-interfaces";
 import type { AudioSourceRegistry } from "../application/interfaces/audio-source-interfaces";
@@ -40,13 +41,17 @@ import type {
   AudioFileWalker,
   AudioMetadataReader,
 } from "../application/interfaces/scan-interfaces";
+import type { FilesystemLibraryWatcher } from "../application/interfaces/watch-interfaces";
 import { PrepareTrackAudioSourceApplicationService } from "../application/prepare-track-audio-source-service";
 import { PlaylistApplicationService } from "../application/playlist-service";
 import { ReconcileFilesystemLibrariesService } from "../application/reconcile-filesystem-libraries-service";
 import { NodeAudioStreamServer } from "../infrastructure/audio/node-audio-stream-server";
 import { ScanLibraryService } from "../application/scan-library-service";
 import { NodeAudioFileWalker } from "../infrastructure/filesystem/node-audio-file-walker";
+import { NodeFilesystemLibraryWatcher } from "../infrastructure/filesystem/node-filesystem-library-watcher";
+import { WatchFilesystemLibrariesService } from "../application/watch-filesystem-libraries-service";
 import { MusicMetadataReader } from "../infrastructure/metadata/music-metadata-reader";
+import { ConsoleLogger } from "../infrastructure/logging/console-logger";
 import { SqliteLibraryRepository } from "../infrastructure/sqlite/sqlite-library-repository";
 import { runSqliteMigrations } from "../infrastructure/sqlite/sqlite-migrations";
 import { SqlitePlayHistoryRepository } from "../infrastructure/sqlite/sqlite-play-history-repository";
@@ -73,17 +78,20 @@ export interface ElectronCradle {
   generatePlaylistId: () => string;
   generatePlayHistoryId: () => string;
   generateTrackId: () => string;
+  logger: Logger;
   libraries: LibraryRepository;
   playHistory: PlayHistoryRepository;
   playlists: PlaylistRepository;
   tracks: TrackRepository;
   audioSources: AudioSourceRegistry;
   walker: AudioFileWalker;
+  filesystemWatcher: FilesystemLibraryWatcher;
   reader: AudioMetadataReader;
   playlistService: PlaylistApplicationService;
   prepareTrackAudioSourceService: PrepareTrackAudioSourceApplicationService;
   reconcileFilesystemLibrariesService: ReconcileFilesystemLibrariesService;
   scanLibraryService: ScanLibraryService;
+  watchFilesystemLibrariesService: WatchFilesystemLibrariesService;
   addLibraryCommand: AddLibraryCommand;
   addTrackToPlaylistCommand: AddTrackToPlaylistCommand;
   createPlaylistCommand: CreatePlaylistCommand;
@@ -105,6 +113,10 @@ export interface ElectronCradle {
     librariesReconciled: number;
     failures: Array<{ libraryId: string; message: string }>;
   }>;
+  watchFilesystemLibraries: () => Promise<{
+    librariesWatched: number;
+    failures: Array<{ libraryId: string; message: string }>;
+  }>;
 }
 
 export function createElectronContainer(
@@ -122,6 +134,7 @@ export function createElectronContainer(
     generatePlaylistId: asValue(options.generatePlaylistId ?? ulid),
     generatePlayHistoryId: asValue(options.generatePlayHistoryId ?? ulid),
     generateTrackId: asValue(options.generateTrackId ?? ulid),
+    logger: asClass(ConsoleLogger).singleton(),
     migrateDatabase: asFunction(
       (dbPath: string) => () => runSqliteMigrations(dbPath),
     ).singleton(),
@@ -131,6 +144,7 @@ export function createElectronContainer(
     tracks: asClass(SqliteTrackRepository).singleton(),
     audioSources: asClass(NodeAudioStreamServer).singleton(),
     walker: asClass(NodeAudioFileWalker).singleton(),
+    filesystemWatcher: asClass(NodeFilesystemLibraryWatcher).singleton(),
     reader: asClass(MusicMetadataReader).singleton(),
     playlistService: asClass(PlaylistApplicationService).singleton(),
     prepareTrackAudioSourceService: asClass(
@@ -140,6 +154,9 @@ export function createElectronContainer(
       ReconcileFilesystemLibrariesService,
     ).singleton(),
     scanLibraryService: asClass(ScanLibraryService).singleton(),
+    watchFilesystemLibrariesService: asClass(
+      WatchFilesystemLibrariesService,
+    ).singleton(),
     addLibraryCommand: asClass(AddLibraryCommand).singleton(),
     addTrackToPlaylistCommand: asClass(AddTrackToPlaylistCommand).singleton(),
     createPlaylistCommand: asClass(CreatePlaylistCommand).singleton(),
@@ -197,6 +214,10 @@ export function createElectronContainer(
     reconcileFilesystemLibraries: asFunction(
       (reconcileFilesystemLibrariesService: ReconcileFilesystemLibrariesService) =>
         () => reconcileFilesystemLibrariesService.reconcile(),
+    ).singleton(),
+    watchFilesystemLibraries: asFunction(
+      (watchFilesystemLibrariesService: WatchFilesystemLibrariesService) =>
+        () => watchFilesystemLibrariesService.watch(),
     ).singleton(),
   });
 

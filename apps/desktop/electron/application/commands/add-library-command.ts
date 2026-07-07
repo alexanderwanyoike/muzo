@@ -1,5 +1,6 @@
 import type { AddLibraryInputDto, LibraryDto } from "../../../src/types";
 import type { LibraryRepository } from "../interfaces/repository-interfaces";
+import type { AddedLibraryWatcher } from "../watch-filesystem-libraries-service";
 import type { CommandHandler } from "./command-handler";
 
 export class AddLibraryCommand implements CommandHandler {
@@ -8,6 +9,7 @@ export class AddLibraryCommand implements CommandHandler {
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly generateLibraryId: () => string,
+    private readonly watchFilesystemLibrariesService: AddedLibraryWatcher,
   ) {}
 
   async handle(args: unknown): Promise<LibraryDto> {
@@ -28,6 +30,7 @@ export class AddLibraryCommand implements CommandHandler {
       location: input.location,
     };
     await this.libraries.add(library);
+    await this.watchFilesystemLibrariesService.watchLibrary(library);
     return library;
   }
 }

@@ -16,14 +16,18 @@ describe("Electron startup", () => {
         calls.push("reconcile");
         return { librariesReconciled: 1, failures: [] };
       },
-      logError: vi.fn(),
+      watchFilesystemLibraries: async () => {
+        calls.push("watch");
+        return { librariesWatched: 1, failures: [] };
+      },
+      logger: { error: vi.fn() },
     });
 
-    expect(calls).toEqual(["migrate", "reconcile"]);
+    expect(calls).toEqual(["migrate", "reconcile", "watch"]);
   });
 
   it("logs reconciliation failures and continues startup", async () => {
-    const logError = vi.fn();
+    const logger = { error: vi.fn() };
 
     await runStartupTasks({
       migrateDatabase: vi.fn().mockResolvedValue(undefined),
@@ -31,11 +35,36 @@ describe("Electron startup", () => {
         librariesReconciled: 0,
         failures: [{ libraryId: "lib-1", message: "not found" }],
       }),
-      logError,
+      watchFilesystemLibraries: vi.fn().mockResolvedValue({
+        librariesWatched: 0,
+        failures: [],
+      }),
+      logger,
     });
 
-    expect(logError).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       "filesystem library reconciliation failed for lib-1: not found",
+    );
+  });
+
+  it("logs watcher registration failures and continues startup", async () => {
+    const logger = { error: vi.fn() };
+
+    await runStartupTasks({
+      migrateDatabase: vi.fn().mockResolvedValue(undefined),
+      reconcileFilesystemLibraries: vi.fn().mockResolvedValue({
+        librariesReconciled: 1,
+        failures: [],
+      }),
+      watchFilesystemLibraries: vi.fn().mockResolvedValue({
+        librariesWatched: 0,
+        failures: [{ libraryId: "lib-1", message: "permission denied" }],
+      }),
+      logger,
+    });
+
+    expect(logger.error).toHaveBeenCalledWith(
+      "filesystem library watcher failed for lib-1: permission denied",
     );
   });
 });
