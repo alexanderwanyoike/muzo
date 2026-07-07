@@ -135,7 +135,7 @@ export default function TrackList({
   if (tracks.length === 0) {
     return (
       <p className="track-list__empty">
-        No tracks yet. Hit Scan on the library to populate it.
+        No tracks yet. Muzo syncs filesystem libraries automatically.
       </p>
     );
   }

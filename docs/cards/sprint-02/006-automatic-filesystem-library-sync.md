@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Fix
-- Status: Backend done, UX deferred until after Electron migration
+- Status: Done
 - Blocks: 007
 
 # Card 006 - Automatic filesystem library sync
@@ -8,10 +8,8 @@
 ## Current status
 
 Backend reconciliation and watcher behavior are implemented and covered by the
-current Rust suite. The listening-view UX is not complete: `Scan` is still
-visible in the main library flow, and sync state/errors are not surfaced as a
-quiet Settings-only fallback. That user-facing polish is deferred until after
-the Electron migration so it is implemented once in the new shell.
+desktop test suite. The listening view no longer exposes manual scan controls;
+manual refresh remains available in Settings only as a recovery fallback.
 
 ## What to build
 
@@ -78,13 +76,13 @@ be the primary path.
 - [x] Watchers are per-library and are not duplicated after refreshes,
       navigation, or React re-renders.
 - [x] Watchers stop on shutdown. No orphaned threads or leaked tasks.
-- [ ] Manual refresh is available from Settings only and is clearly a fallback.
-- [ ] Errors such as permission denied are surfaced without crashing playback
+- [x] Manual refresh is available from Settings only and is clearly a fallback.
+- [x] Errors such as permission denied are surfaced without crashing playback
       or the library view.
 - [x] Unit tests cover the application sync use case with a fake watcher.
 - [x] Integration tests cover add and delete events in a temporary filesystem
       library. Change/rename-specific coverage is deferred with the UX polish.
-- [ ] UI tests assert the main listening view does not depend on a visible
+- [x] UI tests assert the main listening view does not depend on a visible
       Scan button.
 - [x] Verification covered by the current test suites.
 

@@ -81,6 +81,25 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
   });
 
+  it("does not show manual scan controls in the listening view", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "list_tracks") return Promise.resolve([track]);
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", { name: "Show tracks for My Music" }),
+    );
+
+    expect(screen.queryByRole("button", { name: /scan/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /refresh/i })).toBeNull();
+  });
+
   it("does not fetch tracks until a library is expanded", async () => {
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
@@ -139,7 +158,7 @@ describe("App", () => {
     expect(screen.getByText("2 plays")).toBeDefined();
   });
 
-  it("refreshes the visible track list after scanning an expanded library", async () => {
+  it("keeps manual refresh in settings as a fallback action", async () => {
     const user = userEvent.setup();
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
@@ -155,6 +174,7 @@ describe("App", () => {
       screen.getByRole("button", { name: "Show tracks for My Music" }),
     );
     await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeDefined());
+    expect(screen.queryByRole("button", { name: /refresh/i })).toBeNull();
 
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
@@ -163,12 +183,36 @@ describe("App", () => {
       return Promise.resolve([]);
     });
 
-    await user.click(
-      screen.getByRole("button", { name: "Scan selected library" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Refresh My Music" }));
+    await user.click(screen.getByRole("button", { name: "Songs" }));
 
     await waitFor(() =>
       expect(screen.getByText("Hotel California")).toBeDefined(),
     );
+  });
+
+  it("surfaces refresh failures without leaving settings", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "scan_library") {
+        return Promise.reject(new Error("Permission denied"));
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Refresh My Music" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "Permission denied",
+      ),
+    );
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
   });
 });
