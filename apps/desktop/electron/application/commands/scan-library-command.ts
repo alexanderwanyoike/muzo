@@ -1,13 +1,13 @@
 import type { CommandHandler } from "./command-handler";
 import type {
-  ScanLibraryService,
+  LibraryScanner,
   ScanReport,
 } from "../scan-library-service";
 
 export class ScanLibraryCommand implements CommandHandler {
   readonly command = "scan_library";
 
-  constructor(private readonly scanLibraryService: Pick<ScanLibraryService, "scan">) {}
+  constructor(private readonly scanLibraryService: LibraryScanner) {}
 
   handle(args: unknown): Promise<ScanReport> {
     const { libraryId } = parseScanLibraryArgs(args);

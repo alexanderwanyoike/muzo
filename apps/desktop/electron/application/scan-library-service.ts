@@ -12,7 +12,11 @@ export interface ScanReport {
   tracksScanned: number;
 }
 
-export class ScanLibraryService {
+export interface LibraryScanner {
+  scan(libraryId: string): Promise<ScanReport>;
+}
+
+export class ScanLibraryService implements LibraryScanner {
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly tracks: ScannedTrackRepository,

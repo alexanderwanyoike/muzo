@@ -2,7 +2,7 @@ import type { LibraryDto } from "../../src/types";
 import type { Logger } from "./interfaces/logger-interfaces";
 import type { LibraryRepository } from "./interfaces/repository-interfaces";
 import type { FilesystemLibraryWatcher } from "./interfaces/watch-interfaces";
-import type { LibraryScanner } from "./reconcile-filesystem-libraries-service";
+import type { LibraryScanner } from "./scan-library-service";
 
 export interface WatchFilesystemLibraryFailure {
   libraryId: string;

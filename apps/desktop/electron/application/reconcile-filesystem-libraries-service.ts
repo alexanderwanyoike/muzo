@@ -1,8 +1,5 @@
 import type { LibraryRepository } from "./interfaces/repository-interfaces";
-
-export interface LibraryScanner {
-  scan(libraryId: string): Promise<{ tracksScanned: number }>;
-}
+import type { LibraryScanner } from "./scan-library-service";
 
 export interface ReconciliationFailure {
   libraryId: string;

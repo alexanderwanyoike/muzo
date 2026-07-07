@@ -7,9 +7,7 @@ import type { CommandHandler } from "./command-handler";
 export class EditTrackMetadataCommand implements CommandHandler {
   readonly command = "edit_track_metadata";
 
-  constructor(
-    private readonly tracks: Pick<TrackMetadataRepository, "updateMetadataOverride">,
-  ) {}
+  constructor(private readonly tracks: TrackMetadataRepository) {}
 
   handle(args: unknown): Promise<void> {
     const input = parseEditTrackMetadataArgs(args);
@@ -24,9 +22,7 @@ export class EditTrackMetadataCommand implements CommandHandler {
 export class ClearTrackMetadataOverrideCommand implements CommandHandler {
   readonly command = "clear_track_metadata_override";
 
-  constructor(
-    private readonly tracks: Pick<TrackMetadataRepository, "clearMetadataOverride">,
-  ) {}
+  constructor(private readonly tracks: TrackMetadataRepository) {}
 
   handle(args: unknown): Promise<void> {
     const input = parseClearTrackMetadataOverrideArgs(args);

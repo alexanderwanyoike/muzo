@@ -11,6 +11,7 @@ describe("EditTrackMetadataCommand", () => {
   it("persists metadata overrides for the requested track", async () => {
     const tracks = {
       updateMetadataOverride: vi.fn().mockResolvedValue(undefined),
+      clearMetadataOverride: vi.fn().mockResolvedValue(undefined),
     };
 
     await expect(
@@ -44,6 +45,7 @@ describe("EditTrackMetadataCommand", () => {
 describe("ClearTrackMetadataOverrideCommand", () => {
   it("clears metadata overrides for the requested track", async () => {
     const tracks = {
+      updateMetadataOverride: vi.fn().mockResolvedValue(undefined),
       clearMetadataOverride: vi.fn().mockResolvedValue(undefined),
     };
 
