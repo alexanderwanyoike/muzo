@@ -12,6 +12,10 @@ import { AddLibraryCommand } from "../application/commands/add-library-command";
 import type { CommandHandler } from "../application/commands/command-handler";
 import { ListLibrariesCommand } from "../application/commands/list-libraries-command";
 import { ListTracksCommand } from "../application/commands/list-tracks-command";
+import {
+  ListTrackPlayCountsCommand,
+  RecordTrackPlayCommand,
+} from "../application/commands/play-history-command";
 import { ScanLibraryCommand } from "../application/commands/scan-library-command";
 import {
   ClearTrackMetadataOverrideCommand,
@@ -21,6 +25,7 @@ import type {
   LibraryRepository,
   TrackRepository,
 } from "../application/interfaces/repository-interfaces";
+import type { PlayHistoryRepository } from "../application/interfaces/play-history-interfaces";
 import type {
   AudioFileWalker,
   AudioMetadataReader,
@@ -30,6 +35,7 @@ import { NodeAudioFileWalker } from "../infrastructure/filesystem/node-audio-fil
 import { MusicMetadataReader } from "../infrastructure/metadata/music-metadata-reader";
 import { SqliteLibraryRepository } from "../infrastructure/sqlite/sqlite-library-repository";
 import { runSqliteMigrations } from "../infrastructure/sqlite/sqlite-migrations";
+import { SqlitePlayHistoryRepository } from "../infrastructure/sqlite/sqlite-play-history-repository";
 import { SqliteTrackRepository } from "../infrastructure/sqlite/sqlite-track-repository";
 import { CommandDispatcher } from "../ipc/command-dispatcher";
 import { muzoDatabasePath } from "../paths";
@@ -37,14 +43,19 @@ import { muzoDatabasePath } from "../paths";
 export interface ElectronContainerOptions {
   dbPath?: string;
   generateLibraryId?: () => string;
+  generatePlayHistoryId?: () => string;
   generateTrackId?: () => string;
+  currentUnixSeconds?: () => number;
 }
 
 export interface ElectronCradle {
   dbPath: string;
   generateLibraryId: () => string;
+  generatePlayHistoryId: () => string;
   generateTrackId: () => string;
+  currentUnixSeconds: () => number;
   libraries: LibraryRepository;
+  playHistory: PlayHistoryRepository;
   tracks: TrackRepository;
   walker: AudioFileWalker;
   reader: AudioMetadataReader;
@@ -52,6 +63,8 @@ export interface ElectronCradle {
   addLibraryCommand: AddLibraryCommand;
   listLibrariesCommand: ListLibrariesCommand;
   listTracksCommand: ListTracksCommand;
+  listTrackPlayCountsCommand: ListTrackPlayCountsCommand;
+  recordTrackPlayCommand: RecordTrackPlayCommand;
   scanLibraryCommand: ScanLibraryCommand;
   editTrackMetadataCommand: EditTrackMetadataCommand;
   clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand;
@@ -69,12 +82,15 @@ export function createElectronContainer(
 
   container.register({
     dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
+    currentUnixSeconds: asValue(options.currentUnixSeconds ?? currentUnixSeconds),
     generateLibraryId: asValue(options.generateLibraryId ?? ulid),
+    generatePlayHistoryId: asValue(options.generatePlayHistoryId ?? ulid),
     generateTrackId: asValue(options.generateTrackId ?? ulid),
     migrateDatabase: asFunction(
       (dbPath: string) => () => runSqliteMigrations(dbPath),
     ).singleton(),
     libraries: asClass(SqliteLibraryRepository).singleton(),
+    playHistory: asClass(SqlitePlayHistoryRepository).singleton(),
     tracks: asClass(SqliteTrackRepository).singleton(),
     walker: asClass(NodeAudioFileWalker).singleton(),
     reader: asClass(MusicMetadataReader).singleton(),
@@ -82,6 +98,8 @@ export function createElectronContainer(
     addLibraryCommand: asClass(AddLibraryCommand).singleton(),
     listLibrariesCommand: asClass(ListLibrariesCommand).singleton(),
     listTracksCommand: asClass(ListTracksCommand).singleton(),
+    listTrackPlayCountsCommand: asClass(ListTrackPlayCountsCommand).singleton(),
+    recordTrackPlayCommand: asClass(RecordTrackPlayCommand).singleton(),
     scanLibraryCommand: asClass(ScanLibraryCommand).singleton(),
     editTrackMetadataCommand: asClass(EditTrackMetadataCommand).singleton(),
     clearTrackMetadataOverrideCommand: asClass(
@@ -92,6 +110,8 @@ export function createElectronContainer(
         addLibraryCommand: AddLibraryCommand,
         listLibrariesCommand: ListLibrariesCommand,
         listTracksCommand: ListTracksCommand,
+        listTrackPlayCountsCommand: ListTrackPlayCountsCommand,
+        recordTrackPlayCommand: RecordTrackPlayCommand,
         scanLibraryCommand: ScanLibraryCommand,
         editTrackMetadataCommand: EditTrackMetadataCommand,
         clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand,
@@ -99,6 +119,8 @@ export function createElectronContainer(
         addLibraryCommand,
         listLibrariesCommand,
         listTracksCommand,
+        listTrackPlayCountsCommand,
+        recordTrackPlayCommand,
         scanLibraryCommand,
         editTrackMetadataCommand,
         clearTrackMetadataOverrideCommand,
@@ -108,4 +130,8 @@ export function createElectronContainer(
   });
 
   return container;
+}
+
+function currentUnixSeconds(): number {
+  return Math.floor(Date.now() / 1000);
 }
