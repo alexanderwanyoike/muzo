@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist node_modules"
+    "clean": "rm -rf dist dist-electron out node_modules"
   },
   "dependencies": {
     "awilix": "13.0.5",

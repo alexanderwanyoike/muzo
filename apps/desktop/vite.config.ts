@@ -1,13 +1,11 @@
 import { defineConfig } from "vite";
+import type { PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Tauri spawns a Vite dev server with a fixed port and strict host settings.
-// See https://v2.tauri.app/start/frontend/vite/ for the reasoning.
-const host = process.env.TAURI_DEV_HOST;
 const port = Number(process.env.MUZO_DESKTOP_PORT ?? 1420);
 
-export default defineConfig(async () => ({
-  plugins: [react()],
+export default defineConfig(() => ({
+  plugins: react() as unknown as PluginOption[],
 
   // Vitest needs an explicit environment for DOM APIs.
   // `test` is consumed by vitest, ignored by plain `vite build`.
@@ -15,17 +13,7 @@ export default defineConfig(async () => ({
   server: {
     port,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      ignored: ["**/src-tauri/**"],
-    },
+    host: false,
   },
   test: {
     environment: "jsdom",

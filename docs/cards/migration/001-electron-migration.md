@@ -1,6 +1,6 @@
 - Track: Migration
 - Type: Architecture
-- Status: In progress
+- Status: Done
 
 # Card 001 - Migrate desktop shell from Tauri/Rust to Electron/TypeScript
 
@@ -11,9 +11,9 @@ The goal is to remove Rust from the product codebase, keep the existing user
 behavior, and make future desktop work happen in the same TypeScript stack as
 the frontend and planned mobile/PWA work.
 
-This card should preserve the current SQLite database shape and command names
-while the migration is in progress. The existing Rust tests are the behavioral
-spec for the TypeScript port.
+This card preserved the current SQLite database shape and command names during
+the migration. The TypeScript tests now cover the behavior ported from the
+legacy Rust backend.
 
 ## Why
 
@@ -49,10 +49,10 @@ Deferred until after the migration:
 - Add a frontend runtime bridge first so React does not import Tauri or
   Electron directly.
 - Port one vertical slice at a time with Vitest node-environment tests
-  mirroring the Rust tests.
+  mirroring the legacy backend behavior.
 - Do not add new product features during the migration unless they are needed
   to prove parity.
-- Do not delete `src-tauri/` until Electron passes the agreed parity checks.
+- `src-tauri/` was deleted only after Electron passed the agreed parity checks.
 
 ## Suggested phases
 
@@ -114,10 +114,11 @@ Completed Electron migration slices:
 - Electron Dropbox OAuth, API client, catalog, and scan backend foundations are
   implemented. Dropbox product UI, token storage, polling, downloads, and
   playback remain deferred.
+- Tauri and Rust product code has been removed after Electron parity checks.
 
 Remaining parity work:
 
-- Remove Tauri/Rust after verified Electron parity.
+- None.
 
 ## Acceptance criteria
 
@@ -127,10 +128,10 @@ Remaining parity work:
       edit metadata, record play counts.
 - [x] Startup reconciliation and filesystem watching work in Electron.
 - [x] SQLite data created by the Rust/Tauri app remains readable.
-- [x] TypeScript tests cover the behavior currently covered by Rust unit and
-      integration tests.
+- [x] TypeScript tests cover the behavior previously covered by legacy backend
+      unit and integration tests.
 - [x] Electron distributable packaging is configured.
-- [ ] `src-tauri/` is deleted only after Electron parity is verified.
+- [x] `src-tauri/` is deleted only after Electron parity is verified.
 - [x] Documentation and scripts describe Electron as the desktop shell.
 
 ## Out of scope

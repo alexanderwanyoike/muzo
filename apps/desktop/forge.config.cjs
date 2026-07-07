@@ -8,7 +8,6 @@ module.exports = {
       /^\/src($|\/)/,
       /^\/electron($|\/)/,
       /^\/node_modules($|\/)/,
-      /^\/src-tauri($|\/)/,
       /^\/coverage($|\/)/,
       /^\/dist-electron\/.*\.map$/,
       /^\/.*\.test\.(ts|tsx)$/,

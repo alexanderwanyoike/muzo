@@ -9,8 +9,8 @@ Muzo treats your music collection as a set of **libraries** and **playlists**. A
 Pre-alpha, but no longer just scaffolded. The local desktop player slice is
 usable: filesystem libraries can be added, scanned, kept in sync, browsed, and
 played with metadata editing and play counts. Sprint card status is tracked in
-[`docs/cards/`](./docs/cards). The Electron migration is in its cutover phase;
-the legacy Tauri/Rust backend remains only until the final deletion PR.
+[`docs/cards/`](./docs/cards). The desktop shell and backend now run on Electron
+and TypeScript.
 
 ## Repository layout
 
@@ -19,8 +19,7 @@ muzo/
 ├── apps/
 │   └── desktop/         # Electron + React desktop app (@muzo/desktop)
 │       ├── src/         # React frontend
-│       ├── electron/    # Electron main process backend
-│       └── src-tauri/   # Legacy Tauri backend pending deletion
+│       └── electron/    # Electron main process backend
 ├── packages/            # Shared TS packages (future)
 ├── docs/
 │   ├── cards/           # Sprint cards: docs/cards/<sprint>/<card-title>.md
