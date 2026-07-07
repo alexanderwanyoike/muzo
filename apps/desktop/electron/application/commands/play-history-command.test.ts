@@ -10,6 +10,7 @@ import {
 describe("RecordTrackPlayCommand", () => {
   it("records a play for the requested track", async () => {
     const playHistory = {
+      listPlayCounts: vi.fn(),
       recordPlay: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -43,6 +44,7 @@ describe("ListTrackPlayCountsCommand", () => {
     ];
     const playHistory = {
       listPlayCounts: vi.fn().mockResolvedValue(counts),
+      recordPlay: vi.fn(),
     };
 
     await expect(

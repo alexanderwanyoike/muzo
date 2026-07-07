@@ -8,7 +8,7 @@ export class RecordTrackPlayCommand implements CommandHandler {
   readonly command = "record_track_play";
 
   constructor(
-    private readonly playHistory: Pick<PlayHistoryRepository, "recordPlay">,
+    private readonly playHistory: PlayHistoryRepository,
     private readonly generatePlayHistoryId: () => string,
     private readonly currentUnixSeconds: () => number,
   ) {}
@@ -27,9 +27,7 @@ export class RecordTrackPlayCommand implements CommandHandler {
 export class ListTrackPlayCountsCommand implements CommandHandler {
   readonly command = "list_track_play_counts";
 
-  constructor(
-    private readonly playHistory: Pick<PlayHistoryRepository, "listPlayCounts">,
-  ) {}
+  constructor(private readonly playHistory: PlayHistoryRepository) {}
 
   handle(args: unknown): Promise<PlayCount[]> {
     const input = parseLibraryInput(args, "list_track_play_counts");
