@@ -1,23 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: vi.fn(),
-}));
-
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import { open as tauriOpen } from "@tauri-apps/plugin-dialog";
-import { getRuntimeBridge, openDirectory } from "./runtime-bridge";
-
-const mockedTauriInvoke = tauriInvoke as unknown as ReturnType<typeof vi.fn>;
-const mockedTauriOpen = tauriOpen as unknown as ReturnType<typeof vi.fn>;
+import { getRuntimeBridge, invokeCommand, openDirectory } from "./runtime-bridge";
 
 beforeEach(() => {
-  mockedTauriInvoke.mockReset();
-  mockedTauriOpen.mockReset();
   delete window.__MUZO_RUNTIME__;
 });
 
@@ -32,27 +17,23 @@ describe("runtime bridge", () => {
     await expect(getRuntimeBridge().invoke("ping")).resolves.toBe("pong");
 
     expect(electronInvoke).toHaveBeenCalledWith("ping");
-    expect(mockedTauriInvoke).not.toHaveBeenCalled();
   });
 
-  it("falls back to Tauri when no runtime is injected", async () => {
-    mockedTauriInvoke.mockResolvedValue("pong");
-
-    await expect(getRuntimeBridge().invoke("ping", { input: true })).resolves.toBe(
-      "pong",
+  it("fails clearly when the desktop runtime is missing", async () => {
+    await expect(invokeCommand("ping", { input: true })).rejects.toThrow(
+      "Muzo desktop runtime is not available",
     );
-
-    expect(mockedTauriInvoke).toHaveBeenCalledWith("ping", { input: true });
   });
 
-  it("normalises the Tauri directory picker to a nullable string", async () => {
-    mockedTauriOpen.mockResolvedValueOnce(["/tmp/one"]);
+  it("delegates directory picking to the injected runtime", async () => {
+    const openRuntimeDirectory = vi.fn().mockResolvedValue("/tmp/one");
+    window.__MUZO_RUNTIME__ = {
+      invoke: vi.fn(),
+      openDirectory: openRuntimeDirectory,
+    };
 
-    await expect(openDirectory()).resolves.toBeNull();
+    await expect(openDirectory()).resolves.toBe("/tmp/one");
 
-    expect(mockedTauriOpen).toHaveBeenCalledWith({
-      directory: true,
-      multiple: false,
-    });
+    expect(openRuntimeDirectory).toHaveBeenCalledOnce();
   });
 });

@@ -117,11 +117,8 @@ Completed Electron migration slices:
 
 Remaining parity work:
 
-- Make Electron the default desktop dev/build path.
 - Add Electron distributable packaging.
 - Remove Tauri/Rust after verified Electron parity.
-- Update documentation, scripts, and agent instructions to describe Electron as
-  the desktop shell.
 
 ## Acceptance criteria
 
@@ -134,7 +131,7 @@ Remaining parity work:
 - [x] TypeScript tests cover the behavior currently covered by Rust unit and
       integration tests.
 - [ ] `src-tauri/` is deleted only after Electron parity is verified.
-- [ ] Documentation and scripts describe Electron as the desktop shell.
+- [x] Documentation and scripts describe Electron as the desktop shell.
 
 ## Out of scope
 
