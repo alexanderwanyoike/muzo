@@ -13,10 +13,6 @@ target/
 apps/*/vite.config.js
 apps/*/vite.config.d.ts
 
-# Tauri
-apps/*/src-tauri/target/
-apps/*/src-tauri/gen/
-
 # IDE
 .vscode/*
 !.vscode/extensions.json
