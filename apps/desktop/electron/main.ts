@@ -13,6 +13,8 @@ const migrateDatabase = container.resolve("migrateDatabase");
 const reconcileFilesystemLibraries = container.resolve(
   "reconcileFilesystemLibraries",
 );
+const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
+const logger = container.resolve("logger");
 
 async function createWindow() {
   const window = new BrowserWindow({
@@ -60,7 +62,8 @@ app.whenReady().then(async () => {
   await runStartupTasks({
     migrateDatabase,
     reconcileFilesystemLibraries,
-    logError: console.error,
+    watchFilesystemLibraries,
+    logger,
   });
   void createWindow();
 

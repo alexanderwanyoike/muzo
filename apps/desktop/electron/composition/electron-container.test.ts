@@ -21,6 +21,7 @@ describe("Electron container", () => {
     const reconcileFilesystemLibraries = container.resolve(
       "reconcileFilesystemLibraries",
     );
+    const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
     const commandDispatcher = container.resolve("commandDispatcher");
     const tracks = container.resolve("tracks");
 
@@ -60,6 +61,11 @@ describe("Electron container", () => {
 
     await expect(reconcileFilesystemLibraries()).resolves.toEqual({
       librariesReconciled: 1,
+      failures: [],
+    });
+
+    await expect(watchFilesystemLibraries()).resolves.toEqual({
+      librariesWatched: 1,
       failures: [],
     });
 
