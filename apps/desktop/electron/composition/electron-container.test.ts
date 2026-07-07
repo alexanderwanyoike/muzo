@@ -132,6 +132,24 @@ describe("Electron container", () => {
         filePath: join(libraryRoot, "song.mp3"),
       },
     ]);
+
+    await expect(
+      commandDispatcher.handleElectronCommand("record_track_play", {
+        input: { libraryId: "lib-1", trackId: "trk-1" },
+      }),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      commandDispatcher.handleElectronCommand("list_track_play_counts", {
+        input: { libraryId: "lib-1" },
+      }),
+    ).resolves.toEqual([
+      {
+        trackId: "trk-1",
+        playCount: 1,
+        lastPlayedAtUnixSeconds: expect.any(Number),
+      },
+    ]);
   });
 });
 
