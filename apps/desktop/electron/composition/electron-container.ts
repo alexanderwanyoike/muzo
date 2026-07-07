@@ -16,6 +16,7 @@ import {
   ListTrackPlayCountsCommand,
   RecordTrackPlayCommand,
 } from "../application/commands/play-history-command";
+import { PrepareTrackAudioSourceCommand } from "../application/commands/prepare-track-audio-source-command";
 import { ScanLibraryCommand } from "../application/commands/scan-library-command";
 import {
   ClearTrackMetadataOverrideCommand,
@@ -26,10 +27,13 @@ import type {
   TrackRepository,
 } from "../application/interfaces/repository-interfaces";
 import type { PlayHistoryRepository } from "../application/interfaces/play-history-interfaces";
+import type { AudioSourceRegistry } from "../application/interfaces/audio-source-interfaces";
 import type {
   AudioFileWalker,
   AudioMetadataReader,
 } from "../application/interfaces/scan-interfaces";
+import { PrepareTrackAudioSourceApplicationService } from "../application/prepare-track-audio-source-service";
+import { NodeAudioStreamServer } from "../infrastructure/audio/node-audio-stream-server";
 import { ScanLibraryService } from "../application/scan-library-service";
 import { NodeAudioFileWalker } from "../infrastructure/filesystem/node-audio-file-walker";
 import { MusicMetadataReader } from "../infrastructure/metadata/music-metadata-reader";
@@ -57,13 +61,16 @@ export interface ElectronCradle {
   libraries: LibraryRepository;
   playHistory: PlayHistoryRepository;
   tracks: TrackRepository;
+  audioSources: AudioSourceRegistry;
   walker: AudioFileWalker;
   reader: AudioMetadataReader;
+  prepareTrackAudioSourceService: PrepareTrackAudioSourceApplicationService;
   scanLibraryService: ScanLibraryService;
   addLibraryCommand: AddLibraryCommand;
   listLibrariesCommand: ListLibrariesCommand;
   listTracksCommand: ListTracksCommand;
   listTrackPlayCountsCommand: ListTrackPlayCountsCommand;
+  prepareTrackAudioSourceCommand: PrepareTrackAudioSourceCommand;
   recordTrackPlayCommand: RecordTrackPlayCommand;
   scanLibraryCommand: ScanLibraryCommand;
   editTrackMetadataCommand: EditTrackMetadataCommand;
@@ -92,13 +99,20 @@ export function createElectronContainer(
     libraries: asClass(SqliteLibraryRepository).singleton(),
     playHistory: asClass(SqlitePlayHistoryRepository).singleton(),
     tracks: asClass(SqliteTrackRepository).singleton(),
+    audioSources: asClass(NodeAudioStreamServer).singleton(),
     walker: asClass(NodeAudioFileWalker).singleton(),
     reader: asClass(MusicMetadataReader).singleton(),
+    prepareTrackAudioSourceService: asClass(
+      PrepareTrackAudioSourceApplicationService,
+    ).singleton(),
     scanLibraryService: asClass(ScanLibraryService).singleton(),
     addLibraryCommand: asClass(AddLibraryCommand).singleton(),
     listLibrariesCommand: asClass(ListLibrariesCommand).singleton(),
     listTracksCommand: asClass(ListTracksCommand).singleton(),
     listTrackPlayCountsCommand: asClass(ListTrackPlayCountsCommand).singleton(),
+    prepareTrackAudioSourceCommand: asClass(
+      PrepareTrackAudioSourceCommand,
+    ).singleton(),
     recordTrackPlayCommand: asClass(RecordTrackPlayCommand).singleton(),
     scanLibraryCommand: asClass(ScanLibraryCommand).singleton(),
     editTrackMetadataCommand: asClass(EditTrackMetadataCommand).singleton(),
@@ -111,6 +125,7 @@ export function createElectronContainer(
         listLibrariesCommand: ListLibrariesCommand,
         listTracksCommand: ListTracksCommand,
         listTrackPlayCountsCommand: ListTrackPlayCountsCommand,
+        prepareTrackAudioSourceCommand: PrepareTrackAudioSourceCommand,
         recordTrackPlayCommand: RecordTrackPlayCommand,
         scanLibraryCommand: ScanLibraryCommand,
         editTrackMetadataCommand: EditTrackMetadataCommand,
@@ -120,6 +135,7 @@ export function createElectronContainer(
         listLibrariesCommand,
         listTracksCommand,
         listTrackPlayCountsCommand,
+        prepareTrackAudioSourceCommand,
         recordTrackPlayCommand,
         scanLibraryCommand,
         editTrackMetadataCommand,

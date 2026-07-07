@@ -23,9 +23,9 @@ describe("Electron command dispatcher", () => {
     const dispatcher = new CommandDispatcher([]);
 
     await expect(
-      dispatcher.handleElectronCommand("prepare_track_audio_source"),
+      dispatcher.handleElectronCommand("create_playlist"),
     ).rejects.toThrow(
-      "Electron command is not implemented: prepare_track_audio_source",
+      "Electron command is not implemented: create_playlist",
     );
   });
 });
