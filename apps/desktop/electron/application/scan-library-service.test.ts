@@ -6,7 +6,7 @@ import type { TrackDto } from "../../src/api";
 import type {
   LibraryRepository,
   ScannedTrack,
-  TrackRepository,
+  ScannedTrackRepository,
 } from "./interfaces/repository-interfaces";
 import type {
   AudioFileWalker,
@@ -128,7 +128,7 @@ class InMemoryLibraries implements LibraryRepository {
   }
 }
 
-class InMemoryTracks implements TrackRepository {
+class InMemoryTracks implements ScannedTrackRepository {
   readonly stored: ScannedTrack[];
 
   constructor(initialTracks: ScannedTrack[] = []) {

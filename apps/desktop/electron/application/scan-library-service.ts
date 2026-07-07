@@ -1,7 +1,7 @@
 import type {
   LibraryRepository,
   ScannedTrack,
-  TrackRepository,
+  ScannedTrackRepository,
 } from "./interfaces/repository-interfaces";
 import type {
   AudioFileWalker,
@@ -15,7 +15,7 @@ export interface ScanReport {
 export class ScanLibraryService {
   constructor(
     private readonly libraries: LibraryRepository,
-    private readonly tracks: TrackRepository,
+    private readonly tracks: ScannedTrackRepository,
     private readonly walker: AudioFileWalker,
     private readonly reader: AudioMetadataReader,
     private readonly generateTrackId: () => string,

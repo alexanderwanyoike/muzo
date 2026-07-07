@@ -6,6 +6,7 @@ import initSqlJs, { type SqlJsStatic } from "sql.js";
 import type { TrackDto } from "../../../src/api";
 import type {
   ScannedTrack,
+  TrackMetadataOverride,
   TrackRepository,
 } from "../../application/interfaces/repository-interfaces";
 
@@ -13,6 +14,18 @@ let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
 export class SqliteTrackRepository implements TrackRepository {
   constructor(private readonly dbPath: string) {}
+
+  clearMetadataOverride(libraryId: string, trackId: string): Promise<void> {
+    return this.updateMetadataOverride(libraryId, trackId, {
+      title: null,
+      artist: null,
+      album: null,
+      trackNumber: null,
+      discNumber: null,
+      genre: null,
+      year: null,
+    });
+  }
 
   async deleteByLibraryAndPath(
     libraryId: string,
@@ -61,6 +74,42 @@ export class SqliteTrackRepository implements TrackRepository {
       } finally {
         statement.free();
       }
+    } finally {
+      database.close();
+    }
+  }
+
+  async updateMetadataOverride(
+    libraryId: string,
+    trackId: string,
+    metadataOverride: TrackMetadataOverride,
+  ): Promise<void> {
+    const SQL = await loadSqlModule();
+    const database = new SQL.Database(readFileSync(this.dbPath));
+    try {
+      database.run(
+        `UPDATE tracks SET
+          override_title = ?,
+          override_artist = ?,
+          override_album = ?,
+          override_track_number = ?,
+          override_disc_number = ?,
+          override_genre = ?,
+          override_year = ?
+        WHERE library_id = ? AND id = ?`,
+        [
+          metadataOverride.title,
+          metadataOverride.artist,
+          metadataOverride.album,
+          metadataOverride.trackNumber,
+          metadataOverride.discNumber,
+          metadataOverride.genre,
+          metadataOverride.year,
+          libraryId,
+          trackId,
+        ],
+      );
+      saveDatabase(database, this.dbPath);
     } finally {
       database.close();
     }

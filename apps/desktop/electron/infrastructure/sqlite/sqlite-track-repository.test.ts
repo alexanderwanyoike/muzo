@@ -199,6 +199,103 @@ describe("Electron track repository", () => {
 
     await expect(repository.listForLibrary("lib-1")).resolves.toEqual([]);
   });
+
+  it("updates metadata overrides displayed for a track", async () => {
+    const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
+    const repository = new SqliteTrackRepository(dbPath);
+    await repository.upsertScannedTrack({
+      id: "trk-1",
+      libraryId: "lib-1",
+      title: "File Title",
+      artist: "File Artist",
+      album: "File Album",
+      trackNumber: 1,
+      discNumber: null,
+      genre: null,
+      year: null,
+      durationSeconds: 120,
+      filePath: "/music/song.mp3",
+      fileSize: 1000,
+      fileMtime: 123,
+    });
+
+    await repository.updateMetadataOverride("lib-1", "trk-1", {
+      title: "Edited Title",
+      artist: null,
+      album: "Edited Album",
+      trackNumber: 4,
+      discNumber: 1,
+      genre: "Soul",
+      year: 1971,
+    });
+
+    await expect(repository.listForLibrary("lib-1")).resolves.toEqual([
+      {
+        id: "trk-1",
+        libraryId: "lib-1",
+        title: "Edited Title",
+        artist: "File Artist",
+        album: "Edited Album",
+        trackNumber: 4,
+        discNumber: 1,
+        genre: "Soul",
+        year: 1971,
+        metadataOverridden: true,
+        durationSeconds: 120,
+        filePath: "/music/song.mp3",
+      },
+    ]);
+  });
+
+  it("clears metadata overrides so file metadata is displayed again", async () => {
+    const dbPath = tempDatabasePath();
+    await runSqliteMigrations(dbPath);
+    const repository = new SqliteTrackRepository(dbPath);
+    await repository.upsertScannedTrack({
+      id: "trk-1",
+      libraryId: "lib-1",
+      title: "File Title",
+      artist: "File Artist",
+      album: "File Album",
+      trackNumber: 1,
+      discNumber: null,
+      genre: null,
+      year: null,
+      durationSeconds: 120,
+      filePath: "/music/song.mp3",
+      fileSize: 1000,
+      fileMtime: 123,
+    });
+    await repository.updateMetadataOverride("lib-1", "trk-1", {
+      title: "Edited Title",
+      artist: null,
+      album: null,
+      trackNumber: null,
+      discNumber: null,
+      genre: null,
+      year: null,
+    });
+
+    await repository.clearMetadataOverride("lib-1", "trk-1");
+
+    await expect(repository.listForLibrary("lib-1")).resolves.toEqual([
+      {
+        id: "trk-1",
+        libraryId: "lib-1",
+        title: "File Title",
+        artist: "File Artist",
+        album: "File Album",
+        trackNumber: 1,
+        discNumber: null,
+        genre: null,
+        year: null,
+        metadataOverridden: false,
+        durationSeconds: 120,
+        filePath: "/music/song.mp3",
+      },
+    ]);
+  });
 });
 
 async function setOverrideTitle(
