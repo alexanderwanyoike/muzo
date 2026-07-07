@@ -14,6 +14,8 @@ describe("Electron container", () => {
     const container = createElectronContainer({
       dbPath: tempDatabasePath(),
       generateLibraryId: () => "lib-1",
+      generatePlaylistEntryId: playlistEntryIdGenerator(),
+      generatePlaylistId: () => "playlist-1",
     });
     const migrateDatabase = container.resolve("migrateDatabase");
     const commandDispatcher = container.resolve("commandDispatcher");
@@ -159,6 +161,36 @@ describe("Electron container", () => {
       mimeType: "audio/mpeg",
       url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/audio\/.+/),
     });
+
+    await expect(
+      commandDispatcher.handleElectronCommand("create_playlist", {
+        input: { name: "Road Trip" },
+      }),
+    ).resolves.toEqual({
+      id: "playlist-1",
+      name: "Road Trip",
+      entries: [],
+    });
+
+    await expect(
+      commandDispatcher.handleElectronCommand("add_track_to_playlist", {
+        input: { playlistId: "playlist-1", trackId: "trk-1" },
+      }),
+    ).resolves.toEqual({
+      id: "playlist-1",
+      name: "Road Trip",
+      entries: [{ id: "entry-1", trackId: "trk-1", position: 0 }],
+    });
+
+    await expect(
+      commandDispatcher.handleElectronCommand("list_playlists"),
+    ).resolves.toEqual([
+      {
+        id: "playlist-1",
+        name: "Road Trip",
+        entries: [{ id: "entry-1", trackId: "trk-1", position: 0 }],
+      },
+    ]);
   });
 });
 
@@ -170,4 +202,9 @@ function tempDirectory(): string {
   const directory = join(tmpdir(), `muzo-${Date.now()}-${Math.random()}`);
   mkdirSync(directory, { recursive: true });
   return directory;
+}
+
+function playlistEntryIdGenerator(): () => string {
+  let next = 0;
+  return () => `entry-${++next}`;
 }
