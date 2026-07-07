@@ -150,6 +150,15 @@ describe("Electron container", () => {
         lastPlayedAtUnixSeconds: expect.any(Number),
       },
     ]);
+
+    await expect(
+      commandDispatcher.handleElectronCommand("prepare_track_audio_source", {
+        input: { libraryId: "lib-1", trackId: "trk-1" },
+      }),
+    ).resolves.toMatchObject({
+      mimeType: "audio/mpeg",
+      url: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/audio\/.+/),
+    });
   });
 });
 
