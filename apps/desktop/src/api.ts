@@ -106,3 +106,25 @@ export async function listTrackPlayCounts(libraryId: string): Promise<PlayCountD
     input: { libraryId },
   });
 }
+
+export interface PlaylistEntryDto {
+  id: string;
+  trackId: string;
+  position: number;
+}
+
+export interface PlaylistDto {
+  id: string;
+  name: string;
+  entries: PlaylistEntryDto[];
+}
+
+export async function listPlaylists(): Promise<PlaylistDto[]> {
+  return invokeCommand<PlaylistDto[]>("list_playlists");
+}
+
+export async function createPlaylist(input: {
+  name: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("create_playlist", { input });
+}

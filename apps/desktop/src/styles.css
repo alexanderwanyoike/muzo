@@ -168,6 +168,7 @@ button {
 
 .add-library-form button[type="submit"],
 .add-library-form__field button,
+.playlist-panel__form button,
 .settings-view__sources button {
   min-height: 32px;
   border: 1px solid var(--line);
@@ -178,11 +179,13 @@ button {
 }
 
 .add-library-form__field button:hover,
+.playlist-panel__form button:hover,
 .settings-view__sources button:hover {
   border-color: #bba98f;
 }
 
 .settings-view__sources button:disabled,
+.playlist-panel__form button:disabled,
 .add-library-form button[type="submit"]:disabled {
   opacity: 0.58;
   cursor: not-allowed;
@@ -694,6 +697,114 @@ button {
   padding: 1.5rem;
 }
 
+.playlist-panel {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.playlist-panel__create {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.playlist-panel__form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.playlist-panel__form label {
+  min-width: 0;
+  display: grid;
+  gap: 0.28rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.playlist-panel__form input {
+  width: 100%;
+  min-height: 34px;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background-color: #fffdf7;
+  color: var(--text);
+}
+
+.playlist-panel__form button {
+  min-width: 136px;
+  padding: 0.52rem 0.7rem;
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+}
+
+.playlist-panel__error {
+  margin: 0.7rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  background-color: #f4d6d0;
+  color: #7b241a;
+  font-size: 0.82rem;
+}
+
+.playlist-panel__empty {
+  padding: 2rem;
+  border: 1px dashed #c9bdac;
+  border-radius: 8px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.playlist-panel__empty h3 {
+  margin: 0 0 0.35rem;
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.playlist-panel__empty p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.playlist-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.playlist-panel__list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fffdf7;
+}
+
+.playlist-panel__list h3 {
+  margin: 0 0 0.15rem;
+  font-size: 0.98rem;
+}
+
+.playlist-panel__list p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
 .settings-view__section {
   display: grid;
   grid-template-columns: minmax(180px, 0.45fr) minmax(260px, 0.55fr);
@@ -855,6 +966,14 @@ button {
 
   .settings-view__section {
     grid-template-columns: 1fr;
+  }
+
+  .playlist-panel__form {
+    grid-template-columns: 1fr;
+  }
+
+  .playlist-panel__form button {
+    width: 100%;
   }
 
   .settings-view__sources li {
