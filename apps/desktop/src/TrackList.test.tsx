@@ -167,6 +167,127 @@ describe("TrackList", () => {
     );
   });
 
+  it("only offers clear override for tracks with library overrides", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockResolvedValueOnce(sampleTracks);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+
+    expect(screen.queryByRole("button", { name: "Clear override" })).toBeNull();
+  });
+
+  it("clears a metadata override and reloads file metadata", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(sampleTracks)
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([
+        {
+          ...sampleTracks[1],
+          title: "Take It Easy From File",
+          album: "Eagles",
+          metadataOverridden: false,
+        },
+      ]);
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Take It Easy")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /edit take it easy/i }));
+    await user.click(screen.getByRole("button", { name: "Clear override" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "clear_track_metadata_override",
+        {
+          input: {
+            libraryId: "lib-1",
+            trackId: "trk-2",
+          },
+        },
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Take It Easy From File")).toBeDefined(),
+    );
+    expect(screen.getByText("Eagles - Eagles")).toBeDefined();
+  });
+
+  it("keeps the editor open and shows save failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(sampleTracks)
+      .mockRejectedValueOnce(new Error("Could not write override"));
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+    await user.clear(screen.getByLabelText("Title"));
+    await user.type(screen.getByLabelText("Title"), "Hotel California Live");
+    await user.click(screen.getByRole("button", { name: "Save metadata" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not write override",
+      ),
+    );
+    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+      "Hotel California Live",
+    );
+  });
+
+  it("keeps the editor open and shows clear override failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(sampleTracks)
+      .mockRejectedValueOnce(new Error("Could not clear override"));
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Take It Easy")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: /edit take it easy/i }));
+    await user.click(screen.getByRole("button", { name: "Clear override" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not clear override",
+      ),
+    );
+    expect(screen.getByLabelText("Title")).toBeDefined();
+  });
+
   it("shows the empty state when the library has no tracks", async () => {
     mockedInvoke.mockResolvedValueOnce([]);
     render(

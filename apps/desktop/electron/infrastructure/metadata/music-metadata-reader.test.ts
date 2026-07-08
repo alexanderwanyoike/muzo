@@ -47,6 +47,47 @@ describe("MusicMetadataReader", () => {
     });
   });
 
+  it("maps embedded metadata from non-mp3 audio files", async () => {
+    mockedParseFile.mockResolvedValue({
+      common: {
+        title: "Lossless Song",
+        artist: "Lossless Artist",
+        album: "Lossless Album",
+        track: { no: 3, of: 9 },
+        disk: { no: 1, of: 1 },
+        genre: ["Jazz"],
+        year: 2001,
+      },
+      format: {
+        duration: 182.9,
+      },
+    } as Awaited<ReturnType<typeof parseFile>>);
+
+    await expect(
+      new MusicMetadataReader().read("/music/lossless-song.flac"),
+    ).resolves.toEqual({
+      title: "Lossless Song",
+      artist: "Lossless Artist",
+      album: "Lossless Album",
+      trackNumber: 3,
+      discNumber: 1,
+      genre: "Jazz",
+      year: 2001,
+      durationSeconds: 182,
+    });
+  });
+
+  it("asks the metadata library to parse the actual audio path", async () => {
+    mockedParseFile.mockResolvedValue({
+      common: {},
+      format: {},
+    } as Awaited<ReturnType<typeof parseFile>>);
+
+    await new MusicMetadataReader().read("/music/song.ogg");
+
+    expect(mockedParseFile).toHaveBeenCalledWith("/music/song.ogg");
+  });
+
   it("falls back when optional metadata is missing", async () => {
     mockedParseFile.mockResolvedValue({
       common: {},

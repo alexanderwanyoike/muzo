@@ -266,9 +266,11 @@ export default function TrackList({
                 )}
                 <div className="track-list__editor-actions">
                   <button type="submit">Save metadata</button>
-                  <button type="button" onClick={handleClearOverride}>
-                    Clear override
-                  </button>
+                  {editingTrack.metadataOverridden && (
+                    <button type="button" onClick={handleClearOverride}>
+                      Clear override
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

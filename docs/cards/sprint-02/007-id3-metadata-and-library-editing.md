@@ -1,17 +1,16 @@
 - Sprint: 02
 - Type: Feature
-- Status: Core done, cleanup deferred until after Electron migration
+- Status: Done
 - Blocks: -
 
 # Card 007 - ID3 metadata and library editing
 
 ## Current status
 
-The core metadata model, scanner mapping, SQLite persistence, command DTOs, and
-track-row editing UI are implemented. Remaining cleanup is intentionally
-deferred until after the Electron migration: extra frontend tests around clear
-override/error paths, broader non-MP3 verification, and any UI polish that
-would otherwise be rewritten during the shell migration.
+The metadata model, scanner mapping, SQLite persistence, command DTOs, and
+track-row editing UI are implemented. Frontend coverage includes save, clear
+override, and error paths. Metadata reader coverage includes non-MP3 audio files
+handled through the shared metadata parser.
 
 ## What to build
 
@@ -60,8 +59,8 @@ do not write back to ID3 tags yet.
 
 - [x] MP3 scans read ID3 title, artist, album, track number, disc number,
       genre, and year when present.
-- [ ] Non-MP3 formats continue to use available embedded metadata through
-      `lofty` where supported.
+- [x] Non-MP3 formats continue to use available embedded metadata through
+      the shared metadata parser where supported.
 - [x] Missing title falls back to a clean filename stem.
 - [x] Missing artist falls back to a clear unknown-artist value.
 - [x] `TrackDto` includes album, track number, disc number, genre, year, and
