@@ -4,9 +4,7 @@ import type { LibraryDto } from "./types";
 interface LibraryListProps {
   libraries: LibraryDto[];
   trackCounts: Record<string, number>;
-  scanningLibraryId: string | null;
   selectedLibraryId: string | null;
-  onScan: (libraryId: string) => void;
   onSelect: (libraryId: string | null) => void;
   renderTracks: (libraryId: string) => ReactNode;
 }
@@ -19,9 +17,7 @@ const KIND_LABEL: Record<LibraryDto["kind"], string> = {
 export default function LibraryList({
   libraries,
   trackCounts,
-  scanningLibraryId,
   selectedLibraryId,
-  onScan,
   onSelect,
   renderTracks: TrackListSlot,
 }: LibraryListProps) {
@@ -37,7 +33,6 @@ export default function LibraryList({
     <ul className="library-list">
       {libraries.map((library) => {
         const count = trackCounts[library.id] ?? 0;
-        const isScanning = scanningLibraryId === library.id;
         const isSelected = selectedLibraryId === library.id;
         const trackContent = isSelected ? TrackListSlot(library.id) : null;
         return (
@@ -70,14 +65,6 @@ export default function LibraryList({
                 <span className="library-list__count">
                   {count === 1 ? "1 track" : `${count} tracks`}
                 </span>
-                <button
-                  type="button"
-                  disabled={isScanning}
-                  onClick={() => onScan(library.id)}
-                  aria-label={`Scan source ${library.name}`}
-                >
-                  {isScanning ? "Scanning..." : "Scan"}
-                </button>
               </div>
             </div>
 
