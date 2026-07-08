@@ -73,6 +73,25 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /add library/i })).toBeDefined();
   });
 
+  it("opens the playlists view from primary navigation", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([]);
+      if (command === "list_playlists") return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("No music yet")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Playlists" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("list_playlists", undefined),
+    );
+    expect(screen.getByRole("heading", { name: "Playlists" })).toBeDefined();
+  });
+
   it("loads libraries on mount and renders them", async () => {
     mockedInvoke.mockResolvedValue([library]);
 

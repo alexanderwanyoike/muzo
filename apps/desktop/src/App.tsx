@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
 import TrackList from "./TrackList";
+import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { listLibraries, listTrackPlayCounts, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
-type ActiveView = "library" | "settings";
+type ActiveView = "library" | "playlists" | "settings";
 
 interface ListError {
   kind: string;
@@ -164,6 +165,17 @@ export default function App() {
           <button
             type="button"
             className={
+              activeView === "playlists"
+                ? "app-sidebar__nav-item app-sidebar__nav-item--active"
+                : "app-sidebar__nav-item"
+            }
+            onClick={() => setActiveView("playlists")}
+          >
+            Playlists
+          </button>
+          <button
+            type="button"
+            className={
               activeView === "settings"
                 ? "app-sidebar__nav-item app-sidebar__nav-item--active"
                 : "app-sidebar__nav-item"
@@ -196,6 +208,13 @@ export default function App() {
             <div>
               <p className="app-content__eyebrow">Library</p>
               <h2>{selectedLibrary?.name ?? "Songs"}</h2>
+            </div>
+          </header>
+        ) : activeView === "playlists" ? (
+          <header className="app-content__toolbar">
+            <div>
+              <p className="app-content__eyebrow">Collections</p>
+              <h2>Playlists</h2>
             </div>
           </header>
         ) : (
@@ -259,6 +278,8 @@ export default function App() {
               </ul>
             </section>
           </div>
+        ) : activeView === "playlists" ? (
+          <PlaylistPanel />
         ) : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (
