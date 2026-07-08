@@ -16,21 +16,17 @@ review: formalising SQLite migrations before more tables pile up.
 | 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | Done | - |
 | 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | Done | - |
 | 005 | [Play history and play counts](./005-play-history-and-play-counts.md) | Feature | Done | - |
-| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | Backend done, UX deferred | 007 |
-| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | Core done, cleanup deferred | - |
+| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | Done | 007 |
+| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | Done | - |
 
 ## Close-out note
 
-The sprint 02 backend slices are substantially complete and covered by the
-current Rust and Vitest suites. Remaining user-facing work is intentionally
-deferred until after the Electron migration:
+The sprint 02 local-library slices are complete and covered by the current
+desktop test suite. Remaining user-facing product work:
 
 - Dropbox account connection, token persistence, polling, downloads, and
   playback.
 - Playlist UI.
-- Sync UX polish that removes Scan from the main listening flow.
-- Metadata editing test/UX polish that would otherwise be rewritten during the
-  migration.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop
