@@ -19,6 +19,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | Done | 007 |
 | 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | Done | - |
 | 008 | [Playlist UI foundation](./008-playlist-ui-foundation.md) | Feature | Done | - |
+| 009 | [Add tracks to playlists from the song list](./009-add-tracks-to-playlists-ui.md) | Feature | Done | - |
 
 ## Close-out note
 
@@ -27,7 +28,7 @@ desktop test suite. Remaining user-facing product work:
 
 - Dropbox account connection, token persistence, polling, downloads, and
   playback.
-- Playlist track membership, ordering, and playback.
+- Playlist entry removal, ordering, and playback.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop

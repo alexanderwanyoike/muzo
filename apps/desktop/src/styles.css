@@ -352,7 +352,7 @@ button {
 
 .track-list__row {
   display: grid;
-  grid-template-columns: 42px 42px minmax(0, 1fr) 80px 76px 64px;
+  grid-template-columns: 42px 42px minmax(0, 1fr) 80px 76px 52px 64px;
   align-items: center;
   min-height: 44px;
   gap: 0.65rem;
@@ -392,7 +392,8 @@ button {
   color: var(--accent);
 }
 
-.track-list__edit {
+.track-list__edit,
+.track-list__playlist {
   min-height: 28px;
   padding: 0.2rem 0.55rem;
   border: 1px solid #bba98f;
@@ -401,7 +402,8 @@ button {
   font-size: 0.76rem;
 }
 
-.track-list__edit:hover {
+.track-list__edit:hover,
+.track-list__playlist:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -490,14 +492,49 @@ button {
 }
 
 .track-list__save-error,
+.track-list__playlist-error,
+.track-list__playlist-picker,
 .track-list__editor-actions {
   grid-column: 1 / -1;
 }
 
-.track-list__save-error {
+.track-list__save-error,
+.track-list__playlist-error {
   margin: 0;
   color: #7b241a;
   font-size: 0.78rem;
+}
+
+.track-list__playlist-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.25rem 0 0.75rem;
+}
+
+.track-list__playlist-picker label {
+  min-width: min(220px, 100%);
+  display: grid;
+  gap: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.track-list__playlist-picker select {
+  min-height: 30px;
+  border: 1px solid #d1c0aa;
+  border-radius: 4px;
+  padding: 0.25rem 0.45rem;
+  background: #fffdf7;
+  color: var(--text);
+}
+
+.track-list__playlist-picker p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 .track-list__editor-actions {
@@ -506,13 +543,29 @@ button {
   gap: 0.45rem;
 }
 
-.track-list__editor-actions button {
+.track-list__editor-actions button,
+.track-list__playlist-picker button {
   min-height: 30px;
   padding: 0.25rem 0.65rem;
   border: 1px solid #bba98f;
   background: #fffdf7;
   color: var(--accent-strong);
   font-size: 0.78rem;
+}
+
+.track-list__playlist-picker button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.track-list__status {
+  list-style: none;
+  margin: 0.75rem 1.5rem 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  background-color: #e3ebdc;
+  color: #315039;
+  font-size: 0.82rem;
 }
 
 .now-playing-bar {
@@ -990,6 +1043,8 @@ button {
   }
 
   .track-list__edit,
+  .track-list__playlist,
+  .track-list__playlist-picker,
   .track-list__editor {
     grid-column: 3 / -1;
   }
