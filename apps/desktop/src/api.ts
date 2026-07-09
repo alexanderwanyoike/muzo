@@ -110,6 +110,8 @@ export async function listTrackPlayCounts(libraryId: string): Promise<PlayCountD
 export interface PlaylistEntryDto {
   id: string;
   trackId: string;
+  trackArtist?: string | null;
+  trackTitle?: string | null;
   position: number;
 }
 
@@ -134,4 +136,11 @@ export async function addTrackToPlaylist(input: {
   trackId: string;
 }): Promise<PlaylistDto> {
   return invokeCommand<PlaylistDto>("add_track_to_playlist", { input });
+}
+
+export async function removePlaylistEntry(input: {
+  playlistId: string;
+  entryId: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("remove_playlist_entry", { input });
 }

@@ -129,10 +129,16 @@ function listEntries(
   playlistId: string,
 ): PlaylistEntryDto[] {
   const statement = database.prepare(`
-    SELECT id, track_id, position
+    SELECT
+      playlist_entries.id,
+      playlist_entries.track_id,
+      playlist_entries.position,
+      tracks.title AS track_title,
+      tracks.artist AS track_artist
     FROM playlist_entries
-    WHERE playlist_id = ?
-    ORDER BY position
+    LEFT JOIN tracks ON tracks.id = playlist_entries.track_id
+    WHERE playlist_entries.playlist_id = ?
+    ORDER BY playlist_entries.position
   `);
   try {
     statement.bind([playlistId]);
@@ -142,6 +148,8 @@ function listEntries(
       entries.push({
         id: stringColumn(row, "id"),
         trackId: stringColumn(row, "track_id"),
+        trackTitle: nullableStringColumn(row, "track_title"),
+        trackArtist: nullableStringColumn(row, "track_artist"),
         position: numberColumn(row, "position"),
       });
     }
@@ -149,6 +157,20 @@ function listEntries(
   } finally {
     statement.free();
   }
+}
+
+function nullableStringColumn(
+  row: Record<string, unknown>,
+  column: string,
+): string | null {
+  const value = row[column];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new Error(`expected ${column} to be a string or null`);
+  }
+  return value;
 }
 
 function loadSqlModule(): Promise<SqlJsStatic> {

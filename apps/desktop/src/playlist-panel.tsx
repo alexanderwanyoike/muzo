@@ -1,5 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { createPlaylist, listPlaylists, type PlaylistDto } from "./api";
+import {
+  createPlaylist,
+  listPlaylists,
+  removePlaylistEntry,
+  type PlaylistDto,
+  type PlaylistEntryDto,
+} from "./api";
 
 interface PlaylistError {
   message?: string;
@@ -10,6 +16,7 @@ export default function PlaylistPanel() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [removingEntryId, setRemovingEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +61,27 @@ export default function PlaylistPanel() {
     }
   }
 
+  async function handleRemoveEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
+    setRemovingEntryId(entry.id);
+    setError(null);
+    try {
+      const updated = await removePlaylistEntry({
+        playlistId: playlist.id,
+        entryId: entry.id,
+      });
+      setPlaylists((prev) =>
+        (prev ?? []).map((candidate) =>
+          candidate.id === updated.id ? updated : candidate,
+        ),
+      );
+    } catch (err) {
+      const e = err as PlaylistError;
+      setError(e.message ?? "Could not remove playlist entry.");
+    } finally {
+      setRemovingEntryId(null);
+    }
+  }
+
   return (
     <div className="playlist-panel">
       <section className="playlist-panel__create">
@@ -88,10 +116,34 @@ export default function PlaylistPanel() {
         <ol className="playlist-panel__list">
           {playlists.map((playlist) => (
             <li key={playlist.id}>
-              <div>
+              <div className="playlist-panel__summary">
                 <h3>{playlist.name}</h3>
                 <p>{formatTrackCount(playlist.entries.length)}</p>
               </div>
+              {playlist.entries.length === 0 ? (
+                <p className="playlist-panel__empty-entries">
+                  No tracks in this playlist.
+                </p>
+              ) : (
+                <ol className="playlist-panel__entries">
+                  {playlist.entries.map((entry) => (
+                    <li key={entry.id}>
+                      <div>
+                        <span>{entryLabel(entry)}</span>
+                        {entry.trackArtist && <small>{entry.trackArtist}</small>}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={removingEntryId === entry.id}
+                        onClick={() => handleRemoveEntry(playlist, entry)}
+                        aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
+                      >
+                        {removingEntryId === entry.id ? "Removing..." : "Remove"}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </li>
           ))}
         </ol>
@@ -102,4 +154,8 @@ export default function PlaylistPanel() {
 
 function formatTrackCount(count: number): string {
   return `${count} ${count === 1 ? "track" : "tracks"}`;
+}
+
+function entryLabel(entry: PlaylistEntryDto): string {
+  return entry.trackTitle ?? entry.trackId;
 }

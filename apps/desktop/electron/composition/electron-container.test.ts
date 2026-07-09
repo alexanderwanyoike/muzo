@@ -202,7 +202,15 @@ describe("Electron container", () => {
       {
         id: "playlist-1",
         name: "Road Trip",
-        entries: [{ id: "entry-1", trackId: "trk-1", position: 0 }],
+        entries: [
+          {
+            id: "entry-1",
+            trackId: "trk-1",
+            trackTitle: "File Title",
+            trackArtist: "File Artist",
+            position: 0,
+          },
+        ],
       },
     ]);
   });

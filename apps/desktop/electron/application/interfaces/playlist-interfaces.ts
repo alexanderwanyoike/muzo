@@ -1,6 +1,8 @@
 export interface PlaylistEntryDto {
   id: string;
   trackId: string;
+  trackArtist?: string | null;
+  trackTitle?: string | null;
   position: number;
 }
 

@@ -11,8 +11,20 @@ const playlists = [
     id: "playlist-1",
     name: "Road Trip",
     entries: [
-      { id: "entry-1", trackId: "track-1", position: 0 },
-      { id: "entry-2", trackId: "track-2", position: 1 },
+      {
+        id: "entry-1",
+        trackId: "track-1",
+        trackTitle: "Hotel California",
+        trackArtist: "Eagles",
+        position: 0,
+      },
+      {
+        id: "entry-2",
+        trackId: "track-2",
+        trackTitle: null,
+        trackArtist: null,
+        position: 1,
+      },
     ],
   },
 ];
@@ -40,6 +52,25 @@ describe("PlaylistPanel", () => {
     );
     expect(screen.getByText("Road Trip")).toBeDefined();
     expect(screen.getByText("2 tracks")).toBeDefined();
+    expect(screen.getByText("Hotel California")).toBeDefined();
+    expect(screen.getByText("Eagles")).toBeDefined();
+    expect(screen.getByText("track-2")).toBeDefined();
+  });
+
+  it("shows an empty state for playlists without entries", async () => {
+    mockedInvoke.mockResolvedValueOnce([
+      {
+        id: "playlist-2",
+        name: "Late Night",
+        entries: [],
+      },
+    ]);
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() =>
+      expect(screen.getByText("No tracks in this playlist.")).toBeDefined(),
+    );
   });
 
   it("shows an empty state when there are no playlists", async () => {
@@ -134,5 +165,59 @@ describe("PlaylistPanel", () => {
     expect((screen.getByLabelText("Playlist name") as HTMLInputElement).value).toBe(
       "Morning",
     );
+  });
+
+  it("removes a playlist entry and updates the visible count", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(playlists)
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Road Trip",
+        entries: [playlists[0].entries[1]],
+      });
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Remove Hotel California from Road Trip",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("remove_playlist_entry", {
+        input: {
+          playlistId: "playlist-1",
+          entryId: "entry-1",
+        },
+      }),
+    );
+    expect(screen.queryByText("Hotel California")).toBeNull();
+    expect(screen.getByText("1 track")).toBeDefined();
+  });
+
+  it("keeps the entry visible and shows remove failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(playlists)
+      .mockRejectedValueOnce(new Error("Could not remove playlist entry"));
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Remove Hotel California from Road Trip",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not remove playlist entry",
+      ),
+    );
+    expect(screen.getByText("Hotel California")).toBeDefined();
   });
 });
