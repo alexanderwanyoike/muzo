@@ -852,10 +852,70 @@ button {
   font-size: 0.98rem;
 }
 
+.playlist-panel__summary {
+  min-width: 0;
+}
+
 .playlist-panel__list p {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.playlist-panel__empty-entries {
+  margin-top: 0.45rem;
+}
+
+.playlist-panel__entries {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.playlist-panel__entries li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #e5dac7;
+  border-radius: 6px;
+  background: rgba(251, 246, 235, 0.72);
+}
+
+.playlist-panel__entries span,
+.playlist-panel__entries small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-panel__entries span {
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.playlist-panel__entries small {
+  margin-top: 0.12rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.playlist-panel__entries button {
+  min-width: 86px;
+  padding: 0.32rem 0.55rem;
+  background: #fffdf7;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.playlist-panel__entries button:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
 }
 
 .settings-view__section {
