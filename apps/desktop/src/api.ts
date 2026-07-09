@@ -144,3 +144,10 @@ export async function removePlaylistEntry(input: {
 }): Promise<PlaylistDto> {
   return invokeCommand<PlaylistDto>("remove_playlist_entry", { input });
 }
+
+export async function reorderPlaylistEntries(input: {
+  playlistId: string;
+  orderedEntryIds: string[];
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("reorder_playlist_entries", { input });
+}

@@ -906,7 +906,6 @@ button {
 }
 
 .playlist-panel__entries button {
-  min-width: 86px;
   padding: 0.32rem 0.55rem;
   background: #fffdf7;
   color: var(--text);
@@ -916,6 +915,21 @@ button {
 .playlist-panel__entries button:disabled {
   opacity: 0.62;
   cursor: not-allowed;
+}
+
+.playlist-panel__entry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.playlist-panel__entry-actions button {
+  min-width: 30px;
+}
+
+.playlist-panel__entry-actions button:last-child {
+  min-width: 74px;
 }
 
 .settings-view__section {

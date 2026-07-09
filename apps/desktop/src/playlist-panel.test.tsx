@@ -220,4 +220,86 @@ describe("PlaylistPanel", () => {
     );
     expect(screen.getByText("Hotel California")).toBeDefined();
   });
+
+  it("moves a playlist entry up and updates the visible order", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(playlists)
+      .mockResolvedValueOnce({
+        id: "playlist-1",
+        name: "Road Trip",
+        entries: [playlists[0].entries[1], playlists[0].entries[0]],
+      });
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Move track-2 up in Road Trip",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("reorder_playlist_entries", {
+        input: {
+          playlistId: "playlist-1",
+          orderedEntryIds: ["entry-2", "entry-1"],
+        },
+      }),
+    );
+    expect(entryLabels()).toEqual(["track-2", "Hotel California"]);
+  });
+
+  it("disables playlist entry moves at the list boundaries", async () => {
+    mockedInvoke.mockResolvedValueOnce(playlists);
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Move Hotel California up in Road Trip",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Move track-2 down in Road Trip",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("keeps playlist entry order and shows reorder failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke
+      .mockResolvedValueOnce(playlists)
+      .mockRejectedValueOnce(new Error("Could not reorder playlist entries"));
+
+    render(<PlaylistPanel />);
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Move track-2 up in Road Trip",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not reorder playlist entries",
+      ),
+    );
+    expect(entryLabels()).toEqual(["Hotel California", "track-2"]);
+  });
 });
+
+function entryLabels(): string[] {
+  return screen
+    .getAllByTestId("playlist-entry-label")
+    .map((element) => element.textContent ?? "");
+}
