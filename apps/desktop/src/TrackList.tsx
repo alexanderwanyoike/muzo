@@ -1,8 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import {
+  addTrackToPlaylist,
   clearTrackMetadataOverride,
   editTrackMetadata,
+  listPlaylists,
   listTracks,
+  type PlaylistDto,
   type TrackDto,
 } from "./api";
 import { formatDuration } from "./formatDuration";
@@ -33,6 +36,14 @@ export default function TrackList({
   const [editingTrack, setEditingTrack] = useState<TrackDto | null>(null);
   const [draft, setDraft] = useState<MetadataDraft | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [playlistChoices, setPlaylistChoices] = useState<PlaylistDto[] | null>(
+    null,
+  );
+  const [playlistTrack, setPlaylistTrack] = useState<TrackDto | null>(null);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [playlistMessage, setPlaylistMessage] = useState<string | null>(null);
+  const [playlistError, setPlaylistError] = useState<string | null>(null);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,6 +77,8 @@ export default function TrackList({
 
   function startEditing(track: TrackDto) {
     setSaveError(null);
+    setPlaylistTrack(null);
+    setPlaylistError(null);
     setEditingTrack(track);
     setDraft({
       title: track.title,
@@ -76,6 +89,57 @@ export default function TrackList({
       genre: track.genre ?? "",
       year: numberToDraft(track.year),
     });
+  }
+
+  async function startPlaylistAction(track: TrackDto) {
+    setEditingTrack(null);
+    setDraft(null);
+    setSaveError(null);
+    setPlaylistTrack(track);
+    setPlaylistMessage(null);
+    setPlaylistError(null);
+
+    try {
+      const playlists = playlistChoices ?? (await listPlaylists());
+      setPlaylistChoices(playlists);
+      setSelectedPlaylistId((current) => current || playlists[0]?.id || "");
+    } catch (err) {
+      const e = err as { message?: string };
+      setPlaylistChoices([]);
+      setSelectedPlaylistId("");
+      setPlaylistError(e.message ?? "Could not load playlists.");
+    }
+  }
+
+  async function handleAddToPlaylist() {
+    if (!playlistTrack || selectedPlaylistId.length === 0) {
+      return;
+    }
+
+    setAddingToPlaylist(true);
+    setPlaylistError(null);
+    setPlaylistMessage(null);
+    try {
+      const playlist = await addTrackToPlaylist({
+        playlistId: selectedPlaylistId,
+        trackId: playlistTrack.id,
+      });
+      setPlaylistChoices((prev) =>
+        (prev ?? []).map((candidate) =>
+          candidate.id === playlist.id ? playlist : candidate,
+        ),
+      );
+      setPlaylistMessage(
+        `Added ${playlistTrack.title} to ${playlist.name}.`,
+      );
+      setPlaylistTrack(null);
+      setSelectedPlaylistId("");
+    } catch (err) {
+      const e = err as { message?: string };
+      setPlaylistError(e.message ?? "Could not add track to playlist.");
+    } finally {
+      setAddingToPlaylist(false);
+    }
   }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -145,6 +209,7 @@ export default function TrackList({
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentTrackId;
         const isEditing = editingTrack?.id === track.id && draft;
+        const isChoosingPlaylist = playlistTrack?.id === track.id;
         const playButtonLabel =
           isCurrent && isPlaying ? `Pause ${track.title}` : `Play ${track.title}`;
         const rowClass = isCurrent
@@ -188,6 +253,14 @@ export default function TrackList({
               aria-label={`Edit ${track.title}`}
             >
               Edit
+            </button>
+            <button
+              type="button"
+              className="track-list__playlist"
+              onClick={() => startPlaylistAction(track)}
+              aria-label={`Add ${track.title} to playlist`}
+            >
+              Add
             </button>
             {isEditing && (
               <form className="track-list__editor" onSubmit={handleSave}>
@@ -284,9 +357,62 @@ export default function TrackList({
                 </div>
               </form>
             )}
+            {isChoosingPlaylist && (
+              <div className="track-list__playlist-picker">
+                {playlistChoices === null ? (
+                  <p>Loading playlists...</p>
+                ) : playlistChoices.length === 0 ? (
+                  <p>No playlists yet.</p>
+                ) : (
+                  <>
+                    <label>
+                      Playlist
+                      <select
+                        value={selectedPlaylistId}
+                        onChange={(event) =>
+                          setSelectedPlaylistId(event.target.value)
+                        }
+                      >
+                        {playlistChoices.map((playlist) => (
+                          <option key={playlist.id} value={playlist.id}>
+                            {playlist.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={addingToPlaylist}
+                      onClick={handleAddToPlaylist}
+                    >
+                      {addingToPlaylist ? "Adding..." : "Add to playlist"}
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaylistTrack(null);
+                    setPlaylistError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                {playlistError && (
+                  <p role="alert" className="track-list__playlist-error">
+                    {playlistError}
+                  </p>
+                )}
+              </div>
+            )}
           </li>
         );
       })}
+      {playlistMessage && (
+        <li className="track-list__status" role="status">
+          {playlistMessage}
+        </li>
+      )}
     </ol>
   );
 }

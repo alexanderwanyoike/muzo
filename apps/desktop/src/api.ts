@@ -128,3 +128,10 @@ export async function createPlaylist(input: {
 }): Promise<PlaylistDto> {
   return invokeCommand<PlaylistDto>("create_playlist", { input });
 }
+
+export async function addTrackToPlaylist(input: {
+  playlistId: string;
+  trackId: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("add_track_to_playlist", { input });
+}

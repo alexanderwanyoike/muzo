@@ -38,6 +38,19 @@ const sampleTracks: TrackDto[] = [
   },
 ];
 
+const samplePlaylists = [
+  {
+    id: "playlist-1",
+    name: "Road Trip",
+    entries: [],
+  },
+  {
+    id: "playlist-2",
+    name: "Late Night",
+    entries: [],
+  },
+];
+
 beforeEach(() => {
   const runtime = installTestRuntime({
     invoke: vi.fn(),
@@ -165,6 +178,154 @@ describe("TrackList", () => {
     await waitFor(() =>
       expect(screen.getByText("Hotel California Live")).toBeDefined(),
     );
+  });
+
+  it("adds a track to an existing playlist", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_tracks") return Promise.resolve(sampleTracks);
+      if (command === "list_playlists") return Promise.resolve(samplePlaylists);
+      if (command === "add_track_to_playlist") {
+        return Promise.resolve({
+          ...samplePlaylists[1],
+          entries: [{ id: "entry-1", trackId: "trk-1", position: 0 }],
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Hotel California to playlist",
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Playlist"), "playlist-2");
+    await user.click(screen.getByRole("button", { name: "Add to playlist" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("add_track_to_playlist", {
+        input: {
+          playlistId: "playlist-2",
+          trackId: "trk-1",
+        },
+      }),
+    );
+    expect(screen.getByRole("status").textContent).toContain(
+      "Added Hotel California to Late Night.",
+    );
+  });
+
+  it("shows an empty playlist state without adding the track", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_tracks") return Promise.resolve(sampleTracks);
+      if (command === "list_playlists") return Promise.resolve([]);
+      return Promise.resolve(undefined);
+    });
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Hotel California to playlist",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText("No playlists yet.")).toBeDefined(),
+    );
+    expect(mockedInvoke).not.toHaveBeenCalledWith(
+      "add_track_to_playlist",
+      expect.anything(),
+    );
+  });
+
+  it("keeps the playlist picker open and shows playlist load failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_tracks") return Promise.resolve(sampleTracks);
+      if (command === "list_playlists") {
+        return Promise.reject(new Error("Could not load playlists"));
+      }
+      return Promise.resolve(undefined);
+    });
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Hotel California to playlist",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not load playlists",
+      ),
+    );
+    expect(screen.getByText("No playlists yet.")).toBeDefined();
+  });
+
+  it("keeps the playlist picker open and shows add failures", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_tracks") return Promise.resolve(sampleTracks);
+      if (command === "list_playlists") return Promise.resolve(samplePlaylists);
+      if (command === "add_track_to_playlist") {
+        return Promise.reject(new Error("Could not update playlist"));
+      }
+      return Promise.resolve(undefined);
+    });
+    render(
+      <TrackList
+        libraryId="lib-1"
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Add Hotel California to playlist",
+      }),
+    );
+    await user.click(screen.getByRole("button", { name: "Add to playlist" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Could not update playlist",
+      ),
+    );
+    expect(screen.getByLabelText("Playlist")).toBeDefined();
   });
 
   it("only offers clear override for tracks with library overrides", async () => {
