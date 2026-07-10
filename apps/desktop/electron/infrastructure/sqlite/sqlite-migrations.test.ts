@@ -17,7 +17,7 @@ describe("Electron SQLite migrations", () => {
 
     const database = await openDatabase(dbPath);
     try {
-      expect(userVersion(database)).toBe(5);
+      expect(userVersion(database)).toBe(6);
       expect(tableColumns(database, "libraries")).toEqual([
         "id",
         "name",
@@ -59,6 +59,13 @@ describe("Electron SQLite migrations", () => {
         "track_id",
         "played_at_unix_seconds",
       ]);
+      expect(tableColumns(database, "dropbox_accounts")).toEqual([
+        "account_id",
+        "encrypted_access_token",
+        "encrypted_refresh_token",
+        "access_token_expires_at_unix_seconds",
+        "connected_at_unix_seconds",
+      ]);
     } finally {
       database.close();
     }
@@ -79,7 +86,7 @@ describe("Electron SQLite migrations", () => {
 
     const migratedDatabase = await openDatabase(dbPath);
     try {
-      expect(userVersion(migratedDatabase)).toBe(5);
+      expect(userVersion(migratedDatabase)).toBe(6);
       expect(countRows(migratedDatabase, "libraries")).toBe(1);
     } finally {
       migratedDatabase.close();
