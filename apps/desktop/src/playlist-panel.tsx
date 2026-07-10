@@ -6,13 +6,26 @@ import {
   reorderPlaylistEntries,
   type PlaylistDto,
   type PlaylistEntryDto,
+  type TrackDto,
 } from "./api";
 
 interface PlaylistError {
   message?: string;
 }
 
-export default function PlaylistPanel() {
+interface PlaylistPanelProps {
+  currentTrackId?: string | null;
+  isPlaying?: boolean;
+  onPlayTrack?: (track: TrackDto) => void;
+  onToggleCurrentTrack?: () => void;
+}
+
+export default function PlaylistPanel({
+  currentTrackId = null,
+  isPlaying = false,
+  onPlayTrack = () => {},
+  onToggleCurrentTrack = () => {},
+}: PlaylistPanelProps = {}) {
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +138,18 @@ export default function PlaylistPanel() {
     }
   }
 
+  function handlePlayEntry(entry: PlaylistEntryDto) {
+    if (entry.trackId === currentTrackId) {
+      onToggleCurrentTrack();
+      return;
+    }
+
+    const track = trackFromEntry(entry);
+    if (track) {
+      onPlayTrack(track);
+    }
+  }
+
   return (
     <div className="playlist-panel">
       <section className="playlist-panel__create">
@@ -180,6 +205,22 @@ export default function PlaylistPanel() {
                       <div className="playlist-panel__entry-actions">
                         <button
                           type="button"
+                          className="playlist-panel__entry-play"
+                          disabled={!trackFromEntry(entry)}
+                          onClick={() => handlePlayEntry(entry)}
+                          aria-label={playButtonLabel(
+                            entry,
+                            playlist,
+                            currentTrackId,
+                            isPlaying,
+                          )}
+                        >
+                          {entry.trackId === currentTrackId && isPlaying
+                            ? "||"
+                            : ">"}
+                        </button>
+                        <button
+                          type="button"
                           disabled={
                             index === 0 || reorderingEntryId === entry.id
                           }
@@ -226,4 +267,41 @@ function formatTrackCount(count: number): string {
 
 function entryLabel(entry: PlaylistEntryDto): string {
   return entry.trackTitle ?? entry.trackId;
+}
+
+function playButtonLabel(
+  entry: PlaylistEntryDto,
+  playlist: PlaylistDto,
+  currentTrackId: string | null,
+  isPlaying: boolean,
+): string {
+  const label = entryLabel(entry);
+  if (!trackFromEntry(entry)) {
+    return `Track ${label} is unavailable in ${playlist.name}`;
+  }
+  if (entry.trackId === currentTrackId && isPlaying) {
+    return `Pause ${label} from ${playlist.name}`;
+  }
+  return `Play ${label} from ${playlist.name}`;
+}
+
+function trackFromEntry(entry: PlaylistEntryDto): TrackDto | null {
+  if (!entry.trackLibraryId) {
+    return null;
+  }
+
+  return {
+    id: entry.trackId,
+    libraryId: entry.trackLibraryId,
+    title: entryLabel(entry),
+    artist: entry.trackArtist ?? "Unknown Artist",
+    album: null,
+    trackNumber: null,
+    discNumber: null,
+    genre: null,
+    year: null,
+    metadataOverridden: false,
+    durationSeconds: entry.trackDurationSeconds ?? 0,
+    filePath: "",
+  };
 }

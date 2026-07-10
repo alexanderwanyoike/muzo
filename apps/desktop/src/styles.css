@@ -928,6 +928,12 @@ button {
   min-width: 30px;
 }
 
+.playlist-panel__entry-play {
+  border-color: var(--accent-strong);
+  background: var(--accent);
+  color: white;
+}
+
 .playlist-panel__entry-actions button:last-child {
   min-width: 74px;
 }

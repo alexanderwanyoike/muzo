@@ -279,7 +279,12 @@ export default function App() {
             </section>
           </div>
         ) : activeView === "playlists" ? (
-          <PlaylistPanel />
+          <PlaylistPanel
+            currentTrackId={current?.id ?? null}
+            isPlaying={status === "playing"}
+            onPlayTrack={play}
+            onToggleCurrentTrack={toggle}
+          />
         ) : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (
