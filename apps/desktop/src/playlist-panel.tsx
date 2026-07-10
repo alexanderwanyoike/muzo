@@ -3,6 +3,7 @@ import {
   createPlaylist,
   listPlaylists,
   removePlaylistEntry,
+  reorderPlaylistEntries,
   type PlaylistDto,
   type PlaylistEntryDto,
 } from "./api";
@@ -17,6 +18,7 @@ export default function PlaylistPanel() {
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [removingEntryId, setRemovingEntryId] = useState<string | null>(null);
+  const [reorderingEntryId, setReorderingEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +84,47 @@ export default function PlaylistPanel() {
     }
   }
 
+  async function handleMoveEntry(
+    playlist: PlaylistDto,
+    entry: PlaylistEntryDto,
+    direction: "up" | "down",
+  ) {
+    const currentIndex = playlist.entries.findIndex(
+      (candidate) => candidate.id === entry.id,
+    );
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (
+      currentIndex < 0 ||
+      targetIndex < 0 ||
+      targetIndex >= playlist.entries.length
+    ) {
+      return;
+    }
+
+    const reorderedEntries = [...playlist.entries];
+    const [movedEntry] = reorderedEntries.splice(currentIndex, 1);
+    reorderedEntries.splice(targetIndex, 0, movedEntry);
+
+    setReorderingEntryId(entry.id);
+    setError(null);
+    try {
+      const updated = await reorderPlaylistEntries({
+        playlistId: playlist.id,
+        orderedEntryIds: reorderedEntries.map((candidate) => candidate.id),
+      });
+      setPlaylists((prev) =>
+        (prev ?? []).map((candidate) =>
+          candidate.id === updated.id ? updated : candidate,
+        ),
+      );
+    } catch (err) {
+      const e = err as PlaylistError;
+      setError(e.message ?? "Could not reorder playlist entries.");
+    } finally {
+      setReorderingEntryId(null);
+    }
+  }
+
   return (
     <div className="playlist-panel">
       <section className="playlist-panel__create">
@@ -126,20 +169,45 @@ export default function PlaylistPanel() {
                 </p>
               ) : (
                 <ol className="playlist-panel__entries">
-                  {playlist.entries.map((entry) => (
+                  {playlist.entries.map((entry, index) => (
                     <li key={entry.id}>
                       <div>
-                        <span>{entryLabel(entry)}</span>
+                        <span data-testid="playlist-entry-label">
+                          {entryLabel(entry)}
+                        </span>
                         {entry.trackArtist && <small>{entry.trackArtist}</small>}
                       </div>
-                      <button
-                        type="button"
-                        disabled={removingEntryId === entry.id}
-                        onClick={() => handleRemoveEntry(playlist, entry)}
-                        aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
-                      >
-                        {removingEntryId === entry.id ? "Removing..." : "Remove"}
-                      </button>
+                      <div className="playlist-panel__entry-actions">
+                        <button
+                          type="button"
+                          disabled={
+                            index === 0 || reorderingEntryId === entry.id
+                          }
+                          onClick={() => handleMoveEntry(playlist, entry, "up")}
+                          aria-label={`Move ${entryLabel(entry)} up in ${playlist.name}`}
+                        >
+                          ^
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            index === playlist.entries.length - 1 ||
+                            reorderingEntryId === entry.id
+                          }
+                          onClick={() => handleMoveEntry(playlist, entry, "down")}
+                          aria-label={`Move ${entryLabel(entry)} down in ${playlist.name}`}
+                        >
+                          v
+                        </button>
+                        <button
+                          type="button"
+                          disabled={removingEntryId === entry.id}
+                          onClick={() => handleRemoveEntry(playlist, entry)}
+                          aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
+                        >
+                          {removingEntryId === entry.id ? "Removing..." : "Remove"}
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ol>
