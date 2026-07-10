@@ -16,6 +16,8 @@ const playlists = [
         trackId: "track-1",
         trackTitle: "Hotel California",
         trackArtist: "Eagles",
+        trackLibraryId: "lib-1",
+        trackDurationSeconds: 391,
         position: 0,
       },
       {
@@ -23,6 +25,8 @@ const playlists = [
         trackId: "track-2",
         trackTitle: null,
         trackArtist: null,
+        trackLibraryId: null,
+        trackDurationSeconds: null,
         position: 1,
       },
     ],
@@ -295,6 +299,92 @@ describe("PlaylistPanel", () => {
       ),
     );
     expect(entryLabels()).toEqual(["Hotel California", "track-2"]);
+  });
+
+  it("plays a resolved playlist entry", async () => {
+    const user = userEvent.setup();
+    const onPlayTrack = vi.fn();
+    mockedInvoke.mockResolvedValueOnce(playlists);
+
+    render(
+      <PlaylistPanel
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={onPlayTrack}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Play Hotel California from Road Trip",
+      }),
+    );
+
+    expect(onPlayTrack).toHaveBeenCalledWith({
+      id: "track-1",
+      libraryId: "lib-1",
+      title: "Hotel California",
+      artist: "Eagles",
+      album: null,
+      trackNumber: null,
+      discNumber: null,
+      genre: null,
+      year: null,
+      metadataOverridden: false,
+      durationSeconds: 391,
+      filePath: "",
+    });
+  });
+
+  it("toggles the current playlist entry", async () => {
+    const user = userEvent.setup();
+    const onPlayTrack = vi.fn();
+    const onToggleCurrentTrack = vi.fn();
+    mockedInvoke.mockResolvedValueOnce(playlists);
+
+    render(
+      <PlaylistPanel
+        currentTrackId="track-1"
+        isPlaying={true}
+        onPlayTrack={onPlayTrack}
+        onToggleCurrentTrack={onToggleCurrentTrack}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", {
+        name: "Pause Hotel California from Road Trip",
+      }),
+    );
+
+    expect(onToggleCurrentTrack).toHaveBeenCalledOnce();
+    expect(onPlayTrack).not.toHaveBeenCalled();
+  });
+
+  it("disables playback for playlist entries whose track no longer exists", async () => {
+    mockedInvoke.mockResolvedValueOnce(playlists);
+
+    render(
+      <PlaylistPanel
+        currentTrackId={null}
+        isPlaying={false}
+        onPlayTrack={() => {}}
+        onToggleCurrentTrack={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("track-2")).toBeDefined());
+
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Track track-2 is unavailable in Road Trip",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 });
 

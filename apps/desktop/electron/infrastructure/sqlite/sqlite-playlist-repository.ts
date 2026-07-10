@@ -133,8 +133,10 @@ function listEntries(
       playlist_entries.id,
       playlist_entries.track_id,
       playlist_entries.position,
+      tracks.library_id AS track_library_id,
       tracks.title AS track_title,
-      tracks.artist AS track_artist
+      tracks.artist AS track_artist,
+      tracks.duration_seconds AS track_duration_seconds
     FROM playlist_entries
     LEFT JOIN tracks ON tracks.id = playlist_entries.track_id
     WHERE playlist_entries.playlist_id = ?
@@ -150,6 +152,8 @@ function listEntries(
         trackId: stringColumn(row, "track_id"),
         trackTitle: nullableStringColumn(row, "track_title"),
         trackArtist: nullableStringColumn(row, "track_artist"),
+        trackLibraryId: nullableStringColumn(row, "track_library_id"),
+        trackDurationSeconds: nullableNumberColumn(row, "track_duration_seconds"),
         position: numberColumn(row, "position"),
       });
     }
@@ -169,6 +173,20 @@ function nullableStringColumn(
   }
   if (typeof value !== "string") {
     throw new Error(`expected ${column} to be a string or null`);
+  }
+  return value;
+}
+
+function nullableNumberColumn(
+  row: Record<string, unknown>,
+  column: string,
+): number | null {
+  const value = row[column];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "number") {
+    throw new Error(`expected ${column} to be a number or null`);
   }
   return value;
 }

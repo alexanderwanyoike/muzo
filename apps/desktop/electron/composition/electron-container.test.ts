@@ -208,6 +208,8 @@ describe("Electron container", () => {
             trackId: "trk-1",
             trackTitle: "File Title",
             trackArtist: "File Artist",
+            trackLibraryId: "lib-1",
+            trackDurationSeconds: 120,
             position: 0,
           },
         ],
