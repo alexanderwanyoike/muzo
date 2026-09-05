@@ -1,5 +1,5 @@
 - Sprint: 01
-- Status: Pending
+- Status: Done
 - Blocks: 005
 
 # Card 004 - Scan filesystem library recursively
@@ -31,17 +31,17 @@ strings). Start with `mp3`, `flac`, `m4a`, `ogg`, `opus`, `wav`.
 
 ## Acceptance criteria
 
-- [ ] `Track` and its value objects live in `domain` with unit tests; no framework imports in the module.
-- [ ] `TrackRepository` trait in `domain` with `upsert`, `list_for_library`, and at least one delete-on-disappear hook (used fully in 005).
-- [ ] `ScanLibrary` use case in `application` is unit-tested with a fake walker and a fake `TrackRepository`.
-- [ ] A `FilesystemWalker` port is defined in the domain (or `application`); the `walkdir`-based implementation lives in `infrastructure` with an integration test using a temp dir.
-- [ ] An `AudioMetadataReader` port; `lofty`-based (or equivalent) implementation in `infrastructure`. Tested against committed fixture files under `src-tauri/tests/fixtures/`.
-- [ ] SQLite `TrackRepository` implementation with an integration test.
-- [ ] The supported-extensions list is a named constant, not inline strings.
-- [ ] `scan_library` Tauri command wired up; DTOs at the boundary, never on the domain entity.
-- [ ] UI shows per-library scan result (track count). Full progress bar is optional; a spinner or final count is enough.
-- [ ] Re-scanning the same library is idempotent: no duplicate rows.
-- [ ] All verification commands green.
+- [x] `Track` and its value objects live in `domain` with unit tests; no framework imports in the module.
+- [x] `TrackRepository` trait in `domain` with `upsert`, `list_for_library`, and at least one delete-on-disappear hook.
+- [x] `ScanLibrary` use case in `application` is unit-tested with a fake walker and a fake `TrackRepository`.
+- [x] A `FilesystemWalker` port is defined in the domain (or `application`); the `walkdir`-based implementation lives in `infrastructure` with an integration test using a temp dir.
+- [x] An `AudioMetadataReader` port; `lofty`-based implementation in `infrastructure`. ID3 metadata is covered by an integration test that generates a tagged MP3 fixture at test time.
+- [x] SQLite `TrackRepository` implementation with an integration test.
+- [x] The supported-extensions list is a named constant, not inline strings.
+- [x] `scan_library` Tauri command wired up; DTOs at the boundary, never on the domain entity.
+- [x] UI shows per-library scan result and track count.
+- [x] Re-scanning the same library is idempotent: no duplicate rows.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 

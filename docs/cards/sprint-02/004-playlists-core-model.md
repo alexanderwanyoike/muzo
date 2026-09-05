@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: Pending
+- Status: Done
 - Blocks: -
 
 # Card 004 - Playlists core model

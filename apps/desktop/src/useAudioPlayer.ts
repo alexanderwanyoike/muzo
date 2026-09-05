@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { prepareTrackAudioSource, type TrackDto } from "./api";
+import { prepareTrackAudioSource, recordTrackPlay, type TrackDto } from "./api";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -19,6 +19,10 @@ export interface AudioPlayer extends AudioPlayerState {
   setVolume: (volume: number) => void;
 }
 
+interface UseAudioPlayerOptions {
+  onTrackPlayRecorded?: (track: TrackDto) => void;
+}
+
 interface AudioElementLike {
   src: string;
   currentTime: number;
@@ -32,7 +36,8 @@ interface AudioElementLike {
   removeEventListener: (type: string, listener: (event: unknown) => void) => void;
 }
 
-export function useAudioPlayer(): AudioPlayer {
+export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer {
+  const { onTrackPlayRecorded } = options;
   const audioRef = useRef<AudioElementLike | null>(null);
   const playRequestRef = useRef(0);
   const currentTrackIdRef = useRef<string | null>(null);
@@ -124,8 +129,9 @@ export function useAudioPlayer(): AudioPlayer {
       currentTrackIdRef,
       setStatus,
       setPlaybackError,
+      onTrackPlayRecorded,
     );
-  }, []);
+  }, [onTrackPlayRecorded]);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -193,6 +199,7 @@ async function loadAndPlayTrack(
   currentTrackIdRef: React.MutableRefObject<string | null>,
   setStatus: React.Dispatch<React.SetStateAction<PlayerStatus>>,
   setPlaybackError: React.Dispatch<React.SetStateAction<string | null>>,
+  onTrackPlayRecorded?: (track: TrackDto) => void,
 ) {
   let source;
   try {
@@ -218,7 +225,19 @@ async function loadAndPlayTrack(
     if (requestId !== playRequestRef.current) return;
     setStatus("error");
     setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
+    return;
   }
+  if (requestId !== playRequestRef.current) return;
+  try {
+    await recordTrackPlay({
+      libraryId: track.libraryId,
+      trackId: track.id,
+    });
+  } catch {
+    return;
+  }
+  if (requestId !== playRequestRef.current) return;
+  onTrackPlayRecorded?.(track);
 }
 
 function createAudioElement(): { audio: AudioElementLike; cleanup: () => void } {

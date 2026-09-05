@@ -4,7 +4,7 @@ Read this before doing anything in this repo. It applies to humans and to AI age
 
 ## Project at a glance
 
-**Muzo** is a Tauri-based desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
+**Muzo** is an Electron-based desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
 
 ## House rules
 
@@ -14,15 +14,15 @@ These are not negotiable.
 
 - Write a failing test first. Watch it fail. Make it pass. Refactor.
 - No production code without a failing test that justifies it.
-- Tests live next to the code they exercise. Rust tests in the same module (`#[cfg(test)] mod tests`). TS tests as `*.test.ts(x)` next to the unit under test.
-- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, Tauri commands). End-to-end tests only where the value justifies the cost.
+- Tests live next to the code they exercise. TS tests as `*.test.ts(x)` next to the unit under test.
+- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, Electron IPC commands). End-to-end tests only where the value justifies the cost.
 - Tests are behaviour names, not implementation names: `it_adds_a_track_to_the_library`, not `test1`.
 
 ### 2. Domain-Driven Design
 
-- The **domain layer** (`domain` module/crate) holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Tauri, Tokio, filesystem, HTTP, or serde on the wire.
+- The **domain layer** holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Electron, Node, filesystem, HTTP, or wire DTOs.
 - Frameworks point **inward** at the domain. The domain never imports them.
-- Define **repositories** as traits in the domain; implement them in infrastructure.
+- Define **repositories** as interfaces in the inner layer; implement them in infrastructure.
 - Value objects over primitives. A `LibraryPath` is not a `String`.
 - Language matters - use the [Ubiquitous Language](./docs/cards) consistently. If a term is contested, add it to the glossary and stop arguing.
 
@@ -31,14 +31,14 @@ These are not negotiable.
 Layering, inner to outer:
 
 ```
-domain        <- entities, value objects, domain services, repository traits
+domain        <- entities, value objects, domain services, repository interfaces
 application   <- use cases (commands/queries), orchestrates domain + ports
 infrastructure <- repository implementations, filesystem/Dropbox adapters, persistence
-ui / tauri    <- React frontend + Tauri commands; the outermost edge
+ui / electron <- React frontend + Electron IPC; the outermost edge
 ```
 
 - Dependencies only point inward.
-- Crossing a layer boundary uses a trait (port) defined on the inner side.
+- Crossing a layer boundary uses an interface defined on the inner side.
 
 ### 4. KISS
 
@@ -56,21 +56,19 @@ ui / tauri    <- React frontend + Tauri commands; the outermost edge
 - **OCP**: extend by adding, not by editing.
 - **LSP**: subtypes are substitutable.
 - **ISP**: depend only on the methods you actually call.
-- **DIP**: depend on abstractions (traits/interfaces), defined on the inner side.
+- **DIP**: depend on abstractions defined on the inner side.
 
 ## Repository layout
 
 ```
 apps/
-  desktop/                 @muzo/desktop  - Tauri + React app
+  desktop/                 @muzo/desktop  - Electron + React app
     src/                   React frontend (TS)
-    src-tauri/             Rust backend, single crate, modules:
-      src/
-        domain/            entities, value objects, repository traits
-        application/       use cases (commands/queries)
-        infrastructure/    fs adapter, dropbox adapter, sqlite, etc.
-        commands/          Tauri command handlers (the edge)
-        lib.rs
+    electron/              Electron main process backend:
+      application/         use cases, commands, interfaces
+      infrastructure/      filesystem, Dropbox, SQLite, metadata, audio
+      ipc/                 Electron IPC dispatch
+      composition/         Awilix IoC container
 packages/                  future shared TS packages
 docs/
   cards/<sprint>/          sprint cards, one file per card
@@ -114,9 +112,8 @@ chore(repo): init yarn workspaces
 
 - **Package manager:** Yarn (classic) workspaces. Always. No npm, no pnpm, no bun.
 - **Node:** `>= 20.10`.
-- **Rust:** stable toolchain. Format with `cargo fmt`, lint with `cargo clippy -D warnings`.
 - **Frontend:** React + TypeScript + Vite.
-- **Tauri:** v2.
+- **Desktop shell:** Electron.
 
 ### Before you push
 
@@ -127,10 +124,9 @@ yarn install
 yarn lint
 yarn typecheck
 yarn test
-cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml -- --check
-cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets -- -D warnings
-cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --all
 yarn desktop:build
+yarn desktop:package
+yarn desktop:make
 ```
 
 If any of those fails, the card is not done.
@@ -150,10 +146,10 @@ Numbered, immutable once merged. New decision? Write a new ADR superseding the o
 
 - No direct commits to `main` or `dev`.
 - No production code without a failing test first.
-- No framework types leaking into the domain (`serde::Serialize` on a domain entity is a smell; wrap or map at the boundary).
+- No framework or wire DTO types leaking into the domain; wrap or map at the boundary.
 - No magic numbers - name them as value objects or constants.
 - No emojis in source files or commit messages unless explicitly requested.
-- No em dashes (`—`) in any output. Use a regular hyphen or reword.
+- No em dashes in any output. Use a regular hyphen or reword.
 
 ## When in doubt
 

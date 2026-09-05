@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { addLibrary } from "./api";
+import { openDirectory } from "./runtime-bridge";
 import { errorMessage, type AddLibraryErrorDto, type LibraryDto } from "./types";
 
 interface AddLibraryFormProps {
@@ -16,8 +16,8 @@ export default function AddLibraryForm({ onAdded }: AddLibraryFormProps) {
   async function handleBrowse() {
     setError(null);
     try {
-      const selected = await open({ directory: true, multiple: false });
-      if (typeof selected === "string") {
+      const selected = await openDirectory();
+      if (selected) {
         setLocation(selected);
         if (name.trim() === "") {
           setName(selected.split(/[\\/]/).filter(Boolean).at(-1) ?? selected);

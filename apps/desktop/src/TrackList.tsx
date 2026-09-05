@@ -1,8 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import {
+  addTrackToPlaylist,
   clearTrackMetadataOverride,
   editTrackMetadata,
+  listPlaylists,
   listTracks,
+  type PlaylistDto,
   type TrackDto,
 } from "./api";
 import { formatDuration } from "./formatDuration";
@@ -15,6 +18,7 @@ interface TrackListProps {
   onToggleCurrentTrack: () => void;
   refreshKey?: number;
   onTracksLoaded?: (libraryId: string, trackCount: number) => void;
+  playCounts?: Record<string, number>;
 }
 
 export default function TrackList({
@@ -25,12 +29,21 @@ export default function TrackList({
   onToggleCurrentTrack,
   refreshKey = 0,
   onTracksLoaded,
+  playCounts = {},
 }: TrackListProps) {
   const [tracks, setTracks] = useState<TrackDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingTrack, setEditingTrack] = useState<TrackDto | null>(null);
   const [draft, setDraft] = useState<MetadataDraft | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [playlistChoices, setPlaylistChoices] = useState<PlaylistDto[] | null>(
+    null,
+  );
+  const [playlistTrack, setPlaylistTrack] = useState<TrackDto | null>(null);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [playlistMessage, setPlaylistMessage] = useState<string | null>(null);
+  const [playlistError, setPlaylistError] = useState<string | null>(null);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +77,8 @@ export default function TrackList({
 
   function startEditing(track: TrackDto) {
     setSaveError(null);
+    setPlaylistTrack(null);
+    setPlaylistError(null);
     setEditingTrack(track);
     setDraft({
       title: track.title,
@@ -74,6 +89,57 @@ export default function TrackList({
       genre: track.genre ?? "",
       year: numberToDraft(track.year),
     });
+  }
+
+  async function startPlaylistAction(track: TrackDto) {
+    setEditingTrack(null);
+    setDraft(null);
+    setSaveError(null);
+    setPlaylistTrack(track);
+    setPlaylistMessage(null);
+    setPlaylistError(null);
+
+    try {
+      const playlists = playlistChoices ?? (await listPlaylists());
+      setPlaylistChoices(playlists);
+      setSelectedPlaylistId((current) => current || playlists[0]?.id || "");
+    } catch (err) {
+      const e = err as { message?: string };
+      setPlaylistChoices([]);
+      setSelectedPlaylistId("");
+      setPlaylistError(e.message ?? "Could not load playlists.");
+    }
+  }
+
+  async function handleAddToPlaylist() {
+    if (!playlistTrack || selectedPlaylistId.length === 0) {
+      return;
+    }
+
+    setAddingToPlaylist(true);
+    setPlaylistError(null);
+    setPlaylistMessage(null);
+    try {
+      const playlist = await addTrackToPlaylist({
+        playlistId: selectedPlaylistId,
+        trackId: playlistTrack.id,
+      });
+      setPlaylistChoices((prev) =>
+        (prev ?? []).map((candidate) =>
+          candidate.id === playlist.id ? playlist : candidate,
+        ),
+      );
+      setPlaylistMessage(
+        `Added ${playlistTrack.title} to ${playlist.name}.`,
+      );
+      setPlaylistTrack(null);
+      setSelectedPlaylistId("");
+    } catch (err) {
+      const e = err as { message?: string };
+      setPlaylistError(e.message ?? "Could not add track to playlist.");
+    } finally {
+      setAddingToPlaylist(false);
+    }
   }
 
   async function handleSave(event: FormEvent<HTMLFormElement>) {
@@ -133,7 +199,7 @@ export default function TrackList({
   if (tracks.length === 0) {
     return (
       <p className="track-list__empty">
-        No tracks yet. Hit Scan on the library to populate it.
+        No tracks yet. Muzo syncs filesystem libraries automatically.
       </p>
     );
   }
@@ -143,6 +209,7 @@ export default function TrackList({
       {tracks.map((track, index) => {
         const isCurrent = track.id === currentTrackId;
         const isEditing = editingTrack?.id === track.id && draft;
+        const isChoosingPlaylist = playlistTrack?.id === track.id;
         const playButtonLabel =
           isCurrent && isPlaying ? `Pause ${track.title}` : `Play ${track.title}`;
         const rowClass = isCurrent
@@ -176,6 +243,9 @@ export default function TrackList({
             <span className="track-list__duration">
               {formatDuration(track.durationSeconds)}
             </span>
+            <span className="track-list__play-count">
+              {formatPlayCount(playCounts[track.id] ?? 0)}
+            </span>
             <button
               type="button"
               className="track-list__edit"
@@ -183,6 +253,14 @@ export default function TrackList({
               aria-label={`Edit ${track.title}`}
             >
               Edit
+            </button>
+            <button
+              type="button"
+              className="track-list__playlist"
+              onClick={() => startPlaylistAction(track)}
+              aria-label={`Add ${track.title} to playlist`}
+            >
+              Add
             </button>
             {isEditing && (
               <form className="track-list__editor" onSubmit={handleSave}>
@@ -261,9 +339,11 @@ export default function TrackList({
                 )}
                 <div className="track-list__editor-actions">
                   <button type="submit">Save metadata</button>
-                  <button type="button" onClick={handleClearOverride}>
-                    Clear override
-                  </button>
+                  {editingTrack.metadataOverridden && (
+                    <button type="button" onClick={handleClearOverride}>
+                      Clear override
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -277,9 +357,62 @@ export default function TrackList({
                 </div>
               </form>
             )}
+            {isChoosingPlaylist && (
+              <div className="track-list__playlist-picker">
+                {playlistChoices === null ? (
+                  <p>Loading playlists...</p>
+                ) : playlistChoices.length === 0 ? (
+                  <p>No playlists yet.</p>
+                ) : (
+                  <>
+                    <label>
+                      Playlist
+                      <select
+                        value={selectedPlaylistId}
+                        onChange={(event) =>
+                          setSelectedPlaylistId(event.target.value)
+                        }
+                      >
+                        {playlistChoices.map((playlist) => (
+                          <option key={playlist.id} value={playlist.id}>
+                            {playlist.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={addingToPlaylist}
+                      onClick={handleAddToPlaylist}
+                    >
+                      {addingToPlaylist ? "Adding..." : "Add to playlist"}
+                    </button>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlaylistTrack(null);
+                    setPlaylistError(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                {playlistError && (
+                  <p role="alert" className="track-list__playlist-error">
+                    {playlistError}
+                  </p>
+                )}
+              </div>
+            )}
           </li>
         );
       })}
+      {playlistMessage && (
+        <li className="track-list__status" role="status">
+          {playlistMessage}
+        </li>
+      )}
     </ol>
   );
 }
@@ -297,6 +430,10 @@ interface MetadataDraft {
 function trackSubtitle(track: TrackDto): string {
   const source = track.album ?? (track.metadataOverridden ? "Edited in Muzo" : null);
   return source ? `${track.artist} - ${source}` : track.artist;
+}
+
+function formatPlayCount(count: number): string {
+  return `${count} ${count === 1 ? "play" : "plays"}`;
 }
 
 function textToMetadata(value: string): string | null {

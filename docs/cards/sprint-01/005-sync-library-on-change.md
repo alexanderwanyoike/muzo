@@ -1,8 +1,15 @@
 - Sprint: 01
-- Status: Pending
+- Status: Superseded by sprint 02 card 006
 - Blocks: -
 
 # Card 005 - Sync library on filesystem changes
+
+## Current status
+
+This card was superseded by sprint 02 card 006, which broadened the work from
+in-process watching to startup reconciliation plus automatic filesystem sync.
+The watcher, reconciliation behavior, and post-migration sync UX polish are
+tracked there.
 
 ## What to build
 

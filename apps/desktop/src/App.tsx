@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
 import TrackList from "./TrackList";
+import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
 import { useAudioPlayer } from "./useAudioPlayer";
-import { listLibraries, listTracks, scanLibrary } from "./api";
+import { listLibraries, listTrackPlayCounts, listTracks, scanLibrary } from "./api";
 import type { LibraryDto } from "./types";
 
-type ActiveView = "library" | "settings";
+type ActiveView = "library" | "playlists" | "settings";
 
 interface ListError {
   kind: string;
@@ -15,6 +16,26 @@ interface ListError {
 }
 
 export default function App() {
+  const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
+  const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
+  const [trackPlayCounts, setTrackPlayCounts] = useState<Record<string, Record<string, number>>>({});
+  const [trackRefreshVersions, setTrackRefreshVersions] = useState<Record<string, number>>({});
+  const [refreshingLibraryId, setRefreshingLibraryId] = useState<string | null>(null);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ActiveView>("library");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleTrackPlayRecorded = useCallback((track: { libraryId: string; id: string }) => {
+    setTrackPlayCounts((prev) => ({
+      ...prev,
+      [track.libraryId]: {
+        ...(prev[track.libraryId] ?? {}),
+        [track.id]: (prev[track.libraryId]?.[track.id] ?? 0) + 1,
+      },
+    }));
+  }, []);
+
   const {
     current,
     status,
@@ -26,16 +47,7 @@ export default function App() {
     toggle,
     seek,
     setVolume,
-  } = useAudioPlayer();
-
-  const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
-  const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
-  const [trackRefreshVersions, setTrackRefreshVersions] = useState<Record<string, number>>({});
-  const [scanningLibraryId, setScanningLibraryId] = useState<string | null>(null);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
-  const [activeView, setActiveView] = useState<ActiveView>("library");
-  const [error, setError] = useState<string | null>(null);
+  } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
 
   const refresh = async () => {
     setError(null);
@@ -52,27 +64,56 @@ export default function App() {
     refresh();
   }, []);
 
-  async function handleScan(libraryId: string) {
-    setScanningLibraryId(libraryId);
-    setScanMessage(null);
+  useEffect(() => {
+    if (!selectedLibraryId) {
+      return;
+    }
+
+    let cancelled = false;
+    listTrackPlayCounts(selectedLibraryId)
+      .then((counts) => {
+        if (cancelled) {
+          return;
+        }
+        setTrackPlayCounts((prev) => ({
+          ...prev,
+          [selectedLibraryId]: Object.fromEntries(
+            counts.map((count) => [count.trackId, count.playCount]),
+          ),
+        }));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTrackPlayCounts((prev) => ({ ...prev, [selectedLibraryId]: {} }));
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLibraryId]);
+
+  async function handleRefresh(library: LibraryDto) {
+    setRefreshingLibraryId(library.id);
+    setRefreshMessage(null);
     try {
-      const report = await scanLibrary(libraryId);
-      const tracks = await listTracks(libraryId);
-      setTrackCounts((prev) => ({ ...prev, [libraryId]: tracks.length }));
+      const report = await scanLibrary(library.id);
+      const tracks = await listTracks(library.id);
+      setTrackCounts((prev) => ({ ...prev, [library.id]: tracks.length }));
       setTrackRefreshVersions((prev) => ({
         ...prev,
-        [libraryId]: (prev[libraryId] ?? 0) + 1,
+        [library.id]: (prev[library.id] ?? 0) + 1,
       }));
-      setScanMessage(
-        `Scanned ${report.tracksScanned} track${
+      setRefreshMessage(
+        `Refreshed ${library.name}: ${report.tracksScanned} track${
           report.tracksScanned === 1 ? "" : "s"
         }.`,
       );
     } catch (err) {
       const e = err as ListError;
-      setScanMessage(e.message ?? "Scan failed.");
+      setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
     } finally {
-      setScanningLibraryId(null);
+      setRefreshingLibraryId(null);
     }
   }
 
@@ -124,6 +165,17 @@ export default function App() {
           <button
             type="button"
             className={
+              activeView === "playlists"
+                ? "app-sidebar__nav-item app-sidebar__nav-item--active"
+                : "app-sidebar__nav-item"
+            }
+            onClick={() => setActiveView("playlists")}
+          >
+            Playlists
+          </button>
+          <button
+            type="button"
+            className={
               activeView === "settings"
                 ? "app-sidebar__nav-item app-sidebar__nav-item--active"
                 : "app-sidebar__nav-item"
@@ -142,9 +194,7 @@ export default function App() {
             <LibraryList
               libraries={libraries}
               trackCounts={trackCounts}
-              scanningLibraryId={scanningLibraryId}
               selectedLibraryId={selectedLibraryId}
-              onScan={handleScan}
               onSelect={handleSelect}
               renderTracks={() => null}
             />
@@ -159,17 +209,13 @@ export default function App() {
               <p className="app-content__eyebrow">Library</p>
               <h2>{selectedLibrary?.name ?? "Songs"}</h2>
             </div>
-            {selectedLibrary && (
-              <button
-                type="button"
-                className="app-content__scan"
-                disabled={scanningLibraryId === selectedLibrary.id}
-                onClick={() => handleScan(selectedLibrary.id)}
-                aria-label="Scan selected library"
-              >
-                {scanningLibraryId === selectedLibrary.id ? "Scanning..." : "Scan"}
-              </button>
-            )}
+          </header>
+        ) : activeView === "playlists" ? (
+          <header className="app-content__toolbar">
+            <div>
+              <p className="app-content__eyebrow">Collections</p>
+              <h2>Playlists</h2>
+            </div>
           </header>
         ) : (
           <header className="app-content__toolbar">
@@ -185,9 +231,9 @@ export default function App() {
             {error}
           </p>
         )}
-        {scanMessage && (
+        {refreshMessage && (
           <p role="status" className="app__info">
-            {scanMessage}
+            {refreshMessage}
           </p>
         )}
         {activeView === "settings" ? (
@@ -196,8 +242,8 @@ export default function App() {
               <div>
                 <h3>Library folders</h3>
                 <p>
-                  Add folders here. The listening view stays focused on browsing
-                  and playback.
+                  Add folders here. Filesystem libraries sync automatically while
+                  the app is open and reconcile when it starts.
                 </p>
               </div>
               <AddLibraryForm onAdded={handleLibraryAdded} />
@@ -206,18 +252,39 @@ export default function App() {
             <section className="settings-view__section">
               <div>
                 <h3>Indexed sources</h3>
-                <p>{libraries?.length ?? 0} configured library folders.</p>
+                <p>
+                  Manual refresh is a fallback for recovery. Normal listening does
+                  not require it.
+                </p>
               </div>
               <ul className="settings-view__sources">
                 {(libraries ?? []).map((library) => (
                   <li key={library.id}>
-                    <span>{library.name}</span>
-                    <code>{library.location}</code>
+                    <div className="settings-view__source-main">
+                      <span>{library.name}</span>
+                      <code>{library.location}</code>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={refreshingLibraryId === library.id}
+                      onClick={() => handleRefresh(library)}
+                    >
+                      {refreshingLibraryId === library.id
+                        ? "Refreshing..."
+                        : `Refresh ${library.name}`}
+                    </button>
                   </li>
                 ))}
               </ul>
             </section>
           </div>
+        ) : activeView === "playlists" ? (
+          <PlaylistPanel
+            currentTrackId={current?.id ?? null}
+            isPlaying={status === "playing"}
+            onPlayTrack={play}
+            onToggleCurrentTrack={toggle}
+          />
         ) : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (
@@ -230,12 +297,13 @@ export default function App() {
               onToggleCurrentTrack={toggle}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
+              playCounts={trackPlayCounts[selectedLibrary.id] ?? {}}
             />
           </div>
         ) : (
           <div className="app-content__empty">
             <h2>No music yet</h2>
-            <p>Add a folder in Settings, scan it, then pick a track.</p>
+            <p>Add a folder in Settings. Muzo will sync it automatically.</p>
             <button
               type="button"
               className="app-content__empty-action"

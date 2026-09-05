@@ -12,9 +12,7 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={[]}
         trackCounts={NO_COUNTS}
-        scanningLibraryId={null}
         selectedLibraryId={null}
-        onScan={() => {}}
         onSelect={() => {}}
         renderTracks={() => null}
       />,
@@ -43,9 +41,7 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={libraries}
         trackCounts={NO_COUNTS}
-        scanningLibraryId={null}
         selectedLibraryId={null}
-        onScan={() => {}}
         onSelect={() => {}}
         renderTracks={() => null}
       />,
@@ -70,9 +66,7 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={libraries}
         trackCounts={{ "lib-1": 1, "lib-2": 42 }}
-        scanningLibraryId={null}
         selectedLibraryId={null}
-        onScan={() => {}}
         onSelect={() => {}}
         renderTracks={() => null}
       />,
@@ -93,9 +87,7 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={libraries}
         trackCounts={NO_COUNTS}
-        scanningLibraryId={null}
         selectedLibraryId={null}
-        onScan={() => {}}
         onSelect={onSelect}
         renderTracks={() => null}
       />,
@@ -114,9 +106,7 @@ describe("LibraryList", () => {
       <LibraryList
         libraries={libraries}
         trackCounts={NO_COUNTS}
-        scanningLibraryId={null}
         selectedLibraryId="lib-1"
-        onScan={() => {}}
         onSelect={() => {}}
         renderTracks={(id) => <p>Tracks for {id}</p>}
       />,

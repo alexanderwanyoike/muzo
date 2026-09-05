@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./runtime-bridge";
 import type {
   AddLibraryInputDto,
   LibraryDto,
@@ -15,11 +15,11 @@ export async function addLibrary(input: {
     kind: input.kind,
     location: input.location,
   };
-  return invoke<LibraryDto>("add_library", { input: dto });
+  return invokeCommand<LibraryDto>("add_library", { input: dto });
 }
 
 export async function listLibraries(): Promise<LibraryDto[]> {
-  return invoke<LibraryDto[]>("list_libraries");
+  return invokeCommand<LibraryDto[]>("list_libraries");
 }
 
 export interface ScanReport {
@@ -27,7 +27,7 @@ export interface ScanReport {
 }
 
 export async function scanLibrary(libraryId: string): Promise<ScanReport> {
-  return invoke<ScanReport>("scan_library", {
+  return invokeCommand<ScanReport>("scan_library", {
     input: { libraryId },
   });
 }
@@ -48,7 +48,7 @@ export interface TrackDto {
 }
 
 export async function listTracks(libraryId: string): Promise<TrackDto[]> {
-  return invoke<TrackDto[]>("list_tracks", { libraryId });
+  return invokeCommand<TrackDto[]>("list_tracks", { libraryId });
 }
 
 export interface EditTrackMetadataInput {
@@ -66,14 +66,14 @@ export interface EditTrackMetadataInput {
 export async function editTrackMetadata(
   input: EditTrackMetadataInput,
 ): Promise<void> {
-  return invoke<void>("edit_track_metadata", { input });
+  return invokeCommand<void>("edit_track_metadata", { input });
 }
 
 export async function clearTrackMetadataOverride(input: {
   libraryId: string;
   trackId: string;
 }): Promise<void> {
-  return invoke<void>("clear_track_metadata_override", { input });
+  return invokeCommand<void>("clear_track_metadata_override", { input });
 }
 
 export interface PreparedTrackAudioSourceDto {
@@ -85,5 +85,71 @@ export async function prepareTrackAudioSource(input: {
   libraryId: string;
   trackId: string;
 }): Promise<PreparedTrackAudioSourceDto> {
-  return invoke<PreparedTrackAudioSourceDto>("prepare_track_audio_source", { input });
+  return invokeCommand<PreparedTrackAudioSourceDto>("prepare_track_audio_source", { input });
+}
+
+export async function recordTrackPlay(input: {
+  libraryId: string;
+  trackId: string;
+}): Promise<void> {
+  return invokeCommand<void>("record_track_play", { input });
+}
+
+export interface PlayCountDto {
+  trackId: string;
+  playCount: number;
+  lastPlayedAtUnixSeconds: number | null;
+}
+
+export async function listTrackPlayCounts(libraryId: string): Promise<PlayCountDto[]> {
+  return invokeCommand<PlayCountDto[]>("list_track_play_counts", {
+    input: { libraryId },
+  });
+}
+
+export interface PlaylistEntryDto {
+  id: string;
+  trackId: string;
+  trackArtist?: string | null;
+  trackDurationSeconds?: number | null;
+  trackTitle?: string | null;
+  trackLibraryId?: string | null;
+  position: number;
+}
+
+export interface PlaylistDto {
+  id: string;
+  name: string;
+  entries: PlaylistEntryDto[];
+}
+
+export async function listPlaylists(): Promise<PlaylistDto[]> {
+  return invokeCommand<PlaylistDto[]>("list_playlists");
+}
+
+export async function createPlaylist(input: {
+  name: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("create_playlist", { input });
+}
+
+export async function addTrackToPlaylist(input: {
+  playlistId: string;
+  trackId: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("add_track_to_playlist", { input });
+}
+
+export async function removePlaylistEntry(input: {
+  playlistId: string;
+  entryId: string;
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("remove_playlist_entry", { input });
+}
+
+export async function reorderPlaylistEntries(input: {
+  playlistId: string;
+  orderedEntryIds: string[];
+}): Promise<PlaylistDto> {
+  return invokeCommand<PlaylistDto>("reorder_playlist_entries", { input });
 }

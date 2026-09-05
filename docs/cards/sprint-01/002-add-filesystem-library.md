@@ -1,5 +1,5 @@
 - Sprint: 01
-- Status: Pending
+- Status: Done
 - Blocks: 003, 004
 
 # Card 002 - Add a filesystem library
@@ -30,17 +30,17 @@ This card only persists the library record.
 
 ## Acceptance criteria
 
-- [ ] `Library`, `LibraryId`, `LibraryName`, `LibraryKind`, `LibraryLocation` live in `domain/library.rs` with no framework imports. Each has unit tests for construction, equality, and display.
-- [ ] `LibraryRepository` is a trait in `domain` with at least `add(&self, library: &Library) -> Result<...>` and `find_by_id`.
-- [ ] `AddLibrary` use case lives in `application` and is unit-tested with a fake repository (no real DB in unit tests).
-- [ ] SQLite `LibraryRepository` implementation lives in `infrastructure`. Uses sqlx or rusqlite. Schema is created on first run via a migration or `CREATE TABLE IF NOT EXISTS`.
-- [ ] DB file location is platform-appropriate (use Tauri's `app_data_dir`).
-- [ ] `add_library` Tauri command in `commands` validates input, calls the use case, returns a DTO (not the domain entity).
-- [ ] DTO types live in `commands` or a sibling boundary module - never on the domain entity itself. No `#[derive(Serialize)]` on `Library`.
-- [ ] React UI has a form to add a library and shows success/error. Path is picked via Tauri's `dialog` plugin, not typed by hand, where reasonable.
-- [ ] Restarting the app and querying the DB returns the library that was added. (Manual check; automated in 003.)
-- [ ] Fakes, not mocks, for repository tests.
-- [ ] All verification commands green.
+- [x] `Library`, `LibraryId`, `LibraryName`, `LibraryKind`, `LibraryLocation` live in `domain/library.rs` with no framework imports. Each has unit tests for construction, equality, and display.
+- [x] `LibraryRepository` is a trait in `domain` with at least `add(&self, library: &Library) -> Result<...>` and `find_by_id`.
+- [x] `AddLibrary` use case lives in `application` and is unit-tested with a fake repository (no real DB in unit tests).
+- [x] SQLite `LibraryRepository` implementation lives in `infrastructure`. Uses sqlx or rusqlite. Schema is created on first run via a migration or `CREATE TABLE IF NOT EXISTS`.
+- [x] DB file location is platform-appropriate (use Tauri's `app_data_dir`).
+- [x] `add_library` Tauri command in `commands` validates input, calls the use case, returns a DTO (not the domain entity).
+- [x] DTO types live in `commands` or a sibling boundary module - never on the domain entity itself. No `#[derive(Serialize)]` on `Library`.
+- [x] React UI has a form to add a library and shows success/error. Path is picked via Tauri's `dialog` plugin, not typed by hand, where reasonable.
+- [x] Restarting the app and querying the DB returns the library that was added. (Manual check; automated in 003.)
+- [x] Fakes, not mocks, for repository tests.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 
