@@ -1,3 +1,4 @@
+import TrackArtwork from "./track-artwork";
 import {
   Disc3,
   Pause,
@@ -87,8 +88,8 @@ export default function NowPlayingBar({
         </button>
       </div>
       <div className="now-playing-bar__display">
-        <div className="now-playing-bar__art" aria-hidden="true">
-          <Disc3 />
+        <div className="now-playing-bar__art">
+          {current ? <TrackArtwork track={current} eager /> : <Disc3 aria-hidden="true" />}
         </div>
         <div className="now-playing-bar__track">
           <div className="now-playing-bar__title">{title}</div>

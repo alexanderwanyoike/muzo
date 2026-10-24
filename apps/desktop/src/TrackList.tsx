@@ -1,3 +1,4 @@
+import TrackArtwork from "./track-artwork";
 import { Play, Pause, Pencil, ListPlus } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import {
@@ -248,6 +249,7 @@ export default function TrackList({
               )}
             </button>
             <span className="track-list__index">{index + 1}</span>
+            <TrackArtwork track={track} />
             <div className="track-list__meta">
               <div className="track-list__title">{track.title}</div>
               <div className="track-list__artist">{trackSubtitle(track)}</div>

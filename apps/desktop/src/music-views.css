@@ -5,7 +5,7 @@
 }
 .track-list__row {
   display: grid;
-  grid-template-columns: 25px 24px minmax(0, 1fr) 48px 65px 28px 28px;
+  grid-template-columns: 25px 24px 40px minmax(0, 1fr) 48px 65px 28px 28px;
   gap: 10px;
   min-height: 57px;
   align-items: center;

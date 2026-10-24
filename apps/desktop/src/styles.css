@@ -305,7 +305,7 @@ code {
   .track-list__row {
     gap: 7px;
     padding-inline: 15px;
-    grid-template-columns: 24px 18px minmax(0, 1fr) 38px 52px 26px 26px;
+    grid-template-columns: 24px 18px 36px minmax(0, 1fr) 38px 52px 26px 26px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -336,3 +336,6 @@ code {
   width: 13px;
   height: 13px;
 }
+
+.app-sidebar { display: flex; flex-direction: column; }
+.app-sidebar__sleeve { margin: auto 10px 0; padding-top: 20px; flex-shrink: 0; }

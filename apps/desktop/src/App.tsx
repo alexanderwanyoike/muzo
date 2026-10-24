@@ -1,3 +1,4 @@
+import TrackArtwork from "./track-artwork";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import RemoveSourceDialog from "./remove-source-dialog";
@@ -279,6 +280,7 @@ export default function App() {
             />
           )}
         </section>
+        {current && <figure className="app-sidebar__sleeve" aria-label="Current album artwork"><TrackArtwork track={current} eager className="track-artwork--large" /></figure>}
       </aside>
 
       <section className="app-content">
