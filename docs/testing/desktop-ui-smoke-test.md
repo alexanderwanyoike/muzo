@@ -18,7 +18,7 @@ Vite preview cannot connect to real Dropbox or local music files.
 1. Open Settings and browse the connected Dropbox account. Select folders in
    different locations, review the selection and add them together. Settings
    should stay open; Sources should update and added folders should be marked.
-2. Try all six materials in light and dark, then the ten accents. Check Songs,
+2. Try all seven materials in light and dark, then the ten accents. Check Songs,
    playlists, folder selection, fields, focus rings and disabled controls.
    Restart Muzo and verify the chosen appearance is restored.
 3. Select a source by clicking its name. Play local MP3/FLAC tracks containing
@@ -82,6 +82,24 @@ Vite preview cannot connect to real Dropbox or local music files.
     fit or wrap cleanly with a wide sidebar at the minimum size. In Cinnamon,
     restart the packaged player and check the waveform has distinct bars at the
     panel's 24/32px icon size.
+
+19. Toggle Mini player while music is playing. Open/close its queue, resize to
+    the minimum, choose another entry and use previous/next and the seek slider.
+    Return to the library; playback, position and the previous window size should
+    be preserved. Repeat after maximizing the library.
+20. Check rounded mini-player edges on the native desktop. Resize, toggle the
+    queue and restore the full library. The restored library must remain visible
+    and rectangular; controls in the corners must not be clipped.
+21. Select Frosted glass in light/dark with different covers. Its translucent
+    surfaces blur artwork inside the player. The current OS window is opaque,
+    so the desktop behind Muzo is not visible through it. Check wheel and keyboard
+    navigation to the final queued track and the quiet hover/focus scrollbar.
+22. Check the satin aluminium finish in light/dark. Source and playlist rows should
+    fill their panel when no scrollbar is needed, including the selected row and
+    source removal control. Long names/counts must stay inside the panel.
+23. For native installers, use the Windows setup, the DMG matching the Mac's
+    architecture or the Linux AppImage. The project site enables these download
+    links only when a complete published native release is available.
 
 
 Automated verification covers typed failures, account mismatches, late scans,
