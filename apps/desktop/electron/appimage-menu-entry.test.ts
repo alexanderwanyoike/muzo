@@ -238,6 +238,8 @@ describe.skipIf(process.platform !== "linux")(
         await rm(directory, { recursive: true, force: true });
       }
     
+    });
+
   it("ignores an unrelated broken shortcut while registering Muzo", async () => {
     const directory = await mkdtemp(join(tmpdir(), "muzo-unrelated-menu-"));
     try {
@@ -249,6 +251,5 @@ describe.skipIf(process.platform !== "linux")(
       await rm(directory, { recursive: true, force: true });
     }
   });
-});
   },
 );
