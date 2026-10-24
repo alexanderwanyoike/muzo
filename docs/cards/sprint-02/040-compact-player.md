@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In progress
+- Status: In review
 - Depends on: 035 (#63), 038 (#65)
 
 # Card 040 - Add an artwork-led compact player
@@ -19,7 +19,7 @@ This first slice uses the existing audio owner, materials and accent preferences
 - [x] Preserve visible keyboard focus, move focus to the visible view, and retain native OS window controls.
 - [x] Use the saved light/dark material and accent, with a quiet blurred-art backdrop.
 - [x] Verify actual Electron geometry and IPC at compact/queue minimum and default sizes in both appearances.
-- [ ] Complete ordered checks and two review cycles, then deliver a feature PR to dev.
+- [x] Complete ordered checks and two review cycles, then deliver a feature PR to dev.
 
 ## Implementation and established patterns
 
@@ -43,3 +43,8 @@ Native test captures use fictional tracks and original geometric SVG cover art
 exported to PNG. A disposable profile and isolated Xvfb display avoid the user's
 catalogue, credentials and currently running player. Capture with
 MUZO_COMPACT_CAPTURE_DIR=/tmp/muzo-compact-player-captures yarn desktop test electron/compact-player-layout.test.ts.
+
+All ordered gates pass with 348 tests across 83 files. Initial Standards review
+found one P3 naming issue; a behavior-preserving refactor names native dimensions.
+Both final review axes have zero findings. See the
+[review record](../../reviews/2026-10-24-compact-player.md).
