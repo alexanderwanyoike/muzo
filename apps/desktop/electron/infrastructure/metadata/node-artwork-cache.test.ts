@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 // @vitest-environment node
 import {
@@ -165,4 +167,27 @@ it.each(["legacy", "current-process", "exited-process"])("removes an abandoned %
     expect(files.every((file) => file.endsWith(".json"))).toBe(true);
     expect(files.reduce((sum, file) => sum + statSync(join(directory, file)).size, 0)).toBeLessThanOrEqual(100);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+
+it("preserves another running instance's temporary write and removes it after that process exits", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-active-"));
+  const child = spawn(process.execPath, ["-e", "process.send('ready'); setInterval(() => {}, 1000)"], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
+  try {
+    await once(child, "message");
+    if (!child.pid) throw new Error("Child process unavailable");
+    const temporary = `${child.pid}-${randomUUID()}.tmp`;
+    writeFileSync(join(directory, temporary), "in progress");
+    const cache = new NodeArtworkCache(directory);
+    expect(await cache.save("song", null)).toEqual({ ok: true, value: undefined });
+    expect(readdirSync(directory)).toContain(temporary);
+    const exited = once(child, "exit");
+    child.kill();
+    await exited;
+    expect(await new NodeArtworkCache(directory).find("song")).toEqual({ ok: true, value: { uri: null } });
+    expect(readdirSync(directory)).not.toContain(temporary);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
