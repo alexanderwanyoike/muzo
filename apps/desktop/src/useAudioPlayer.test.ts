@@ -340,4 +340,15 @@ describe("useAudioPlayer", () => {
     expect(audio.src).toBe("");
   });
 
+  it("does not resume a stale source while the next queue entry is loading", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "second" } }]); });
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    act(() => { result.current.next(); });
+    await act(async () => { result.current.toggle(); });
+    expect(MockAudio.instances[0].paused).toBe(true);
+    await act(async () => { finish({ url: "second-source", mimeType: "audio/mpeg" }); });
+  });
+
 });
