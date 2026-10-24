@@ -36,7 +36,10 @@ export class AddLibraryCommand implements CommandHandler {
     await this.libraries.add(library);
     await this.watchFilesystemLibrariesService.watchLibrary(library);
     if (library.kind === "filesystem") {
-      try { await this.scanner.scan(library.id); }
+      try {
+        const scan = await this.scanner.scan(library.id);
+        if (!scan.ok) this.logger.error(`initial library scan failed for ${library.id}: ${scan.error.message}`);
+      }
       catch (error) {
         this.logger.error(`initial library scan failed for ${library.id}: ${error instanceof Error ? error.message : "Check the folder and refresh in Settings."}`);
       }

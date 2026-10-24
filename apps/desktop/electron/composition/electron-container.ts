@@ -280,7 +280,7 @@ export function createElectronContainer(
       cradle.recordTrackPlayCommand,
       new LegacyResultCommandAdapter(cradle.removePlaylistEntryCommand),
       new LegacyResultCommandAdapter(cradle.reorderPlaylistEntriesCommand),
-      cradle.scanLibraryCommand,
+      new LegacyResultCommandAdapter(cradle.scanLibraryCommand),
       cradle.editTrackMetadataCommand,
       cradle.clearTrackMetadataOverrideCommand,
     ]).singleton(),

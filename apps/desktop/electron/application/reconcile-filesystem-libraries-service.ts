@@ -27,8 +27,9 @@ export class ReconcileFilesystemLibrariesService {
       }
 
       try {
-        await this.scanLibraryService.scan(library.id);
-        librariesReconciled += 1;
+        const result = await this.scanLibraryService.scan(library.id);
+        if (result.ok) librariesReconciled += 1;
+        else failures.push({ libraryId: library.id, message: result.error.message });
       } catch (error) {
         failures.push({
           libraryId: library.id,

@@ -1,3 +1,4 @@
+import { failure, success, type Result } from "./result";
 import type {
   LibraryRepository,
   ScannedTrack,
@@ -13,7 +14,7 @@ export interface ScanReport {
 }
 
 export interface LibraryScanner {
-  scan(libraryId: string): Promise<ScanReport>;
+  scan(libraryId: string): Promise<Result<ScanReport>>;
 }
 
 export class ScanLibraryService implements LibraryScanner {
@@ -25,10 +26,11 @@ export class ScanLibraryService implements LibraryScanner {
     private readonly generateTrackId: () => string,
   ) {}
 
-  async scan(libraryId: string): Promise<ScanReport> {
+  async scan(libraryId: string): Promise<Result<ScanReport>> {
+    try {
     const library = await this.libraries.findById(libraryId);
     if (!library) {
-      throw { kind: "libraryNotFound", libraryId };
+      return failure("libraryNotFound", "The library no longer exists.", { libraryId });
     }
 
     const walkedFiles = await this.walker.walkAudioFiles(library.location);
@@ -59,6 +61,7 @@ export class ScanLibraryService implements LibraryScanner {
       }
     }
 
-    return { tracksScanned: walkedFiles.length };
+    return success({ tracksScanned: walkedFiles.length });
+    } catch { return failure("repository", "Could not scan the filesystem library. Check the folder and refresh in Settings."); }
   }
 }
