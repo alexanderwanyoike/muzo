@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import PlaylistNavigator from "./playlist-navigator";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
@@ -26,6 +27,7 @@ interface PlaylistError {
 }
 
 interface PlaylistPanelProps {
+  navigationTarget?: HTMLElement | null;
   refreshKey?: number;
   currentQueueEntryId?: string | null;
   currentTrackId?: string | null;
@@ -36,6 +38,7 @@ interface PlaylistPanelProps {
 }
 
 export default function PlaylistPanel({
+  navigationTarget,
   refreshKey = 0,
   currentTrackId = null,
   currentQueueEntryId = null,
@@ -191,9 +194,10 @@ export default function PlaylistPanel({
     else onPlayTrack(entries[0].track);
   }
 
+  const navigator = <PlaylistNavigator playlists={playlists} selectedId={selected?.id ?? null} onSelect={selectPlaylist} />;
   return (
     <div className="playlist-panel">
-      <PlaylistNavigator playlists={playlists} selectedId={selected?.id ?? null} onSelect={selectPlaylist} />
+      {navigationTarget ? createPortal(navigator, navigationTarget) : navigator}
       <section className="playlist-panel__create">
         <form className="playlist-panel__form" onSubmit={handleCreate}>
           <label>

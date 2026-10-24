@@ -122,3 +122,12 @@
   background: color-mix(in srgb, var(--danger) 8%, transparent);
   color: var(--danger);
 }
+
+.app-sidebar__panel-slot {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.app-sidebar__panel-slot[hidden] {
+  display: none;
+}

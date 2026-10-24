@@ -31,6 +31,7 @@ interface ListError {
 
 export default function App() {
   const sidebar = useSidebarLayout();
+  const [playlistNavigationTarget, setPlaylistNavigationTarget] = useState<HTMLDivElement | null>(null);
   const sourceSetup = useRef<HTMLElement>(null);
   const [sourceSettingsRequest, requestSourceSettings] = useState(0);
   useEffect(() => {
@@ -276,6 +277,7 @@ export default function App() {
           </button>
         </nav>
 
+        <div className="app-sidebar__panel-slot" hidden={activeView === "playlists"}>
         <SourcesPanel
           libraries={libraries}
           trackCounts={trackCounts}
@@ -287,6 +289,8 @@ export default function App() {
             requestSourceSettings((request) => request + 1);
           }}
         />
+        </div>
+        <div className="app-sidebar__panel-slot" hidden={activeView !== "playlists"} ref={setPlaylistNavigationTarget} />
         {current && (
           <figure
             className="app-sidebar__sleeve"
@@ -306,6 +310,7 @@ export default function App() {
           </p>
         )}
         <SidebarSplitter
+          panel={activeView === "playlists" ? "Playlists" : "Sources"}
           width={sidebar.width}
           minimum={sidebar.minimum}
           maximum={sidebar.maximum}
@@ -421,6 +426,7 @@ export default function App() {
           </div>
         ) : activeView === "playlists" ? (
           <PlaylistPanel
+            navigationTarget={playlistNavigationTarget}
             refreshKey={sourceRevision}
             onPlayQueue={playQueue}
             currentQueueEntryId={currentQueueEntryId}
