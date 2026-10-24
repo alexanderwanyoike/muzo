@@ -10,36 +10,38 @@ afterEach(() => {
 });
 
 it("selects folders across locations and adds all of them with their folder names", async () => {
-  const invoke = vi.fn().mockImplementation(
-    async (
-      command: string,
-      args?: { input?: { path?: string; location?: string; name?: string } },
-    ) => {
-      if (command === "dropbox_list_folders")
+  const invoke = vi
+    .fn()
+    .mockImplementation(
+      async (
+        command: string,
+        args?: { input?: { path?: string; location?: string; name?: string } },
+      ) => {
+        if (command === "dropbox_list_folders")
+          return {
+            ok: true,
+            value: {
+              addedPaths: [],
+              folders:
+                args?.input?.path === "/Music"
+                  ? [{ id: "jazz", name: "Jazz", path: "/Music/Jazz" }]
+                  : [
+                      { id: "music", name: "Music", path: "/Music" },
+                      { id: "podcasts", name: "Podcasts", path: "/Podcasts" },
+                    ],
+            },
+          };
         return {
           ok: true,
           value: {
-            addedPaths: [],
-            folders:
-              args?.input?.path === "/Music"
-                ? [{ id: "jazz", name: "Jazz", path: "/Music/Jazz" }]
-                : [
-                    { id: "music", name: "Music", path: "/Music" },
-                    { id: "podcasts", name: "Podcasts", path: "/Podcasts" },
-                  ],
+            id: args?.input?.location,
+            name: args?.input?.name,
+            location: args?.input?.location,
+            kind: "dropbox",
           },
         };
-      return {
-        ok: true,
-        value: {
-          id: args?.input?.location,
-          name: args?.input?.name,
-          location: args?.input?.location,
-          kind: "dropbox",
-        },
-      };
-    },
-  );
+      },
+    );
   installTestRuntime({ invoke, openDirectory: async () => null });
   const onAdded = vi.fn();
   const user = userEvent.setup();
@@ -71,4 +73,87 @@ it("selects folders across locations and adds all of them with their folder name
     screen.getByRole("region", { name: "Dropbox folder browser" }),
   ).toBeDefined();
   expect(screen.getByText("Added 2 folders.")).toBeDefined();
+});
+
+it("keeps failed selections while adding the other folders and skips already-added folders", async () => {
+  let failMusic = true;
+  const invoke = vi
+    .fn()
+    .mockImplementation(
+      async (
+        command: string,
+        args?: { input?: { name?: string; location?: string } },
+      ) => {
+        if (command === "dropbox_list_folders")
+          return {
+            ok: true,
+            value: {
+              addedPaths: ["/Archive"],
+              folders: [
+                { id: "music", name: "Music", path: "/Music" },
+                { id: "podcasts", name: "Podcasts", path: "/Podcasts" },
+                { id: "archive", name: "Archive", path: "/Archive" },
+              ],
+            },
+          };
+        if (args?.input?.location === "/Music" && failMusic)
+          return {
+            ok: false,
+            error: {
+              kind: "storage",
+              message: "Could not add Music. Try again.",
+            },
+          };
+        return {
+          ok: true,
+          value: {
+            id: args?.input?.location,
+            name: args?.input?.name,
+            location: args?.input?.location,
+            kind: "dropbox",
+          },
+        };
+      },
+    );
+  installTestRuntime({ invoke, openDirectory: async () => null });
+  const onAdded = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <DropboxFolderPicker
+      accountId="account"
+      onAdded={onAdded}
+      onClose={() => {}}
+    />,
+  );
+  await user.click(
+    await screen.findByRole("checkbox", { name: "Select Music" }),
+  );
+  await user.click(screen.getByRole("checkbox", { name: "Select Podcasts" }));
+  await user.click(screen.getByRole("button", { name: "Add 2 folders" }));
+  await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
+  expect(
+    screen.getByRole<HTMLInputElement>("checkbox", { name: "Select Music" })
+      .checked,
+  ).toBe(true);
+  expect(
+    screen.getByRole<HTMLInputElement>("checkbox", { name: "Select Podcasts" })
+      .disabled,
+  ).toBe(true);
+  expect(
+    screen.getByRole<HTMLInputElement>("checkbox", { name: "Select Archive" })
+      .disabled,
+  ).toBe(true);
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Could not add Music",
+  );
+  failMusic = false;
+  await user.click(screen.getByRole("button", { name: "Add 1 folder" }));
+  await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(2));
+  expect(
+    invoke.mock.calls.filter(
+      ([command, args]) =>
+        command === "dropbox_add_library" &&
+        args.input.location === "/Podcasts",
+    ),
+  ).toHaveLength(1);
 });
