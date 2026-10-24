@@ -1,58 +1,18 @@
+import type { PrepareTrackAudioSourceService, PreparedTrackAudioSource } from "../interfaces/audio-source-interfaces";
 import type { Result } from "../result";
-import type {
-  PreparedTrackAudioSource,
-  PrepareTrackAudioSourceService,
-} from "../interfaces/audio-source-interfaces";
 import type { CommandHandler } from "./command-handler";
+import { parseInput, parseNonEmptyString } from "./command-arguments";
 
 export class PrepareTrackAudioSourceCommand implements CommandHandler {
   readonly command = "prepare_track_audio_source";
-
-  constructor(
-    private readonly prepareTrackAudioSourceService: PrepareTrackAudioSourceService,
-  ) {}
-
-  handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
-    const input = parsePrepareTrackAudioSourceArgs(args);
-    return this.prepareTrackAudioSourceService.prepare(
-      input.libraryId,
-      input.trackId,
-    );
+  constructor(private readonly service: PrepareTrackAudioSourceService) {}
+  async handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
+    const input = parseInput(args, this.command);
+    if (!input.ok) return input;
+    const libraryId = parseNonEmptyString(input.value, "libraryId", this.command);
+    if (!libraryId.ok) return libraryId;
+    const trackId = parseNonEmptyString(input.value, "trackId", this.command);
+    if (!trackId.ok) return trackId;
+    return this.service.prepare(libraryId.value, trackId.value);
   }
-}
-
-function parsePrepareTrackAudioSourceArgs(args: unknown): {
-  libraryId: string;
-  trackId: string;
-} {
-  if (!args || typeof args !== "object" || !("input" in args)) {
-    throw {
-      kind: "repository",
-      message: "missing prepare_track_audio_source input",
-    };
-  }
-
-  const input = (args as { input: unknown }).input;
-  if (!input || typeof input !== "object") {
-    throw {
-      kind: "repository",
-      message: "invalid prepare_track_audio_source input",
-    };
-  }
-
-  return {
-    libraryId: parseNonEmptyString(input, "libraryId"),
-    trackId: parseNonEmptyString(input, "trackId"),
-  };
-}
-
-function parseNonEmptyString(input: object, field: string): string {
-  const value = (input as Record<string, unknown>)[field];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw {
-      kind: "repository",
-      message: `invalid prepare_track_audio_source ${field}`,
-    };
-  }
-  return value;
 }

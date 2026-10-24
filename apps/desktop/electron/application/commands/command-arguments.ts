@@ -1,72 +1,28 @@
-export function parseInput(
-  args: unknown,
-  command: string,
-): Record<string, unknown> {
-  if (!args || typeof args !== "object" || !("input" in args)) {
-    throw { kind: "repository", message: `missing ${command} input` };
-  }
+import { failure, success, type Result } from "../result";
 
-  const input = (args as { input: unknown }).input;
-  if (!input || typeof input !== "object") {
-    throw { kind: "repository", message: `invalid ${command} input` };
-  }
-
-  return input as Record<string, unknown>;
+export function parseInput(args: unknown, command: string): Result<Record<string, unknown>> {
+  if (!args || typeof args !== "object" || !("input" in args)) return failure("repository", `missing ${command} input`);
+  if (!args.input || typeof args.input !== "object" || Array.isArray(args.input)) return failure("repository", `invalid ${command} input`);
+  return success(args.input as Record<string, unknown>);
 }
 
-export function parseNonEmptyString(
-  input: Record<string, unknown>,
-  field: string,
-  command: string,
-): string {
+export function parseNonEmptyString(input: Record<string, unknown>, field: string, command: string): Result<string> {
   const value = input[field];
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw { kind: "repository", message: `invalid ${command} ${field}` };
-  }
-  return value;
+  return typeof value === "string" && value.trim() ? success(value) : failure("repository", `invalid ${command} ${field}`);
 }
 
-export function parseStringArray(
-  input: Record<string, unknown>,
-  field: string,
-  command: string,
-): string[] {
+export function parseStringArray(input: Record<string, unknown>, field: string, command: string): Result<string[]> {
   const value = input[field];
-  if (
-    !Array.isArray(value) ||
-    value.some((item) => typeof item !== "string" || item.trim().length === 0)
-  ) {
-    throw { kind: "repository", message: `invalid ${command} ${field}` };
-  }
-  return value;
+  if (!Array.isArray(value) || !value.every((item: unknown): item is string => typeof item === "string" && item.trim().length > 0)) return failure("repository", `invalid ${command} ${field}`);
+  return success(value);
 }
 
-export function parseNullableString(
-  input: Record<string, unknown>,
-  field: string,
-  command: string,
-): string | null {
+export function parseNullableString(input: Record<string, unknown>, field: string, command: string): Result<string | null> {
   const value = input[field];
-  if (value === null) {
-    return null;
-  }
-  if (typeof value !== "string") {
-    throw { kind: "repository", message: `invalid ${command} ${field}` };
-  }
-  return value;
+  return value === null || typeof value === "string" ? success(value) : failure("repository", `invalid ${command} ${field}`);
 }
 
-export function parseNullableNumber(
-  input: Record<string, unknown>,
-  field: string,
-  command: string,
-): number | null {
+export function parseNullableNumber(input: Record<string, unknown>, field: string, command: string): Result<number | null> {
   const value = input[field];
-  if (value === null) {
-    return null;
-  }
-  if (typeof value !== "number") {
-    throw { kind: "repository", message: `invalid ${command} ${field}` };
-  }
-  return value;
+  return value === null || typeof value === "number" ? success(value) : failure("repository", `invalid ${command} ${field}`);
 }

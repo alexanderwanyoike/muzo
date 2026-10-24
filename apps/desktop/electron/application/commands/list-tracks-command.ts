@@ -1,27 +1,14 @@
 import type { TrackRecord } from "../interfaces/track-record";
 import type { TrackReader } from "../interfaces/repository-interfaces";
 import type { CommandHandler } from "./command-handler";
-
+import { failure, repositoryResult, type Result } from "../result";
+import { parseNonEmptyString } from "./command-arguments";
 export class ListTracksCommand implements CommandHandler {
   readonly command = "list_tracks";
-
   constructor(private readonly tracks: TrackReader) {}
-
-  handle(args: unknown): Promise<TrackRecord[]> {
-    const { libraryId } = parseListTracksArgs(args);
-    return this.tracks.listForLibrary(libraryId);
+  async handle(args: unknown): Promise<Result<TrackRecord[]>> {
+    if (!args || typeof args !== "object" || Array.isArray(args)) return failure("repository", "missing list_tracks libraryId");
+    const id = parseNonEmptyString(args as Record<string, unknown>, "libraryId", this.command);
+    return id.ok ? repositoryResult(() => this.tracks.listForLibrary(id.value)) : id;
   }
-}
-
-function parseListTracksArgs(args: unknown): { libraryId: string } {
-  if (!args || typeof args !== "object" || !("libraryId" in args)) {
-    throw { kind: "repository", message: "missing list_tracks libraryId" };
-  }
-
-  const libraryId = (args as { libraryId: unknown }).libraryId;
-  if (typeof libraryId !== "string" || libraryId.trim().length === 0) {
-    throw { kind: "repository", message: "invalid list_tracks libraryId" };
-  }
-
-  return { libraryId };
 }

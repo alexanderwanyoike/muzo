@@ -1,60 +1,38 @@
-import type { AddLibraryInput, LibraryRecord } from "../interfaces/library-record";
+import type { LibraryRecord } from "../interfaces/library-record";
 import type { LibraryRepository } from "../interfaces/repository-interfaces";
 import type { AddedLibraryWatcher } from "../watch-filesystem-libraries-service";
 import type { LibraryScanner } from "../scan-library-service";
 import type { Logger } from "../interfaces/logger-interfaces";
 import type { CommandHandler } from "./command-handler";
+import { failure, repositoryResult, success, type Result } from "../result";
+import { parseInput } from "./command-arguments";
 
 export class AddLibraryCommand implements CommandHandler {
   readonly command = "add_library";
-
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly generateLibraryId: () => string,
-    private readonly watchFilesystemLibrariesService: AddedLibraryWatcher,
+    private readonly watcher: AddedLibraryWatcher,
     private readonly scanner: LibraryScanner,
     private readonly logger: Logger,
   ) {}
 
-  async handle(args: unknown): Promise<LibraryRecord> {
-    const input = parseAddLibraryArgs(args);
-
-    if (input.name.trim().length === 0) {
-      throw { kind: "emptyName" };
-    }
-
-    if (input.location.trim().length === 0) {
-      throw { kind: "emptyLocation" };
-    }
-
-    const library: LibraryRecord = {
-      id: this.generateLibraryId(),
-      name: input.name,
-      kind: input.kind,
-      location: input.location,
-    };
-    await this.libraries.add(library);
-    await this.watchFilesystemLibrariesService.watchLibrary(library);
+  async handle(args: unknown): Promise<Result<LibraryRecord>> {
+    const input = parseInput(args, this.command);
+    if (!input.ok) return input;
+    const { name, kind, location } = input.value;
+    if (typeof name !== "string" || typeof location !== "string" || (kind !== "filesystem" && kind !== "dropbox")) return failure("repository", "invalid add_library input");
+    if (!name.trim()) return failure("emptyName", "Library name must not be empty.");
+    if (!location.trim()) return failure("emptyLocation", "Library location must not be empty.");
+    const library: LibraryRecord = { id: this.generateLibraryId(), name, kind, location };
+    const saved = await repositoryResult(() => this.libraries.add(library));
+    if (!saved.ok) return saved;
+    const watchFailure = await this.watcher.watchLibrary(library);
+    if (watchFailure) this.logger.error(`initial library watch failed for ${library.id}: ${watchFailure.message}`);
     if (library.kind === "filesystem") {
-      try {
-        const scan = await this.scanner.scan(library.id);
-        if (!scan.ok) this.logger.error(`initial library scan failed for ${library.id}: ${scan.error.message}`);
-      }
-      catch (error) {
-        this.logger.error(`initial library scan failed for ${library.id}: ${error instanceof Error ? error.message : "Check the folder and refresh in Settings."}`);
-      }
+      const scan = await this.scanner.scan(library.id);
+      if (!scan.ok) this.logger.error(`initial library scan failed for ${library.id}: ${scan.error.message}`);
     }
-    return library;
+    return success(library);
   }
-}
-
-function parseAddLibraryArgs(args: unknown): AddLibraryInput {
-  if (!args || typeof args !== "object" || !("input" in args)) {
-    throw { kind: "repository", message: "missing add_library input" };
-  }
-  const input = (args as { input: unknown }).input;
-  if (!input || typeof input !== "object") {
-    throw { kind: "repository", message: "invalid add_library input" };
-  }
-  return input as AddLibraryInput;
 }
