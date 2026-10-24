@@ -68,12 +68,10 @@ it("chooses folders from Dropbox without entering a path or library name", async
 });
 
 it("returns keyboard focus to Browse when closing the folder browser", async () => {
-  const invoke = vi
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      value: { folders: [], addedPaths: [], intervalMinutes: 5 },
-    });
+  const invoke = vi.fn().mockResolvedValue({
+    ok: true,
+    value: { folders: [], addedPaths: [], intervalMinutes: 5 },
+  });
   installTestRuntime({ invoke, openDirectory: async () => null });
   const user = userEvent.setup();
   render(<DropboxLibrarySettings accountId="account" onAdded={() => {}} />);
