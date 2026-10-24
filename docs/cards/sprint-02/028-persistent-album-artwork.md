@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Fix
-- Status: In review
+- Status: Done
 - Depends on: 027 (PR #54)
 
 # Card 028 - Persistent album artwork
@@ -21,7 +21,7 @@ them before requesting media or Dropbox credentials.
 - [x] Verify content integrity and bounded PNG payload/record reads.
 - [x] Recover from truncated/corrupt records and unavailable cache storage.
 - [x] Remove abandoned atomic writes while preserving another active writer.
-- [ ] Complete ordered checks and two review cycles.
+- [x] Complete ordered checks and two review cycles (302 tests).
 
 ## Design
 
@@ -60,3 +60,6 @@ Initial Spec review found abandoned temporary files outside the budget. A
 red-first regression now covers legacy, current-process orphan and exited-process
 files. A real child-process test verifies that active foreign writes are preserved
 and cleaned after the writer exits. New temporary names include their owner PID.
+
+Review record: [initial and fix re-review](../../reviews/2026-10-24-persistent-album-artwork.md).
+Native Windows/macOS CI includes the artwork cache and application policy tests.
