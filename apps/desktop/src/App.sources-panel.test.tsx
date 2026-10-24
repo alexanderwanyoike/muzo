@@ -92,3 +92,26 @@ it("resets the sidebar width by double-clicking the divider", async () => {
   await userEvent.dblClick(divider);
   expect(divider.getAttribute("aria-valuenow")).toBe("240");
 });
+
+it("cancels a drag and restores the preferred width after a narrow window", async () => {
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  render(<App />);
+  const divider = await screen.findByRole("separator", { name: "Sources" });
+  fireEvent.pointerDown(divider, { button: 0, clientX: 240 });
+  fireEvent.pointerMove(divider, { clientX: 300 });
+  expect(divider.getAttribute("aria-valuenow")).toBe("300");
+  fireEvent.keyDown(divider, { key: "Escape" });
+  expect(divider.getAttribute("aria-valuenow")).toBe("240");
+  divider.focus();
+  await userEvent.keyboard("{End}");
+  expect(divider.getAttribute("aria-valuenow")).toBe("360");
+  vi.stubGlobal("innerWidth", 800);
+  fireEvent(window, new Event("resize"));
+  expect(divider.getAttribute("aria-valuenow")).toBe("280");
+  vi.stubGlobal("innerWidth", 1280);
+  fireEvent(window, new Event("resize"));
+  expect(divider.getAttribute("aria-valuenow")).toBe("360");
+  await userEvent.keyboard("{Home}");
+  expect(divider.getAttribute("aria-valuenow")).toBe("192");
+});
