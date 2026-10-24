@@ -23,7 +23,7 @@ it("remembers a material, dark appearance and accent across a restart", async ()
   first.unmount();
   render(<App />);
   await user.click(screen.getByRole("button", { name: "Settings" }));
-  await waitFor(() => expect(screen.getByRole("radio", { name: "Brushed aluminium" })).toBeChecked());
-  expect(screen.getByRole("radio", { name: "Dark" })).toBeChecked();
-  expect(screen.getByRole("radio", { name: "Sage" })).toBeChecked();
+  await waitFor(() => expect((screen.getByRole("radio", { name: "Brushed aluminium" }) as HTMLInputElement).checked).toBe(true));
+  expect((screen.getByRole("radio", { name: "Dark" }) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole("radio", { name: "Sage" }) as HTMLInputElement).checked).toBe(true);
 });
