@@ -25,9 +25,11 @@ Published stable releases supply all download URLs. Local previews show disabled
 Preparing release controls until complete real artifacts exist. Production builds
 require the manifest and fail closed for missing or inconsistent assets.
 
-Merge order: #63, #65 (seek focus), #64 (captures), then this site PR. No dev/main merge or public Pages
-configuration is performed in this feature PR. Enable Pages with GitHub Actions
-and promote through a release PR when the site is approved.
+Merge prerequisites with merge commits: #63/#65, then #67/#68/#69,
+#70 (independent MIT) and #71 (source widths), then #73 (Glass) and #72
+(rounded mini player), then #64 (current captures), then this site PR.
+No dev/main merge, release publication or public Pages configuration is performed
+in this feature PR. Promote through a release PR before publication.
 
 The original site passed 338 desktop tests and five site checks. Current
 integrated verification includes the native player/distribution and 12 site tests.
@@ -40,3 +42,8 @@ normal released-download experience used by Showbiz and Jolt. This PR now consum
 the shared Card 039 distribution contract and will depend on its packaging PR.
 The initial review records below describe the earlier iteration; renewed review
 cycles cover the corrected download and publication behavior.
+
+Current combined verification passes 375 tests (357 desktop, six distribution,
+12 site), formatting/lint/types, desktop build/package/make, preview site build
+and Linux AppImage packaging. Both renewed review cycles are clean. Native
+release links require complete verified published release assets.
