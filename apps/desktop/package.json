@@ -17,7 +17,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist dist-electron out node_modules"
+    "clean": "rm -rf dist dist-electron out node_modules",
+    "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "5.3.0",
