@@ -16,6 +16,7 @@ interface PlaylistError {
 }
 
 interface PlaylistPanelProps {
+  currentQueueEntryId?: string | null;
   currentTrackId?: string | null;
   isPlaying?: boolean;
   onPlayQueue?: (entries: PlaybackQueueItem[], startIndex: number) => void;
@@ -25,6 +26,7 @@ interface PlaylistPanelProps {
 
 export default function PlaylistPanel({
   currentTrackId = null,
+  currentQueueEntryId = null,
   isPlaying = false,
   onPlayTrack = () => {},
   onPlayQueue,
@@ -142,15 +144,18 @@ export default function PlaylistPanel({
     }
   }
 
-  function handlePlayEntry(entry: PlaylistEntryDto) {
-    if (entry.trackId === currentTrackId) {
+  function handlePlayEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
+    if (isCurrentEntry(entry, currentTrackId, currentQueueEntryId)) {
       onToggleCurrentTrack();
       return;
     }
 
     const track = trackFromEntry(entry);
     if (track) {
-      onPlayTrack(track);
+      if (onPlayQueue) {
+        const entries = playableEntries(playlist);
+        onPlayQueue(entries, entries.findIndex((candidate) => candidate.entryId === entry.id));
+      } else onPlayTrack(track);
     }
   }
 
@@ -222,15 +227,16 @@ export default function PlaylistPanel({
                           type="button"
                           className="playlist-panel__entry-play"
                           disabled={!trackFromEntry(entry)}
-                          onClick={() => handlePlayEntry(entry)}
+                          onClick={() => handlePlayEntry(playlist, entry)}
                           aria-label={playButtonLabel(
                             entry,
                             playlist,
                             currentTrackId,
                             isPlaying,
+                            currentQueueEntryId,
                           )}
                         >
-                          {entry.trackId === currentTrackId && isPlaying
+                          {isCurrentEntry(entry, currentTrackId, currentQueueEntryId) && isPlaying
                             ? "||"
                             : ">"}
                         </button>
@@ -289,12 +295,13 @@ function playButtonLabel(
   playlist: PlaylistDto,
   currentTrackId: string | null,
   isPlaying: boolean,
+  currentQueueEntryId: string | null,
 ): string {
   const label = entryLabel(entry);
   if (!trackFromEntry(entry)) {
     return `Track ${label} is unavailable in ${playlist.name}`;
   }
-  if (entry.trackId === currentTrackId && isPlaying) {
+  if (isCurrentEntry(entry, currentTrackId, currentQueueEntryId) && isPlaying) {
     return `Pause ${label} from ${playlist.name}`;
   }
   return `Play ${label} from ${playlist.name}`;
@@ -326,4 +333,8 @@ function playableEntries(playlist: PlaylistDto): PlaybackQueueItem[] {
     const track = trackFromEntry(entry);
     return track ? [{ entryId: entry.id, track }] : [];
   });
+}
+
+function isCurrentEntry(entry: PlaylistEntryDto, trackId: string | null, queueEntryId: string | null): boolean {
+  return queueEntryId ? entry.id === queueEntryId : entry.trackId === trackId;
 }
