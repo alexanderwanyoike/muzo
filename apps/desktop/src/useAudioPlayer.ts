@@ -84,6 +84,7 @@ export function useAudioPlayer(
       if (!advanceRef.current()) setStatus("paused");
     };
     const onPlaying = () => {
+      if (audio.paused) return;
       setPlaybackError(null);
       setStatus("playing");
     };
@@ -96,6 +97,7 @@ export function useAudioPlayer(
       );
     };
     const onError = () => {
+      currentTrackIdRef.current = null;
       setStatus("error");
       setPlaybackError(
         "Could not play this track. The audio source failed to load.",
