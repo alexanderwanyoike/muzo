@@ -51,6 +51,7 @@ it("reveals a changing desktop through the native library and mini player while 
       backdropDifference: number;
       desktopCompositingError: number;
       reducedAlpha: number;
+      overlayChecks: {visible:boolean;collisions:string[]}[];
     };
     expect(result.failure).toBeUndefined();
     expect(result.samples).toHaveLength(6);
@@ -67,6 +68,11 @@ it("reveals a changing desktop through the native library and mini player while 
     expect(result.restoredAlpha).toBe(255);
     expect(result.reducedAlpha).toBe(255);
     expect(result.restoredSize).toEqual(result.originalSize);
+    expect(result.overlayChecks).toHaveLength(process.platform === "darwin" ? 0 : 2);
+    for (const overlay of result.overlayChecks) {
+      expect(overlay.visible).toBe(true);
+      expect(overlay.collisions).toEqual([]);
+    }
     if (process.platform === "linux") {
       expect(result.backdropDifference).toBeGreaterThan(10);
       expect(result.desktopCompositingError).toBeLessThanOrEqual(6);

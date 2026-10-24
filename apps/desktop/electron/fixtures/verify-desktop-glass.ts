@@ -139,7 +139,29 @@ void app.whenReady().then(async () => {
     await until("!document.documentElement.dataset.desktopGlass");
     await click("Songs");
     const restoredAlpha = (await sample()).alpha;
-    writeFileSync(resultPath,JSON.stringify({samples,restoredAlpha,reducedAlpha,restoredSize:window.getSize(),originalSize,backdropDifference,desktopCompositingError}));
+    const restoredSize = window.getSize();
+    const overlayChecks: unknown[] = [];
+    if (process.platform !== "darwin") {
+      window.destroy();
+      window = createPlayerWindow(icon, preload, "win32");
+      await window.loadFile(page);
+      for (const mini of [false, true]) {
+        if (mini) {
+          await click("Mini player");
+          await until("!!document.querySelector('.compact-player')");
+        }
+        await until("!!document.querySelector('.now-playing-bar')");
+        await settle();
+        overlayChecks.push(await window.webContents.executeJavaScript(`(()=>{
+          const overlay=navigator.windowControlsOverlay;
+          const area=overlay?.getTitlebarAreaRect();
+          const selector=document.querySelector('.compact-player')?'.compact-player button,.compact-player input':'.app-shell .now-playing-bar button,.app-shell .now-playing-bar input';
+          const collisions=[...document.querySelectorAll(selector)].filter(element=>{const r=element.getBoundingClientRect();return r.width>0 && r.height>0 && r.top<(area?.height??0) && r.right>(area?.right??innerWidth)}).map(element=>element.getAttribute('aria-label')??element.tagName);
+          return {visible:overlay?.visible??false,collisions};
+        })()`));
+      }
+    }
+    writeFileSync(resultPath,JSON.stringify({samples,restoredAlpha,reducedAlpha,restoredSize,originalSize,backdropDifference,desktopCompositingError,overlayChecks}));
   } catch(error) {
     writeFileSync(resultPath,JSON.stringify({failure:String(error)}));
   } finally {

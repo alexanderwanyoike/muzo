@@ -195,3 +195,14 @@ it("keeps the X11 library region rectangular and synchronizes it after later res
     vi.unstubAllEnvs();
   }
 });
+
+it("preserves compositor-owned acrylic corners when resizing and restoring", () => {
+  const window = windowFixture();
+  const controller = createPlayerWindowModeController(window, "win32", undefined, true);
+  expect(controller.setMode("compact").ok).toBe(true);
+  window.events.emit("resize");
+  expect(controller.setMode("compact-queue").ok).toBe(true);
+  expect(controller.setMode("library").ok).toBe(true);
+  expect(window.setShape).not.toHaveBeenCalled();
+  expect(window.setBounds).toHaveBeenCalled();
+});
