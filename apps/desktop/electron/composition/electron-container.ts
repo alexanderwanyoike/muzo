@@ -441,7 +441,12 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
-      new RemoveLibraryCommand(new RemoveLibraryService(new SqliteLibraryRemover(cradle.dbPath), cradle.filesystemWatcher)),
+      new RemoveLibraryCommand(
+        new RemoveLibraryService(
+          new SqliteLibraryRemover(cradle.dbPath),
+          cradle.filesystemWatcher,
+        ),
+      ),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),

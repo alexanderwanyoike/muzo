@@ -13,7 +13,9 @@ interface WatchRegistration {
   debounce: ReturnType<typeof setTimeout> | null;
 }
 
-export class NodeFilesystemLibraryWatcher implements FilesystemLibraryWatcher, LibraryWatchStopper {
+export class NodeFilesystemLibraryWatcher
+  implements FilesystemLibraryWatcher, LibraryWatchStopper
+{
   private readonly registrations = new Map<string, WatchRegistration>();
 
   async watch(

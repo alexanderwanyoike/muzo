@@ -673,11 +673,18 @@ it.each(["toggle", "select-current"] as const)(
 
 it("stops and invalidates pending playback when its source is removed", async () => {
   let prepare: ((value: { mimeType: string; url: string }) => void) | undefined;
-  apiMocks.prepareTrackAudioSource.mockImplementationOnce(() => new Promise(resolve => { prepare = resolve; }));
+  apiMocks.prepareTrackAudioSource.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        prepare = resolve;
+      }),
+  );
   const { result } = renderHook(() => useAudioPlayer());
   act(() => result.current.play(track));
   act(() => result.current.removeSource(track.libraryId));
-  await act(async () => { prepare?.({ mimeType: "audio/mpeg", url: "http://127.0.0.1/stale" }); });
+  await act(async () => {
+    prepare?.({ mimeType: "audio/mpeg", url: "http://127.0.0.1/stale" });
+  });
   const audio = MockAudio.instances[0];
   audio.emit("pause");
   audio.emit("error");
@@ -692,12 +699,17 @@ it("removes unavailable queued entries without interrupting another source", asy
   const kept = { ...track, id: "kept", libraryId: "other" };
   const nextKept = { ...kept, id: "next-kept" };
   const { result } = renderHook(() => useAudioPlayer());
-  await act(async () => result.current.playQueue([
-    { entryId: "gone-before", track },
-    { entryId: "current", track: kept },
-    { entryId: "gone-after", track },
-    { entryId: "next", track: nextKept },
-  ], 1));
+  await act(async () =>
+    result.current.playQueue(
+      [
+        { entryId: "gone-before", track },
+        { entryId: "current", track: kept },
+        { entryId: "gone-after", track },
+        { entryId: "next", track: nextKept },
+      ],
+      1,
+    ),
+  );
   const audio = MockAudio.instances[0];
   const originalSource = audio.src;
   act(() => result.current.removeSource("lib-1"));

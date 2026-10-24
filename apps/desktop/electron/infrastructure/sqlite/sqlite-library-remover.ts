@@ -13,9 +13,14 @@ export class SqliteLibraryRemover implements LibraryRemover {
     const database = new SQL.Database(readFileSync(this.dbPath));
     try {
       database.run("BEGIN TRANSACTION");
-      database.run("DELETE FROM play_history WHERE library_id = ?", [libraryId]);
+      database.run("DELETE FROM play_history WHERE library_id = ?", [
+        libraryId,
+      ]);
       database.run("DELETE FROM tracks WHERE library_id = ?", [libraryId]);
-      database.run("DELETE FROM dropbox_library_accounts WHERE library_id = ?", [libraryId]);
+      database.run(
+        "DELETE FROM dropbox_library_accounts WHERE library_id = ?",
+        [libraryId],
+      );
       database.run("DELETE FROM libraries WHERE id = ?", [libraryId]);
       const removed = database.getRowsModified() > 0;
       database.run("COMMIT");

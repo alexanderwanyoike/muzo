@@ -33,7 +33,9 @@ export default function App() {
     changeAppearance,
     error: appearanceError,
   } = useAppearance();
-  const [removingLibrary, setRemovingLibrary] = useState<LibraryDto | null>(null);
+  const [removingLibrary, setRemovingLibrary] = useState<LibraryDto | null>(
+    null,
+  );
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [trackPlayCounts, setTrackPlayCounts] = useState<
@@ -159,7 +161,8 @@ export default function App() {
       );
     } catch (err) {
       const e = err as ListError;
-      if (!removedLibraryIds.current.has(library.id)) setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
+      if (!removedLibraryIds.current.has(library.id))
+        setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
     } finally {
       setRefreshingLibraryId(null);
     }
@@ -191,9 +194,15 @@ export default function App() {
   function handleSourceRemoved(libraryId: string) {
     removedLibraryIds.current.add(libraryId);
     removeSource(libraryId);
-    setLibraries(items => (items ?? []).filter(library => library.id !== libraryId));
-    setSelectedLibraryId(id => id === libraryId ? null : id);
-    setTrackCounts(counts => Object.fromEntries(Object.entries(counts).filter(([id]) => id !== libraryId)));
+    setLibraries((items) =>
+      (items ?? []).filter((library) => library.id !== libraryId),
+    );
+    setSelectedLibraryId((id) => (id === libraryId ? null : id));
+    setTrackCounts((counts) =>
+      Object.fromEntries(
+        Object.entries(counts).filter(([id]) => id !== libraryId),
+      ),
+    );
     setRefreshMessage(null);
   }
 
@@ -327,7 +336,10 @@ export default function App() {
               <AddLibraryForm onAdded={handleLibraryAdded} />
             </section>
 
-            <section className="settings-view__section" aria-labelledby="indexed-sources-heading">
+            <section
+              className="settings-view__section"
+              aria-labelledby="indexed-sources-heading"
+            >
               <div>
                 <h3 id="indexed-sources-heading">Indexed sources</h3>
                 <p>
@@ -343,16 +355,21 @@ export default function App() {
                       <code>{library.location}</code>
                     </div>
                     <div className="settings-view__source-actions">
-                    <button
-                      type="button"
-                      disabled={refreshingLibraryId === library.id}
-                      onClick={() => handleRefresh(library)}
-                    >
-                      {refreshingLibraryId === library.id
-                        ? "Refreshing..."
-                        : `Refresh ${library.name}`}
-                    </button>
-                    <button type="button" onClick={() => setRemovingLibrary(library)}>Remove {library.name}</button>
+                      <button
+                        type="button"
+                        disabled={refreshingLibraryId === library.id}
+                        onClick={() => handleRefresh(library)}
+                      >
+                        {refreshingLibraryId === library.id
+                          ? "Refreshing..."
+                          : `Refresh ${library.name}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRemovingLibrary(library)}
+                      >
+                        Remove {library.name}
+                      </button>
                     </div>
                   </li>
                 ))}
@@ -404,7 +421,13 @@ export default function App() {
         )}
       </section>
 
-      {removingLibrary && <RemoveSourceDialog library={removingLibrary} onRemoved={handleSourceRemoved} onClose={() => setRemovingLibrary(null)} />}
+      {removingLibrary && (
+        <RemoveSourceDialog
+          library={removingLibrary}
+          onRemoved={handleSourceRemoved}
+          onClose={() => setRemovingLibrary(null)}
+        />
+      )}
       <NowPlayingBar
         hasNext={hasNext}
         hasPrevious={hasPrevious}

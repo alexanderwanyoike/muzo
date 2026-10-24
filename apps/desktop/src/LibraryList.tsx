@@ -48,33 +48,43 @@ export default function LibraryList({
             }
           >
             <div className="library-list__source">
-            <button
-              type="button"
-              className="library-list__row"
-              onClick={() => onSelect(isSelected ? null : library.id)}
-              aria-label={`Show tracks for ${library.name}`}
-              aria-pressed={isSelected}
-              title={`${library.name}: ${library.location}`}
-            >
-              {library.kind === "dropbox" ? (
-                <Cloud aria-hidden="true" />
-              ) : (
-                <Folder aria-hidden="true" />
+              <button
+                type="button"
+                className="library-list__row"
+                onClick={() => onSelect(isSelected ? null : library.id)}
+                aria-label={`Show tracks for ${library.name}`}
+                aria-pressed={isSelected}
+                title={`${library.name}: ${library.location}`}
+              >
+                {library.kind === "dropbox" ? (
+                  <Cloud aria-hidden="true" />
+                ) : (
+                  <Folder aria-hidden="true" />
+                )}
+                <span className="library-list__primary">
+                  <span className="library-list__name">{library.name}</span>
+                  <span className="library-list__kind">
+                    {KIND_LABEL[library.kind]}
+                  </span>
+                  <span className="library-list__location">
+                    {library.location}
+                  </span>
+                </span>
+                <span className="library-list__count">
+                  {count === 1 ? "1 track" : `${count} tracks`}
+                </span>
+              </button>
+              {onRemove && (
+                <button
+                  type="button"
+                  className="library-list__remove"
+                  onClick={() => onRemove(library)}
+                  aria-label={`Remove ${library.name}`}
+                  title={`Remove ${library.name} from Muzo`}
+                >
+                  <X aria-hidden="true" />
+                </button>
               )}
-              <span className="library-list__primary">
-                <span className="library-list__name">{library.name}</span>
-                <span className="library-list__kind">
-                  {KIND_LABEL[library.kind]}
-                </span>
-                <span className="library-list__location">
-                  {library.location}
-                </span>
-              </span>
-              <span className="library-list__count">
-                {count === 1 ? "1 track" : `${count} tracks`}
-              </span>
-            </button>
-            {onRemove && <button type="button" className="library-list__remove" onClick={() => onRemove(library)} aria-label={`Remove ${library.name}`} title={`Remove ${library.name} from Muzo`}><X aria-hidden="true" /></button>}
             </div>
 
             {trackContent && (

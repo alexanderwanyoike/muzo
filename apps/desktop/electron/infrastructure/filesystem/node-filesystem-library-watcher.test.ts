@@ -49,7 +49,9 @@ describe("NodeFilesystemLibraryWatcher", () => {
   it("closes a removed source watcher and cancels its pending change", async () => {
     const watcher = new FakeChokidarWatcher();
     const close = vi.fn().mockResolvedValue(undefined);
-    vi.mocked(watch).mockReturnValue(Object.assign(watcher.asFsWatcher(), { close }));
+    vi.mocked(watch).mockReturnValue(
+      Object.assign(watcher.asFsWatcher(), { close }),
+    );
     const filesystemWatcher = new NodeFilesystemLibraryWatcher();
     const onChange = vi.fn();
     await filesystemWatcher.watch("source", "/music", onChange);
@@ -61,7 +63,6 @@ describe("NodeFilesystemLibraryWatcher", () => {
     await filesystemWatcher.watch("source", "/music", onChange);
     expect(watch).toHaveBeenCalledTimes(2);
   });
-
 });
 
 class FakeChokidarWatcher {

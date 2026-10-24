@@ -7,8 +7,15 @@ export class RemoveLibraryCommand implements CommandHandler {
   constructor(private readonly libraries: RemoveLibraryService) {}
 
   async handle(args: unknown): Promise<Result<void>> {
-    const input = args && typeof args === "object" && "input" in args ? args.input : null;
-    if (!input || typeof input !== "object" || !("libraryId" in input) || typeof input.libraryId !== "string" || !input.libraryId.trim()) {
+    const input =
+      args && typeof args === "object" && "input" in args ? args.input : null;
+    if (
+      !input ||
+      typeof input !== "object" ||
+      !("libraryId" in input) ||
+      typeof input.libraryId !== "string" ||
+      !input.libraryId.trim()
+    ) {
       return failure("invalidInput", "Choose a source to remove.");
     }
     return this.libraries.remove(input.libraryId);

@@ -80,8 +80,12 @@ export function useAudioPlayer(
     const { audio, cleanup } = createAudioElement();
     audioRef.current = audio;
 
-    const onTimeUpdate = () => { if (currentTrackIdRef.current) setPositionSeconds(audio.currentTime); };
-    const onDurationChange = () => { if (currentTrackIdRef.current) setDurationSeconds(audio.duration || 0); };
+    const onTimeUpdate = () => {
+      if (currentTrackIdRef.current) setPositionSeconds(audio.currentTime);
+    };
+    const onDurationChange = () => {
+      if (currentTrackIdRef.current) setDurationSeconds(audio.duration || 0);
+    };
     const onEnded = () => {
       if (!currentTrackIdRef.current) return;
       if (!advanceRef.current()) setStatus("paused");
@@ -92,7 +96,12 @@ export function useAudioPlayer(
       setStatus("playing");
     };
     const onPause = () => {
-      if (currentTrackIdRef.current && audio.paused && statusRef.current !== "loading") setStatus("paused");
+      if (
+        currentTrackIdRef.current &&
+        audio.paused &&
+        statusRef.current !== "loading"
+      )
+        setStatus("paused");
     };
     const onWaiting = () => {
       setStatus((previous) =>
@@ -187,25 +196,37 @@ export function useAudioPlayer(
     setQueue([], -1);
   }, [setQueue]);
 
-  const removeSource = useCallback((libraryId: string) => {
-    const state = queueRef.current;
-    const currentEntryId = state.entries[state.index]?.entryId;
-    const entries = state.entries.filter(entry => entry.track.libraryId !== libraryId);
-    setQueue(entries, entries.findIndex(entry => entry.entryId === currentEntryId));
-    if (currentSourceIdRef.current !== libraryId) return;
-    playRequestRef.current += 1;
-    currentTrackIdRef.current = null;
-    currentSourceIdRef.current = null;
-    statusRef.current = "idle";
-    const audio = audioRef.current;
-    if (audio) { audio.pause(); audio.src = ""; audio.load(); }
-    clearQueue();
-    setCurrent(null);
-    setPositionSeconds(0);
-    setDurationSeconds(0);
-    setPlaybackError(null);
-    setStatus("idle");
-  }, [clearQueue, setQueue]);
+  const removeSource = useCallback(
+    (libraryId: string) => {
+      const state = queueRef.current;
+      const currentEntryId = state.entries[state.index]?.entryId;
+      const entries = state.entries.filter(
+        (entry) => entry.track.libraryId !== libraryId,
+      );
+      setQueue(
+        entries,
+        entries.findIndex((entry) => entry.entryId === currentEntryId),
+      );
+      if (currentSourceIdRef.current !== libraryId) return;
+      playRequestRef.current += 1;
+      currentTrackIdRef.current = null;
+      currentSourceIdRef.current = null;
+      statusRef.current = "idle";
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.src = "";
+        audio.load();
+      }
+      clearQueue();
+      setCurrent(null);
+      setPositionSeconds(0);
+      setDurationSeconds(0);
+      setPlaybackError(null);
+      setStatus("idle");
+    },
+    [clearQueue, setQueue],
+  );
 
   const play = useCallback(
     (track: TrackDto) => {
