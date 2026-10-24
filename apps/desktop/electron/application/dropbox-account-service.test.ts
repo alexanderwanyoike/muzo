@@ -79,4 +79,18 @@ describe("Dropbox account connection", () => {
     expect(refreshAccessToken).toHaveBeenCalledTimes(1);
   });
 
+  it("does not overwrite a newly connected account when an old token refresh finishes", async () => {
+    let stored: StoredDropboxAccount = { accountId: "old-account", clientId: "old-key", accessToken: "expired", refreshToken: "old-refresh", accessTokenExpiresAtUnixSeconds: 1, connectedAtUnixSeconds: 1 };
+    let finish: (token: { accessToken: string; refreshToken: null; accountId: null; expiresIn: number }) => void = () => {};
+    const refreshing = new Promise<{ accessToken: string; refreshToken: null; accountId: null; expiresIn: number }>((resolve) => { finish = resolve; });
+    const service = new DropboxAccountService({ find: async () => stored, save: async (account) => { stored = account; }, disconnect: async () => {} },
+      () => ({ exchangeAuthorizationCode: async () => ({ accountId: "new-account", accessToken: "new-token", refreshToken: "new-refresh", expiresIn: 3600 }), refreshAccessToken: () => refreshing }), async () => {}, () => 1000);
+    const old = service.accessToken();
+    await service.begin("new-key");
+    await service.complete("new-code");
+    finish({ accessToken: "old-token", refreshToken: null, accountId: null, expiresIn: 3600 });
+    expect(await old).toMatchObject({ ok: false });
+    expect(stored.accountId).toBe("new-account");
+  });
+
 });
