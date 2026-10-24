@@ -50,3 +50,6 @@ Depends on PR #44 and the desktop completion stack. A temporary negative CLI pro
 confirmed that explicit any and every required unsafe-operation category fail lint;
 the probe was removed. Existing tests cover the mechanical lint refactors. Separate
 red and green commits add malformed token and unsuccessful HTTP response coverage.
+
+The root Node requirement is aligned to Electron 43's installed package engine
+(`>=22.12.0`), replacing the stale 20.10 floor. CI already uses Node 22.

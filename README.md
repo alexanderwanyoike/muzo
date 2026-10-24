@@ -33,7 +33,7 @@ A React Native / PWA mobile app will live under `apps/mobile` in a future sprint
 
 ## Requirements
 
-- Node `>= 20.10`
+- Node `>= 22.12`
 - Yarn `>= 1.22.22`
 - Electron runtime dependencies for your OS
 
