@@ -45,6 +45,11 @@ Vite preview cannot connect to real Dropbox or local music files.
 10. Check the native window after restart: no File/Edit/View/Window menus on
     Windows/Linux. On macOS check the Muzo app controls and editing shortcuts.
 
+11. Check the flat blue/black Muzo icon in the native title/taskbar or Dock.
+    On Linux install the generated DEB in a test environment and check the Muzo
+    launcher entry. On Windows/macOS check the packaged executable/app bundle.
+    Inspect small icons and a high-density display as well as the large icon.
+
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native
 thumbnail bounds. Live Dropbox behavior still depends on the account, connection
