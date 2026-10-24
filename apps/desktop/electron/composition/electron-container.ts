@@ -1,3 +1,4 @@
+import { NodeArtworkCache } from "../infrastructure/metadata/node-artwork-cache";
 import {
   asClass,
   asFunction,
@@ -178,7 +179,7 @@ export function createElectronContainer(
     options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
     trackArtwork: asFunction(
-      ({ dbPath, dropboxLibraries }: ElectronCradle) =>
+      ({ dbPath, dropboxLibraries, logger }: ElectronCradle) =>
         new TrackArtworkService(
           new SqliteTrackArtworkSources(dbPath),
           new MusicMetadataArtworkReader(),
@@ -188,6 +189,8 @@ export function createElectronContainer(
             new HttpMetadataArtworkReader(),
           ),
           dropboxLibraries,
+          new NodeArtworkCache(join(dirname(dbPath), "artwork-cache")),
+          logger,
         ),
     ).singleton(),
     dropboxFolders: asFunction(

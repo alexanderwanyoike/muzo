@@ -1,5 +1,11 @@
 // @vitest-environment node
 import { expect, it, vi } from "vitest";
+const emptyCache = {
+  find: async () => ({ ok: true as const, value: null }),
+  save: async () => ({ ok: true as const, value: undefined }),
+};
+const logger = { error: vi.fn() };
+
 import { TrackArtworkService } from "./track-artwork-service";
 
 it("reads Dropbox artwork with account-bound credentials without returning them to the renderer", async () => {
@@ -31,6 +37,8 @@ it("reads Dropbox artwork with account-bound credentials without returning them 
     { create: () => "data:image/png;base64,cover" },
     { read },
     { accessFor },
+    emptyCache,
+    logger,
   );
   expect(await service.get("cloud", "track")).toEqual({
     ok: true,
@@ -78,6 +86,8 @@ it("shares in-flight cover reads and reloads them when the stored file revision 
     { create: () => "data:image/png;base64,cover" },
     { read: vi.fn() },
     { accessFor: vi.fn() },
+    emptyCache,
+    logger,
   );
   const first = service.get("local", "track");
   const second = service.get("local", "track");
