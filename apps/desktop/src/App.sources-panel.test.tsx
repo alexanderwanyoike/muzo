@@ -118,3 +118,24 @@ it("cancels a drag and restores the preferred width after a narrow window", asyn
   await userEvent.keyboard("{Home}");
   expect(divider.getAttribute("aria-valuenow")).toBe("192");
 });
+
+it("preserves the wider preference when cancelling a drag in a narrow window", async () => {
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  installTestRuntime({
+    invoke: vi.fn().mockResolvedValue([]),
+    openDirectory: async () => null,
+  });
+  render(<App />);
+  const divider = await screen.findByRole("separator", { name: "Sources" });
+  divider.focus();
+  await userEvent.keyboard("{End}");
+  vi.stubGlobal("innerWidth", 800);
+  fireEvent(window, new Event("resize"));
+  fireEvent.pointerDown(divider, { button: 0, clientX: 280 });
+  fireEvent.pointerMove(divider, { clientX: 250 });
+  fireEvent.keyDown(divider, { key: "Escape" });
+  expect(divider.getAttribute("aria-valuenow")).toBe("280");
+  vi.stubGlobal("innerWidth", 1280);
+  fireEvent(window, new Event("resize"));
+  expect(divider.getAttribute("aria-valuenow")).toBe("360");
+});
