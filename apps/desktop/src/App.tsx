@@ -280,7 +280,11 @@ export default function App() {
           <div className="settings-view">
             <DropboxSettings
               onLibraryAdded={(library) => {
-                handleLibraryAdded(library);
+                setLibraries((previous) => [...(previous ?? []), library]);
+                setTrackCounts((previous) => ({
+                  ...previous,
+                  [library.id]: 0,
+                }));
                 void handleRefresh(library);
               }}
             />
