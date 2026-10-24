@@ -57,6 +57,19 @@ Vite preview cannot connect to real Dropbox or local music files.
 13. Restart the packaged build and browse Dropbox using the existing account.
     The secure-storage identity fix should restore the saved connection.
 
+14. Drag the Sources divider, use arrows/Home/End, double-click to reset and Escape
+    to cancel a drag. Reopen to check the saved width. Temporarily narrow the
+    window, cancel a drag, then widen it; the wider preference should return.
+15. Open Playlists. Its panel should share the Sources frame, search and divider.
+    With many playlists, scroll rows while the header/footer and artwork stay
+    visible. Select one playlist and check that only its entries appear in the
+    main area. Search should preserve selection; Escape and Clear restore rows.
+16. Use New playlist, cancel with Escape, then create with a trimmed name. The new
+    playlist should be selected and focus should return to New playlist. Switch
+    to Songs and back; search/selection should survive. Check entry reordering,
+    removal, duplicate-track queue playback and unavailable entries after source
+    removal. Repeat in light/dark and at 800 by 600.
+
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native
 thumbnail bounds. Live Dropbox behavior still depends on the account, connection
