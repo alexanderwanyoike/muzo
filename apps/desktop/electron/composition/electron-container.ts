@@ -199,11 +199,15 @@ export function createElectronContainer(
         libraries,
         generateLibraryId,
         watchFilesystemLibrariesService,
+        scanLibraryService,
+        logger,
       }: ElectronCradle) =>
         new AddLibraryCommand(
           libraries,
           generateLibraryId,
           watchFilesystemLibrariesService,
+          scanLibraryService,
+          logger,
         ),
     ).singleton(),
     addTrackToPlaylistCommand: asFunction(

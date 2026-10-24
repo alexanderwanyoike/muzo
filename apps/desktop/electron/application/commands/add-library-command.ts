@@ -1,6 +1,8 @@
 import type { AddLibraryInputDto, LibraryDto } from "../../../src/types";
 import type { LibraryRepository } from "../interfaces/repository-interfaces";
 import type { AddedLibraryWatcher } from "../watch-filesystem-libraries-service";
+import type { LibraryScanner } from "../scan-library-service";
+import type { Logger } from "../interfaces/logger-interfaces";
 import type { CommandHandler } from "./command-handler";
 
 export class AddLibraryCommand implements CommandHandler {
@@ -10,6 +12,8 @@ export class AddLibraryCommand implements CommandHandler {
     private readonly libraries: LibraryRepository,
     private readonly generateLibraryId: () => string,
     private readonly watchFilesystemLibrariesService: AddedLibraryWatcher,
+    private readonly scanner: LibraryScanner,
+    private readonly logger: Logger,
   ) {}
 
   async handle(args: unknown): Promise<LibraryDto> {
@@ -31,6 +35,12 @@ export class AddLibraryCommand implements CommandHandler {
     };
     await this.libraries.add(library);
     await this.watchFilesystemLibrariesService.watchLibrary(library);
+    if (library.kind === "filesystem") {
+      try { await this.scanner.scan(library.id); }
+      catch (error) {
+        this.logger.error(`initial library scan failed for ${library.id}: ${error instanceof Error ? error.message : "Check the folder and refresh in Settings."}`);
+      }
+    }
     return library;
   }
 }
