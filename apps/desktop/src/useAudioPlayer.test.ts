@@ -543,3 +543,67 @@ it.each(["preparation", "engine"] as const)(
     });
   },
 );
+
+it("ignores a stale playing event from the paused source while the next track prepares", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  const nextTrack = { ...track, id: "next-track" };
+  await act(async () =>
+    result.current.playQueue([
+      { entryId: "a", track },
+      { entryId: "b", track: nextTrack },
+    ]),
+  );
+  const audio = MockAudio.instances[0];
+  act(() => audio.emit("playing"));
+  let finish: (source: { url: string; mimeType: string }) => void = () => {};
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  act(() => result.current.next());
+  const play = vi.spyOn(audio, "play");
+  act(() => audio.emit("playing"));
+  expect(result.current.status).toBe("loading");
+  act(() => result.current.toggle());
+  expect(play).not.toHaveBeenCalled();
+  expect(audio.paused).toBe(true);
+  await act(async () => finish({ url: "source-next", mimeType: "audio/mpeg" }));
+  act(() => audio.emit("playing"));
+  expect(result.current.status).toBe("playing");
+});
+
+it("prepares a fresh source after a media error while preserving the queue", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  await act(async () =>
+    result.current.playQueue([
+      { entryId: "a", track },
+      { entryId: "b", track: { ...track, id: "next" } },
+    ]),
+  );
+  const audio = MockAudio.instances[0];
+  act(() => {
+    audio.emit("playing");
+    audio.pause();
+    audio.emit("error");
+  });
+  expect(result.current.status).toBe("error");
+  let finish: (source: { url: string; mimeType: string }) => void = () => {};
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const play = vi.spyOn(audio, "play");
+  act(() => result.current.toggle());
+  expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  expect(result.current.status).toBe("loading");
+  expect(result.current.currentQueueEntryId).toBe("a");
+  expect(result.current.hasNext).toBe(true);
+  expect(play).not.toHaveBeenCalled();
+  await act(async () =>
+    finish({ url: "source-retry", mimeType: "audio/mpeg" }),
+  );
+  expect(audio.src).toBe("source-retry");
+  expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+});
