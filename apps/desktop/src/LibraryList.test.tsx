@@ -6,6 +6,30 @@ import type { LibraryDto } from "./types";
 
 const NO_COUNTS: Record<string, number> = {};
 
+it("filters sources by name or folder without changing the selected source", async () => {
+  const user = userEvent.setup();
+  const onSelect = vi.fn();
+  render(
+    <LibraryList
+      libraries={[
+        { id: "one", name: "Jazz", kind: "filesystem", location: "/music/local" },
+        { id: "two", name: "Archive", kind: "dropbox", location: "/Jazz/live" },
+        { id: "three", name: "Piano", kind: "filesystem", location: "/piano" },
+      ]}
+      trackCounts={NO_COUNTS}
+      selectedLibraryId="three"
+      onSelect={onSelect}
+      renderTracks={() => null}
+    />,
+  );
+  await user.type(screen.getByRole("searchbox", { name: "Search sources" }), "  JAZZ ");
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  expect(screen.getByText("Jazz")).toBeDefined();
+  expect(screen.getByText("Archive")).toBeDefined();
+  expect(screen.queryByText("Piano")).toBeNull();
+  expect(onSelect).not.toHaveBeenCalled();
+});
+
 describe("LibraryList", () => {
   it("renders an empty state when there are no libraries", () => {
     render(
