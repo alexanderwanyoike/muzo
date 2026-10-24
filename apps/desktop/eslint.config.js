@@ -110,6 +110,7 @@ export default defineConfig(
             "**/*.test.{ts,tsx}",
             "**/*config.{js,cjs,ts}",
             "**/electron/main.ts",
+            "**/electron/create-player-window.ts",
             "**/electron/preload.cjs",
             "**/electron/build-electron-main.ts",
             "**/export-window-icon.cjs",

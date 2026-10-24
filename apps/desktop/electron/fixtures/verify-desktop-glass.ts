@@ -4,7 +4,6 @@ import {
   desktopCapturer,
   ipcMain,
   Menu,
-  nativeTheme,
   screen,
 } from "electron";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
