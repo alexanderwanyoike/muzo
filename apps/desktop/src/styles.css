@@ -4,6 +4,7 @@
 @import "./library-list.css";
 @import "./sidebar-panels.css";
 @import "./glass-material.css";
+@import "./desktop-glass.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;
