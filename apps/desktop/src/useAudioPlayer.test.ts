@@ -351,4 +351,17 @@ describe("useAudioPlayer", () => {
     await act(async () => { finish({ url: "second-source", mimeType: "audio/mpeg" }); });
   });
 
+  it("stops on a failed queued source and lets the user skip it without recording a play", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "missing" } }, { entryId: "c", track: { ...track, id: "last" } }]); });
+    apiMocks.prepareTrackAudioSource.mockRejectedValueOnce(new Error("Download failed"));
+    await act(async () => { MockAudio.instances[0].emit("ended"); });
+    expect(result.current.status).toBe("error");
+    expect(result.current.currentQueueEntryId).toBe("b");
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(1);
+    await act(async () => { result.current.next(); });
+    expect(result.current.currentQueueEntryId).toBe("c");
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+  });
+
 });
