@@ -26,18 +26,18 @@ review: formalising SQLite migrations before more tables pile up.
 | 013 | [Dropbox token persistence](./013-dropbox-token-persistence.md) | Feature | Done | 014 |
 | 014 | [Dropbox account connection](./014-dropbox-account-connection.md) | Feature | Done | 015 |
 | 015 | [Dropbox libraries, sync and playback](./015-dropbox-libraries-sync-and-playback.md) | Feature | Done | - |
+| 016 | [Playlist queueing and auto-advance](./016-playlist-playback-queue.md) | Feature | Done | - |
 
 ## Close-out note
 
 The sprint 02 local-library slices are complete and covered by the current
-desktop test suite. Remaining user-facing product work:
-
-- Playlist queueing and auto-advance.
+desktop test suite. Dropbox account connection, polling, downloads, and playback are implemented.
+Playlist queueing and auto-advance are implemented and verified. The completed
+work is delivered through dependent PRs; merging remains a maintainer action.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop
-app is not a reliable callback target. To be reconfirmed and ADR'd when
-card 002 lands.
+app is not a reliable callback target. See ADR 0005 for the implemented decision.
 
 ## Why playback moved out of sprint 02
 

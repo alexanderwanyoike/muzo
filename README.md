@@ -8,7 +8,8 @@ Muzo treats your music collection as a set of **libraries** and **playlists**. A
 
 Pre-alpha, but no longer just scaffolded. The local desktop player slice is
 usable: filesystem libraries can be added, scanned, kept in sync, browsed, and
-played with metadata editing and play counts. Sprint card status is tracked in
+played with metadata editing and play counts. Dropbox account connection, library
+sync and playback, and playlist queues with auto-advance are also implemented. Sprint card status is tracked in
 [`docs/cards/`](./docs/cards). The desktop shell and backend now run on Electron
 and TypeScript.
 
@@ -61,6 +62,14 @@ Downloads require an internet connection, and retained audio is capped at 1 GiB.
 Disconnect removes local account credentials. Access can also be revoked through
 Dropbox's connected-app settings. Live Dropbox access requires your own app key
 and consent; automated tests exercise the API boundary with fixtures.
+
+## Playlist playback
+
+Use Play playlist to start its available entries, or play an entry to start there.
+Previous and next controls move within the queue. Playback stops at its end.
+Repeated tracks remain separate entries; unavailable entries are skipped when the
+queue starts. Selecting a song directly replaces the queue. Edits to a playlist
+affect the next queue started, leaving the current listening order intact.
 
 ## Common scripts
 
