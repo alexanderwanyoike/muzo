@@ -216,6 +216,24 @@ describe("Electron container", () => {
       },
     ]);
   });
+  it("connects Dropbox through IPC and exposes only public account status", async () => {
+    const opened: string[] = [];
+    const container = createElectronContainer({
+      dbPath: tempDatabasePath(),
+      openExternal: async (url) => { opened.push(url); },
+      dropboxCipher: { protect: (s) => `protected:${s}`, unprotect: (s) => s.slice(10) },
+      dropboxTransport: { send: async () => ({ status: 200, body: JSON.stringify({ access_token: "access", refresh_token: "refresh", account_id: "dbid:1", expires_in: 3600 }) }) },
+    });
+    await container.resolve("migrateDatabase")();
+    const commands = container.resolve("commandDispatcher");
+    expect(await commands.handleElectronCommand("dropbox_begin", { input: { clientId: "app-key" } })).toEqual({ ok: true, value: { pending: true } });
+    expect(opened[0]).toContain("https://www.dropbox.com/oauth2/authorize?");
+    expect(await commands.handleElectronCommand("dropbox_complete", { input: { code: "auth-code" } })).toEqual({ ok: true, value: { connected: true, accountId: "dbid:1" } });
+    expect(await commands.handleElectronCommand("dropbox_status")).toEqual({ ok: true, value: { connected: true, accountId: "dbid:1" } });
+    expect(await commands.handleElectronCommand("dropbox_begin", { input: { clientId: 42 } })).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
+    expect(await commands.handleElectronCommand("dropbox_disconnect")).toEqual({ ok: true, value: { connected: false, accountId: null } });
+  });
+
 });
 
 function tempDatabasePath(): string {
