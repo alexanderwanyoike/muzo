@@ -6,6 +6,14 @@ import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 
+function signalGroup(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(-pid, signal);
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
+  }
+}
+
 const imageArgument = process.argv[2];
 assert(imageArgument, "An AppImage path is required");
 const image = resolve(imageArgument);
@@ -65,12 +73,10 @@ for (const repair of [false, true]) {
   } finally {
     if (player.pid) {
       const closed = new Promise<void>((done) => player.once("close", () => done()));
-      try { process.kill(-player.pid, "SIGTERM"); } catch { /* The test process may already have exited. */ }
+      signalGroup(player.pid, "SIGTERM");
       await Promise.race([closed, delay(2_000)]);
-      if (player.exitCode === null && player.signalCode === null) {
-        try { process.kill(-player.pid, "SIGKILL"); } catch { /* The test process may already have exited. */ }
-      }
+      signalGroup(player.pid, "SIGKILL");
     }
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
