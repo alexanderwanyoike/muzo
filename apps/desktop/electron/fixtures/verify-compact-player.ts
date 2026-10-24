@@ -76,7 +76,10 @@ installPlayerWindowMode(ipcMain, (event) =>
   BrowserWindow.fromWebContents(event.sender),
 );
 
-function nativeShape(window: BrowserWindow, label: string): string | null {
+async function nativeShape(
+  window: BrowserWindow,
+  label: string,
+): Promise<string | null> {
   if (process.platform !== "linux") return null;
   const id = String(window.getNativeWindowHandle().readUInt32LE());
   const report = execFileSync("xwininfo", ["-id", id, "-shape"], {
@@ -84,6 +87,12 @@ function nativeShape(window: BrowserWindow, label: string): string | null {
   });
   const directory = process.env.MUZO_COMPACT_NATIVE_CAPTURE_DIR;
   if (directory) {
+    await window.webContents.executeJavaScript(
+      "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+    );
+    await new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    });
     mkdirSync(directory, { recursive: true });
     writeFileSync(join(directory, `${label}.txt`), report);
     execFileSync("import", [
@@ -253,7 +262,10 @@ void app.whenReady().then(async () => {
             mode,
             queue: false,
             layout,
-            nativeShape: nativeShape(window, `${theme}-${mode}-solo-${width}`),
+            nativeShape: await nativeShape(
+              window,
+              `${theme}-${mode}-solo-${width}`,
+            ),
           });
         }
         await click("Show queue");
@@ -338,7 +350,10 @@ void app.whenReady().then(async () => {
             queue: true,
             layout,
             queueAccess,
-            nativeShape: nativeShape(window, `${theme}-${mode}-queue-${width}`),
+            nativeShape: await nativeShape(
+              window,
+              `${theme}-${mode}-queue-${width}`,
+            ),
           });
         }
         await click("Return to library");
@@ -384,7 +399,7 @@ void app.whenReady().then(async () => {
         original,
         restored: window.getNormalBounds(),
         minimum: window.getMinimumSize(),
-        restoredShape: nativeShape(window, "library-restored"),
+        restoredShape: await nativeShape(window, "library-restored"),
       }),
     );
     window.destroy();
