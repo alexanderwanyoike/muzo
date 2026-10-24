@@ -112,3 +112,13 @@
   scroll-margin-top: 16px;
   outline: none;
 }
+.sources-panel__footer button:hover {
+  background: var(--selected);
+}
+.library-list__row:hover {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.library-list__remove:hover {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+}
