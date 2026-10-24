@@ -386,6 +386,17 @@ describe("PlaylistPanel", () => {
       ).disabled,
     ).toBe(true);
   });
+  it("queues a playlist in order while skipping unavailable entries", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockResolvedValueOnce(playlists);
+    const onPlayQueue = vi.fn();
+    render(<PlaylistPanel onPlayQueue={onPlayQueue} />);
+    await user.click(await screen.findByRole("button", { name: "Play Road Trip" }));
+    expect(onPlayQueue).toHaveBeenCalledWith([
+      { entryId: "entry-1", track: expect.objectContaining({ id: "track-1", libraryId: "lib-1" }) },
+    ], 0);
+  });
+
 });
 
 function entryLabels(): string[] {
