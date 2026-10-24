@@ -19,11 +19,15 @@ describe("PlaylistApplicationService", () => {
     ).create("Road Trip");
 
     expect(playlist).toEqual({
+      ok: true,
+      value: {
       id: "playlist-1",
       name: "Road Trip",
       entries: [],
+      },
     });
-    await expect(repository.list()).resolves.toEqual([playlist]);
+    if (!playlist.ok) throw new Error("Playlist creation failed");
+    await expect(repository.list()).resolves.toEqual([playlist.value]);
   });
 
   it("rejects an empty playlist name", async () => {
@@ -33,7 +37,7 @@ describe("PlaylistApplicationService", () => {
         () => "playlist-1",
         () => "entry-1",
       ).create(" "),
-    ).rejects.toEqual({ kind: "emptyName" });
+    ).resolves.toMatchObject({ ok: false, error: { kind: "emptyName" } });
   });
 
   it("adds removes and reorders playlist entries", async () => {
@@ -44,12 +48,15 @@ describe("PlaylistApplicationService", () => {
       () => "playlist-1",
       () => `entry-${++entryNumber}`,
     );
-    const playlist = await service.create("Road Trip");
+    const created = await service.create("Road Trip");
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("Playlist creation failed");
+    const playlist = created.value;
 
     await service.addTrack(playlist.id, "track-1");
     const withTwoTracks = await service.addTrack(playlist.id, "track-2");
 
-    expect(withTwoTracks.entries).toEqual([
+    expect(withTwoTracks.ok ? withTwoTracks.value.entries : withTwoTracks).toEqual([
       { id: "entry-1", trackId: "track-1", position: 0 },
       { id: "entry-2", trackId: "track-2", position: 1 },
     ]);
@@ -58,13 +65,13 @@ describe("PlaylistApplicationService", () => {
       "entry-2",
       "entry-1",
     ]);
-    expect(reordered.entries).toEqual([
+    expect(reordered.ok ? reordered.value.entries : reordered).toEqual([
       { id: "entry-2", trackId: "track-2", position: 0 },
       { id: "entry-1", trackId: "track-1", position: 1 },
     ]);
 
     const removed = await service.removeEntry(playlist.id, "entry-2");
-    expect(removed.entries).toEqual([
+    expect(removed.ok ? removed.value.entries : removed).toEqual([
       { id: "entry-1", trackId: "track-1", position: 0 },
     ]);
   });
