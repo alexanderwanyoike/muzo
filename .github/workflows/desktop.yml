@@ -28,12 +28,12 @@ jobs:
           node-version: "22"
           cache: yarn
           cache-dependency-path: yarn.lock
-      - name: Prepare Yarn and Linux packaging tools
+      - name: Prepare Yarn, native image tests and Linux packaging tools
         run: |
           corepack enable
           corepack prepare yarn@1.22.22 --activate
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends fakeroot dpkg
+          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb libgtk-3-0t64 libasound2t64 libgbm1
       - run: yarn install --frozen-lockfile
       - run: yarn format:check
       - run: yarn lint
