@@ -687,3 +687,25 @@ it("stops and invalidates pending playback when its source is removed", async ()
   expect(audio.paused).toBe(true);
   expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
 });
+
+it("removes unavailable queued entries without interrupting another source", async () => {
+  const kept = { ...track, id: "kept", libraryId: "other" };
+  const nextKept = { ...kept, id: "next-kept" };
+  const { result } = renderHook(() => useAudioPlayer());
+  await act(async () => result.current.playQueue([
+    { entryId: "gone-before", track },
+    { entryId: "current", track: kept },
+    { entryId: "gone-after", track },
+    { entryId: "next", track: nextKept },
+  ], 1));
+  const audio = MockAudio.instances[0];
+  const originalSource = audio.src;
+  act(() => result.current.removeSource("lib-1"));
+  expect(result.current.current?.id).toBe("kept");
+  expect(result.current.currentQueueEntryId).toBe("current");
+  expect(result.current.hasPrevious).toBe(false);
+  expect(result.current.hasNext).toBe(true);
+  expect(audio.src).toBe(originalSource);
+  await act(async () => result.current.next());
+  expect(result.current.current?.id).toBe("next-kept");
+});
