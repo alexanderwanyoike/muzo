@@ -1,5 +1,5 @@
 import DropboxFolderPicker from "./dropbox-folder-picker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dropboxSyncStatus, setDropboxSyncInterval } from "./dropbox-api";
 import type { LibraryDto } from "./types";
 
@@ -11,6 +11,12 @@ export default function DropboxLibrarySettings({
   onAdded: (library: LibraryDto) => void;
 }) {
   const [browsing, setBrowsing] = useState(false);
+  const browseButton = useRef<HTMLButtonElement>(null);
+  const wasBrowsing = useRef(false);
+  useEffect(() => {
+    if (wasBrowsing.current && !browsing) browseButton.current?.focus();
+    wasBrowsing.current = browsing;
+  }, [browsing]);
   const [minutes, setMinutes] = useState(5);
   const [savingInterval, setSavingInterval] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export default function DropboxLibrarySettings({
     <div>
       {browsing ? (
         <DropboxFolderPicker
+          key={accountId}
           accountId={accountId}
           onAdded={onAdded}
           onClose={() => setBrowsing(false)}
@@ -59,6 +66,7 @@ export default function DropboxLibrarySettings({
       ) : (
         <button
           className="dropbox-browse-button"
+          ref={browseButton}
           type="button"
           disabled={!accountId}
           onClick={() => setBrowsing(true)}
