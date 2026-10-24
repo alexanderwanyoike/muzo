@@ -1,9 +1,23 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, readdirSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync, readdirSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { NodeArtworkCache } from "./node-artwork-cache";
+
+it("discards a thumbnail whose stored image bytes were corrupted", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-corrupt-"));
+  try {
+    const uri = `data:image/png;base64,${readFileSync(new URL("./fixtures/cover.png", import.meta.url)).toString("base64")}`;
+    const cache = new NodeArtworkCache(directory);
+    await cache.save("song", uri);
+    const file = join(directory, readdirSync(directory)[0]);
+    const record = JSON.parse(readFileSync(file, "utf8")) as { uri: string };
+    record.uri = `${record.uri.slice(0, 100)}${record.uri[100] === "A" ? "B" : "A"}${record.uri.slice(101)}`;
+    writeFileSync(file, JSON.stringify(record));
+    expect(await new NodeArtworkCache(directory).find("song")).toEqual({ ok: true, value: null });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
 
 it.each(["entries", "bytes"])("evicts the least recently used thumbnail to respect the %s budget", async (budget) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-budget-"));
