@@ -52,4 +52,5 @@ export interface TrackMetadataRepository {
 }
 
 export interface TrackRepository
-  extends ScannedTrackRepository, TrackMetadataRepository {}
+  extends ScannedTrackRepository,
+    TrackMetadataRepository {}

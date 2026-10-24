@@ -11,7 +11,9 @@ import { locateSqlWasm } from "./sql-wasm-path";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
-export class SqliteDropboxAccountRepository implements DropboxAccountRepository {
+export class SqliteDropboxAccountRepository
+  implements DropboxAccountRepository
+{
   constructor(
     private readonly dbPath: string,
     private readonly cipher: DropboxTokenCipher,
