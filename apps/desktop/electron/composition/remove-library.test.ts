@@ -23,6 +23,8 @@ it("removes one source and its catalogue while preserving files, other sources a
     await expect(dispatcher.handleElectronCommand("remove_library", { input: { libraryId: "source" } })).resolves.toEqual({ ok: true, value: undefined });
     expect((await libraries.list()).map(item => item.id)).toEqual(["keep"]);
     expect(await tracks.listForLibrary("source")).toEqual([]);
+    await tracks.upsertScannedTrack({ id: "late-track", libraryId: "source", title: "Late scan", artist: "Artist", album: null, trackNumber: null, discNumber: null, genre: null, year: null, durationSeconds: 120, filePath, fileSize: 24, fileMtime: 1 });
+    expect(await tracks.listForLibrary("source")).toEqual([]);
     expect(readFileSync(filePath, "utf8")).toBe("disposable music fixture");
     const playlists = await container.resolve("playlists").list();
     expect(playlists[0].entries).toHaveLength(1);
