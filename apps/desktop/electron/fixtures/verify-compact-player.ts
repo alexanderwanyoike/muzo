@@ -222,6 +222,7 @@ void app.whenReady().then(async () => {
     await until("!!document.querySelector('button[aria-label=Pause]')");
     const original = window.getNormalBounds();
     const measurements = [];
+    const libraryControls = [];
     for (const theme of ["aluminium", "glass"]) {
       for (const mode of ["light", "dark"]) {
         await click("Playlists");
@@ -230,6 +231,21 @@ void app.whenReady().then(async () => {
         await window.webContents.executeJavaScript(
           `document.documentElement.dataset.theme=${JSON.stringify(theme)}; document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
         );
+        for (const width of [1200, 800]) {
+          window.setContentSize(width, 800);
+          await window.webContents.executeJavaScript("document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");
+          libraryControls.push(await window.webContents.executeJavaScript(`(() => {
+            const mini = document.querySelector('.app-shell button[aria-label="Mini player"]');
+            const volume = document.querySelector('.app-shell input[aria-label="Volume"]');
+            const rect = mini.getBoundingClientRect();
+            return {width:innerWidth, top:rect.top, right:rect.right, bottom:rect.bottom, buttonWidth:rect.width, volumeTop:volume.getBoundingClientRect().top, text:mini.textContent.trim(), title:mini.title};
+          })()`));
+          if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
+            mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {recursive:true});
+            writeFileSync(join(process.env.MUZO_COMPACT_CAPTURE_DIR, `library-${theme}-${mode}-${width}.png`), (await window.webContents.capturePage()).toPNG());
+          }
+        }
+        window.setBounds(original);
         await click("Mini player");
         await until("!!document.querySelector('.compact-player')");
         await until(
@@ -396,6 +412,7 @@ void app.whenReady().then(async () => {
       resultPath,
       JSON.stringify({
         measurements,
+        libraryControls,
         fallback,
         original,
         restored: window.getNormalBounds(),
