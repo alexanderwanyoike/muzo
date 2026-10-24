@@ -5,6 +5,17 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { NodeArtworkCache } from "./node-artwork-cache";
 
+it("discards an oversized cache record instead of loading it", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-oversized-"));
+  try {
+    const cache = new NodeArtworkCache(directory);
+    await cache.save("song", null);
+    const file = join(directory, readdirSync(directory)[0]);
+    writeFileSync(file, `${readFileSync(file, "utf8")}${" ".repeat(300 * 1024)}`);
+    expect(await cache.find("song")).toEqual({ ok: true, value: null });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
 it.each(["data:image/svg+xml,<svg/>", `data:image/png;base64,${"A".repeat(256 * 1024)}`])("refuses an invalid or oversized thumbnail", async (uri) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-invalid-"));
   try {
