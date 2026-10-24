@@ -670,3 +670,20 @@ it.each(["toggle", "select-current"] as const)(
     expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
   },
 );
+
+it("stops and invalidates pending playback when its source is removed", async () => {
+  let prepare: ((value: { mimeType: string; url: string }) => void) | undefined;
+  apiMocks.prepareTrackAudioSource.mockImplementationOnce(() => new Promise(resolve => { prepare = resolve; }));
+  const { result } = renderHook(() => useAudioPlayer());
+  act(() => result.current.play(track));
+  act(() => result.current.removeSource(track.libraryId));
+  await act(async () => { prepare?.({ mimeType: "audio/mpeg", url: "http://127.0.0.1/stale" }); });
+  const audio = MockAudio.instances[0];
+  audio.emit("pause");
+  audio.emit("error");
+  expect(result.current.current).toBeNull();
+  expect(result.current.status).toBe("idle");
+  expect(audio.src).toBe("");
+  expect(audio.paused).toBe(true);
+  expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
+});
