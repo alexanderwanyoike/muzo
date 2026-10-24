@@ -161,3 +161,24 @@ it("shows a completed-removal cleanup warning after dismissing the confirmation"
   expect(await screen.findByRole("status")).toHaveProperty("textContent", "Source removed. Restart Muzo to release its filesystem watcher.");
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+
+it("discards a typed Dropbox refresh failure after its source was removed", async () => {
+  let finishSync: ((value: unknown) => void) | undefined;
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "list_libraries") return [{ ...library, kind: "dropbox" }];
+    if (command === "dropbox_status") return { ok: true, value: { connected: false, accountId: null } };
+    if (command === "dropbox_sync_library") return new Promise(resolve => { finishSync = resolve; });
+    if (command === "remove_library") return { ok: true, value: { warning: null } };
+    return [];
+  });
+  render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  const sources = within(screen.getByRole("region", { name: "Indexed sources" }));
+  await userEvent.click(sources.getByRole("button", { name: "Refresh Music" }));
+  await userEvent.click(sources.getByRole("button", { name: "Remove Music" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await act(async () => finishSync?.({ ok: false, error: { kind: "remote", message: "Stale Dropbox error" } }));
+  expect(screen.queryByText("Stale Dropbox error")).toBeNull();
+});
