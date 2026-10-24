@@ -3,7 +3,9 @@ import { join } from "node:path";
 
 const credentialStorageIdentity = "Electron";
 const desktopName = "Muzo";
-type IdentityApp = Pick<App, "setName" | "getPath" | "setPath" | "once">;
+type IdentityApp = Pick<App, "setName" | "getPath" | "setPath"> & {
+  once(event: "ready", listener: () => void): void;
+};
 
 export function configureDesktopIdentity(app: IdentityApp): void {
   // Electron binds OS encryption keys before ready; existing tokens use this name.
