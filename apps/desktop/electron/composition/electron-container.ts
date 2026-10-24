@@ -1,3 +1,6 @@
+import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
+import { RemoveLibraryService } from "../application/remove-library-service";
+import { SqliteLibraryRemover } from "../infrastructure/sqlite/sqlite-library-remover";
 import {
   asClass,
   asFunction,
@@ -437,6 +440,7 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
+      new RemoveLibraryCommand(new RemoveLibraryService(new SqliteLibraryRemover(cradle.dbPath))),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),
