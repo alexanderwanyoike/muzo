@@ -1,14 +1,22 @@
-import { useRef, useState } from "react";
-import { ListMusic, Search, X } from "lucide-react";
+import CreatePlaylistForm from "./create-playlist-form";
+import type { Result } from "../shared/result";
+import { useEffect, useRef, useState } from "react";
+import { ListMusic, Search, X, Plus } from "lucide-react";
 import type { PlaylistDto } from "./api";
 
 interface Props {
   playlists: PlaylistDto[] | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onCreate: (name: string) => Promise<Result<void>>;
 }
 
-export default function PlaylistNavigator({ playlists, selectedId, onSelect }: Props) {
+export default function PlaylistNavigator({ playlists, selectedId, onSelect, onCreate }: Props) {
+  const [creating, setCreating] = useState(false);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+  function closeCreate() { restoreFocus.current = true; setCreating(false); }
+  useEffect(() => { if (!creating && restoreFocus.current) { restoreFocus.current = false; addButton.current?.focus(); } }, [creating]);
   const [query, setQuery] = useState("");
   const searchInput = useRef<HTMLInputElement>(null);
   const search = query.trim().toLowerCase();
@@ -41,6 +49,9 @@ export default function PlaylistNavigator({ playlists, selectedId, onSelect }: P
           ))}
         </ul>
       </div>
+      <footer className="sources-panel__footer">
+        {creating ? <CreatePlaylistForm onCreate={async (name) => { const result = await onCreate(name); if (result.ok) setQuery(""); return result; }} onClose={closeCreate} /> : <button ref={addButton} type="button" disabled={playlists === null} onClick={() => setCreating(true)}><Plus aria-hidden="true" /> New playlist</button>}
+      </footer>
     </section>
   );
 }

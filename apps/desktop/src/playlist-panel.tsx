@@ -1,7 +1,8 @@
+import playlistRequest from "./playlist-request";
 import { createPortal } from "react-dom";
 import PlaylistNavigator from "./playlist-navigator";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import TrackArtwork from "./track-artwork";
 import {
   createPlaylist,
@@ -51,9 +52,7 @@ export default function PlaylistPanel({
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [selectedId, selectPlaylist] = useState<string | null>(null);
   const selected = playlists?.find((playlist) => playlist.id === selectedId) ?? playlists?.[0];
-  const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [removingEntryId, setRemovingEntryId] = useState<string | null>(null);
   const [reorderingEntryId, setReorderingEntryId] = useState<string | null>(
     null,
@@ -81,26 +80,13 @@ export default function PlaylistPanel({
     };
   }, [refreshKey]);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      setError("Enter a playlist name.");
-      return;
-    }
-
-    setCreating(true);
-    setError(null);
-    try {
-      const playlist = await createPlaylist({ name: trimmedName });
-      setPlaylists((prev) => [...(prev ?? []), playlist]);
-      setName("");
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not create playlist.");
-    } finally {
-      setCreating(false);
-    }
+  async function handleCreate(name: string) {
+    const result = await playlistRequest(() => createPlaylist({ name }), "Could not create playlist.");
+    if (!result.ok) return result;
+    const playlist = result.value;
+    setPlaylists((prev) => [...(prev ?? []), playlist]);
+    selectPlaylist(playlist.id);
+    return { ok: true as const, value: undefined };
   }
 
   async function handleRemoveEntry(
@@ -194,30 +180,11 @@ export default function PlaylistPanel({
     else onPlayTrack(entries[0].track);
   }
 
-  const navigator = <PlaylistNavigator playlists={playlists} selectedId={selected?.id ?? null} onSelect={selectPlaylist} />;
+  const navigator = <PlaylistNavigator playlists={playlists} selectedId={selected?.id ?? null} onSelect={selectPlaylist} onCreate={handleCreate} />;
   return (
     <div className="playlist-panel">
       {navigationTarget ? createPortal(navigator, navigationTarget) : navigator}
-      <section className="playlist-panel__create">
-        <form className="playlist-panel__form" onSubmit={handleCreate}>
-          <label>
-            Playlist name
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="New playlist"
-            />
-          </label>
-          <button type="submit" disabled={creating}>
-            {creating ? "Creating..." : "Create playlist"}
-          </button>
-        </form>
-        {error && (
-          <p role="alert" className="playlist-panel__error">
-            {error}
-          </p>
-        )}
-      </section>
+      {error && <p role="alert" className="playlist-panel__error">{error}</p>}
 
       {playlists === null ? (
         <p className="app__placeholder">Loading playlists...</p>
