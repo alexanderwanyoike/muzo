@@ -61,7 +61,7 @@ it.each(["filesystem", "dropbox"] as const)(
         dispatcher.handleElectronCommand("remove_library", {
           input: { libraryId: "source" },
         }),
-      ).resolves.toEqual({ ok: true, value: undefined });
+      ).resolves.toEqual({ ok: true, value: { warning: null } });
       expect(unwatch).toHaveBeenCalledWith("source");
       expect(
         await container.resolve("dropboxSettings").accountFor("source"),

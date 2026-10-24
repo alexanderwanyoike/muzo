@@ -31,7 +31,7 @@ beforeEach(() => {
     if (command === "list_libraries") return [library];
     if (command === "dropbox_status")
       return { ok: true, value: { connected: false, accountId: null } };
-    if (command === "remove_library") return { ok: true, value: undefined };
+    if (command === "remove_library") return { ok: true, value: { warning: null } };
     return [];
   });
   installTestRuntime({ invoke, openDirectory: vi.fn() });
@@ -85,7 +85,7 @@ it("offers removal beside a sidebar source and keeps it when removal fails", asy
             ok: false,
             error: { kind: "repository", message: "Disk is busy. Try again." },
           }
-        : { ok: true, value: undefined };
+        : { ok: true, value: { warning: null } };
     }
     return [];
   });
@@ -123,7 +123,7 @@ it("does not restore source counts when an old refresh finishes after removal", 
         finishScan = resolve;
       });
     if (command === "list_tracks") return [{ id: "late-track" }];
-    if (command === "remove_library") return { ok: true, value: undefined };
+    if (command === "remove_library") return { ok: true, value: { warning: null } };
     return [];
   });
   const user = userEvent.setup();
@@ -146,4 +146,18 @@ it("does not restore source counts when an old refresh finishes after removal", 
   );
   expect(screen.getByText("0 libraries - 0 tracks")).toBeDefined();
   expect(screen.queryByText("Refreshed Music: 1 track.")).toBeNull();
+});
+
+
+it("shows a completed-removal cleanup warning after dismissing the confirmation", async () => {
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "list_libraries") return [library];
+    if (command === "remove_library") return { ok: true, value: { warning: "Source removed. Restart Muzo to release its filesystem watcher." } };
+    return [];
+  });
+  render(<App />);
+  await userEvent.click(await screen.findByRole("button", { name: "Remove Music" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  expect(await screen.findByRole("status")).toHaveProperty("textContent", "Source removed. Restart Muzo to release its filesystem watcher.");
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
