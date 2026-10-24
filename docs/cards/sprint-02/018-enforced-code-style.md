@@ -18,7 +18,7 @@ initial Standards review of the Electron integration.
 - [x] Strict TypeScript checks include shared contracts and configuration.
 - [x] Existing modules conform without lint suppression comments.
 - [x] Unknown Dropbox token data is validated before mapping it into application credentials.
-- [ ] All required checks and Linux packaging succeed on the final branch.
+- [x] All required checks and Linux packaging succeed on the final branch (225 tests; zip and deb).
 - [ ] Initial review and fix re-review are complete.
 
 ## Established patterns and scope
