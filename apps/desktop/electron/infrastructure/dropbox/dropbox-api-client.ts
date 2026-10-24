@@ -142,10 +142,26 @@ export class DropboxApiClient {
   }
 
   async temporaryLink(accessToken: string, path: string): Promise<string> {
-    const payload: unknown = await this.postJson(accessToken, "https://api.dropboxapi.com/2/files/get_temporary_link", { path });
-    if (!payload || typeof payload !== "object" || !("link" in payload) || typeof payload.link !== "string") throw new Error("Dropbox content link is missing");
+    const payload: unknown = await this.postJson(
+      accessToken,
+      "https://api.dropboxapi.com/2/files/get_temporary_link",
+      { path },
+    );
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("link" in payload) ||
+      typeof payload.link !== "string"
+    )
+      throw new Error("Dropbox content link is missing");
     const link = new URL(payload.link);
-    if (link.protocol !== "https:" || !link.hostname.endsWith(".dropboxusercontent.com") || link.username || link.password) throw new Error("Dropbox content link is invalid");
+    if (
+      link.protocol !== "https:" ||
+      !link.hostname.endsWith(".dropboxusercontent.com") ||
+      link.username ||
+      link.password
+    )
+      throw new Error("Dropbox content link is invalid");
     return link.href;
   }
 

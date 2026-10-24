@@ -38,7 +38,12 @@ beforeEach(() => {
   mockedInvoke = vi.fn();
   mockedArtwork = vi.fn().mockResolvedValue({ ok: true, value: null });
   installTestRuntime({
-    invoke: vi.fn((command: string, args?: unknown) => (command === "get_track_artwork" ? mockedArtwork : mockedInvoke)(command, args)),
+    invoke: vi.fn((command: string, args?: unknown) =>
+      (command === "get_track_artwork" ? mockedArtwork : mockedInvoke)(
+        command,
+        args,
+      ),
+    ),
     openDirectory: vi.fn().mockResolvedValue(null),
   });
 });
@@ -459,12 +464,31 @@ function entryLabels(): string[] {
 }
 
 it("shows covers for available playlist entries and skips unavailable sources", async () => {
-  vi.stubGlobal("IntersectionObserver", vi.fn((callback: IntersectionObserverCallback) => ({ observe: () => callback([{ isIntersecting: true }] as IntersectionObserverEntry[], { disconnect: vi.fn() } as unknown as IntersectionObserver), disconnect: vi.fn() })));
+  vi.stubGlobal(
+    "IntersectionObserver",
+    vi.fn((callback: IntersectionObserverCallback) => ({
+      observe: () =>
+        callback(
+          [{ isIntersecting: true }] as IntersectionObserverEntry[],
+          { disconnect: vi.fn() } as unknown as IntersectionObserver,
+        ),
+      disconnect: vi.fn(),
+    })),
+  );
   mockedInvoke.mockResolvedValue(playlists);
-  mockedArtwork.mockResolvedValue({ ok: true, value: "data:image/png;base64,cover" });
+  mockedArtwork.mockResolvedValue({
+    ok: true,
+    value: "data:image/png;base64,cover",
+  });
   render(<PlaylistPanel />);
-  expect(await screen.findByRole("img", { name: "Artwork for Hotel California" })).toBeDefined();
-  expect(mockedArtwork).toHaveBeenCalledWith("get_track_artwork", { input: { libraryId: "lib-1", trackId: "track-1" } });
-  expect(mockedArtwork).not.toHaveBeenCalledWith("get_track_artwork", { input: { libraryId: null, trackId: "track-2" } });
+  expect(
+    await screen.findByRole("img", { name: "Artwork for Hotel California" }),
+  ).toBeDefined();
+  expect(mockedArtwork).toHaveBeenCalledWith("get_track_artwork", {
+    input: { libraryId: "lib-1", trackId: "track-1" },
+  });
+  expect(mockedArtwork).not.toHaveBeenCalledWith("get_track_artwork", {
+    input: { libraryId: null, trackId: "track-2" },
+  });
   vi.unstubAllGlobals();
 });

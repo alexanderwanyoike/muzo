@@ -56,7 +56,12 @@ beforeEach(() => {
   mockedInvoke = vi.fn();
   mockedArtwork = vi.fn().mockResolvedValue({ ok: true, value: null });
   installTestRuntime({
-    invoke: vi.fn((command: string, args?: unknown) => (command === "get_track_artwork" ? mockedArtwork : mockedInvoke)(command, args)),
+    invoke: vi.fn((command: string, args?: unknown) =>
+      (command === "get_track_artwork" ? mockedArtwork : mockedInvoke)(
+        command,
+        args,
+      ),
+    ),
     openDirectory: vi.fn().mockResolvedValue(null),
   });
 });

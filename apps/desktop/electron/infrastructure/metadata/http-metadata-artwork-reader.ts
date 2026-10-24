@@ -16,19 +16,40 @@ export class HttpMetadataArtworkReader {
       getResponse: async (method, range) => {
         if (!range) throw new Error("Artwork requires partial requests");
         requestedBytes += range[1] - range[0] + 1;
-        if (requestedBytes > metadataBudgetBytes) throw new Error("Artwork metadata exceeds the read budget");
+        if (requestedBytes > metadataBudgetBytes)
+          throw new Error("Artwork metadata exceeds the read budget");
         const response = await client.getResponse(method, range);
         const content = response.contentRange;
-        if (!content || content.firstBytePosition !== range[0] || content.lastBytePosition === undefined || content.lastBytePosition > range[1]) throw new Error("Artwork server did not honor the requested range");
+        if (
+          !content ||
+          content.firstBytePosition !== range[0] ||
+          content.lastBytePosition === undefined ||
+          content.lastBytePosition > range[1]
+        )
+          throw new Error("Artwork server did not honor the requested range");
         return { ...response, acceptPartialRequests: true };
       },
     };
-    const timeout = setTimeout(() => client.abort(), metadataTimeoutMilliseconds);
+    const timeout = setTimeout(
+      () => client.abort(),
+      metadataTimeoutMilliseconds,
+    );
     try {
-      const source = await tokenizer(boundedClient, { avoidHeadRequests: true, minimumChunkSize: metadataChunkBytes });
+      const source = await tokenizer(boundedClient, {
+        avoidHeadRequests: true,
+        minimumChunkSize: metadataChunkBytes,
+      });
       try {
-        return selectCover((await parseFromTokenizer(source, { duration: false })).common.picture);
-      } finally { await source.close(); }
-    } finally { clearTimeout(timeout); client.abort(); }
+        return selectCover(
+          (await parseFromTokenizer(source, { duration: false })).common
+            .picture,
+        );
+      } finally {
+        await source.close();
+      }
+    } finally {
+      clearTimeout(timeout);
+      client.abort();
+    }
   }
 }

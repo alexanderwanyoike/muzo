@@ -449,7 +449,18 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
-      new TrackArtworkCommand(new TrackArtworkService(new SqliteTrackArtworkSources(cradle.dbPath), new MusicMetadataArtworkReader(), options.artworkThumbnails ?? { create: () => null }, new DropboxMetadataArtworkReader(new DropboxApiClient({ clientId: "" }, dropboxTransport), new HttpMetadataArtworkReader()), cradle.dropboxLibraries)),
+      new TrackArtworkCommand(
+        new TrackArtworkService(
+          new SqliteTrackArtworkSources(cradle.dbPath),
+          new MusicMetadataArtworkReader(),
+          options.artworkThumbnails ?? { create: () => null },
+          new DropboxMetadataArtworkReader(
+            new DropboxApiClient({ clientId: "" }, dropboxTransport),
+            new HttpMetadataArtworkReader(),
+          ),
+          cradle.dropboxLibraries,
+        ),
+      ),
       new RemoveLibraryCommand(
         new RemoveLibraryService(
           new SqliteLibraryRemover(cradle.dbPath),

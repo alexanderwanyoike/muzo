@@ -280,7 +280,18 @@ export default function App() {
             />
           )}
         </section>
-        {current && <figure className="app-sidebar__sleeve" aria-label="Current album artwork"><TrackArtwork track={current} eager className="track-artwork--large" /></figure>}
+        {current && (
+          <figure
+            className="app-sidebar__sleeve"
+            aria-label="Current album artwork"
+          >
+            <TrackArtwork
+              track={current}
+              eager
+              className="track-artwork--large"
+            />
+          </figure>
+        )}
       </aside>
 
       <section className="app-content">

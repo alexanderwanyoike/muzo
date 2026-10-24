@@ -337,5 +337,12 @@ code {
   height: 13px;
 }
 
-.app-sidebar { display: flex; flex-direction: column; }
-.app-sidebar__sleeve { margin: auto 10px 0; padding-top: 20px; flex-shrink: 0; }
+.app-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+.app-sidebar__sleeve {
+  margin: auto 10px 0;
+  padding-top: 20px;
+  flex-shrink: 0;
+}

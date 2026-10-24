@@ -89,7 +89,11 @@ export default function NowPlayingBar({
       </div>
       <div className="now-playing-bar__display">
         <div className="now-playing-bar__art">
-          {current ? <TrackArtwork track={current} eager /> : <Disc3 aria-hidden="true" />}
+          {current ? (
+            <TrackArtwork track={current} eager />
+          ) : (
+            <Disc3 aria-hidden="true" />
+          )}
         </div>
         <div className="now-playing-bar__track">
           <div className="now-playing-bar__title">{title}</div>
