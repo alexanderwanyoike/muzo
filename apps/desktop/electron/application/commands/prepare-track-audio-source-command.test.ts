@@ -25,3 +25,12 @@ describe("PrepareTrackAudioSourceCommand", () => {
     expect(service.prepare).toHaveBeenCalledWith("lib-1", "trk-1");
   });
 });
+
+it("returns a storage failure when the library kind cannot be loaded", async () => {
+  const prepare = vi.fn();
+  const command = new PrepareTrackAudioSourceCommand({ prepare }, {
+    add: async () => {}, list: async () => [], findById: async () => { throw new Error("unavailable"); },
+  }, { prepare });
+  await expect(command.handle({ input: { libraryId: "cloud", trackId: "song" } })).resolves.toMatchObject({ ok: false, error: { kind: "repository" } });
+  expect(prepare).not.toHaveBeenCalled();
+});
