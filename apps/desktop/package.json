@@ -13,7 +13,7 @@
     "package": "yarn build && electron-forge package",
     "make": "yarn build && electron-forge make",
     "preview": "vite preview",
-    "lint": "eslint src electron --max-warnings=0",
+    "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -23,7 +23,9 @@
     "lint": "yarn workspaces run lint",
     "typecheck": "yarn workspaces run typecheck",
     "test": "yarn workspaces run test",
-    "clean": "yarn workspaces run clean && rm -rf node_modules"
+    "clean": "yarn workspaces run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\""
   },
   "devDependencies": {
     "eslint-config-prettier": "10.1.8",
