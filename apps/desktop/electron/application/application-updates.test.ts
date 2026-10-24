@@ -40,3 +40,27 @@ it.each(["0.0.3-beta.1", "v0.0.3", "invalid", "9999999999999999999999.0.0"])("re
   expect(updates.getStatus().state).toBe("failed");
   expect(backend.download).not.toHaveBeenCalled();
 });
+
+it("coalesces checks and keeps a download from being replaced by a background check", async () => {
+  let finish: ((value: { ok: true; value: { version: string; automatic: boolean } }) => void) | undefined;
+  let finishDownload: ((value: { ok: true; value: undefined }) => void) | undefined;
+  const backend = {
+    check: vi.fn(() => new Promise<{ ok: true; value: { version: string; automatic: boolean } }>((resolve) => { finish = resolve; })),
+    download: vi.fn(() => new Promise<{ ok: true; value: undefined }>((resolve) => { finishDownload = resolve; })),
+    install: vi.fn(), openRelease: vi.fn(), subscribe: vi.fn(() => () => {}),
+  };
+  const updates = createApplicationUpdates({ installedVersion: "0.0.2", backend });
+  const first = updates.check();
+  const second = updates.check();
+  expect(backend.check).toHaveBeenCalledTimes(1);
+  finish?.({ ok: true, value: { version: "0.0.3", automatic: true } });
+  await Promise.all([first, second]);
+  const download = updates.download();
+  expect((await updates.check()).ok).toBe(false);
+  expect((await updates.download()).ok).toBe(false);
+  expect(updates.getStatus().state).toBe("downloading");
+  finishDownload?.({ ok: true, value: undefined });
+  await download;
+  expect((await updates.check()).ok).toBe(false);
+  expect(updates.getStatus().state).toBe("ready");
+});
