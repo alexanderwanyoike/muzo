@@ -8,6 +8,10 @@ interface NowPlayingBarProps {
   durationSeconds: number;
   volume: number;
   playbackError: string | null;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  onNext?: () => void;
+  onPrevious?: () => void;
   onToggle: () => void;
   onSeek: (seconds: number) => void;
   onSetVolume: (value: number) => void;
@@ -21,6 +25,10 @@ export default function NowPlayingBar({
   volume,
   playbackError,
   onToggle,
+  hasNext = false,
+  hasPrevious = false,
+  onNext,
+  onPrevious,
   onSeek,
   onSetVolume,
 }: NowPlayingBarProps) {
@@ -42,6 +50,9 @@ export default function NowPlayingBar({
       </div>
 
       <div className="now-playing-bar__controls">
+        <button type="button" onClick={onPrevious} aria-label="Previous track" disabled={!hasPrevious}>
+          Previous
+        </button>
         <button
           type="button"
           className="now-playing-bar__play"
@@ -50,6 +61,10 @@ export default function NowPlayingBar({
           disabled={!isPlayable}
         >
           {status === "playing" ? "❚❚" : status === "loading" ? "…" : "▶"}
+        </button>
+
+        <button type="button" onClick={onNext} aria-label="Next track" disabled={!hasNext}>
+          Next
         </button>
 
         <span className="now-playing-bar__time">
