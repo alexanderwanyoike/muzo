@@ -104,6 +104,23 @@ describe("PlaylistPanel", () => {
     expect(document.activeElement).toBe(search);
   });
 
+  it("creates and selects a playlist from the panel footer, clearing an active filter", async () => {
+    mockedInvoke.mockResolvedValueOnce(playlists).mockResolvedValueOnce({ id: "quiet", name: "Quiet hours", entries: [] });
+    render(<PlaylistPanel />);
+    await screen.findByRole("button", { name: "Open playlist Road Trip" });
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search playlists" }), "Road");
+    await userEvent.click(screen.getByRole("button", { name: "New playlist" }));
+    const name = screen.getByLabelText("Playlist name");
+    expect(document.activeElement).toBe(name);
+    await userEvent.type(name, "Quiet hours");
+    await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
+    expect(await screen.findByRole("heading", { name: "Quiet hours" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole<HTMLInputElement>("searchbox", { name: "Search playlists" }).value).toBe("");
+    expect(screen.queryByLabelText("Playlist name")).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "New playlist" }));
+  });
+
   it("shows an empty state for playlists without entries", async () => {
     mockedInvoke.mockResolvedValueOnce([
       {
@@ -143,6 +160,7 @@ describe("PlaylistPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("No playlists yet")).toBeDefined(),
     );
+    await user.click(screen.getByRole("button", { name: "New playlist" }));
     await user.type(screen.getByLabelText("Playlist name"), "  Late Night  ");
     await user.click(screen.getByRole("button", { name: "Create playlist" }));
 
@@ -153,9 +171,7 @@ describe("PlaylistPanel", () => {
     );
     expect(screen.getByRole("heading", { name: "Late Night" })).toBeDefined();
     expect(screen.getByText("0 tracks")).toBeDefined();
-    expect(screen.getByLabelText<HTMLInputElement>("Playlist name").value).toBe(
-      "",
-    );
+    expect(screen.queryByLabelText("Playlist name")).toBeNull();
   });
 
   it("rejects blank names before calling the backend", async () => {
@@ -167,6 +183,7 @@ describe("PlaylistPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("No playlists yet")).toBeDefined(),
     );
+    await user.click(screen.getByRole("button", { name: "New playlist" }));
     await user.type(screen.getByLabelText("Playlist name"), "   ");
     await user.click(screen.getByRole("button", { name: "Create playlist" }));
 
@@ -199,6 +216,7 @@ describe("PlaylistPanel", () => {
     await waitFor(() =>
       expect(screen.getByText("No playlists yet")).toBeDefined(),
     );
+    await user.click(screen.getByRole("button", { name: "New playlist" }));
     await user.type(screen.getByLabelText("Playlist name"), "Morning");
     await user.click(screen.getByRole("button", { name: "Create playlist" }));
 
