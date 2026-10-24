@@ -420,18 +420,20 @@ export default function App() {
                     <div className="settings-view__source-actions">
                       <button
                         type="button"
+                        aria-label={`Refresh ${library.name}`}
                         disabled={refreshingLibraryId === library.id}
                         onClick={() => handleRefresh(library)}
                       >
                         {refreshingLibraryId === library.id
                           ? "Refreshing..."
-                          : `Refresh ${library.name}`}
+                          : "Refresh"}
                       </button>
                       <button
                         type="button"
+                        aria-label={`Remove ${library.name}`}
                         onClick={() => setRemovingLibrary(library)}
                       >
-                        Remove {library.name}
+                        Remove
                       </button>
                     </div>
                   </li>
