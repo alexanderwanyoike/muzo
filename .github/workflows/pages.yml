@@ -5,6 +5,7 @@ on:
     branches: [dev, main]
     paths:
       - "site/**"
+      - "packages/distribution/**"
       - "package.json"
       - "yarn.lock"
       - ".prettier*"
@@ -13,17 +14,20 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "packages/distribution/**"
       - "package.json"
       - "yarn.lock"
       - ".prettier*"
       - ".github/workflows/pages.yml"
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: pages-${{ github.event.pull_request.number || github.ref }}
+  group: pages-${{ github.event.pull_request.number || 'production' }}
   cancel-in-progress: false
 
 jobs:
@@ -48,14 +52,11 @@ jobs:
       - run: yarn workspace @muzo/site typecheck
       - run: yarn site:verify
       - run: yarn site:build
-      - name: Upload the verified static site
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        with:
-          path: site/dist
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: >-
+      (github.ref == 'refs/heads/main' && github.event_name != 'pull_request') ||
+      (github.event_name == 'release' && !github.event.release.draft && !github.event.release.prerelease)
     needs: verify
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -67,8 +68,46 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: yarn
+      - name: Prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - name: Read the latest published release and its distribution manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > "$RUNNER_TEMP/muzo-github-release.json"
+          release_tag=$(jq -er '.tag_name' "$RUNNER_TEMP/muzo-github-release.json")
+          if [[ ! "$release_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::The latest published release must use a stable vX.Y.Z tag"
+            exit 1
+          fi
+          gh release download "$release_tag" --repo "$GITHUB_REPOSITORY" \
+            --pattern "muzo-${release_tag#v}-release.json" --dir "$RUNNER_TEMP/muzo-release"
+      - name: Build the site with verified native downloads
+        env:
+          MUZO_REQUIRE_RELEASE: "1"
+          MUZO_GITHUB_RELEASE_JSON: ${{ runner.temp }}/muzo-github-release.json
+        run: |
+          release_tag=$(jq -er '.tag_name' "$MUZO_GITHUB_RELEASE_JSON")
+          export MUZO_DISTRIBUTION_MANIFEST="$RUNNER_TEMP/muzo-release/muzo-${release_tag#v}-release.json"
+          yarn site:build
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Upload the release-verified static site
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: site/dist
       - name: Deploy to Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
