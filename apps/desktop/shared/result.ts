@@ -1,10 +1,2 @@
-export interface AppFailure {
-  kind: "invalidInput" | "notConnected" | "authorization" | "storage" | "remote";
-  message: string;
-}
-
-export type Result<T> = { ok: true; value: T } | { ok: false; error: AppFailure };
-
-export function failure(kind: AppFailure["kind"], message: string): Result<never> {
-  return { ok: false, error: { kind, message } };
-}
+export { failure } from "../electron/application/result";
+export type { ApplicationFailure as AppFailure, Result } from "../electron/application/result";

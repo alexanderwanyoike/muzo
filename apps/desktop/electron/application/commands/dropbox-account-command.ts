@@ -1,4 +1,4 @@
-import { failure } from "../../../shared/result";
+import { failure, type Result } from "../../../shared/result";
 import type { DropboxAccountService } from "../dropbox-account-service";
 import type { CommandHandler } from "./command-handler";
 
@@ -11,7 +11,7 @@ export class DropboxAccountCommand implements CommandHandler {
     private readonly service: DropboxAccountService,
   ) {}
 
-  async handle(args: unknown): Promise<unknown> {
+  async handle(args: unknown): Promise<Result<unknown>> {
     if (this.command === "dropbox_status") return this.service.status();
     if (this.command === "dropbox_disconnect") return this.service.disconnect();
     const field = this.command === "dropbox_begin" ? "clientId" : "code";
