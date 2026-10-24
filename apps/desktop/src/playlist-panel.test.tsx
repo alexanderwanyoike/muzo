@@ -169,31 +169,58 @@ describe("PlaylistPanel", () => {
     );
   });
 
-  it.each(["creation", "refresh"] as const)("retains one selected new playlist when %s completes before a concurrent response", async (first) => {
-    let finishCreate: ((value: PlaylistDto) => void) | undefined;
-    let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
-    mockedInvoke.mockResolvedValueOnce(playlists)
-      .mockImplementationOnce(() => new Promise<PlaylistDto>((resolve) => { finishCreate = resolve; }))
-      .mockImplementationOnce(() => new Promise<PlaylistDto[]>((resolve) => { finishLoad = resolve; }));
-    const view = render(<PlaylistPanel />);
-    await screen.findByRole("button", { name: "Open playlist Road Trip" });
-    await userEvent.click(screen.getByRole("button", { name: "New playlist" }));
-    await userEvent.type(screen.getByLabelText("Playlist name"), "Quiet hours");
-    await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
-    view.rerender(<PlaylistPanel active={false} />);
-    view.rerender(<PlaylistPanel active />);
-    const created = { id: "quiet", name: "Quiet hours", entries: [] };
-    if (first === "creation") {
-      await act(async () => finishCreate?.(created));
-      await act(async () => finishLoad?.(playlists));
-    } else {
-      await act(async () => finishLoad?.([...playlists, created]));
-      await act(async () => finishCreate?.(created));
-    }
-    expect(screen.getByRole("heading", { name: "Quiet hours" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Open playlist Road Trip" })).toBeDefined();
-    expect(screen.getAllByRole("button", { name: "Open playlist Quiet hours" })).toHaveLength(1);
-  });
+  it.each(["creation", "refresh"] as const)(
+    "retains one selected new playlist when %s completes before a concurrent response",
+    async (first) => {
+      let finishCreate: ((value: PlaylistDto) => void) | undefined;
+      let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
+      mockedInvoke
+        .mockResolvedValueOnce(playlists)
+        .mockImplementationOnce(
+          () =>
+            new Promise<PlaylistDto>((resolve) => {
+              finishCreate = resolve;
+            }),
+        )
+        .mockImplementationOnce(
+          () =>
+            new Promise<PlaylistDto[]>((resolve) => {
+              finishLoad = resolve;
+            }),
+        );
+      const view = render(<PlaylistPanel />);
+      await screen.findByRole("button", { name: "Open playlist Road Trip" });
+      await userEvent.click(
+        screen.getByRole("button", { name: "New playlist" }),
+      );
+      await userEvent.type(
+        screen.getByLabelText("Playlist name"),
+        "Quiet hours",
+      );
+      await userEvent.click(
+        screen.getByRole("button", { name: "Create playlist" }),
+      );
+      view.rerender(<PlaylistPanel active={false} />);
+      view.rerender(<PlaylistPanel active />);
+      const created = { id: "quiet", name: "Quiet hours", entries: [] };
+      if (first === "creation") {
+        await act(async () => finishCreate?.(created));
+        await act(async () => finishLoad?.(playlists));
+      } else {
+        await act(async () => finishLoad?.([...playlists, created]));
+        await act(async () => finishCreate?.(created));
+      }
+      expect(
+        screen.getByRole("heading", { name: "Quiet hours" }),
+      ).toBeDefined();
+      expect(
+        screen.getByRole("button", { name: "Open playlist Road Trip" }),
+      ).toBeDefined();
+      expect(
+        screen.getAllByRole("button", { name: "Open playlist Quiet hours" }),
+      ).toHaveLength(1);
+    },
+  );
 
   it("shows an empty state for playlists without entries", async () => {
     mockedInvoke.mockResolvedValueOnce([

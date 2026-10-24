@@ -87,7 +87,10 @@ export default function PlaylistPanel({
     if (!result.ok) return result;
     revision.current += 1;
     const playlist = result.value;
-    setPlaylists((prev) => [...(prev ?? []).filter((candidate) => candidate.id !== playlist.id), playlist]);
+    setPlaylists((prev) => [
+      ...(prev ?? []).filter((candidate) => candidate.id !== playlist.id),
+      playlist,
+    ]);
     selectPlaylist(playlist.id);
     return { ok: true as const, value: undefined };
   }

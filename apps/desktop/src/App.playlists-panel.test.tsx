@@ -28,9 +28,7 @@ it("uses the existing sidebar and remembered divider for Playlists", async () =>
   });
   sourcesDivider.focus();
   await userEvent.keyboard("{ArrowRight}");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Playlists" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Playlists" }));
   const panel = await screen.findByRole("region", { name: "Playlists" });
   expect(screen.getByRole("complementary").contains(panel)).toBe(true);
   expect(screen.queryByRole("region", { name: "Sources" })).toBeNull();
@@ -47,18 +45,14 @@ it("uses the existing sidebar and remembered divider for Playlists", async () =>
     screen.getByRole("searchbox", { name: "Search playlists" }),
     "Quiet",
   );
-  await userEvent.click(
-    screen.getByRole("button", { name: "Songs" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Songs" }));
   expect(screen.getByRole("region", { name: "Sources" })).toBeDefined();
   expect(
     screen
       .getByRole("separator", { name: "Sources" })
       .getAttribute("aria-valuenow"),
   ).toBe("248");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Playlists" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Playlists" }));
   expect(
     await screen.findByRole("heading", { name: "Quiet hours" }),
   ).toBeDefined();
