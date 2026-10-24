@@ -115,3 +115,134 @@ macOS CI in PRs #65 and #64. Pages remains unconfigured (GitHub API 404) until t
 user approves publication through the documented main promotion/setup process.
 
 Totals: Standards 0, Spec 0 in each cycle; no fixes required after review.
+
+## Corrected native-download experience
+
+The preceding records describe the initial source-installation iteration. The
+user rejected it. The current build uses native installer release metadata,
+a shared distribution manifest and a revised OS-icon download section instead.
+
+The first corrected-flow review found one Spec P2: a release-published event
+runs from a tag ref, so checking out main does not satisfy the main-only Pages
+environment. Commit 516f42f dispatches a fresh workflow run on main, scoped to
+a published stable release; PR verification stays read-only.
+
+Current complete review base: `c81b032`; source head:
+`f98feed65426525b51ad420641783dca7b8a4209`. Both cycles inspect the full
+three-dot diff and log. Separately reviewed dependent app/distribution PRs are
+included as prerequisites, not folded into this site's responsibility.
+
+### Current Initial Standards
+
+# Corrected project site Standards review
+
+Base `c81b032`; reviewed head `f98feed65426525b51ad420641783dca7b8a4209`.
+Reviewed the complete three-dot changed-file set and commit list, then the effective site/workflow/tooling, README and documentation changes against AGENTS.md and the twelve Fowler heuristics. Native player, materials, distribution, licensing and source-width dependencies have separate reviews and are not reclassified as site scope.
+
+Hard documented violations: none found.
+
+Judgement-call smells: none actionable.
+
+Release validation, HTML rendering and the build entry point have separate cohesive responsibilities. Unknown GitHub metadata is validated at the boundary; expected invalid-release/storage failures use the shared typed Result contract. Native target names and manifest validation come from the distribution workspace rather than a second filename policy. DOM construction avoids interpolating untrusted metadata into markup. No browser runtime, custom network service or speculative abstraction is added.
+
+Red-first commits cover native download presentation, real production builds, duplicate assets and malformed digests before their corresponding implementation fixes. Portable Node build tests cover the actual Vite transform and fail-closed production contract. Root/site checks retain strict TypeScript, Airbnb rules and unsafe-value bans without suppressions.
+
+OS symbols are local unchanged Bootstrap SVGs with pinned provenance and preserved MIT notice. Project MIT and font notices remain separate. Current native screenshots are canonical, and seven illustrative material samples are clearly distinguished from real captures. Public installation copy offers the four native targets; source setup remains contributor documentation.
+
+The official pinned Pages actions keep publication on main, with read-only PR checks and scoped actions:write only for the published-release refresh dispatch. The corrected release event schedules a main-ref run rather than attempting to deploy under a tag-ref environment policy. The documented process preserves release/main approval boundaries and immutable tags.
+
+Final gate results, browser inspection, dependency ordering in the delivered PR and publication remain parent-owned handoff work.
+
+Findings: 0 hard violations; 0 judgement-call smells.
+
+
+### Current Initial Spec
+
+# Spec review: corrected native-download site, initial cycle
+
+Pinned diff: `c81b032...f98feed65426525b51ad420641783dca7b8a4209`. Reviewed the full changed-file/commit set and the site, workflow, tooling, README and current documentation scope against Card 037. Desktop/distribution implementation in separately reviewed prerequisite PRs is treated as dependency context.
+
+## Missing or partial requirements
+
+No actionable findings. Card 037 requires native Windows, both macOS architectures and Linux AppImage downloads without a source-build listener flow. The OS-labelled deck supplies decorative licensed platform symbols, clear formats, architecture-specific macOS choices, install notes and checksum/release links. Local pending controls are disabled; complete published metadata produces four actual installer URLs.
+
+## Unasked scope
+
+No actionable findings. Build-time metadata validation, the private shared contract and guarded Pages publication directly support the requested release-download experience. The site adds no client JavaScript, analytics or remote fonts. Prerequisite player, appearance and licence changes remain separately identified feature work.
+
+## Apparently implemented requirements done incorrectly
+
+No actionable findings. Validation rejects draft/prerelease releases, missing or duplicate assets, inconsistent tags, foreign URLs and installer size/digest mismatches. Production metadata is mandatory. Actual CLI build tests verify four links/checksums and the missing-metadata failure, satisfying Card 037's asset/availability verification criterion.
+
+The earlier release-tag/environment defect is resolved: published stable releases dispatch `pages.yml` on main, while deploy still requires `refs/heads/main` and the main-only environment. Checking out main inside a tag-ref deployment is avoided. PR checks are read-only; production runs share concurrency protection.
+
+Seven material samples, ten accents, current Glass/satin native JPEGs and the MIT footer agree with their documented sources. Local font/icon licences remain present. This review did not rerun gates, configure Pages, publish or certify the parent's pending responsive-browser inspection.
+
+Findings: 0.
+
+
+### Current Final Standards
+
+# Corrected project site final Standards review
+
+Base `c81b032`; reviewed head `f98feed65426525b51ad420641783dca7b8a4209`.
+Rechecked the effective site/workflow/tooling and documentation diff, commit list and AGENTS.md against the twelve Fowler heuristics. No source edits followed the initial review. Separately reviewed native-feature prerequisites remain explicit dependencies.
+
+Hard documented violations: none found.
+
+Judgement-call smells: none actionable.
+
+The second inspection confirms cohesive boundary validation, DOM rendering and build orchestration. Unknown release data is checked before use, expected failures retain the shared Result contract, and canonical filenames/manifest rules reuse the distribution workspace. Complete installer sets, exact repository release URLs, positive sizes, duplicate-name rejection and optional SHA-256 digest validation remain enforced before production links are rendered. Missing production metadata fails closed; local Preparing release controls do not invent download URLs.
+
+Rechecked correction `516f42f`: stable published-release events dispatch a new workflow run on main with narrowly scoped actions:write. Deployment itself still requires a main ref, successful verification and the main-limited Pages environment. It rebuilds using complete published release metadata before official pinned upload/deploy actions. The feature does not merge, tag, publish a release or enable hosting.
+
+Native download presentation remains server-built static HTML with local licensed OS symbols, canonical app screenshots, seven material samples and ten accents. Parent reports fresh browser inspection at 320, 768 and 1440px without horizontal overflow, with OS symbols and both current screenshots loaded. This report does not independently duplicate that browser inspection or certify the parent's still-running serialized ordered gates.
+
+Red/green commits and portable real-build tests remain focused. No suppressed strict-type boundary, unnecessary application service or speculative abstraction was found.
+
+Findings: 0 hard violations; 0 judgement-call smells.
+
+
+### Current Final Spec
+
+# Spec review: corrected native-download site, final cycle
+
+Pinned diff: `c81b032...f98feed65426525b51ad420641783dca7b8a4209`. Rechecked the complete diff/commit set and site, workflow, tooling, README and documentation scope against Card 037. No code changed after the initial zero-finding review; player/distribution changes remain separately reviewed prerequisites.
+
+## Missing or partial requirements
+
+No actionable findings. The native OS deck has Windows EXE, Apple silicon and Intel DMGs, Linux AppImage, decorative platform symbols, install guidance and checksum/release links, satisfying Card 037 line 15. The parent reports fresh browser checks at 320, 768 and 1440px with no horizontal overflow, loaded native screenshots, seven materials and OS icons/cards. I did not duplicate those browser actions.
+
+## Unasked scope
+
+No actionable findings. Release validation and guarded build-time rendering support the requested native-download experience. The site remains static, with self-hosted images/font/icons and no client JavaScript or source-build visitor flow.
+
+## Apparently implemented requirements done incorrectly
+
+No actionable findings. Complete stable published metadata must match the shared manifest; duplicate/missing assets, foreign URLs, version mismatches and inconsistent sizes/digests stop production builds. Local previews retain disabled Preparing release controls instead of invented download URLs. Maintained tests exercise the actual CLI build and required-metadata rejection (lines 17-18).
+
+Rechecked the prior release-event correction: release jobs dispatch a new workflow run with `--ref main`; deployment separately requires `refs/heads/main` and excludes PRs. This preserves the main-only environment rule rather than relying on a checkout to change the event ref. PR jobs remain read-only, and production runs share concurrency protection.
+
+The current screenshots, captions, seven materials and ten accents agree. Root and public MIT notices have identical hashes; third-party notices remain separate. Parent ordered gates are still running serially after the computer hang, so this review does not certify their completion, Pages configuration or public publication.
+
+Findings: 0.
+
+
+### Current verification
+
+Both renewed cycles returned zero findings on each axis. Frozen Yarn install,
+formatting, Airbnb/type-aware lint, strict types, 375 tests (357 desktop, six
+distribution, 12 site), desktop build/package and Linux ZIP/DEB make pass. The
+site builds successfully in preview mode; real production-build tests verify
+complete published-release URLs and reject absent/inconsistent metadata.
+Test workers were capped at two after the host restart to control local load.
+
+Browser inspection at 320, 768 and 1440px found no horizontal overflow. All
+canonical native JPEGs and decorative icons decode; Settings shows seven
+materials and ten accents. Native download cards preserve architecture choices.
+The preview honestly displays Preparing release until a complete stable native
+release is published; no source-build installation or invented binary link is
+shown. No public deployment, dev/main merge or tag change was performed.
+
+The Frosted glass material provides renderer-layer translucency over internal
+artwork. The operating-system window is opaque; it does not reveal the desktop.
