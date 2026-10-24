@@ -16,7 +16,7 @@ export function configureDesktopIcon(
     "..",
     "assets",
     "icons",
-    platform === "win32" ? "muzo.ico" : "muzo.png",
+    platform === "win32" ? "muzo.ico" : platform === "linux" ? "muzo-window.png" : "muzo.png",
   );
   if (platform === "darwin" && !app.isPackaged) {
     app.dock?.setIcon(path);

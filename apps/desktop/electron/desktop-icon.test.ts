@@ -7,15 +7,15 @@ import { configureDesktopIcon } from "./desktop-icon";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 it.each([
-  ["linux", "png"],
-  ["win32", "ico"],
+  ["linux", "muzo-window.png"],
+  ["win32", "muzo.ico"],
 ] as const)("uses a shipped %s window icon", (platform, extension) => {
   const path = configureDesktopIcon(
     { isPackaged: false },
     electronDir,
     platform,
   );
-  expect(path.endsWith(`muzo.${extension}`)).toBe(true);
+  expect(path.endsWith(extension)).toBe(true);
   expect(existsSync(path)).toBe(true);
 });
 
