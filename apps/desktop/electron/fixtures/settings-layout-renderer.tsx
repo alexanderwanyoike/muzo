@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { saveSidebarWidth } from "../../src/sidebar-layout";
 import App from "../../src/App";
 import {
+  MATERIALS,
   applyAppearance,
   saveAppearance,
   type Appearance,
@@ -13,12 +14,7 @@ import "../../src/styles.css";
 const parameters = new URLSearchParams(window.location.search);
 const connected = parameters.get("connected") !== "false";
 const appearance: Appearance = {
-  theme:
-    parameters.get("theme") === "paper"
-      ? "paper"
-      : parameters.get("theme") === "studio"
-        ? "studio"
-        : "aluminium",
+  theme: MATERIALS.find(({ id }) => id === parameters.get("theme"))?.id ?? "aluminium",
   mode: parameters.get("mode") === "dark" ? "dark" : "light",
   accent: "cobalt",
 };
