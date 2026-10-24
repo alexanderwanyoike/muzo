@@ -1,3 +1,4 @@
+import type { LibraryWatchStopper } from "../application/interfaces/library-removal";
 import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
 import { RemoveLibraryService } from "../application/remove-library-service";
 import { SqliteLibraryRemover } from "../infrastructure/sqlite/sqlite-library-remover";
@@ -123,7 +124,7 @@ export interface ElectronCradle {
   tracks: TrackRepository;
   audioSources: AudioSourceRegistry;
   walker: AudioFileWalker;
-  filesystemWatcher: FilesystemLibraryWatcher;
+  filesystemWatcher: FilesystemLibraryWatcher & LibraryWatchStopper;
   reader: AudioMetadataReader;
   playlistService: PlaylistApplicationService;
   prepareTrackAudioSourceService: PrepareTrackAudioSourceApplicationService;
@@ -440,7 +441,7 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
-      new RemoveLibraryCommand(new RemoveLibraryService(new SqliteLibraryRemover(cradle.dbPath))),
+      new RemoveLibraryCommand(new RemoveLibraryService(new SqliteLibraryRemover(cradle.dbPath), cradle.filesystemWatcher)),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),
