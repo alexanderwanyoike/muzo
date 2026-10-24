@@ -36,3 +36,27 @@ it("sizes compact and queue views and restores the original library window and m
   });
   expect(window.maximize).toHaveBeenCalledOnce();
 });
+
+it("restores the previous window after a resize failure and allows a safe retry", () => {
+  const window = windowFixture();
+  const controller = createPlayerWindowModeController(window);
+  window.setContentSize.mockImplementationOnce(() => {
+    throw new Error("Window manager rejected resize");
+  });
+  expect(controller.setMode("compact").ok).toBe(false);
+  expect(window.setMinimumSize).toHaveBeenLastCalledWith(800, 600);
+  expect(window.setBounds).toHaveBeenLastCalledWith({
+    x: 40,
+    y: 50,
+    width: 1200,
+    height: 800,
+  });
+  expect(controller.setMode("compact").ok).toBe(true);
+  expect(controller.setMode("library").ok).toBe(true);
+  expect(window.setBounds).toHaveBeenLastCalledWith({
+    x: 40,
+    y: 50,
+    width: 1200,
+    height: 800,
+  });
+});
