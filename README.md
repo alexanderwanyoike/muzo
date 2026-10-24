@@ -77,8 +77,8 @@ affect the next queue started, leaving the current listening order intact.
 
 ## Desktop appearance and artwork
 
-Settings includes Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut
-and Porcelain materials, each in light and dark. Ten accents include Cobalt,
+Settings includes Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut,
+Porcelain and Frosted glass materials, each in light and dark. Ten accents include Cobalt,
 Copper, Sage, Plum, Amber, Teal, Rose, Slate, Violet and Ice. Preferences
 are saved locally and applied when Muzo starts. The listening workspace keeps
 its transport and source sidebar in place while Songs, playlists and Settings
@@ -143,8 +143,10 @@ feature/*   <- one branch per card. PRs target dev.
 ```
 
 - Branch from `dev`.
-- Open PRs against `dev`.
-- `dev` merges into `main` via release PRs.
+- Open feature PRs against `dev` and use merge commits to preserve their history.
+- `dev` merges into `main` via release PRs, also using merge commits.
+- Squash and rebase merging are disabled in GitHub.
+- Tag the merged `main` release commit with an annotated `vX.Y.Z` tag.
 - See [`AGENTS.md`](./AGENTS.md) for branch and PR naming.
 
 ## License

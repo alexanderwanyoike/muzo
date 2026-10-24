@@ -24,6 +24,8 @@ export interface PlaybackQueueItem {
 }
 
 export interface AudioPlayer extends AudioPlayerState {
+  queueEntries: readonly PlaybackQueueItem[];
+  selectQueueEntry: (entryId: string) => void;
   playQueue: (entries: PlaybackQueueItem[], startIndex?: number) => void;
   currentQueueEntryId: string | null;
   hasNext: boolean;
@@ -265,6 +267,20 @@ export function useAudioPlayer(
     advanceRef.current = () => moveQueue(1);
   }, [moveQueue]);
 
+  const selectQueueEntry = useCallback(
+    (entryId: string) => {
+      const state = queueRef.current;
+      const index = state.entries.findIndex(
+        (entry) => entry.entryId === entryId,
+      );
+      if (index < 0 || index === state.index) return;
+      setQueue(state.entries, index);
+      currentTrackIdRef.current = null;
+      startTrack(state.entries[index].track);
+    },
+    [setQueue, startTrack],
+  );
+
   const next = useCallback(() => {
     moveQueue(1);
   }, [moveQueue]);
@@ -303,6 +319,8 @@ export function useAudioPlayer(
 
   return useMemo(
     () => ({
+      queueEntries: queue.entries,
+      selectQueueEntry,
       currentQueueEntryId: queue.entries[queue.index]?.entryId ?? null,
       hasNext: queue.index + 1 < queue.entries.length,
       hasPrevious: queue.index > 0,
@@ -324,6 +342,7 @@ export function useAudioPlayer(
     }),
     [
       queue,
+      selectQueueEntry,
       next,
       previous,
       playQueue,

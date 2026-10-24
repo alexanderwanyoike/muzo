@@ -1,6 +1,10 @@
+import type { PlayerWindowMode } from "../shared/player-window-mode";
+import type { Result } from "../shared/result";
+
 export interface RuntimeBridge {
   invoke<T>(command: string, args?: unknown): Promise<T>;
   openDirectory(): Promise<string | null>;
+  setPlayerWindowMode?(mode: PlayerWindowMode): Promise<Result<void>>;
 }
 
 declare global {
