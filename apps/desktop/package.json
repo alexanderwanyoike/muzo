@@ -15,10 +15,11 @@
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "yarn electron:prepare && vitest run",
+    "test:watch": "yarn electron:prepare && vitest",
     "clean": "rm -rf dist dist-electron out node_modules",
-    "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc"
+    "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc",
+    "electron:prepare": "node -e \"require('electron')\""
   },
   "dependencies": {
     "@fontsource-variable/manrope": "5.3.0",
