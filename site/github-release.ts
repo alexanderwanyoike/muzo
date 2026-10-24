@@ -60,7 +60,10 @@ export function validatePublishedDownloads(
     );
   }
   const values: unknown[] = github.assets;
-  if (!values.every(asset))
+  if (
+    !values.every(asset) ||
+    new Set(values.map((entry) => entry.name)).size !== values.length
+  )
     return invalid("Published release asset metadata is invalid.");
   const prefix = `${repository}/releases/download/${manifest.value.tag}/`;
   const required = [
