@@ -183,3 +183,21 @@ it("discards a typed Dropbox refresh failure after its source was removed", asyn
   await act(async () => finishSync?.({ ok: false, error: { kind: "remote", message: "Stale Dropbox error" } }));
   expect(screen.queryByText("Stale Dropbox error")).toBeNull();
 });
+
+it("marks retained playlist entries unavailable immediately after sidebar removal", async () => {
+  let removed = false;
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "list_libraries") return [library];
+    if (command === "list_playlists") return [{ id: "playlist", name: "Evening", entries: [{ id: "entry", trackId: "track", position: 0, trackTitle: removed ? null : "Song", trackLibraryId: removed ? null : "source", trackArtist: "Artist", trackDurationSeconds: 120 }] }];
+    if (command === "remove_library") { removed = true; return { ok: true, value: { warning: null } }; }
+    return [];
+  });
+  render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Playlists" }));
+  expect(await screen.findByRole("button", { name: "Play Song from Evening" })).toBeDefined();
+  await userEvent.click(screen.getByRole("button", { name: "Remove Music" }));
+  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  expect(await screen.findByText("Unavailable source")).toBeDefined();
+  expect(screen.getByRole("button", { name: "Track track is unavailable in Evening" }).hasAttribute("disabled")).toBe(true);
+  expect(screen.queryByRole("button", { name: "Play Song from Evening" })).toBeNull();
+});
