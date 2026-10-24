@@ -39,3 +39,10 @@ Depends on PR #42, which includes the Dropbox audio preparation path, and transi
 on #41 and #16. Merge in that order, then retarget this PR to dev. Tests exercise the
 player hook, playlist controls, now-playing controls, and the assembled React app
 through its runtime boundary.
+
+### Review corrections
+
+- Start a queue when selecting a playlist entry whose song is already playing directly.
+- Clear the queue when selecting its current song from Songs, while retaining explicit player pause/resume behavior.
+- Exercise both transitions through the assembled app and retain the legacy standalone playlist control behavior.
+- Re-ran the required checks with 216 tests and Linux zip/deb outputs.
