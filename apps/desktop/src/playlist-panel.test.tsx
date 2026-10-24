@@ -169,7 +169,7 @@ describe("PlaylistPanel", () => {
     );
   });
 
-  it("retains a newly created playlist when an older refresh arrives after returning to Playlists", async () => {
+  it.each(["creation", "refresh"] as const)("retains one selected new playlist when %s completes before a concurrent response", async (first) => {
     let finishCreate: ((value: PlaylistDto) => void) | undefined;
     let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
     mockedInvoke.mockResolvedValueOnce(playlists)
@@ -182,8 +182,14 @@ describe("PlaylistPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
     view.rerender(<PlaylistPanel active={false} />);
     view.rerender(<PlaylistPanel active />);
-    await act(async () => finishCreate?.({ id: "quiet", name: "Quiet hours", entries: [] }));
-    await act(async () => finishLoad?.(playlists));
+    const created = { id: "quiet", name: "Quiet hours", entries: [] };
+    if (first === "creation") {
+      await act(async () => finishCreate?.(created));
+      await act(async () => finishLoad?.(playlists));
+    } else {
+      await act(async () => finishLoad?.([...playlists, created]));
+      await act(async () => finishCreate?.(created));
+    }
     expect(screen.getByRole("heading", { name: "Quiet hours" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Open playlist Road Trip" })).toBeDefined();
     expect(screen.getAllByRole("button", { name: "Open playlist Quiet hours" })).toHaveLength(1);
