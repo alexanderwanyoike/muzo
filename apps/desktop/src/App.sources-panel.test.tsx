@@ -44,3 +44,14 @@ it("resizes the sidebar by dragging its divider and commits the final width", as
   render(<App />);
   expect((await screen.findByRole("separator", { name: "Sources" })).getAttribute("aria-valuenow")).toBe("320");
 });
+
+it("resets the sidebar width by double-clicking the divider", async () => {
+  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  render(<App />);
+  const divider = await screen.findByRole("separator", { name: "Sources" });
+  divider.focus();
+  await userEvent.keyboard("{ArrowRight}");
+  expect(divider.getAttribute("aria-valuenow")).toBe("248");
+  await userEvent.dblClick(divider);
+  expect(divider.getAttribute("aria-valuenow")).toBe("240");
+});
