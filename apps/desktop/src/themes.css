@@ -9,23 +9,20 @@
   --text-muted: #616b78;
   --material: linear-gradient(180deg, #ffffff80, #ffffff00);
 }
+[data-theme="aluminium"] {
+  --aluminium-grain: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22128%22%20height%3D%22128%22%3E%3Cfilter%20id%3D%22grain%22%20x%3D%220%22%20y%3D%220%22%20width%3D%22100%25%22%20height%3D%22100%25%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%220.9%22%20numOctaves%3D%223%22%20seed%3D%227%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20type%3D%22saturate%22%20values%3D%220%22%2F%3E%3CfeComponentTransfer%3E%3CfeFuncA%20type%3D%22linear%22%20slope%3D%220.07%22%2F%3E%3C%2FfeComponentTransfer%3E%3C%2Ffilter%3E%3Crect%20width%3D%22100%25%22%20height%3D%22100%25%22%20filter%3D%22url%28%23grain%29%22%2F%3E%3C%2Fsvg%3E");
+}
 [data-theme="aluminium"][data-mode="light"] {
-  --panel: #f1f2f3;
-  --panel-raised: #fcfcfd;
-  --sidebar: #dfe2e5;
-  --chrome: #d7dade;
-  --line: #bfc5cb;
-  --text: #252a30;
-  --text-muted: #545e69;
+  --panel: #eef0f2;
+  --panel-raised: #fafbfc;
+  --sidebar: #d9dde1;
+  --chrome: #e1e5e8;
+  --line: #bcc3ca;
+  --text: #252c33;
+  --text-muted: #505c68;
   --material:
-    repeating-linear-gradient(
-      0deg,
-      #ffffff18 0,
-      #ffffff18 1px,
-      #00000005 1px,
-      #00000005 3px
-    ),
-    linear-gradient(180deg, #ffffff60, #ffffff00 50%, #00000008);
+    linear-gradient(118deg, #ffffff24, #ffffff00 48%, #10182006),
+    var(--aluminium-grain);
 }
 [data-theme="paper"][data-mode="light"] {
   --panel: #f7f3ea;
@@ -48,22 +45,16 @@
   --material: linear-gradient(180deg, #ffffff05, #ffffff00);
 }
 [data-theme="aluminium"][data-mode="dark"] {
-  --panel: #202326;
-  --panel-raised: #2b2f33;
-  --sidebar: #292d31;
-  --chrome: #353a3f;
-  --line: #4b5259;
-  --text: #e8ebed;
-  --text-muted: #adb6bf;
+  --panel: #272b2f;
+  --panel-raised: #32373c;
+  --sidebar: #2b3035;
+  --chrome: #383e44;
+  --line: #4b535c;
+  --text: #edf1f4;
+  --text-muted: #bcc5ce;
   --material:
-    repeating-linear-gradient(
-      0deg,
-      #ffffff07 0,
-      #ffffff07 1px,
-      #0000000c 1px,
-      #0000000c 3px
-    ),
-    linear-gradient(180deg, #ffffff0a, #00000000 50%, #00000015);
+    linear-gradient(118deg, #ffffff0a, #ffffff00 48%, #080d1408),
+    var(--aluminium-grain);
 }
 [data-theme="paper"][data-mode="dark"] {
   --panel: #26231f;
