@@ -34,4 +34,22 @@ describe("Dropbox account connection", () => {
     expect(await service.disconnect()).toEqual({ ok: true, value: { connected: false, accountId: null } });
     expect(stored).toBeNull();
   });
+  it("rejects expired sessions and prevents disconnect from reviving an in-flight connection", async () => {
+    let stored: StoredDropboxAccount | null = null;
+    let now = 1000;
+    let resolveToken: (token: { accessToken: string; refreshToken: string; expiresIn: number; accountId: string }) => void = () => {};
+    const token = new Promise<{ accessToken: string; refreshToken: string; expiresIn: number; accountId: string }>((resolve) => { resolveToken = resolve; });
+    const service = new DropboxAccountService({ find: async () => stored, save: async (account) => { stored = account; }, disconnect: async () => { stored = null; } },
+      () => ({ exchangeAuthorizationCode: () => token, refreshAccessToken: vi.fn() }), async () => {}, () => now);
+    await service.begin("app-key");
+    now += 601;
+    expect(await service.complete("code")).toMatchObject({ ok: false, error: { kind: "authorization" } });
+    await service.begin("app-key");
+    const connecting = service.complete("code");
+    await service.disconnect();
+    resolveToken({ accessToken: "secret", refreshToken: "refresh", expiresIn: 3600, accountId: "account-1" });
+    expect(await connecting).toMatchObject({ ok: false });
+    expect(stored).toBeNull();
+  });
+
 });
