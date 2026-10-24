@@ -77,7 +77,10 @@ export default function DropboxSettings({
       {connection?.connected ? (
         <div>
           <p role="status">Connected to Dropbox.</p>
-          <DropboxLibrarySettings onAdded={onLibraryAdded} />
+          <DropboxLibrarySettings
+            accountId={connection.accountId ?? ""}
+            onAdded={onLibraryAdded}
+          />
           <button
             type="button"
             disabled={busy}

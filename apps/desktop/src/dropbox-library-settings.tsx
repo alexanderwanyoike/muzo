@@ -1,20 +1,17 @@
-import { type FormEvent, useEffect, useState } from "react";
-import {
-  addDropboxLibrary,
-  dropboxSyncStatus,
-  setDropboxSyncInterval,
-} from "./dropbox-api";
+import DropboxFolderPicker from "./dropbox-folder-picker";
+import { useEffect, useState } from "react";
+import { dropboxSyncStatus, setDropboxSyncInterval } from "./dropbox-api";
 import type { LibraryDto } from "./types";
 
 export default function DropboxLibrarySettings({
   onAdded,
+  accountId,
 }: {
+  accountId: string;
   onAdded: (library: LibraryDto) => void;
 }) {
-  const [name, setName] = useState("");
-  const [location, setLocation] = useState("");
+  const [browsing, setBrowsing] = useState(false);
   const [minutes, setMinutes] = useState(5);
-  const [busy, setBusy] = useState(false);
   const [savingInterval, setSavingInterval] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -42,22 +39,6 @@ export default function DropboxLibrarySettings({
     };
   }, []);
 
-  async function add(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const result = await addDropboxLibrary({
-      name: name.trim(),
-      location: location.trim(),
-    });
-    if (result.ok) {
-      setName("");
-      setLocation("");
-      onAdded(result.value);
-    } else setError(result.error.message);
-    setBusy(false);
-  }
-
   async function changeInterval(value: number) {
     setSavingInterval(true);
     setError(null);
@@ -69,38 +50,22 @@ export default function DropboxLibrarySettings({
 
   return (
     <div>
-      <form
-        className="add-library-form"
-        onSubmit={(event) => {
-          void add(event);
-        }}
-      >
-        <label className="add-library-form__field">
-          Dropbox library name
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoComplete="off"
-            disabled={busy}
-          />
-        </label>
-        <label className="add-library-form__field">
-          Dropbox folder
-          <input
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            placeholder="/Music"
-            autoComplete="off"
-            disabled={busy}
-          />
-        </label>
+      {browsing ? (
+        <DropboxFolderPicker
+          accountId={accountId}
+          onAdded={onAdded}
+          onClose={() => setBrowsing(false)}
+        />
+      ) : (
         <button
-          type="submit"
-          disabled={busy || !name.trim() || !location.trim()}
+          className="dropbox-browse-button"
+          type="button"
+          disabled={!accountId}
+          onClick={() => setBrowsing(true)}
         >
-          Add Dropbox library
+          Browse Dropbox folders
         </button>
-      </form>
+      )}
       <label>
         Sync Dropbox every
         <select
