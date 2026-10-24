@@ -44,9 +44,13 @@ export class DropboxAccountService {
       const token = await this.createClient(pending.clientId).exchangeAuthorizationCode({
         authorizationCode: code.trim(), codeVerifier: pending.codeVerifier,
       });
+      if (this.pending !== pending) {
+        return failure("authorization", "This Dropbox connection was cancelled. Start again.");
+      }
       if (!token.refreshToken || !token.accountId || !token.accessToken || !Number.isFinite(token.expiresIn) || token.expiresIn <= 0) {
         return failure("authorization", "Dropbox did not grant offline access. Connect again.");
       }
+      this.pending = null;
       await this.accounts.save({
         clientId: pending.clientId, accountId: token.accountId,
         accessToken: token.accessToken, refreshToken: token.refreshToken,
