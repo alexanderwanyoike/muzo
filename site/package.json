@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --base=/muzo/ --host 127.0.0.1",
-    "build": "vite build --base=/muzo/",
+    "build": "tsx build-site.ts",
     "preview": "vite preview --base=/muzo/ --host 127.0.0.1",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
