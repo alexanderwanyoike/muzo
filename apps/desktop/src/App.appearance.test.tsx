@@ -124,3 +124,26 @@ it.each(["Teal", "Rose", "Slate", "Violet", "Ice"])(
     ).toBe(true);
   },
 );
+
+it.each(["Light", "Dark"])(
+  "restores Frosted glass with a chosen accent in %s mode",
+  async (mode) => {
+    const first = render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Frosted glass" }));
+    await userEvent.click(screen.getByRole("radio", { name: mode }));
+    await userEvent.click(screen.getByRole("radio", { name: "Ice" }));
+    first.unmount();
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(
+      screen.getByRole<HTMLInputElement>("radio", { name: "Frosted glass" })
+        .checked,
+    ).toBe(true);
+    expect(document.documentElement.dataset).toMatchObject({
+      theme: "glass",
+      mode: mode.toLowerCase(),
+      accent: "ice",
+    });
+  },
+);
