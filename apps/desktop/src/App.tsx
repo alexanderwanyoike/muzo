@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
 import TrackList from "./TrackList";
@@ -238,6 +239,7 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
+            <DropboxSettings />
             <section className="settings-view__section">
               <div>
                 <h3>Library folders</h3>

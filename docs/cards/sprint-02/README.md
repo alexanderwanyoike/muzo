@@ -24,6 +24,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 011 | [Reorder playlist entries](./011-reorder-playlist-entries-ui.md) | Feature | Done | - |
 | 012 | [Play playlist entries](./012-play-playlist-entries-ui.md) | Feature | Done | - |
 | 013 | [Dropbox token persistence](./013-dropbox-token-persistence.md) | Feature | Done | 014 |
+| 014 | [Dropbox account connection](./014-dropbox-account-connection.md) | Feature | Done | 015 |
 
 ## Close-out note
 

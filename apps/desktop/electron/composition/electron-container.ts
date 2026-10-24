@@ -61,8 +61,17 @@ import { SqliteTrackRepository } from "../infrastructure/sqlite/sqlite-track-rep
 import { CommandDispatcher } from "../ipc/command-dispatcher";
 import { muzoDatabasePath } from "../paths";
 
+import { DropboxAccountService } from "../application/dropbox-account-service";
+import { DropboxAccountCommand } from "../application/commands/dropbox-account-command";
+import type { DropboxTokenCipher } from "../application/interfaces/dropbox-account-interfaces";
+import { DropboxApiClient, FetchDropboxHttpTransport, type DropboxHttpTransport } from "../infrastructure/dropbox/dropbox-api-client";
+import { SqliteDropboxAccountRepository } from "../infrastructure/sqlite/sqlite-dropbox-account-repository";
+
 export interface ElectronContainerOptions {
   dbPath?: string;
+  dropboxCipher?: DropboxTokenCipher;
+  dropboxTransport?: DropboxHttpTransport;
+  openExternal?: (url: string) => Promise<void>;
   currentUnixSeconds?: () => number;
   generateLibraryId?: () => string;
   generatePlaylistEntryId?: () => string;
@@ -73,6 +82,7 @@ export interface ElectronContainerOptions {
 
 export interface ElectronCradle {
   dbPath: string;
+  dropboxAccountService: DropboxAccountService;
   currentUnixSeconds: () => number;
   generateLibraryId: () => string;
   generatePlaylistEntryId: () => string;
@@ -128,6 +138,17 @@ export function createElectronContainer(
   });
 
   container.register({
+    dropboxAccountService: asFunction(({ dbPath, currentUnixSeconds }: ElectronCradle) =>
+      new DropboxAccountService(
+        new SqliteDropboxAccountRepository(dbPath, options.dropboxCipher ?? {
+          protect: () => { throw new Error("Secure storage is unavailable"); },
+          unprotect: () => { throw new Error("Secure storage is unavailable"); },
+        }),
+        (clientId) => new DropboxApiClient({ clientId }, options.dropboxTransport ?? new FetchDropboxHttpTransport()),
+        options.openExternal ?? (async () => { throw new Error("System browser is unavailable"); }),
+        currentUnixSeconds,
+      ),
+    ).singleton(),
     dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
     currentUnixSeconds: asValue(options.currentUnixSeconds ?? currentUnixSeconds),
     generateLibraryId: asValue(options.generateLibraryId ?? ulid),
@@ -269,6 +290,8 @@ export function createElectronContainer(
         new ClearTrackMetadataOverrideCommand(tracks),
     ).singleton(),
     commandHandlers: asFunction((cradle: ElectronCradle) => [
+      ...(["dropbox_begin", "dropbox_complete", "dropbox_status", "dropbox_disconnect"] as const)
+        .map((command) => new DropboxAccountCommand(command, cradle.dropboxAccountService)),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),

@@ -1,5 +1,6 @@
 export interface StoredDropboxAccount {
   accountId: string;
+  clientId: string;
   accessToken: string;
   refreshToken: string;
   accessTokenExpiresAtUnixSeconds: number;
