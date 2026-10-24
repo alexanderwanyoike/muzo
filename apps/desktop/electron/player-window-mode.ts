@@ -2,6 +2,13 @@ import type { BrowserWindow } from "electron";
 import { failure, success, type Result } from "./application/result";
 import type { PlayerWindowMode } from "../shared/player-window-mode";
 
+const COMPACT_DIMENSIONS = {
+  compact: { minimumWidth: 360, width: 420 },
+  "compact-queue": { minimumWidth: 640, width: 740 },
+} as const;
+const COMPACT_MINIMUM_HEIGHT = 480;
+const COMPACT_HEIGHT = 560;
+
 type PlayerWindow = Pick<
   BrowserWindow,
   | "isDestroyed"
@@ -48,8 +55,9 @@ export function createPlayerWindowModeController(window: PlayerWindow) {
         if (savedLibrary) restore(savedLibrary);
       } else {
         if (window.isMaximized()) window.unmaximize();
-        window.setMinimumSize(next === "compact-queue" ? 640 : 360, 480);
-        window.setContentSize(next === "compact-queue" ? 740 : 420, 560);
+        const dimensions = COMPACT_DIMENSIONS[next];
+        window.setMinimumSize(dimensions.minimumWidth, COMPACT_MINIMUM_HEIGHT);
+        window.setContentSize(dimensions.width, COMPACT_HEIGHT);
       }
       library = next === "library" ? null : savedLibrary;
       mode = next;
