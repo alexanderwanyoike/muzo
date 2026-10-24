@@ -20,3 +20,7 @@ export interface FileArtworkReader {
 export interface ArtworkThumbnails {
   create(picture: ArtworkPicture): string | null;
 }
+
+export interface DropboxArtworkReader {
+  read(accessToken: string, path: string): Promise<ArtworkPicture | null>;
+}

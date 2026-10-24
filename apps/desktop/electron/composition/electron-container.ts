@@ -1,3 +1,5 @@
+import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
+import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
 import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
 import { TrackArtworkCommand } from "../application/commands/track-artwork-command";
 import { TrackArtworkService } from "../application/track-artwork-service";
@@ -447,7 +449,7 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
-      new TrackArtworkCommand(new TrackArtworkService(new SqliteTrackArtworkSources(cradle.dbPath), new MusicMetadataArtworkReader(), options.artworkThumbnails ?? { create: () => null })),
+      new TrackArtworkCommand(new TrackArtworkService(new SqliteTrackArtworkSources(cradle.dbPath), new MusicMetadataArtworkReader(), options.artworkThumbnails ?? { create: () => null }, new DropboxMetadataArtworkReader(new DropboxApiClient({ clientId: "" }, dropboxTransport), new HttpMetadataArtworkReader()), cradle.dropboxLibraries)),
       new RemoveLibraryCommand(
         new RemoveLibraryService(
           new SqliteLibraryRemover(cradle.dbPath),
