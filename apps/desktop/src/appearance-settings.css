@@ -1,0 +1,27 @@
+.appearance-settings { display: flex; flex-direction: column; gap: 22px; }
+.appearance-settings fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.appearance-settings legend { margin-bottom: 10px; font-size: 11px; font-weight: 650; color: var(--text-muted); }
+.appearance-materials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.appearance-material { position: relative; display: flex; flex-direction: column; gap: 5px; cursor: pointer; }
+.appearance-material input, .appearance-modes input, .appearance-accents input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.appearance-preview { display: grid; grid-template-columns: 28% 1fr; grid-template-rows: 19px 1fr; height: 94px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; color: var(--text); background: var(--panel); }
+.appearance-preview__chrome { grid-column: 1 / -1; background: var(--material), var(--chrome); border-bottom: 1px solid var(--line); }
+.appearance-preview__sidebar { padding: 12px 6px; background: var(--sidebar); border-right: 1px solid var(--line); }
+.appearance-preview__songs { padding: 12px; }
+.appearance-preview i { display: block; height: 4px; margin-bottom: 8px; border-radius: 1px; background: var(--line); }
+.appearance-preview__songs i:first-child { background: var(--accent); width: 65%; }
+.appearance-material:has(input:checked) .appearance-preview { outline: 2px solid var(--accent); outline-offset: 2px; }
+.appearance-material:has(input:focus-visible) .appearance-preview { outline: 3px solid var(--accent); outline-offset: 4px; }
+.appearance-material__name { margin-top: 6px; font-size: 12px; font-weight: 650; }
+.appearance-material small { color: var(--text-muted); font-size: 10px; line-height: 1.5; }
+.appearance-settings__row { display: flex; flex-wrap: wrap; gap: 24px 40px; }
+.appearance-modes { display: flex; border: 1px solid var(--line); border-radius: 5px; padding: 2px; background: var(--panel); }
+.appearance-modes label { position: relative; cursor: pointer; }
+.appearance-modes span { display: block; min-width: 70px; padding: 5px 12px; text-align: center; font-size: 12px; border-radius: 3px; color: var(--text-muted); }
+.appearance-modes input:checked + span { background: var(--panel-raised); color: var(--text); box-shadow: 0 1px 3px #0002; }
+.appearance-modes input:focus-visible + span { outline: 2px solid var(--accent); }
+.appearance-accents { display: flex; align-items: center; height: 31px; gap: 12px; }
+.appearance-accents label { position: relative; cursor: pointer; }
+.appearance-accents span { display: block; width: 22px; height: 22px; border: 1px solid color-mix(in srgb, var(--accent) 70%, var(--text)); border-radius: 50%; background: var(--accent); }
+.appearance-accents input:checked + span { outline: 2px solid var(--accent); outline-offset: 3px; box-shadow: inset 0 0 0 3px var(--panel-raised); }
+.appearance-accents input:focus-visible + span { outline: 3px solid var(--text); outline-offset: 4px; }
