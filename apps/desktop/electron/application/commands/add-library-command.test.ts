@@ -120,7 +120,7 @@ function addedLibraryWatcher() {
 }
 
 function initialScanner() {
-  return { scan: vi.fn(async () => ({ tracksScanned: 0 })) };
+  return { scan: vi.fn(async () => ({ ok: true as const, value: { tracksScanned: 0 } })) };
 }
 function commandLogger() {
   return { error: vi.fn() };

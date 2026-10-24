@@ -1,5 +1,6 @@
 // @vitest-environment node
 
+import type { Result } from "./result";
 import { describe, expect, it } from "vitest";
 
 import type { LibraryDto } from "../../src/types";
@@ -67,13 +68,13 @@ class FakeScanner {
 
   constructor(private readonly failures: Record<string, Error> = {}) {}
 
-  async scan(libraryId: string): Promise<{ tracksScanned: number }> {
+  async scan(libraryId: string): Promise<Result<{ tracksScanned: number }>> {
     this.scannedLibraryIds.push(libraryId);
     const failure = this.failures[libraryId];
     if (failure) {
-      throw failure;
+      return { ok: false, error: { kind: "repository", message: failure.message } };
     }
-    return { tracksScanned: 0 };
+    return { ok: true, value: { tracksScanned: 0 } };
   }
 }
 

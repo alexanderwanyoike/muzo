@@ -51,7 +51,7 @@ describe("ScanLibraryService", () => {
       () => "trk-1",
     ).scan("lib-1");
 
-    expect(report).toEqual({ tracksScanned: 1 });
+    expect(report).toEqual({ ok: true, value: { tracksScanned: 1 } });
     expect(walker.walkedRoots).toEqual(["/music"]);
     expect(tracks.stored).toEqual([
       {
@@ -107,7 +107,7 @@ describe("ScanLibraryService", () => {
       () => "trk-new",
     ).scan("lib-1");
 
-    expect(report).toEqual({ tracksScanned: 0 });
+    expect(report).toEqual({ ok: true, value: { tracksScanned: 0 } });
     expect(tracks.stored).toEqual([]);
   });
 });
