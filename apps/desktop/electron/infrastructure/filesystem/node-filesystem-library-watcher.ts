@@ -9,6 +9,7 @@ import type {
 const filesystemWatchDebounceMilliseconds = 500;
 
 interface WatchRegistration {
+  active: boolean;
   watcher: FSWatcher;
   debounce: ReturnType<typeof setTimeout> | null;
 }
@@ -28,6 +29,7 @@ export class NodeFilesystemLibraryWatcher
     }
 
     const registration: WatchRegistration = {
+      active: true,
       watcher: watch(root, {
         ignoreInitial: true,
         persistent: false,
@@ -46,8 +48,14 @@ export class NodeFilesystemLibraryWatcher
     const registration = this.registrations.get(libraryId);
     if (!registration) return;
     if (registration.debounce) clearTimeout(registration.debounce);
-    await registration.watcher.close();
-    this.registrations.delete(libraryId);
+    registration.active = false;
+    try {
+      await registration.watcher.close();
+      this.registrations.delete(libraryId);
+    } catch (error) {
+      registration.active = true;
+      throw error;
+    }
   }
 
   private scheduleChange(
@@ -55,7 +63,7 @@ export class NodeFilesystemLibraryWatcher
     registration: WatchRegistration,
     onChange: FilesystemLibraryChangeHandler,
   ): void {
-    if (this.registrations.get(libraryId) !== registration) return;
+    if (!registration.active || this.registrations.get(libraryId) !== registration) return;
     if (registration.debounce) {
       clearTimeout(registration.debounce);
     }
