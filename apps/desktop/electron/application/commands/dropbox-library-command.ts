@@ -30,12 +30,23 @@ export class DropboxLibraryCommand implements CommandHandler {
     }
     if (
       this.command === "dropbox_add_library" &&
+      values.accountId !== undefined &&
+      (typeof values.accountId !== "string" || !values.accountId)
+    )
+      return failure(
+        "invalidInput",
+        "Choose a Dropbox folder from your connected account.",
+      );
+    if (
+      this.command === "dropbox_add_library" &&
       typeof values.name === "string" &&
       typeof values.location === "string"
     ) {
       return this.libraries.add({
         name: values.name,
         location: values.location,
+        accountId:
+          typeof values.accountId === "string" ? values.accountId : undefined,
       });
     }
     if (
