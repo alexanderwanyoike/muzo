@@ -10,6 +10,7 @@ import {
 } from "./api";
 
 import type { PlaybackQueueItem } from "./useAudioPlayer";
+import { entryLabel, isCurrentEntry, playableEntries, playButtonLabel, trackFromEntry } from "./playlist-playback";
 
 interface PlaylistError {
   message?: string;
@@ -284,57 +285,4 @@ export default function PlaylistPanel({
 
 function formatTrackCount(count: number): string {
   return `${count} ${count === 1 ? "track" : "tracks"}`;
-}
-
-function entryLabel(entry: PlaylistEntryDto): string {
-  return entry.trackTitle ?? entry.trackId;
-}
-
-function playButtonLabel(
-  entry: PlaylistEntryDto,
-  playlist: PlaylistDto,
-  currentTrackId: string | null,
-  isPlaying: boolean,
-  currentQueueEntryId: string | null,
-): string {
-  const label = entryLabel(entry);
-  if (!trackFromEntry(entry)) {
-    return `Track ${label} is unavailable in ${playlist.name}`;
-  }
-  if (isCurrentEntry(entry, currentTrackId, currentQueueEntryId) && isPlaying) {
-    return `Pause ${label} from ${playlist.name}`;
-  }
-  return `Play ${label} from ${playlist.name}`;
-}
-
-function trackFromEntry(entry: PlaylistEntryDto): TrackDto | null {
-  if (!entry.trackLibraryId) {
-    return null;
-  }
-
-  return {
-    id: entry.trackId,
-    libraryId: entry.trackLibraryId,
-    title: entryLabel(entry),
-    artist: entry.trackArtist ?? "Unknown Artist",
-    album: null,
-    trackNumber: null,
-    discNumber: null,
-    genre: null,
-    year: null,
-    metadataOverridden: false,
-    durationSeconds: entry.trackDurationSeconds ?? 0,
-    filePath: "",
-  };
-}
-
-function playableEntries(playlist: PlaylistDto): PlaybackQueueItem[] {
-  return playlist.entries.flatMap((entry) => {
-    const track = trackFromEntry(entry);
-    return track ? [{ entryId: entry.id, track }] : [];
-  });
-}
-
-function isCurrentEntry(entry: PlaylistEntryDto, trackId: string | null, queueEntryId: string | null): boolean {
-  return queueEntryId ? entry.id === queueEntryId : entry.trackId === trackId;
 }
