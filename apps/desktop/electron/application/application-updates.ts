@@ -27,13 +27,12 @@ export function createApplicationUpdates({ installedVersion, backend }: Options)
     publish({ state: "failed", message });
     return failure("remote", message);
   }
-  return {
-    getStatus: (): UpdateStatus => ({ ...status }),
-    subscribe(listener: (next: UpdateStatus) => void) {
-      listeners.add(listener);
-      return () => { listeners.delete(listener); };
-    },
-    async check(): Promise<Result<void>> {
+  let pendingCheck: Promise<Result<void>> | null = null;
+  function check(): Promise<Result<void>> {
+    if (pendingCheck) return pendingCheck;
+    if (status.state === "downloading" || status.state === "ready" || status.state === "installing")
+      return Promise.resolve(failure("invalidInput", "Finish the current update before checking again."));
+    const operation = (async (): Promise<Result<void>> => {
       publish({ state: "checking" });
       const result = await backend.check();
       if (!result.ok) return fail(result.error.message);
@@ -41,7 +40,17 @@ export function createApplicationUpdates({ installedVersion, backend }: Options)
       if (!newer.ok) return fail(newer.error.message);
       publish(newer.value ? { state: "available", ...result.value } : { state: "current" });
       return success(undefined);
+    })();
+    pendingCheck = operation.finally(() => { pendingCheck = null; });
+    return pendingCheck;
+  }
+  return {
+    getStatus: (): UpdateStatus => ({ ...status }),
+    subscribe(listener: (next: UpdateStatus) => void) {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
     },
+    check,
     async download(): Promise<Result<void>> {
       if (status.state !== "available") return failure("invalidInput", "No update is available to download.");
       const { version, automatic } = status;
