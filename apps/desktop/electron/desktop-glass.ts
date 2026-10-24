@@ -16,14 +16,17 @@ export interface DesktopGlassEnvironment {
 
 const WINDOWS_ACRYLIC_MINIMUM_BUILD = 22621;
 
+export function supportsWindowsAcrylic(environment: Pick<DesktopGlassEnvironment, "platform" | "release">) {
+  return environment.platform === "win32" && Number(environment.release.split(".")[2]) >= WINDOWS_ACRYLIC_MINIMUM_BUILD;
+}
+
 export function setDesktopGlass(
   window: GlassWindow,
   requested: boolean,
   environment: DesktopGlassEnvironment,
 ): Result<boolean> {
   const enabled = requested && !environment.reducedTransparency;
-  const windowsAcrylic =
-    Number(environment.release.split(".")[2]) >= WINDOWS_ACRYLIC_MINIMUM_BUILD;
+  const windowsAcrylic = supportsWindowsAcrylic(environment);
   if (enabled && environment.platform === "win32" && !windowsAcrylic)
     return failure(
       "remote",

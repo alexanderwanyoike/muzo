@@ -1,0 +1,21 @@
+:root {
+  --window-controls-width: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px));
+}
+.app-shell > .now-playing-bar {
+  padding-inline-end: calc(24px + var(--window-controls-width));
+  app-region: drag;
+}
+.compact-player__header {
+  padding-inline-end: calc(18px + var(--window-controls-width));
+  app-region: drag;
+}
+.now-playing-bar button,
+.now-playing-bar input,
+.compact-player__header button {
+  app-region: no-drag;
+}
+@media (max-width: 950px) {
+  .app-shell > .now-playing-bar {
+    padding-inline-end: calc(17px + var(--window-controls-width));
+  }
+}

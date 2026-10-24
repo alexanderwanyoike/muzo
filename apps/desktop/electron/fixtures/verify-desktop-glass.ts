@@ -5,6 +5,7 @@ import { release } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { createPlayerWindow } from "../create-player-window";
+import { supportsWindowsAcrylic } from "../desktop-glass";
 import { installDesktopGlass } from "../install-desktop-glass";
 import { installPlayerWindowMode } from "../install-player-window-mode";
 import { installDesktopMenu } from "../desktop-menu";
@@ -26,7 +27,7 @@ ipcMain.handle("muzo:invoke", (_event, command: string, args: unknown) => {
   if (command === "prepare_track_audio_source") value = { url: "fixture-audio", mimeType: "audio/flac" };
   return { ok: true, value };
 });
-installPlayerWindowMode(ipcMain, (event) => BrowserWindow.fromWebContents(event.sender));
+installPlayerWindowMode(ipcMain, (event) => BrowserWindow.fromWebContents(event.sender), supportsWindowsAcrylic({platform:process.platform,release:release()}));
 installDesktopGlass(ipcMain, (event) => BrowserWindow.fromWebContents(event.sender), () => ({ platform: process.platform, release: release(), reducedTransparency: false }));
 
 async function until(expression: string) {

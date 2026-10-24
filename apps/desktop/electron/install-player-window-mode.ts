@@ -9,6 +9,7 @@ export function installPlayerWindowMode(
   findWindow: (
     event: IpcMainInvokeEvent,
   ) => PlayerWindow | BrowserWindow | null,
+  nativeCorners = false,
 ) {
   const controllers = new WeakMap<
     PlayerWindow,
@@ -24,7 +25,7 @@ export function installPlayerWindowMode(
     if (!window) return failure("remote", "The player window is unavailable.");
     let controller = controllers.get(window);
     if (!controller) {
-      controller = createPlayerWindowModeController(window);
+      controller = createPlayerWindowModeController(window, undefined, undefined, nativeCorners);
       controllers.set(window, controller);
     }
     return controller.setMode(mode);

@@ -19,6 +19,7 @@ import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-ar
 import { configureDesktopIdentity } from "./desktop-identity";
 import { configureDesktopIcon } from "./desktop-icon";
 import { createPlayerWindow } from "./create-player-window";
+import { supportsWindowsAcrylic } from "./desktop-glass";
 import { installDesktopGlass } from "./install-desktop-glass";
 import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
@@ -51,18 +52,20 @@ async function createWindow(icon: string) {
   }
 }
 
-installPlayerWindowMode(ipcMain, (event) =>
-  BrowserWindow.fromWebContents(event.sender),
+const windowEnvironment = () => ({
+  platform: process.platform,
+  release: release(),
+  reducedTransparency: nativeTheme.prefersReducedTransparency,
+});
+installPlayerWindowMode(
+  ipcMain,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  supportsWindowsAcrylic(windowEnvironment()),
 );
-
 installDesktopGlass(
   ipcMain,
   (event) => BrowserWindow.fromWebContents(event.sender),
-  () => ({
-    platform: process.platform,
-    release: release(),
-    reducedTransparency: nativeTheme.prefersReducedTransparency,
-  }),
+  windowEnvironment,
 );
 
 ipcMain.handle(
