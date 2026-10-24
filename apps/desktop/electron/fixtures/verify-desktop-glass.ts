@@ -79,7 +79,7 @@ void app.whenReady().then(async () => {
         if (Date.now() > deadline) throw new Error("Native compositor unavailable");
         if (!ready) await new Promise((resolve) => { setTimeout(resolve, 20); });
       }
-      backdrop = new BrowserWindow({x: 0, y: 0, width: 1600, height: 1100, frame: false, focusable: false, backgroundColor: "#6689b0"});
+      backdrop = new BrowserWindow({x: 0, y: 0, width: 1600, height: 1100, frame: false, backgroundColor: "#6689b0"});
       await backdrop.loadURL(`data:text/html,${encodeURIComponent('<body style="margin:0;background:#6689b0;height:100vh;color:white;font:22px sans-serif"><div style="padding:20px">Desktop behind Muzo</div></body>')}`);
     }
     installDesktopMenu(Menu, process.platform);
