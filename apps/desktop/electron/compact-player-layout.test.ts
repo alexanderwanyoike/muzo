@@ -93,12 +93,14 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
+      fallback: { queueAlpha: number };
       original: unknown;
       restored: unknown;
       minimum: number[];
     };
     expect(result.failure).toBeUndefined();
     expect(result.measurements).toHaveLength(16);
+    expect(result.fallback.queueAlpha).toBe(255);
     expect(result.restored).toEqual(result.original);
     expect(result.minimum).toEqual([800, 600]);
     for (const {

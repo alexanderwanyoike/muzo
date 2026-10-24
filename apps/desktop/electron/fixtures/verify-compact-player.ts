@@ -314,10 +314,42 @@ void app.whenReady().then(async () => {
         await until("!document.querySelector('.compact-player')");
       }
     }
+    await window.webContents.executeJavaScript(
+      'document.documentElement.dataset.theme="glass"',
+    );
+    await click("Mini player");
+    await click("Show queue");
+    await until("!!document.querySelector('.compact-queue')");
+    const fallback: unknown = await window.webContents
+      .executeJavaScript(`(() => {
+      const removed = [];
+      for (const sheet of document.styleSheets) {
+        for (let index = sheet.cssRules.length - 1; index >= 0; index -= 1) {
+          const rule = sheet.cssRules[index];
+          if (rule instanceof CSSSupportsRule && rule.conditionText.includes('backdrop-filter')) {
+            removed.push({sheet,index,text:rule.cssText});
+            sheet.deleteRule(index);
+          }
+        }
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        context.fillStyle = getComputedStyle(document.querySelector('.compact-queue')).backgroundColor;
+        context.fillRect(0,0,1,1);
+        return {queueAlpha:context.getImageData(0,0,1,1).data[3]};
+      } finally {
+        for (const item of removed.reverse()) item.sheet.insertRule(item.text,item.index);
+      }
+    })()`);
+    await click("Return to library");
+    await until("!document.querySelector('.compact-player')");
     writeFileSync(
       resultPath,
       JSON.stringify({
         measurements,
+        fallback,
         original,
         restored: window.getNormalBounds(),
         minimum: window.getMinimumSize(),
