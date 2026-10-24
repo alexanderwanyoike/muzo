@@ -169,4 +169,5 @@ feature/*   <- one branch per card. PRs target dev.
 
 ## License
 
-UNLICENSED (proprietary).
+Muzo is licensed under the [MIT License](./LICENSE). Bundled third-party fonts,
+icons and runtime components retain their own licences and notices.

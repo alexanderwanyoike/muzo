@@ -66,5 +66,6 @@
     "wait-on": "^9.0.10"
   },
   "author": "Muzo",
-  "desktopName": "muzo.desktop"
+  "desktopName": "muzo.desktop",
+  "license": "MIT"
 }

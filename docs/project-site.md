@@ -71,7 +71,10 @@ later, run Project site manually on main.
 Intended address: https://alexanderwanyoike.github.io/muzo/
 The existing v0.0.1 tag stays immutable. Current development captures can contain
 changes after that tag; download versions always come from the published manifest.
-The repository remains UNLICENSED/proprietary. Initial packages are unsigned.
+Muzo is MIT licensed. The footer links to `site/public/LICENSE.txt`, an exact
+copy of the root `LICENSE`, so the licence is available on the deployed site.
+Third-party font and icon notices retain their original terms. Initial packages
+are unsigned.
 
 ## Visual assets
 
