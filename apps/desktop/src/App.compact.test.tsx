@@ -42,7 +42,7 @@ function installMusic() {
     durationSeconds: 240,
     filePath: "/Music/first.flac",
   };
-  const invoke = vi.fn(async (command: string) => {
+  const invoke = vi.fn().mockImplementation(async (command: string) => {
     if (command === "list_libraries")
       return [
         {
@@ -65,7 +65,7 @@ function installMusic() {
   installTestRuntime({
     invoke,
     openDirectory: async () => null,
-    ...{ setPlayerWindowMode },
+    setPlayerWindowMode,
   });
   return { invoke, setPlayerWindowMode };
 }
@@ -88,18 +88,14 @@ it("switches to the mini player and back without restarting playback or losing t
     await screen.findByRole("button", { name: "Play First light" }),
   );
   await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: "Pause", exact: true }),
-    ).toBeDefined(),
+    expect(screen.getByRole("button", { name: "Pause" })).toBeDefined(),
   );
   const audio = TestAudio.instances[0];
   await act(async () => {
     audio.currentTime = 74;
     audio.dispatchEvent(new Event("timeupdate"));
   });
-  await user.click(
-    screen.getByRole("button", { name: "Mini player", exact: true }),
-  );
+  await user.click(screen.getByRole("button", { name: "Mini player" }));
   expect(
     await screen.findByRole("region", { name: "Mini player" }),
   ).toBeDefined();
