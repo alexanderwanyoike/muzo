@@ -1,4 +1,7 @@
-# Bundled asset notices
+# Bundled licences and notices
+
+Muzo is MIT licensed. `Muzo-MIT.txt` is an exact copy of the repository root
+`LICENSE` and ships in the Forge package and every installer.
 
 Manrope Variable is bundled into the desktop renderer. Its SIL Open Font License
 is retained in `manrope-OFL.txt`, copied unchanged from
