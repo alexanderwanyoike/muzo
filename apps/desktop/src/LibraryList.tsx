@@ -46,7 +46,7 @@ export default function LibraryList({
     <div className="source-browser">
       <div className="source-browser__search">
         <Search aria-hidden="true" />
-        <input ref={searchInput} type="search" aria-label="Search sources" placeholder="Search sources" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input ref={searchInput} type="search" aria-label="Search sources" placeholder="Search sources" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") clearSearch(); }} />
         {query && <button type="button" aria-label="Clear source search" onClick={clearSearch}><X aria-hidden="true" /></button>}
       </div>
       <p className="source-browser__count" aria-live="polite">{visibleLibraries.length} of {libraries.length} sources</p>
