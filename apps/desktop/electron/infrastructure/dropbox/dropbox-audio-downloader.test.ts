@@ -23,3 +23,18 @@ it("downloads binary audio atomically without exposing credentials or remote fil
     expect(readdirSync(root)).toHaveLength(1);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+it("bounds downloaded storage and removes partial files after an oversized response", async () => {
+  const root = mkdtempSync(join(tmpdir(), "muzo-cloud-limit-"));
+  try {
+    const request = vi.fn<typeof fetch>().mockImplementation(async () => new Response(new Uint8Array([1, 2, 3])));
+    const downloader = new DropboxAudioDownloader(root, request, 4);
+    expect((await downloader.download("token", "first", "/first.mp3")).ok).toBe(true);
+    const second = await downloader.download("token", "second", "/second.mp3");
+    expect(second.ok).toBe(true);
+    expect(readdirSync(root)).toHaveLength(1);
+    request.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3, 4, 5])));
+    expect((await downloader.download("token", "oversize", "/large.mp3")).ok).toBe(false);
+    expect(readdirSync(root)).toHaveLength(1);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
