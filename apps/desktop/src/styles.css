@@ -621,9 +621,25 @@ button {
 .now-playing-bar__controls {
   min-width: 0;
   display: grid;
-  grid-template-columns: 44px 46px minmax(80px, 1fr) 46px;
+  grid-template-columns: 32px 44px 32px 40px minmax(80px, 1fr) 40px;
   align-items: center;
   gap: 0.7rem;
+}
+
+.now-playing-bar__skip {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #665e55;
+  border-radius: 4px;
+  color: inherit;
+  background: transparent;
+  font-size: 0.75rem;
+}
+
+.now-playing-bar__skip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .now-playing-bar__play {

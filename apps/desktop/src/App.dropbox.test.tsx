@@ -4,8 +4,10 @@ import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
-afterEach(() => { cleanup(); removeTestRuntime(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); removeTestRuntime(); });
 it("imports and immediately syncs a Dropbox folder from Settings", async () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
   const library = { id: "cloud", name: "Cloud Music", kind: "dropbox", location: "/Music" };
   const invoke = vi.fn().mockImplementation(async (command: string) => {
     switch (command) {

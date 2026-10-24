@@ -9,23 +9,31 @@ import {
   type TrackDto,
 } from "./api";
 
+import type { PlaybackQueueItem } from "./useAudioPlayer";
+import { entryLabel, isCurrentEntry, playableEntries, playButtonLabel, trackFromEntry } from "./playlist-playback";
+
 interface PlaylistError {
   message?: string;
 }
 
 interface PlaylistPanelProps {
+  currentQueueEntryId?: string | null;
   currentTrackId?: string | null;
   isPlaying?: boolean;
+  onPlayQueue?: (entries: PlaybackQueueItem[], startIndex: number) => void;
   onPlayTrack?: (track: TrackDto) => void;
   onToggleCurrentTrack?: () => void;
 }
 
 export default function PlaylistPanel({
   currentTrackId = null,
+  currentQueueEntryId = null,
   isPlaying = false,
   onPlayTrack = () => {},
+  onPlayQueue,
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
+  const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -138,16 +146,26 @@ export default function PlaylistPanel({
     }
   }
 
-  function handlePlayEntry(entry: PlaylistEntryDto) {
-    if (entry.trackId === currentTrackId) {
+  function handlePlayEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
+    if (isCurrentEntry(entry, currentTrackId, activeEntryId)) {
       onToggleCurrentTrack();
       return;
     }
 
     const track = trackFromEntry(entry);
     if (track) {
-      onPlayTrack(track);
+      if (onPlayQueue) {
+        const entries = playableEntries(playlist);
+        onPlayQueue(entries, entries.findIndex((candidate) => candidate.entryId === entry.id));
+      } else onPlayTrack(track);
     }
+  }
+
+  function handlePlayPlaylist(playlist: PlaylistDto) {
+    const entries = playableEntries(playlist);
+    if (!entries.length) return;
+    if (onPlayQueue) onPlayQueue(entries, 0);
+    else onPlayTrack(entries[0].track);
   }
 
   return (
@@ -187,6 +205,10 @@ export default function PlaylistPanel({
               <div className="playlist-panel__summary">
                 <h3>{playlist.name}</h3>
                 <p>{formatTrackCount(playlist.entries.length)}</p>
+                <button type="button" disabled={!playableEntries(playlist).length}
+                  aria-label={`Play ${playlist.name}`} onClick={() => handlePlayPlaylist(playlist)}>
+                  Play playlist
+                </button>
               </div>
               {playlist.entries.length === 0 ? (
                 <p className="playlist-panel__empty-entries">
@@ -207,15 +229,16 @@ export default function PlaylistPanel({
                           type="button"
                           className="playlist-panel__entry-play"
                           disabled={!trackFromEntry(entry)}
-                          onClick={() => handlePlayEntry(entry)}
+                          onClick={() => handlePlayEntry(playlist, entry)}
                           aria-label={playButtonLabel(
                             entry,
                             playlist,
                             currentTrackId,
                             isPlaying,
+                            activeEntryId,
                           )}
                         >
-                          {entry.trackId === currentTrackId && isPlaying
+                          {isCurrentEntry(entry, currentTrackId, activeEntryId) && isPlaying
                             ? "||"
                             : ">"}
                         </button>
@@ -263,45 +286,4 @@ export default function PlaylistPanel({
 
 function formatTrackCount(count: number): string {
   return `${count} ${count === 1 ? "track" : "tracks"}`;
-}
-
-function entryLabel(entry: PlaylistEntryDto): string {
-  return entry.trackTitle ?? entry.trackId;
-}
-
-function playButtonLabel(
-  entry: PlaylistEntryDto,
-  playlist: PlaylistDto,
-  currentTrackId: string | null,
-  isPlaying: boolean,
-): string {
-  const label = entryLabel(entry);
-  if (!trackFromEntry(entry)) {
-    return `Track ${label} is unavailable in ${playlist.name}`;
-  }
-  if (entry.trackId === currentTrackId && isPlaying) {
-    return `Pause ${label} from ${playlist.name}`;
-  }
-  return `Play ${label} from ${playlist.name}`;
-}
-
-function trackFromEntry(entry: PlaylistEntryDto): TrackDto | null {
-  if (!entry.trackLibraryId) {
-    return null;
-  }
-
-  return {
-    id: entry.trackId,
-    libraryId: entry.trackLibraryId,
-    title: entryLabel(entry),
-    artist: entry.trackArtist ?? "Unknown Artist",
-    album: null,
-    trackNumber: null,
-    discNumber: null,
-    genre: null,
-    year: null,
-    metadataOverridden: false,
-    durationSeconds: entry.trackDurationSeconds ?? 0,
-    filePath: "",
-  };
 }

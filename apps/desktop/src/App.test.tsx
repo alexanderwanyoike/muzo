@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import type { TrackDto } from "./api";
@@ -8,6 +8,8 @@ import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 let mockedInvoke: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
   const runtime = installTestRuntime({
     invoke: vi.fn(),
     openDirectory: vi.fn().mockResolvedValue(null),
@@ -16,6 +18,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
   removeTestRuntime();
 });
 

@@ -46,7 +46,14 @@ export default function App() {
     volume,
     playbackError,
     play,
+    playQueue,
+    currentQueueEntryId,
+    hasNext,
+    hasPrevious,
+    next,
+    previous,
     toggle,
+    clearQueue,
     seek,
     setVolume,
   } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
@@ -291,6 +298,8 @@ export default function App() {
           </div>
         ) : activeView === "playlists" ? (
           <PlaylistPanel
+            onPlayQueue={playQueue}
+            currentQueueEntryId={currentQueueEntryId}
             currentTrackId={current?.id ?? null}
             isPlaying={status === "playing"}
             onPlayTrack={play}
@@ -306,7 +315,7 @@ export default function App() {
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}
-              onToggleCurrentTrack={toggle}
+              onToggleCurrentTrack={() => { clearQueue(); toggle(); }}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
               playCounts={trackPlayCounts[selectedLibrary.id] ?? {}}
@@ -328,6 +337,10 @@ export default function App() {
       </section>
 
       <NowPlayingBar
+        hasNext={hasNext}
+        hasPrevious={hasPrevious}
+        onNext={next}
+        onPrevious={previous}
         current={current}
         status={status}
         positionSeconds={positionSeconds}
