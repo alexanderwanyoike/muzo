@@ -157,3 +157,64 @@ it("keeps failed selections while adding the other folders and skips already-add
     ),
   ).toHaveLength(1);
 });
+
+it("retries an unavailable location and can select the current folder when it has no subfolders", async () => {
+  let musicAttempts = 0;
+  const invoke = vi
+    .fn()
+    .mockImplementation(
+      async (command: string, args?: { input?: { path?: string } }) => {
+        if (command === "dropbox_add_library")
+          return {
+            ok: true,
+            value: {
+              id: "music",
+              name: "Music",
+              kind: "dropbox",
+              location: "/Music",
+            },
+          };
+        if (args?.input?.path === "/Music") {
+          musicAttempts += 1;
+          return musicAttempts === 1
+            ? {
+                ok: false,
+                error: { kind: "remote", message: "Temporarily unavailable." },
+              }
+            : { ok: true, value: { folders: [], addedPaths: [] } };
+        }
+        return {
+          ok: true,
+          value: {
+            folders: [{ id: "music", name: "Music", path: "/Music" }],
+            addedPaths: [],
+          },
+        };
+      },
+    );
+  installTestRuntime({ invoke, openDirectory: async () => null });
+  const user = userEvent.setup();
+  const onAdded = vi.fn();
+  render(
+    <DropboxFolderPicker
+      accountId="account"
+      onAdded={onAdded}
+      onClose={() => {}}
+    />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Open Music" }));
+  expect(await screen.findByRole("alert")).toHaveProperty(
+    "textContent",
+    "Temporarily unavailable.",
+  );
+  await user.click(screen.getByRole("button", { name: "Retry folders" }));
+  expect(await screen.findByText("No subfolders here.")).toBeDefined();
+  await user.click(
+    screen.getByRole("checkbox", { name: "Select current folder" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Add 1 folder" }));
+  await waitFor(() => expect(onAdded).toHaveBeenCalledTimes(1));
+  expect(invoke).toHaveBeenCalledWith("dropbox_add_library", {
+    input: { name: "Music", location: "/Music", accountId: "account" },
+  });
+});
