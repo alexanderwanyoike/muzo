@@ -1,3 +1,4 @@
+import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
@@ -207,7 +208,7 @@ export default function App() {
             }
             onClick={() => setActiveView("library")}
           >
-            Songs
+            <Music2 aria-hidden="true" /> Songs
           </button>
           <button
             type="button"
@@ -218,7 +219,7 @@ export default function App() {
             }
             onClick={() => setActiveView("playlists")}
           >
-            Playlists
+            <ListMusic aria-hidden="true" /> Playlists
           </button>
           <button
             type="button"
@@ -229,7 +230,7 @@ export default function App() {
             }
             onClick={() => setActiveView("settings")}
           >
-            Settings
+            <Settings2 aria-hidden="true" /> Settings
           </button>
         </nav>
 

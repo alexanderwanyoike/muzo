@@ -9,7 +9,7 @@ interface Props {
 export default function AppearanceSettings({ appearance, onChange, error }: Props) {
   return (
     <section className="settings-view__section appearance-settings" aria-labelledby="appearance-heading">
-      <header><h3 id="appearance-heading">Appearance</h3><p>Make yourself at home. Your music, your surroundings.</p></header>
+      <header><h3 id="appearance-heading">Appearance</h3><p>Choose a material, appearance and accent colour.</p></header>
       <fieldset><legend>Material</legend><div className="appearance-materials">
         {MATERIALS.map((material) => (
           <label className="appearance-material" key={material.id}>
