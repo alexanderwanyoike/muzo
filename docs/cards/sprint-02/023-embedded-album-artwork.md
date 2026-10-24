@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In review
+- Status: Done
 - Depends on: 022 (PR #49)
 
 # Card 023 - Display embedded album artwork
@@ -22,7 +22,7 @@ Sources. Keep missing artwork quiet and preserve playback when artwork fails.
 - [x] Load row artwork near the viewport; load current-track artwork immediately.
 - [x] Reload visible covers after a manual source refresh and ignore superseded responses.
 - [x] Show a quiet fallback for missing, unsupported or unavailable artwork.
-- [ ] Full repository gates, visual checks and two review cycles pass.
+- [x] Full repository gates, visual checks and two review cycles pass (272 tests).
 
 ## Established patterns and licences
 
@@ -58,3 +58,5 @@ proves the cover is read with less than 128 KiB transferred. Account-bound servi
 and UI tests cover credentials, deduplication, file revision changes, lazy rows,
 source refresh and the listening/playlist views. Fixtures are original test data,
 not user music or downloaded artwork.
+
+Review evidence: [two review cycles](../../reviews/2026-10-24-embedded-album-artwork.md).

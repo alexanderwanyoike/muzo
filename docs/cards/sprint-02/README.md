@@ -33,7 +33,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 020 | [Visual Dropbox folder picker](./020-dropbox-folder-picker.md) | Feature | Done | - |
 | 021 | [Desktop materials and appearance](./021-desktop-appearance-themes.md) | Feature | Done | - |
 | 022 | [Remove library sources](./022-remove-library-sources.md) | Feature | Done | - |
-| 023 | [Embedded album artwork](./023-embedded-album-artwork.md) | Feature | In review | - |
+| 023 | [Embedded album artwork](./023-embedded-album-artwork.md) | Feature | Done | - |
 
 ## Close-out note
 
