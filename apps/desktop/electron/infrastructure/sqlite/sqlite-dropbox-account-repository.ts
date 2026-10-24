@@ -47,6 +47,7 @@ export class SqliteDropboxAccountRepository
       const statement = database.prepare(`
         SELECT
           account_id,
+          client_id,
           encrypted_access_token,
           encrypted_refresh_token,
           access_token_expires_at_unix_seconds,
@@ -77,14 +78,16 @@ export class SqliteDropboxAccountRepository
         `
           INSERT INTO dropbox_accounts (
             account_id,
+          client_id,
             encrypted_access_token,
             encrypted_refresh_token,
             access_token_expires_at_unix_seconds,
             connected_at_unix_seconds
-          ) VALUES (?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?)
         `,
         [
           account.accountId,
+          account.clientId,
           this.cipher.protect(account.accessToken),
           this.cipher.protect(account.refreshToken),
           account.accessTokenExpiresAtUnixSeconds,
@@ -110,6 +113,7 @@ function accountFromRow(
 ): StoredDropboxAccount {
   return {
     accountId: stringColumn(row, "account_id"),
+    clientId: stringColumn(row, "client_id"),
     accessToken: cipher.unprotect(stringColumn(row, "encrypted_access_token")),
     refreshToken: cipher.unprotect(stringColumn(row, "encrypted_refresh_token")),
     accessTokenExpiresAtUnixSeconds: numberColumn(
