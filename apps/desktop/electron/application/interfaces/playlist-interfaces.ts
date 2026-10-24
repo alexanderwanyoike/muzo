@@ -20,7 +20,10 @@ export interface PlaylistService {
   addTrack(playlistId: string, trackId: string): Promise<Result<PlaylistDto>>;
   create(name: string): Promise<Result<PlaylistDto>>;
   list(): Promise<Result<PlaylistDto[]>>;
-  removeEntry(playlistId: string, entryId: string): Promise<Result<PlaylistDto>>;
+  removeEntry(
+    playlistId: string,
+    entryId: string,
+  ): Promise<Result<PlaylistDto>>;
   reorderEntries(
     playlistId: string,
     orderedEntryIds: string[],

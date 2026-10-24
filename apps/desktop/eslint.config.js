@@ -7,7 +7,16 @@ import globals from "globals";
 const typescriptFiles = ["**/*.{ts,tsx}"];
 
 export default defineConfig(
-  { ignores: ["dist/**", "dist-electron/**", "out/**", "node_modules/**", "vite.config.js", "vite.config.d.ts"] },
+  {
+    ignores: [
+      "dist/**",
+      "dist-electron/**",
+      "out/**",
+      "node_modules/**",
+      "vite.config.js",
+      "vite.config.d.ts",
+    ],
+  },
   plugins.stylistic,
   plugins.importX,
   plugins.typescriptEslint,
@@ -20,16 +29,28 @@ export default defineConfig(
     files: typescriptFiles,
     languageOptions: {
       ecmaVersion: 2022,
-      parserOptions: { projectService: true, tsconfigRootDir: fileURLToPath(new URL(".", import.meta.url)) },
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: fileURLToPath(new URL(".", import.meta.url)),
+      },
     },
     rules: {
-      "@typescript-eslint/no-use-before-define": ["error", { functions: false, typedefs: false, ignoreTypeReferences: true }],
+      "@typescript-eslint/no-use-before-define": [
+        "error",
+        { functions: false, typedefs: false, ignoreTypeReferences: true },
+      ],
       "class-methods-use-this": "off",
       // Typed unions provide exhaustive switch coverage without unreachable defaults.
       "default-case": "off",
       "consistent-return": "off",
-      "@typescript-eslint/switch-exhaustiveness-check": ["error", { considerDefaultExhaustiveForUnions: true }],
-      "@typescript-eslint/class-methods-use-this": ["error", { ignoreClassesThatImplementAnInterface: true }],
+      "@typescript-eslint/switch-exhaustiveness-check": [
+        "error",
+        { considerDefaultExhaustiveForUnions: true },
+      ],
+      "@typescript-eslint/class-methods-use-this": [
+        "error",
+        { ignoreClassesThatImplementAnInterface: true },
+      ],
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/no-unsafe-assignment": "error",
       "@typescript-eslint/no-unsafe-argument": "error",
@@ -38,8 +59,14 @@ export default defineConfig(
       "@typescript-eslint/no-unsafe-return": "error",
     },
   },
-  { files: ["src/**/*.{ts,tsx}"], languageOptions: { globals: globals.browser } },
-  { files: ["electron/**/*.ts", "*.{js,cjs,ts}"], languageOptions: { globals: globals.node } },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ["electron/**/*.ts", "*.{js,cjs,ts}"],
+    languageOptions: { globals: globals.node },
+  },
   {
     rules: {
       // Named exports match the application's ports and cohesive adapter modules.
@@ -47,19 +74,43 @@ export default defineConfig(
       // React 18 uses the automatic JSX runtime and parameter defaults.
       "react/react-in-jsx-scope": "off",
       "react/jsx-uses-react": "off",
-      "react/require-default-props": ["error", { ignoreFunctionalComponents: true }],
+      "react/require-default-props": [
+        "error",
+        { ignoreFunctionalComponents: true },
+      ],
       // Lifecycle effects reset loading/editor state. React Compiler is not enabled.
       "react-hooks/set-state-in-effect": "off",
-      "react/jsx-no-bind": ["error", { allowArrowFunctions: true, allowFunctions: true }],
+      "react/jsx-no-bind": [
+        "error",
+        { allowArrowFunctions: true, allowFunctions: true },
+      ],
       "jsx-a11y/label-has-associated-control": ["error", { depth: 3 }],
       "no-void": ["error", { allowAsStatement: true }],
       // ES2022 supports native for-of without transpiler runtime overhead.
-      "no-restricted-syntax": ["error", "ForInStatement", "LabeledStatement", "WithStatement"],
+      "no-restricted-syntax": [
+        "error",
+        "ForInStatement",
+        "LabeledStatement",
+        "WithStatement",
+      ],
       "no-underscore-dangle": ["error", { allow: ["__MUZO_RUNTIME__"] }],
-      "import-x/no-extraneous-dependencies": ["error", {
-        packageDir: [fileURLToPath(new URL(".", import.meta.url)), fileURLToPath(new URL("../..", import.meta.url))],
-        devDependencies: ["**/*.test.{ts,tsx}", "**/*config.{js,cjs,ts}", "**/electron/main.ts", "**/electron/preload.cjs", "**/electron/build-electron-main.ts", "**/src/test-runtime.ts"],
-      }],
+      "import-x/no-extraneous-dependencies": [
+        "error",
+        {
+          packageDir: [
+            fileURLToPath(new URL(".", import.meta.url)),
+            fileURLToPath(new URL("../..", import.meta.url)),
+          ],
+          devDependencies: [
+            "**/*.test.{ts,tsx}",
+            "**/*config.{js,cjs,ts}",
+            "**/electron/main.ts",
+            "**/electron/preload.cjs",
+            "**/electron/build-electron-main.ts",
+            "**/src/test-runtime.ts",
+          ],
+        },
+      ],
     },
   },
   {
@@ -68,9 +119,24 @@ export default defineConfig(
     rules: { "no-await-in-loop": "off", "no-continue": "off" },
   },
   {
-    files: ["src/audio-player-engine.ts", "electron/infrastructure/filesystem/node-filesystem-library-watcher.ts"],
+    files: [
+      "src/audio-player-engine.ts",
+      "electron/infrastructure/filesystem/node-filesystem-library-watcher.ts",
+    ],
     // Audio engines, React refs and watcher registrations are imperative handles.
-    rules: { "no-param-reassign": ["error", { props: true, ignorePropertyModificationsFor: ["audio", "currentTrackIdRef", "registration"] }] },
+    rules: {
+      "no-param-reassign": [
+        "error",
+        {
+          props: true,
+          ignorePropertyModificationsFor: [
+            "audio",
+            "currentTrackIdRef",
+            "registration",
+          ],
+        },
+      ],
+    },
   },
   {
     files: ["electron/infrastructure/logging/console-logger.ts"],

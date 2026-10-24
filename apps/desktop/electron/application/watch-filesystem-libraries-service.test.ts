@@ -145,7 +145,10 @@ class FakeScanner {
     this.scannedLibraryIds.push(libraryId);
     const failure = this.failures[libraryId];
     if (failure) {
-      return { ok: false, error: { kind: "repository", message: failure.message } };
+      return {
+        ok: false,
+        error: { kind: "repository", message: failure.message },
+      };
     }
     return { ok: true, value: { tracksScanned: 0 } };
   }

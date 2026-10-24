@@ -18,17 +18,25 @@ describe("ElectronSafeStorageDropboxTokenCipher", () => {
   it("refuses token storage when the OS cannot protect credentials", () => {
     const unavailable = new FakeSafeStorage();
     unavailable.isEncryptionAvailable = () => false;
-    expect(() => new ElectronSafeStorageDropboxTokenCipher(unavailable).protect("secret")).toThrow(/secure storage/i);
+    expect(() =>
+      new ElectronSafeStorageDropboxTokenCipher(unavailable).protect("secret"),
+    ).toThrow(/secure storage/i);
     const plaintext = new FakeSafeStorage();
     plaintext.getSelectedStorageBackend = () => "basic_text";
-    expect(() => new ElectronSafeStorageDropboxTokenCipher(plaintext).protect("secret")).toThrow(/secure storage/i);
+    expect(() =>
+      new ElectronSafeStorageDropboxTokenCipher(plaintext).protect("secret"),
+    ).toThrow(/secure storage/i);
   });
 });
 
 class FakeSafeStorage {
-  isEncryptionAvailable(): boolean { return true; }
+  isEncryptionAvailable(): boolean {
+    return true;
+  }
 
-  getSelectedStorageBackend(): string { return "gnome_libsecret"; }
+  getSelectedStorageBackend(): string {
+    return "gnome_libsecret";
+  }
 
   encryptString(value: string): Buffer {
     return Buffer.from(`enc:${value}`);

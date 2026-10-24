@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TrackDto } from "./api";
-import { createAudioElement, formatPlaybackError, loadAndPlayTrack, type AudioElementLike } from "./audio-player-engine";
+import {
+  createAudioElement,
+  formatPlaybackError,
+  loadAndPlayTrack,
+  type AudioElementLike,
+} from "./audio-player-engine";
 
 export type PlayerStatus = "idle" | "loading" | "playing" | "paused" | "error";
 
@@ -36,17 +41,24 @@ interface UseAudioPlayerOptions {
   onTrackPlayRecorded?: (track: TrackDto) => void;
 }
 
-
-export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer {
+export function useAudioPlayer(
+  options: UseAudioPlayerOptions = {},
+): AudioPlayer {
   const { onTrackPlayRecorded } = options;
-  const [queue, setQueueState] = useState<{ entries: PlaybackQueueItem[]; index: number }>({ entries: [], index: -1 });
+  const [queue, setQueueState] = useState<{
+    entries: PlaybackQueueItem[];
+    index: number;
+  }>({ entries: [], index: -1 });
   const queueRef = useRef(queue);
   const advanceRef = useRef<() => boolean>(() => false);
-  const setQueue = useCallback((entries: PlaybackQueueItem[], index: number) => {
-    const state = { entries, index };
-    queueRef.current = state;
-    setQueueState(state);
-  }, []);
+  const setQueue = useCallback(
+    (entries: PlaybackQueueItem[], index: number) => {
+      const state = { entries, index };
+      queueRef.current = state;
+      setQueueState(state);
+    },
+    [],
+  );
   const audioRef = useRef<AudioElementLike | null>(null);
   const playRequestRef = useRef(0);
   const currentTrackIdRef = useRef<string | null>(null);
@@ -85,7 +97,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     };
     const onError = () => {
       setStatus("error");
-      setPlaybackError("Could not play this track. The audio source failed to load.");
+      setPlaybackError(
+        "Could not play this track. The audio source failed to load.",
+      );
     };
 
     audio.addEventListener("timeupdate", onTimeUpdate);
@@ -115,76 +129,95 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     };
   }, []);
 
-  const startTrack = useCallback((track: TrackDto) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (currentTrackIdRef.current === track.id) {
-      if (statusRef.current === "loading") return;
-      if (audio.paused) {
-        setPlaybackError(null);
-        setStatus("loading");
-        void Promise.resolve(audio.play()).catch((err: unknown) => {
-          setStatus("error");
-          setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
-        });
+  const startTrack = useCallback(
+    (track: TrackDto) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (currentTrackIdRef.current === track.id) {
+        if (statusRef.current === "loading") return;
+        if (audio.paused) {
+          setPlaybackError(null);
+          setStatus("loading");
+          void Promise.resolve(audio.play()).catch((err: unknown) => {
+            setStatus("error");
+            setPlaybackError(
+              formatPlaybackError("The audio engine rejected playback", err),
+            );
+          });
+        }
+        return;
       }
-      return;
-    }
-    statusRef.current = "loading";
-    audio.pause();
-    const requestId = playRequestRef.current + 1;
-    playRequestRef.current = requestId;
-    currentTrackIdRef.current = track.id;
-    setCurrent(track);
-    setPositionSeconds(0);
-    setDurationSeconds(track.durationSeconds || 0);
-    setPlaybackError(null);
-    setStatus("loading");
-    void loadAndPlayTrack(
-      audio,
-      track,
-      requestId,
-      playRequestRef,
-      currentTrackIdRef,
-      setStatus,
-      setPlaybackError,
-      onTrackPlayRecorded,
-    );
-  }, [onTrackPlayRecorded]);
+      statusRef.current = "loading";
+      audio.pause();
+      const requestId = playRequestRef.current + 1;
+      playRequestRef.current = requestId;
+      currentTrackIdRef.current = track.id;
+      setCurrent(track);
+      setPositionSeconds(0);
+      setDurationSeconds(track.durationSeconds || 0);
+      setPlaybackError(null);
+      setStatus("loading");
+      void loadAndPlayTrack(
+        audio,
+        track,
+        requestId,
+        playRequestRef,
+        currentTrackIdRef,
+        setStatus,
+        setPlaybackError,
+        onTrackPlayRecorded,
+      );
+    },
+    [onTrackPlayRecorded],
+  );
 
-  const clearQueue = useCallback(() => { setQueue([], -1); }, [setQueue]);
+  const clearQueue = useCallback(() => {
+    setQueue([], -1);
+  }, [setQueue]);
 
-  const play = useCallback((track: TrackDto) => {
-    clearQueue();
-    startTrack(track);
-  }, [clearQueue, startTrack]);
+  const play = useCallback(
+    (track: TrackDto) => {
+      clearQueue();
+      startTrack(track);
+    },
+    [clearQueue, startTrack],
+  );
 
-  const playQueue = useCallback((entries: PlaybackQueueItem[], startIndex = 0) => {
-    if (!Number.isInteger(startIndex) || !entries[startIndex]) return;
-    const snapshot = [...entries];
-    setQueue(snapshot, startIndex);
-    currentTrackIdRef.current = null;
-    startTrack(snapshot[startIndex].track);
-  }, [setQueue, startTrack]);
+  const playQueue = useCallback(
+    (entries: PlaybackQueueItem[], startIndex = 0) => {
+      if (!Number.isInteger(startIndex) || !entries[startIndex]) return;
+      const snapshot = [...entries];
+      setQueue(snapshot, startIndex);
+      currentTrackIdRef.current = null;
+      startTrack(snapshot[startIndex].track);
+    },
+    [setQueue, startTrack],
+  );
 
-
-  const moveQueue = useCallback((direction: number): boolean => {
-    const state = queueRef.current;
-    const index = state.index + direction;
-    const entry = state.entries[index];
-    if (!entry) return false;
-    setQueue(state.entries, index);
-    currentTrackIdRef.current = null;
-    startTrack(entry.track);
-    return true;
-  }, [setQueue, startTrack]);
+  const moveQueue = useCallback(
+    (direction: number): boolean => {
+      const state = queueRef.current;
+      const index = state.index + direction;
+      const entry = state.entries[index];
+      if (!entry) return false;
+      setQueue(state.entries, index);
+      currentTrackIdRef.current = null;
+      startTrack(entry.track);
+      return true;
+    },
+    [setQueue, startTrack],
+  );
 
   useEffect(() => {
     advanceRef.current = () => moveQueue(1);
   }, [moveQueue]);
 
-  const next = useCallback(() => { moveQueue(1); }, [moveQueue]);
-  const previous = useCallback(() => { moveQueue(-1); }, [moveQueue]);
+  const next = useCallback(() => {
+    moveQueue(1);
+  }, [moveQueue]);
+  const previous = useCallback(() => {
+    moveQueue(-1);
+  }, [moveQueue]);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -194,7 +227,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       setStatus("loading");
       void Promise.resolve(audio.play()).catch((err: unknown) => {
         setStatus("error");
-        setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
+        setPlaybackError(
+          formatPlaybackError("The audio engine rejected playback", err),
+        );
       });
     } else {
       audio.pause();

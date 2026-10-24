@@ -1,6 +1,5 @@
 const dropboxTokenUrl = "https://api.dropboxapi.com/oauth2/token";
-const dropboxListFolderUrl =
-  "https://api.dropboxapi.com/2/files/list_folder";
+const dropboxListFolderUrl = "https://api.dropboxapi.com/2/files/list_folder";
 const dropboxListFolderContinueUrl =
   "https://api.dropboxapi.com/2/files/list_folder/continue";
 
@@ -96,7 +95,7 @@ export class DropboxApiClient {
     );
 
     const entries = [...firstPage.entries];
-    let {cursor} = firstPage;
+    let { cursor } = firstPage;
     let hasMore = firstPage.has_more;
 
     while (hasMore) {
@@ -146,7 +145,6 @@ export class DropboxApiClient {
 
 export { FetchDropboxHttpTransport } from "./fetch-dropbox-http-transport";
 
-
 interface DropboxListFolderResponse {
   entries: DropboxEntryResponse[];
   cursor: string;
@@ -176,15 +174,26 @@ function assertOk(response: DropboxHttpResponse): void {
 }
 
 function dropboxTokenFromResponse(response: unknown): DropboxToken {
-  if (!response || typeof response !== "object"
-    || !("access_token" in response) || typeof response.access_token !== "string" || !response.access_token
-    || !("expires_in" in response) || typeof response.expires_in !== "number" || !Number.isFinite(response.expires_in) || response.expires_in <= 0) {
+  if (
+    !response ||
+    typeof response !== "object" ||
+    !("access_token" in response) ||
+    typeof response.access_token !== "string" ||
+    !response.access_token ||
+    !("expires_in" in response) ||
+    typeof response.expires_in !== "number" ||
+    !Number.isFinite(response.expires_in) ||
+    response.expires_in <= 0
+  ) {
     throw new Error("Invalid Dropbox token response");
   }
-  const refreshToken = "refresh_token" in response ? response.refresh_token : undefined;
+  const refreshToken =
+    "refresh_token" in response ? response.refresh_token : undefined;
   const accountId = "account_id" in response ? response.account_id : undefined;
-  if ((refreshToken !== undefined && typeof refreshToken !== "string")
-    || (accountId !== undefined && typeof accountId !== "string")) {
+  if (
+    (refreshToken !== undefined && typeof refreshToken !== "string") ||
+    (accountId !== undefined && typeof accountId !== "string")
+  ) {
     throw new Error("Invalid Dropbox token response");
   }
   return {
@@ -195,7 +204,9 @@ function dropboxTokenFromResponse(response: unknown): DropboxToken {
   };
 }
 
-function dropboxEntryFromResponse(response: DropboxEntryResponse): DropboxEntry {
+function dropboxEntryFromResponse(
+  response: DropboxEntryResponse,
+): DropboxEntry {
   return {
     tag: response[".tag"],
     name: response.name,

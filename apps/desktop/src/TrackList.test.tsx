@@ -76,8 +76,14 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledWith("list_tracks", { libraryId: "lib-1" }));
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("list_tracks", {
+        libraryId: "lib-1",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     expect(screen.getByText("Take It Easy")).toBeDefined();
   });
 
@@ -126,7 +132,9 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
 
     expect(screen.getByText("Eagles - Hotel California")).toBeDefined();
     expect(screen.getByText("Eagles - Edited in Muzo")).toBeDefined();
@@ -154,8 +162,12 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /edit hotel california/i }),
+    );
     await user.clear(screen.getByLabelText("Title"));
     await user.type(screen.getByLabelText("Title"), "Hotel California Live");
     await user.click(screen.getByRole("button", { name: "Save metadata" }));
@@ -203,7 +215,9 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Add Hotel California to playlist",
@@ -242,7 +256,9 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Add Hotel California to playlist",
@@ -277,7 +293,9 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Add Hotel California to playlist",
@@ -312,7 +330,9 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Add Hotel California to playlist",
@@ -341,8 +361,12 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /edit hotel california/i }),
+    );
 
     expect(screen.queryByRole("button", { name: "Clear override" })).toBeNull();
   });
@@ -371,7 +395,9 @@ describe("TrackList", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Take It Easy")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /edit take it easy/i }));
+    await user.click(
+      screen.getByRole("button", { name: /edit take it easy/i }),
+    );
     await user.click(screen.getByRole("button", { name: "Clear override" }));
 
     await waitFor(() =>
@@ -406,8 +432,12 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /edit hotel california/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /edit hotel california/i }),
+    );
     await user.clear(screen.getByLabelText("Title"));
     await user.type(screen.getByLabelText("Title"), "Hotel California Live");
     await user.click(screen.getByRole("button", { name: "Save metadata" }));
@@ -438,7 +468,9 @@ describe("TrackList", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Take It Easy")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /edit take it easy/i }));
+    await user.click(
+      screen.getByRole("button", { name: /edit take it easy/i }),
+    );
     await user.click(screen.getByRole("button", { name: "Clear override" }));
 
     await waitFor(() =>
@@ -481,8 +513,12 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /play hotel california/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /play hotel california/i }),
+    );
 
     expect(onPlayTrack).toHaveBeenCalledWith(sampleTracks[0]);
     expect(onToggleCurrentTrack).not.toHaveBeenCalled();
@@ -503,8 +539,12 @@ describe("TrackList", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
-    await user.click(screen.getByRole("button", { name: /pause hotel california/i }));
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /pause hotel california/i }),
+    );
 
     expect(onToggleCurrentTrack).toHaveBeenCalledOnce();
     expect(onPlayTrack).not.toHaveBeenCalled();
@@ -530,17 +570,30 @@ describe("TrackList", () => {
   it("shows filesystem changes while the selected library remains open", async () => {
     vi.useFakeTimers();
     try {
-      mockedInvoke.mockResolvedValueOnce([sampleTracks[0]]).mockResolvedValue(sampleTracks);
-      const view = render(<TrackList libraryId="lib-1" currentTrackId={null} isPlaying={false} onPlayTrack={() => {}} onToggleCurrentTrack={() => {}} />);
+      mockedInvoke
+        .mockResolvedValueOnce([sampleTracks[0]])
+        .mockResolvedValue(sampleTracks);
+      const view = render(
+        <TrackList
+          libraryId="lib-1"
+          currentTrackId={null}
+          isPlaying={false}
+          onPlayTrack={() => {}}
+          onToggleCurrentTrack={() => {}}
+        />,
+      );
       await act(async () => {});
       expect(screen.queryByText("Take It Easy")).toBeNull();
-      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
       expect(screen.getByText("Take It Easy")).toBeDefined();
       view.unmount();
       const count = mockedInvoke.mock.calls.length;
       await vi.advanceTimersByTimeAsync(5000);
       expect(mockedInvoke).toHaveBeenCalledTimes(count);
-    } finally { vi.useRealTimers(); }
+    } finally {
+      vi.useRealTimers();
+    }
   });
-
 });

@@ -187,7 +187,8 @@ describe("App", () => {
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
       if (command === "list_tracks") return Promise.resolve([]);
-      if (command === "scan_library") return Promise.resolve({ tracksScanned: 1 });
+      if (command === "scan_library")
+        return Promise.resolve({ tracksScanned: 1 });
       return Promise.resolve([]);
     });
 
@@ -197,13 +198,16 @@ describe("App", () => {
     await user.click(
       screen.getByRole("button", { name: "Show tracks for My Music" }),
     );
-    await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText(/no tracks yet/i)).toBeDefined(),
+    );
     expect(screen.queryByRole("button", { name: /refresh/i })).toBeNull();
 
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
       if (command === "list_tracks") return Promise.resolve([track]);
-      if (command === "scan_library") return Promise.resolve({ tracksScanned: 1 });
+      if (command === "scan_library")
+        return Promise.resolve({ tracksScanned: 1 });
       return Promise.resolve([]);
     });
 

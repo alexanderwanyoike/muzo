@@ -85,7 +85,9 @@ function findPlaylist(
   database: InstanceType<SqlJsStatic["Database"]>,
   playlistId: string,
 ): PlaylistDto | null {
-  const statement = database.prepare("SELECT id, name FROM playlists WHERE id = ?");
+  const statement = database.prepare(
+    "SELECT id, name FROM playlists WHERE id = ?",
+  );
   try {
     statement.bind([playlistId]);
     if (!statement.step()) {
@@ -153,7 +155,10 @@ function listEntries(
         trackTitle: nullableStringColumn(row, "track_title"),
         trackArtist: nullableStringColumn(row, "track_artist"),
         trackLibraryId: nullableStringColumn(row, "track_library_id"),
-        trackDurationSeconds: nullableNumberColumn(row, "track_duration_seconds"),
+        trackDurationSeconds: nullableNumberColumn(
+          row,
+          "track_duration_seconds",
+        ),
         position: numberColumn(row, "position"),
       });
     }

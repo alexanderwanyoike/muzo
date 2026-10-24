@@ -53,8 +53,9 @@ describe("buildElectronMain", () => {
       "module.exports = {};",
     );
     expect(existsSync(join(outdir, "sql-wasm.wasm"))).toBe(true);
-    expect(execFileSync("node", [join(outdir, "main.cjs")], { encoding: "utf8" }))
-      .toContain(outdir);
+    expect(
+      execFileSync("node", [join(outdir, "main.cjs")], { encoding: "utf8" }),
+    ).toContain(outdir);
   });
 
   it("bundles the real Electron container without constructor name coupling", async () => {
@@ -94,7 +95,8 @@ describe("buildElectronMain", () => {
       outdir,
     });
 
-    expect(execFileSync("node", [join(outdir, "main.cjs")], { encoding: "utf8" }))
-      .toContain("container-ok");
+    expect(
+      execFileSync("node", [join(outdir, "main.cjs")], { encoding: "utf8" }),
+    ).toContain("container-ok");
   });
 });

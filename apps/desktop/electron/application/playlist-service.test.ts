@@ -21,9 +21,9 @@ describe("PlaylistApplicationService", () => {
     expect(playlist).toEqual({
       ok: true,
       value: {
-      id: "playlist-1",
-      name: "Road Trip",
-      entries: [],
+        id: "playlist-1",
+        name: "Road Trip",
+        entries: [],
       },
     });
     if (!playlist.ok) throw new Error("Playlist creation failed");
@@ -46,7 +46,10 @@ describe("PlaylistApplicationService", () => {
     const service = new PlaylistApplicationService(
       repository,
       () => "playlist-1",
-      () => { entryNumber += 1; return `entry-${entryNumber}`; },
+      () => {
+        entryNumber += 1;
+        return `entry-${entryNumber}`;
+      },
     );
     const created = await service.create("Road Trip");
     expect(created.ok).toBe(true);
@@ -56,7 +59,9 @@ describe("PlaylistApplicationService", () => {
     await service.addTrack(playlist.id, "track-1");
     const withTwoTracks = await service.addTrack(playlist.id, "track-2");
 
-    expect(withTwoTracks.ok ? withTwoTracks.value.entries : withTwoTracks).toEqual([
+    expect(
+      withTwoTracks.ok ? withTwoTracks.value.entries : withTwoTracks,
+    ).toEqual([
       { id: "entry-1", trackId: "track-1", position: 0 },
       { id: "entry-2", trackId: "track-2", position: 1 },
     ]);

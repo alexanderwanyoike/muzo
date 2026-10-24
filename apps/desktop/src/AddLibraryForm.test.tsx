@@ -67,9 +67,9 @@ describe("AddLibraryForm", () => {
 
     await user.click(screen.getByRole("button", { name: /browse/i }));
 
-    expect(
-      screen.getByLabelText<HTMLInputElement>(/location/i).value,
-    ).toBe("/home/user/Picked");
+    expect(screen.getByLabelText<HTMLInputElement>(/location/i).value).toBe(
+      "/home/user/Picked",
+    );
   });
 
   it("shows an error when the folder picker cannot open", async () => {
@@ -81,7 +81,9 @@ describe("AddLibraryForm", () => {
     await user.click(screen.getByRole("button", { name: /browse/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/could not open the folder picker/i)).toBeDefined(),
+      expect(
+        screen.getByText(/could not open the folder picker/i),
+      ).toBeDefined(),
     );
   });
 
@@ -95,9 +97,7 @@ describe("AddLibraryForm", () => {
     await user.click(screen.getByRole("button", { name: /add library/i }));
 
     await waitFor(() =>
-      expect(
-        screen.getByText(/library name must not be empty/i),
-      ).toBeDefined(),
+      expect(screen.getByText(/library name must not be empty/i)).toBeDefined(),
     );
   });
 });

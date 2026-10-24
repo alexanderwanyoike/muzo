@@ -34,10 +34,10 @@ export class SqliteTrackRepository implements TrackRepository {
     const SQL = await loadSqlModule();
     const database = new SQL.Database(readFileSync(this.dbPath));
     try {
-      database.run("DELETE FROM tracks WHERE library_id = ? AND file_path = ?", [
-        libraryId,
-        filePath,
-      ]);
+      database.run(
+        "DELETE FROM tracks WHERE library_id = ? AND file_path = ?",
+        [libraryId, filePath],
+      );
       saveDatabase(database, this.dbPath);
     } finally {
       database.close();
@@ -193,15 +193,18 @@ function trackFromRow(row: Record<string, unknown>): TrackRecord {
     id: stringColumn(row, "id"),
     libraryId: stringColumn(row, "library_id"),
     title: overrideString(row, "override_title") ?? stringColumn(row, "title"),
-    artist: overrideString(row, "override_artist") ?? stringColumn(row, "artist"),
-    album: overrideString(row, "override_album") ?? nullableString(row, "album"),
+    artist:
+      overrideString(row, "override_artist") ?? stringColumn(row, "artist"),
+    album:
+      overrideString(row, "override_album") ?? nullableString(row, "album"),
     trackNumber:
       overrideNumber(row, "override_track_number") ??
       nullableNumber(row, "track_number"),
     discNumber:
       overrideNumber(row, "override_disc_number") ??
       nullableNumber(row, "disc_number"),
-    genre: overrideString(row, "override_genre") ?? nullableString(row, "genre"),
+    genre:
+      overrideString(row, "override_genre") ?? nullableString(row, "genre"),
     year: overrideNumber(row, "override_year") ?? nullableNumber(row, "year"),
     metadataOverridden: metadataOverridden(row),
     durationSeconds: numberColumn(row, "duration_seconds"),

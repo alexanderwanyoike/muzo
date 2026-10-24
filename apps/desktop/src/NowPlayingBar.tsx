@@ -50,7 +50,13 @@ export default function NowPlayingBar({
       </div>
 
       <div className="now-playing-bar__controls">
-        <button type="button" className="now-playing-bar__skip" onClick={onPrevious} aria-label="Previous track" disabled={!hasPrevious}>
+        <button
+          type="button"
+          className="now-playing-bar__skip"
+          onClick={onPrevious}
+          aria-label="Previous track"
+          disabled={!hasPrevious}
+        >
           {"|<"}
         </button>
         <button
@@ -63,7 +69,13 @@ export default function NowPlayingBar({
           {status === "playing" ? "❚❚" : status === "loading" ? "…" : "▶"}
         </button>
 
-        <button type="button" className="now-playing-bar__skip" onClick={onNext} aria-label="Next track" disabled={!hasNext}>
+        <button
+          type="button"
+          className="now-playing-bar__skip"
+          onClick={onNext}
+          aria-label="Next track"
+          disabled={!hasNext}
+        >
           {">|"}
         </button>
 

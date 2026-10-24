@@ -1,18 +1,9 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
-import {
-  Umzug,
-  type MigrationParams,
-  type UmzugStorage,
-} from "umzug";
+import { Umzug, type MigrationParams, type UmzugStorage } from "umzug";
 import { locateSqlWasm } from "./sql-wasm-path";
 import { legacyMigrationNames } from "./legacy-sqlite-migration-adoption";
 
@@ -22,10 +13,15 @@ interface MigrationContext {
   database: InstanceType<SqlJsStatic["Database"]>;
 }
 
-const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "migrations");
+const migrationsDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "migrations",
+);
 
 class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
-  constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
+  constructor(
+    private readonly database: InstanceType<SqlJsStatic["Database"]>,
+  ) {}
 
   async executed(): Promise<string[]> {
     this.ensureTable();
@@ -38,7 +34,9 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
     return result[0].values.map((row) => String(row[0]));
   }
 
-  async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
+  async logMigration({
+    name,
+  }: MigrationParams<MigrationContext>): Promise<void> {
     this.ensureTable();
     this.database.run(
       "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
@@ -63,7 +61,6 @@ class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
     `);
   }
 }
-
 
 export async function runSqliteMigrations(dbPath: string): Promise<void> {
   const SQL = await loadSqlModule();
@@ -109,7 +106,6 @@ function createMigrator(
     storage: new SqliteMigrationStorage(database),
   });
 }
-
 
 function loadSqlModule(): Promise<SqlJsStatic> {
   sqlModulePromise ??= initSqlJs({

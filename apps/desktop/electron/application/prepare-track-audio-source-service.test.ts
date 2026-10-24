@@ -19,10 +19,13 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
         tracks,
         audioSources,
       ).prepare("lib-1", "trk-1"),
-    ).resolves.toEqual({ ok: true, value: {
-      mimeType: "audio/mpeg",
-      url: "http://127.0.0.1:1234/audio/1",
-    } });
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        mimeType: "audio/mpeg",
+        url: "http://127.0.0.1:1234/audio/1",
+      },
+    });
 
     expect(audioSources.register).toHaveBeenCalledWith(
       "/music/song.mp3",
@@ -32,32 +35,49 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
 
   it("rejects a missing track", async () => {
     const service = new PrepareTrackAudioSourceApplicationService(
-      new FakeTrackReader([createTrack({ id: "trk-1", filePath: "/music/song.mp3" })]),
+      new FakeTrackReader([
+        createTrack({ id: "trk-1", filePath: "/music/song.mp3" }),
+      ]),
       new FakeAudioSourceRegistry(),
     );
 
-    await expect(service.prepare("lib-1", "missing")).resolves.toMatchObject({ ok: false, error: {
-      kind: "trackNotFound",
-      message: "missing",
-    } });
+    await expect(service.prepare("lib-1", "missing")).resolves.toMatchObject({
+      ok: false,
+      error: {
+        kind: "trackNotFound",
+        message: "missing",
+      },
+    });
   });
 
   it("rejects an unsupported audio file type", async () => {
     const service = new PrepareTrackAudioSourceApplicationService(
-      new FakeTrackReader([createTrack({ id: "trk-1", filePath: "/music/song.txt" })]),
+      new FakeTrackReader([
+        createTrack({ id: "trk-1", filePath: "/music/song.txt" }),
+      ]),
       new FakeAudioSourceRegistry(),
     );
 
-    await expect(service.prepare("lib-1", "trk-1")).resolves.toMatchObject({ ok: false, error: {
-      kind: "unsupportedFileType",
-      message: "/music/song.txt",
-    } });
+    await expect(service.prepare("lib-1", "trk-1")).resolves.toMatchObject({
+      ok: false,
+      error: {
+        kind: "unsupportedFileType",
+        message: "/music/song.txt",
+      },
+    });
   });
   it("plays Opus tracks accepted by the library scanner", async () => {
-    const service = new PrepareTrackAudioSourceApplicationService(new FakeTrackReader([createTrack({ id: "opus", filePath: "/Music/song.opus" })]), new FakeAudioSourceRegistry());
-    expect(await service.prepare("lib-1", "opus")).toMatchObject({ ok: true, value: { mimeType: "audio/ogg" } });
+    const service = new PrepareTrackAudioSourceApplicationService(
+      new FakeTrackReader([
+        createTrack({ id: "opus", filePath: "/Music/song.opus" }),
+      ]),
+      new FakeAudioSourceRegistry(),
+    );
+    expect(await service.prepare("lib-1", "opus")).toMatchObject({
+      ok: true,
+      value: { mimeType: "audio/ogg" },
+    });
   });
-
 });
 
 class FakeTrackReader implements TrackReader {

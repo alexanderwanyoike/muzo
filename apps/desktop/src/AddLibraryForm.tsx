@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { addLibrary } from "./api";
 import { openDirectory } from "./runtime-bridge";
-import { errorMessage, type AddLibraryErrorDto, type LibraryDto } from "./types";
+import {
+  errorMessage,
+  type AddLibraryErrorDto,
+  type LibraryDto,
+} from "./types";
 
 interface AddLibraryFormProps {
   onAdded: (library: LibraryDto) => void;

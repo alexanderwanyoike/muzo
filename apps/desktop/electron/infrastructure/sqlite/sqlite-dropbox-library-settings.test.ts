@@ -17,12 +17,17 @@ it("persists Dropbox library account bindings and the polling interval across re
     const settings = new SqliteDropboxLibrarySettings(dbPath);
     expect(await settings.intervalMinutes()).toBe(5);
     expect(await settings.accountFor("lib-1")).toBeNull();
-    await settings.register({ id: "lib-1", kind: "dropbox", location: "/Music", name: "Cloud" }, "account-1");
+    await settings.register(
+      { id: "lib-1", kind: "dropbox", location: "/Music", name: "Cloud" },
+      "account-1",
+    );
     await settings.setIntervalMinutes(15);
     const reopened = new SqliteDropboxLibrarySettings(dbPath);
     expect(await reopened.accountFor("lib-1")).toBe("account-1");
     expect(await reopened.intervalMinutes()).toBe(15);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 it("does not persist a library when its account binding cannot be written", async () => {
@@ -32,14 +37,23 @@ it("does not persist a library when its account binding cannot be written", asyn
     await runSqliteMigrations(dbPath);
     const SQL = await initSqlJs({ locateFile: locateSqlWasm });
     const db = new SQL.Database(readFileSync(dbPath));
-    db.run("CREATE TRIGGER reject_binding BEFORE INSERT ON dropbox_library_accounts BEGIN SELECT RAISE(ABORT, 'binding rejected'); END");
+    db.run(
+      "CREATE TRIGGER reject_binding BEFORE INSERT ON dropbox_library_accounts BEGIN SELECT RAISE(ABORT, 'binding rejected'); END",
+    );
     writeFileSync(dbPath, db.export());
     db.close();
     const before = readFileSync(dbPath);
     const settings = new SqliteDropboxLibrarySettings(dbPath);
-    await expect(settings.register({ id: "failed", kind: "dropbox", location: "/Music", name: "Cloud" }, "account")).rejects.toThrow("binding rejected");
+    await expect(
+      settings.register(
+        { id: "failed", kind: "dropbox", location: "/Music", name: "Cloud" },
+        "account",
+      ),
+    ).rejects.toThrow("binding rejected");
     expect(await new SqliteLibraryRepository(dbPath).list()).toEqual([]);
     expect(await settings.accountFor("failed")).toBeNull();
     expect(readFileSync(dbPath)).toEqual(before);
-  } finally { rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

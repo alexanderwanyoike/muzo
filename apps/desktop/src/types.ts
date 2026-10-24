@@ -1,4 +1,8 @@
-import type { AddLibraryInput, LibraryKind, LibraryRecord } from "../electron/application/interfaces/library-record";
+import type {
+  AddLibraryInput,
+  LibraryKind,
+  LibraryRecord,
+} from "../electron/application/interfaces/library-record";
 
 export type LibraryKindDto = LibraryKind;
 export type LibraryDto = LibraryRecord;

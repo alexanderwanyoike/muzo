@@ -10,7 +10,9 @@ describe("ConsoleLogger", () => {
   });
 
   it("writes error messages to stderr", () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     new ConsoleLogger().error("watch failed");
 

@@ -69,9 +69,7 @@ export default function LibraryList({
             </div>
 
             {trackContent && (
-              <div className="library-list__tracks">
-                {trackContent}
-              </div>
+              <div className="library-list__tracks">{trackContent}</div>
             )}
           </li>
         );

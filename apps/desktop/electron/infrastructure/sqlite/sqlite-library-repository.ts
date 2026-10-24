@@ -3,7 +3,10 @@ import { dirname } from "node:path";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
-import type { LibraryRecord, LibraryKind } from "../../application/interfaces/library-record";
+import type {
+  LibraryRecord,
+  LibraryKind,
+} from "../../application/interfaces/library-record";
 import type { LibraryRepository } from "../../application/interfaces/repository-interfaces";
 import { locateSqlWasm } from "./sql-wasm-path";
 
@@ -81,7 +84,9 @@ export class SqliteLibraryRepository implements LibraryRepository {
     }
   }
 
-  private openDatabase(SQL: SqlJsStatic): InstanceType<SqlJsStatic["Database"]> {
+  private openDatabase(
+    SQL: SqlJsStatic,
+  ): InstanceType<SqlJsStatic["Database"]> {
     return existsSync(this.dbPath)
       ? new SQL.Database(readFileSync(this.dbPath))
       : new SQL.Database();

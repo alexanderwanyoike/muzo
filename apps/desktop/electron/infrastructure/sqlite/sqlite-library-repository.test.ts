@@ -55,7 +55,9 @@ describe("Electron library repository", () => {
 
   it("returns an empty list before the database has been created", async () => {
     await expect(
-      new SqliteLibraryRepository("/path/that/does/not/exist/muzo.sqlite").list(),
+      new SqliteLibraryRepository(
+        "/path/that/does/not/exist/muzo.sqlite",
+      ).list(),
     ).resolves.toEqual([]);
   });
 

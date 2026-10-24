@@ -30,15 +30,19 @@ describe("EditTrackMetadataCommand", () => {
       }),
     ).resolves.toEqual({ ok: true, value: undefined });
 
-    expect(tracks.updateMetadataOverride).toHaveBeenCalledWith("lib-1", "trk-1", {
-      title: "Edited Title",
-      artist: null,
-      album: "Edited Album",
-      trackNumber: 4,
-      discNumber: null,
-      genre: "Soul",
-      year: 1971,
-    });
+    expect(tracks.updateMetadataOverride).toHaveBeenCalledWith(
+      "lib-1",
+      "trk-1",
+      {
+        title: "Edited Title",
+        artist: null,
+        album: "Edited Album",
+        trackNumber: 4,
+        discNumber: null,
+        genre: "Soul",
+        year: 1971,
+      },
+    );
   });
 });
 

@@ -72,7 +72,9 @@ describe("Electron track repository", () => {
     mkdirSync(join(dbPath, ".."), { recursive: true });
     writeFileSync(dbPath, database.export());
 
-    await expect(new SqliteTrackRepository(dbPath).listForLibrary("lib-1")).resolves.toEqual([
+    await expect(
+      new SqliteTrackRepository(dbPath).listForLibrary("lib-1"),
+    ).resolves.toEqual([
       {
         id: "trk-1",
         libraryId: "lib-1",
@@ -92,9 +94,9 @@ describe("Electron track repository", () => {
 
   it("returns an empty list before the database has been created", async () => {
     await expect(
-      new SqliteTrackRepository("/path/that/does/not/exist/muzo.sqlite").listForLibrary(
-        "lib-1",
-      ),
+      new SqliteTrackRepository(
+        "/path/that/does/not/exist/muzo.sqlite",
+      ).listForLibrary("lib-1"),
     ).resolves.toEqual([]);
   });
 

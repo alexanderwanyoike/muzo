@@ -1,4 +1,7 @@
-import type { PlaylistDto, PlaylistService } from "../interfaces/playlist-interfaces";
+import type {
+  PlaylistDto,
+  PlaylistService,
+} from "../interfaces/playlist-interfaces";
 import type { CommandHandler } from "./command-handler";
 import type { Result } from "../result";
 import { parseInput, parseNonEmptyString } from "./command-arguments";

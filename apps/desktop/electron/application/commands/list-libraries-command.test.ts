@@ -22,7 +22,7 @@ describe("ListLibrariesCommand", () => {
 
     await expect(
       new ListLibrariesCommand(libraryRepository).handle(),
-    ).resolves.toEqual({ ok: true, value: (libraries) });
+    ).resolves.toEqual({ ok: true, value: libraries });
 
     expect(libraryRepository.list).toHaveBeenCalledOnce();
   });

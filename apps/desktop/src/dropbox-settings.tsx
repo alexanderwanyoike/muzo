@@ -3,11 +3,20 @@ import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
 import DropboxLibrarySettings from "./dropbox-library-settings";
 import {
-  beginDropboxConnection, completeDropboxConnection, disconnectDropbox, dropboxStatus,
+  beginDropboxConnection,
+  completeDropboxConnection,
+  disconnectDropbox,
+  dropboxStatus,
 } from "./dropbox-api";
 
-export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibraryAdded?: (library: LibraryDto) => void }) {
-  const [connection, setConnection] = useState<DropboxConnectionStatus | null>(null);
+export default function DropboxSettings({
+  onLibraryAdded = () => {},
+}: {
+  onLibraryAdded?: (library: LibraryDto) => void;
+}) {
+  const [connection, setConnection] = useState<DropboxConnectionStatus | null>(
+    null,
+  );
   const [clientId, setClientId] = useState("");
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
@@ -21,7 +30,9 @@ export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibra
       if (result.ok) setConnection(result.value);
       else setError(result.error?.message ?? "Could not read Dropbox status.");
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function begin() {
@@ -59,32 +70,86 @@ export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibra
 
   return (
     <section className="settings-view__section" aria-label="Dropbox">
-      <div><h3>Dropbox</h3><p>Connect your music in Dropbox.</p></div>
+      <div>
+        <h3>Dropbox</h3>
+        <p>Connect your music in Dropbox.</p>
+      </div>
       {connection?.connected ? (
         <div>
           <p role="status">Connected to Dropbox.</p>
           <DropboxLibrarySettings onAdded={onLibraryAdded} />
-          <button type="button" disabled={busy} onClick={() => { void disconnect(); }}>Disconnect Dropbox</button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              void disconnect();
+            }}
+          >
+            Disconnect Dropbox
+          </button>
         </div>
       ) : (
         <div className="add-library-form">
-          <label className="add-library-form__field">Dropbox app key
-            <input value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" disabled={busy || pending} />
+          <label className="add-library-form__field">
+            Dropbox app key
+            <input
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              autoComplete="off"
+              disabled={busy || pending}
+            />
           </label>
-          <button type="button" disabled={busy || !clientId.trim()} onClick={() => { void begin(); }}>
+          <button
+            type="button"
+            disabled={busy || !clientId.trim()}
+            onClick={() => {
+              void begin();
+            }}
+          >
             {pending ? "Restart authorization" : "Connect Dropbox"}
           </button>
-          {pending && <>
-            <p>Approve access in your browser, then paste the authorization code here.</p>
-            <label className="add-library-form__field">Authorization code
-              <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="off" disabled={busy} />
-            </label>
-            <button type="button" disabled={busy || !code.trim()} onClick={() => { void complete(); }}>Finish connecting</button>
-            <button type="button" disabled={busy} onClick={() => { void disconnect(); }}>Cancel connection</button>
-          </>}
+          {pending && (
+            <>
+              <p>
+                Approve access in your browser, then paste the authorization
+                code here.
+              </p>
+              <label className="add-library-form__field">
+                Authorization code
+                <input
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  autoComplete="off"
+                  disabled={busy}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={busy || !code.trim()}
+                onClick={() => {
+                  void complete();
+                }}
+              >
+                Finish connecting
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  void disconnect();
+                }}
+              >
+                Cancel connection
+              </button>
+            </>
+          )}
         </div>
       )}
-      {error && <p role="alert" className="app__error">{error}</p>}
+      {error && (
+        <p role="alert" className="app__error">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

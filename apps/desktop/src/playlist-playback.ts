@@ -50,6 +50,12 @@ export function playableEntries(playlist: PlaylistDto): PlaybackQueueItem[] {
   });
 }
 
-export function isCurrentEntry(entry: PlaylistEntryDto, trackId: string | null, queueEntryId: string | null | undefined): boolean {
-  return queueEntryId === undefined ? entry.trackId === trackId : entry.id === queueEntryId;
+export function isCurrentEntry(
+  entry: PlaylistEntryDto,
+  trackId: string | null,
+  queueEntryId: string | null | undefined,
+): boolean {
+  return queueEntryId === undefined
+    ? entry.trackId === trackId
+    : entry.id === queueEntryId;
 }

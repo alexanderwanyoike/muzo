@@ -12,6 +12,8 @@ export class EditTrackMetadataCommand implements CommandHandler {
     const input = await parseEditTrackMetadataArgs(args);
     if (!input.ok) return input;
     const { libraryId, trackId, metadataOverride } = input.value;
-    return repositoryResult(() => this.tracks.updateMetadataOverride(libraryId, trackId, metadataOverride));
+    return repositoryResult(() =>
+      this.tracks.updateMetadataOverride(libraryId, trackId, metadataOverride),
+    );
   }
 }

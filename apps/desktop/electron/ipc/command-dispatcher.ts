@@ -9,7 +9,10 @@ export class CommandDispatcher {
     );
   }
 
-  async handleElectronCommand(command: string, args?: unknown): Promise<unknown> {
+  async handleElectronCommand(
+    command: string,
+    args?: unknown,
+  ): Promise<unknown> {
     const handler = this.commandHandlers.get(command);
     if (!handler) {
       throw new Error(`Electron command is not implemented: ${command}`);

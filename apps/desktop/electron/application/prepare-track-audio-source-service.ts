@@ -19,22 +19,24 @@ export class PrepareTrackAudioSourceApplicationService
     trackId: string,
   ): Promise<Result<PreparedTrackAudioSource>> {
     try {
-    const tracks = await this.tracks.listForLibrary(libraryId);
-    const track = tracks.find((candidate) => candidate.id === trackId);
-    if (!track) {
-      return failure("trackNotFound", trackId);
-    }
+      const tracks = await this.tracks.listForLibrary(libraryId);
+      const track = tracks.find((candidate) => candidate.id === trackId);
+      if (!track) {
+        return failure("trackNotFound", trackId);
+      }
 
-    const mimeType = mimeTypeForPath(track.filePath);
-    if (!mimeType) {
-      return failure("unsupportedFileType", track.filePath);
-    }
+      const mimeType = mimeTypeForPath(track.filePath);
+      if (!mimeType) {
+        return failure("unsupportedFileType", track.filePath);
+      }
 
-    return success({
-      mimeType,
-      url: await this.audioSources.register(track.filePath, mimeType),
-    });
-    } catch { return failure("repository", "Could not prepare the track audio source."); }
+      return success({
+        mimeType,
+        url: await this.audioSources.register(track.filePath, mimeType),
+      });
+    } catch {
+      return failure("repository", "Could not prepare the track audio source.");
+    }
   }
 }
 

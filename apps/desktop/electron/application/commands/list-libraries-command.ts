@@ -8,5 +8,7 @@ export class ListLibrariesCommand implements CommandHandler {
 
   constructor(private readonly libraries: LibraryRepository) {}
 
-  handle(): Promise<Result<LibraryRecord[]>> { return repositoryResult(() => this.libraries.list()); }
+  handle(): Promise<Result<LibraryRecord[]>> {
+    return repositoryResult(() => this.libraries.list());
+  }
 }

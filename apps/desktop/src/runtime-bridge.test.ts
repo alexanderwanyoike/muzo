@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getRuntimeBridge, invokeCommand, openDirectory } from "./runtime-bridge";
+import {
+  getRuntimeBridge,
+  invokeCommand,
+  openDirectory,
+} from "./runtime-bridge";
 
 beforeEach(() => {
   delete window.__MUZO_RUNTIME__;

@@ -6,7 +6,12 @@ import TrackList from "./TrackList";
 import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
 import { useAudioPlayer } from "./useAudioPlayer";
-import { listLibraries, listTrackPlayCounts, listTracks, scanLibrary } from "./api";
+import {
+  listLibraries,
+  listTrackPlayCounts,
+  listTracks,
+  scanLibrary,
+} from "./api";
 import { syncDropboxLibrary } from "./dropbox-api";
 import type { LibraryDto } from "./types";
 
@@ -20,23 +25,34 @@ interface ListError {
 export default function App() {
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
-  const [trackPlayCounts, setTrackPlayCounts] = useState<Record<string, Record<string, number>>>({});
-  const [trackRefreshVersions, setTrackRefreshVersions] = useState<Record<string, number>>({});
-  const [refreshingLibraryId, setRefreshingLibraryId] = useState<string | null>(null);
+  const [trackPlayCounts, setTrackPlayCounts] = useState<
+    Record<string, Record<string, number>>
+  >({});
+  const [trackRefreshVersions, setTrackRefreshVersions] = useState<
+    Record<string, number>
+  >({});
+  const [refreshingLibraryId, setRefreshingLibraryId] = useState<string | null>(
+    null,
+  );
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
-  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(null);
+  const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(
+    null,
+  );
   const [activeView, setActiveView] = useState<ActiveView>("library");
   const [error, setError] = useState<string | null>(null);
 
-  const handleTrackPlayRecorded = useCallback((track: { libraryId: string; id: string }) => {
-    setTrackPlayCounts((prev) => ({
-      ...prev,
-      [track.libraryId]: {
-        ...(prev[track.libraryId] ?? {}),
-        [track.id]: (prev[track.libraryId]?.[track.id] ?? 0) + 1,
-      },
-    }));
-  }, []);
+  const handleTrackPlayRecorded = useCallback(
+    (track: { libraryId: string; id: string }) => {
+      setTrackPlayCounts((prev) => ({
+        ...prev,
+        [track.libraryId]: {
+          ...(prev[track.libraryId] ?? {}),
+          [track.id]: (prev[track.libraryId]?.[track.id] ?? 0) + 1,
+        },
+      }));
+    },
+    [],
+  );
 
   const {
     current,
@@ -106,12 +122,17 @@ export default function App() {
     setRefreshingLibraryId(library.id);
     setRefreshMessage(null);
     try {
-      const remoteReport = library.kind === "dropbox" ? await syncDropboxLibrary(library.id) : null;
+      const remoteReport =
+        library.kind === "dropbox"
+          ? await syncDropboxLibrary(library.id)
+          : null;
       if (remoteReport && !remoteReport.ok) {
         setRefreshMessage(remoteReport.error.message);
         return;
       }
-      const report = remoteReport?.ok ? remoteReport.value : await scanLibrary(library.id);
+      const report = remoteReport?.ok
+        ? remoteReport.value
+        : await scanLibrary(library.id);
       const tracks = await listTracks(library.id);
       setTrackCounts((prev) => ({ ...prev, [library.id]: tracks.length }));
       setTrackRefreshVersions((prev) => ({
@@ -143,9 +164,12 @@ export default function App() {
     setTrackCounts((prev) => ({ ...prev, [library.id]: 0 }));
   }
 
-  const handleTracksLoaded = useCallback((libraryId: string, trackCount: number) => {
-    setTrackCounts((prev) => ({ ...prev, [libraryId]: trackCount }));
-  }, []);
+  const handleTracksLoaded = useCallback(
+    (libraryId: string, trackCount: number) => {
+      setTrackCounts((prev) => ({ ...prev, [libraryId]: trackCount }));
+    },
+    [],
+  );
 
   const selectedLibrary =
     libraries?.find((library) => library.id === selectedLibraryId) ?? null;
@@ -160,7 +184,9 @@ export default function App() {
         <header className="app-sidebar__header">
           <div>
             <h1>Muzo</h1>
-            <p>{libraries?.length ?? 0} libraries - {totalTrackCount} tracks</p>
+            <p>
+              {libraries?.length ?? 0} libraries - {totalTrackCount} tracks
+            </p>
           </div>
         </header>
 
@@ -252,16 +278,18 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
-            <DropboxSettings onLibraryAdded={(library) => {
-              handleLibraryAdded(library);
-              void handleRefresh(library);
-            }} />
+            <DropboxSettings
+              onLibraryAdded={(library) => {
+                handleLibraryAdded(library);
+                void handleRefresh(library);
+              }}
+            />
             <section className="settings-view__section">
               <div>
                 <h3>Library folders</h3>
                 <p>
-                  Add folders here. Filesystem libraries sync automatically while
-                  the app is open and reconcile when it starts.
+                  Add folders here. Filesystem libraries sync automatically
+                  while the app is open and reconcile when it starts.
                 </p>
               </div>
               <AddLibraryForm onAdded={handleLibraryAdded} />
@@ -271,8 +299,8 @@ export default function App() {
               <div>
                 <h3>Indexed sources</h3>
                 <p>
-                  Manual refresh is a fallback for recovery. Normal listening does
-                  not require it.
+                  Manual refresh is a fallback for recovery. Normal listening
+                  does not require it.
                 </p>
               </div>
               <ul className="settings-view__sources">
@@ -311,11 +339,16 @@ export default function App() {
           <div className="app-content__tracks">
             <TrackList
               libraryId={selectedLibrary.id}
-              refreshIntervalMs={selectedLibrary.kind === "dropbox" ? 5000 : undefined}
+              refreshIntervalMs={
+                selectedLibrary.kind === "dropbox" ? 5000 : undefined
+              }
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}
-              onToggleCurrentTrack={() => { clearQueue(); toggle(); }}
+              onToggleCurrentTrack={() => {
+                clearQueue();
+                toggle();
+              }}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
               playCounts={trackPlayCounts[selectedLibrary.id] ?? {}}

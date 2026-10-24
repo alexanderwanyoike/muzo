@@ -10,8 +10,15 @@ export class ListTracksCommand implements CommandHandler {
   constructor(private readonly tracks: TrackReader) {}
 
   async handle(args: unknown): Promise<Result<TrackRecord[]>> {
-    if (!args || typeof args !== "object" || Array.isArray(args)) return failure("repository", "missing list_tracks libraryId");
-    const id = parseNonEmptyString(args as Record<string, unknown>, "libraryId", this.command);
-    return id.ok ? repositoryResult(() => this.tracks.listForLibrary(id.value)) : id;
+    if (!args || typeof args !== "object" || Array.isArray(args))
+      return failure("repository", "missing list_tracks libraryId");
+    const id = parseNonEmptyString(
+      args as Record<string, unknown>,
+      "libraryId",
+      this.command,
+    );
+    return id.ok
+      ? repositoryResult(() => this.tracks.listForLibrary(id.value))
+      : id;
   }
 }

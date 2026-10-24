@@ -100,7 +100,9 @@ export class SqliteDropboxAccountRepository
     }
   }
 
-  private openDatabase(SQL: SqlJsStatic): InstanceType<SqlJsStatic["Database"]> {
+  private openDatabase(
+    SQL: SqlJsStatic,
+  ): InstanceType<SqlJsStatic["Database"]> {
     return existsSync(this.dbPath)
       ? new SQL.Database(readFileSync(this.dbPath))
       : new SQL.Database();
@@ -115,7 +117,9 @@ function accountFromRow(
     accountId: stringColumn(row, "account_id"),
     clientId: stringColumn(row, "client_id"),
     accessToken: cipher.unprotect(stringColumn(row, "encrypted_access_token")),
-    refreshToken: cipher.unprotect(stringColumn(row, "encrypted_refresh_token")),
+    refreshToken: cipher.unprotect(
+      stringColumn(row, "encrypted_refresh_token"),
+    ),
     accessTokenExpiresAtUnixSeconds: numberColumn(
       row,
       "access_token_expires_at_unix_seconds",

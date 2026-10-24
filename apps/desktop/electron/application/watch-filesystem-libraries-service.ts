@@ -71,7 +71,10 @@ export class WatchFilesystemLibrariesService {
   private async scanChangedLibrary(libraryId: string): Promise<void> {
     try {
       const result = await this.scanLibraryService.scan(libraryId);
-      if (!result.ok) this.logger.error(`filesystem library reconciliation failed for ${libraryId}: ${result.error.message}`);
+      if (!result.ok)
+        this.logger.error(
+          `filesystem library reconciliation failed for ${libraryId}: ${result.error.message}`,
+        );
     } catch (error) {
       this.logger.error(
         `filesystem library reconciliation failed for ${libraryId}: ${errorMessage(error)}`,
@@ -88,7 +91,7 @@ function errorMessage(error: unknown): string {
     error &&
     typeof error === "object" &&
     "message" in error &&
-    typeof (error).message === "string"
+    typeof error.message === "string"
   ) {
     return (error as { message: string }).message;
   }

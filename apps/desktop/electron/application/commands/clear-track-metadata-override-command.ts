@@ -10,6 +10,13 @@ export class ClearTrackMetadataOverrideCommand implements CommandHandler {
 
   async handle(args: unknown): Promise<Result<void>> {
     const input = await parseClearTrackMetadataOverrideArgs(args);
-    return input.ok ? repositoryResult(() => this.tracks.clearMetadataOverride(input.value.libraryId, input.value.trackId)) : input;
+    return input.ok
+      ? repositoryResult(() =>
+          this.tracks.clearMetadataOverride(
+            input.value.libraryId,
+            input.value.trackId,
+          ),
+        )
+      : input;
   }
 }

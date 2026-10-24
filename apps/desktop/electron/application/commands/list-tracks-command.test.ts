@@ -30,7 +30,7 @@ describe("ListTracksCommand", () => {
 
     await expect(
       new ListTracksCommand(trackRepository).handle({ libraryId: "lib-1" }),
-    ).resolves.toEqual({ ok: true, value: (tracks) });
+    ).resolves.toEqual({ ok: true, value: tracks });
 
     expect(trackRepository.listForLibrary).toHaveBeenCalledWith("lib-1");
   });

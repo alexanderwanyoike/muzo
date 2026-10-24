@@ -89,13 +89,11 @@ describe("PlaylistPanel", () => {
 
   it("creates a playlist with a trimmed name and appends it to the list", async () => {
     const user = userEvent.setup();
-    mockedInvoke
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce({
-        id: "playlist-2",
-        name: "Late Night",
-        entries: [],
-      });
+    mockedInvoke.mockResolvedValueOnce([]).mockResolvedValueOnce({
+      id: "playlist-2",
+      name: "Late Night",
+      entries: [],
+    });
 
     render(<PlaylistPanel />);
 
@@ -173,17 +171,17 @@ describe("PlaylistPanel", () => {
 
   it("removes a playlist entry and updates the visible count", async () => {
     const user = userEvent.setup();
-    mockedInvoke
-      .mockResolvedValueOnce(playlists)
-      .mockResolvedValueOnce({
-        id: "playlist-1",
-        name: "Road Trip",
-        entries: [playlists[0].entries[1]],
-      });
+    mockedInvoke.mockResolvedValueOnce(playlists).mockResolvedValueOnce({
+      id: "playlist-1",
+      name: "Road Trip",
+      entries: [playlists[0].entries[1]],
+    });
 
     render(<PlaylistPanel />);
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Remove Hotel California from Road Trip",
@@ -210,7 +208,9 @@ describe("PlaylistPanel", () => {
 
     render(<PlaylistPanel />);
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Remove Hotel California from Road Trip",
@@ -227,17 +227,17 @@ describe("PlaylistPanel", () => {
 
   it("moves a playlist entry up and updates the visible order", async () => {
     const user = userEvent.setup();
-    mockedInvoke
-      .mockResolvedValueOnce(playlists)
-      .mockResolvedValueOnce({
-        id: "playlist-1",
-        name: "Road Trip",
-        entries: [playlists[0].entries[1], playlists[0].entries[0]],
-      });
+    mockedInvoke.mockResolvedValueOnce(playlists).mockResolvedValueOnce({
+      id: "playlist-1",
+      name: "Road Trip",
+      entries: [playlists[0].entries[1], playlists[0].entries[0]],
+    });
 
     render(<PlaylistPanel />);
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Move track-2 up in Road Trip",
@@ -260,21 +260,19 @@ describe("PlaylistPanel", () => {
 
     render(<PlaylistPanel />);
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
 
     expect(
-      (
-        screen.getByRole<HTMLButtonElement>("button", {
-          name: "Move Hotel California up in Road Trip",
-        })
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Move Hotel California up in Road Trip",
+      }).disabled,
     ).toBe(true);
     expect(
-      (
-        screen.getByRole<HTMLButtonElement>("button", {
-          name: "Move track-2 down in Road Trip",
-        })
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Move track-2 down in Road Trip",
+      }).disabled,
     ).toBe(true);
   });
 
@@ -286,7 +284,9 @@ describe("PlaylistPanel", () => {
 
     render(<PlaylistPanel />);
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Move track-2 up in Road Trip",
@@ -315,7 +315,9 @@ describe("PlaylistPanel", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Play Hotel California from Road Trip",
@@ -353,7 +355,9 @@ describe("PlaylistPanel", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Hotel California")).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByText("Hotel California")).toBeDefined(),
+    );
     await user.click(
       screen.getByRole("button", {
         name: "Pause Hotel California from Road Trip",
@@ -379,11 +383,9 @@ describe("PlaylistPanel", () => {
     await waitFor(() => expect(screen.getByText("track-2")).toBeDefined());
 
     expect(
-      (
-        screen.getByRole<HTMLButtonElement>("button", {
-          name: "Track track-2 is unavailable in Road Trip",
-        })
-      ).disabled,
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Track track-2 is unavailable in Road Trip",
+      }).disabled,
     ).toBe(true);
   });
   it("queues a playlist in order while skipping unavailable entries", async () => {
@@ -391,27 +393,61 @@ describe("PlaylistPanel", () => {
     mockedInvoke.mockResolvedValueOnce(playlists);
     const onPlayQueue = vi.fn();
     render(<PlaylistPanel onPlayQueue={onPlayQueue} />);
-    await user.click(await screen.findByRole("button", { name: "Play Road Trip" }));
-    expect(onPlayQueue).toHaveBeenCalledWith([
-      { entryId: "entry-1", track: expect.objectContaining({ id: "track-1", libraryId: "lib-1" }) },
-    ], 0);
+    await user.click(
+      await screen.findByRole("button", { name: "Play Road Trip" }),
+    );
+    expect(onPlayQueue).toHaveBeenCalledWith(
+      [
+        {
+          entryId: "entry-1",
+          track: expect.objectContaining({ id: "track-1", libraryId: "lib-1" }),
+        },
+      ],
+      0,
+    );
   });
 
   it("starts at a selected duplicate entry rather than toggling another occurrence", async () => {
     const user = userEvent.setup();
-    const repeated = { ...playlists[0], entries: [playlists[0].entries[0], { ...playlists[0].entries[0], id: "repeat", position: 1 }] };
+    const repeated = {
+      ...playlists[0],
+      entries: [
+        playlists[0].entries[0],
+        { ...playlists[0].entries[0], id: "repeat", position: 1 },
+      ],
+    };
     mockedInvoke.mockResolvedValueOnce([repeated]);
     const onPlayQueue = vi.fn();
     const onToggleCurrentTrack = vi.fn();
-    render(<PlaylistPanel currentTrackId="track-1" currentQueueEntryId="entry-1" isPlaying onPlayQueue={onPlayQueue} onToggleCurrentTrack={onToggleCurrentTrack} />);
-    await user.click(await screen.findByRole("button", { name: "Play Hotel California from Road Trip" }));
+    render(
+      <PlaylistPanel
+        currentTrackId="track-1"
+        currentQueueEntryId="entry-1"
+        isPlaying
+        onPlayQueue={onPlayQueue}
+        onToggleCurrentTrack={onToggleCurrentTrack}
+      />,
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Play Hotel California from Road Trip",
+      }),
+    );
     expect(onToggleCurrentTrack).not.toHaveBeenCalled();
-    expect(onPlayQueue).toHaveBeenCalledWith([
-      { entryId: "entry-1", track: expect.objectContaining({ id: "track-1" }) },
-      { entryId: "repeat", track: expect.objectContaining({ id: "track-1" }) },
-    ], 1);
+    expect(onPlayQueue).toHaveBeenCalledWith(
+      [
+        {
+          entryId: "entry-1",
+          track: expect.objectContaining({ id: "track-1" }),
+        },
+        {
+          entryId: "repeat",
+          track: expect.objectContaining({ id: "track-1" }),
+        },
+      ],
+      1,
+    );
   });
-
 });
 
 function entryLabels(): string[] {

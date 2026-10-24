@@ -1,10 +1,6 @@
 import type { TrackRecord } from "../electron/application/interfaces/track-record";
 import { invokeCommand } from "./runtime-bridge";
-import type {
-  AddLibraryInputDto,
-  LibraryDto,
-  LibraryKindDto,
-} from "./types";
+import type { AddLibraryInputDto, LibraryDto, LibraryKindDto } from "./types";
 
 export async function addLibrary(input: {
   name: string;
@@ -73,7 +69,10 @@ export async function prepareTrackAudioSource(input: {
   libraryId: string;
   trackId: string;
 }): Promise<PreparedTrackAudioSourceDto> {
-  return invokeCommand<PreparedTrackAudioSourceDto>("prepare_track_audio_source", { input });
+  return invokeCommand<PreparedTrackAudioSourceDto>(
+    "prepare_track_audio_source",
+    { input },
+  );
 }
 
 export async function recordTrackPlay(input: {
@@ -89,7 +88,9 @@ export interface PlayCountDto {
   lastPlayedAtUnixSeconds: number | null;
 }
 
-export async function listTrackPlayCounts(libraryId: string): Promise<PlayCountDto[]> {
+export async function listTrackPlayCounts(
+  libraryId: string,
+): Promise<PlayCountDto[]> {
   return invokeCommand<PlayCountDto[]>("list_track_play_counts", {
     input: { libraryId },
   });

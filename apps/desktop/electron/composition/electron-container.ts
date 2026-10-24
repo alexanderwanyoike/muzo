@@ -65,7 +65,11 @@ import { muzoDatabasePath } from "../paths";
 import { DropboxAccountService } from "../application/dropbox-account-service";
 import { DropboxAccountCommand } from "../application/commands/dropbox-account-command";
 import type { DropboxTokenCipher } from "../application/interfaces/dropbox-account-interfaces";
-import { DropboxApiClient, FetchDropboxHttpTransport, type DropboxHttpTransport } from "../infrastructure/dropbox/dropbox-api-client";
+import {
+  DropboxApiClient,
+  FetchDropboxHttpTransport,
+  type DropboxHttpTransport,
+} from "../infrastructure/dropbox/dropbox-api-client";
 import { SqliteDropboxAccountRepository } from "../infrastructure/sqlite/sqlite-dropbox-account-repository";
 
 import { DropboxLibraryService } from "../application/dropbox-library-service";
@@ -154,34 +158,87 @@ export function createElectronContainer(
     injectionMode: InjectionMode.PROXY,
   });
 
-  const dropboxTransport = options.dropboxTransport ?? new FetchDropboxHttpTransport();
+  const dropboxTransport =
+    options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
-    dropboxSettings: asFunction(({ dbPath }: ElectronCradle) => new SqliteDropboxLibrarySettings(dbPath)).singleton(),
-    dropboxLibraries: asFunction(({ libraries, tracks, dropboxAccountService, dropboxSettings, generateLibraryId, generateTrackId }: ElectronCradle) =>
-      new DropboxLibraryService(libraries, dropboxAccountService, dropboxSettings,
-        new ScanDropboxLibraryService(libraries, tracks,
-          new DropboxLibraryCatalogAdapter(new DropboxApiClient({ clientId: "" }, dropboxTransport)), generateTrackId), generateLibraryId),
+    dropboxSettings: asFunction(
+      ({ dbPath }: ElectronCradle) => new SqliteDropboxLibrarySettings(dbPath),
     ).singleton(),
-    dropboxPoller: asFunction(({ dropboxLibraries, dropboxSettings, currentUnixSeconds }: ElectronCradle) =>
-      new DropboxLibraryPoller(dropboxLibraries, dropboxSettings, currentUnixSeconds),
+    dropboxLibraries: asFunction(
+      ({
+        libraries,
+        tracks,
+        dropboxAccountService,
+        dropboxSettings,
+        generateLibraryId,
+        generateTrackId,
+      }: ElectronCradle) =>
+        new DropboxLibraryService(
+          libraries,
+          dropboxAccountService,
+          dropboxSettings,
+          new ScanDropboxLibraryService(
+            libraries,
+            tracks,
+            new DropboxLibraryCatalogAdapter(
+              new DropboxApiClient({ clientId: "" }, dropboxTransport),
+            ),
+            generateTrackId,
+          ),
+          generateLibraryId,
+        ),
     ).singleton(),
-    dropboxAudioSources: asFunction(({ dropboxLibraries, tracks, audioSources, dbPath }: ElectronCradle) =>
-      new DropboxTrackAudioSourceService(dropboxLibraries, tracks,
-        new DropboxAudioDownloader(options.dropboxDownloadDirectory ?? join(dirname(dbPath), "dropbox-audio"), options.dropboxDownloadRequest), audioSources),
-    ).singleton(),
-    dropboxAccountService: asFunction(({ dbPath, currentUnixSeconds }: ElectronCradle) =>
-      new DropboxAccountService(
-        new SqliteDropboxAccountRepository(dbPath, options.dropboxCipher ?? {
-          protect: () => { throw new Error("Secure storage is unavailable"); },
-          unprotect: () => { throw new Error("Secure storage is unavailable"); },
-        }),
-        (clientId) => new DropboxApiClient({ clientId }, dropboxTransport),
-        options.openExternal ?? (async () => { throw new Error("System browser is unavailable"); }),
+    dropboxPoller: asFunction(
+      ({
+        dropboxLibraries,
+        dropboxSettings,
         currentUnixSeconds,
-      ),
+      }: ElectronCradle) =>
+        new DropboxLibraryPoller(
+          dropboxLibraries,
+          dropboxSettings,
+          currentUnixSeconds,
+        ),
+    ).singleton(),
+    dropboxAudioSources: asFunction(
+      ({ dropboxLibraries, tracks, audioSources, dbPath }: ElectronCradle) =>
+        new DropboxTrackAudioSourceService(
+          dropboxLibraries,
+          tracks,
+          new DropboxAudioDownloader(
+            options.dropboxDownloadDirectory ??
+              join(dirname(dbPath), "dropbox-audio"),
+            options.dropboxDownloadRequest,
+          ),
+          audioSources,
+        ),
+    ).singleton(),
+    dropboxAccountService: asFunction(
+      ({ dbPath, currentUnixSeconds }: ElectronCradle) =>
+        new DropboxAccountService(
+          new SqliteDropboxAccountRepository(
+            dbPath,
+            options.dropboxCipher ?? {
+              protect: () => {
+                throw new Error("Secure storage is unavailable");
+              },
+              unprotect: () => {
+                throw new Error("Secure storage is unavailable");
+              },
+            },
+          ),
+          (clientId) => new DropboxApiClient({ clientId }, dropboxTransport),
+          options.openExternal ??
+            (async () => {
+              throw new Error("System browser is unavailable");
+            }),
+          currentUnixSeconds,
+        ),
     ).singleton(),
     dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
-    currentUnixSeconds: asValue(options.currentUnixSeconds ?? defaultCurrentUnixSeconds),
+    currentUnixSeconds: asValue(
+      options.currentUnixSeconds ?? defaultCurrentUnixSeconds,
+    ),
     generateLibraryId: asValue(options.generateLibraryId ?? ulid),
     generatePlaylistEntryId: asValue(options.generatePlaylistEntryId ?? ulid),
     generatePlaylistId: asValue(options.generatePlaylistId ?? ulid),
@@ -189,7 +246,9 @@ export function createElectronContainer(
     generateTrackId: asValue(options.generateTrackId ?? ulid),
     logger: asClass(ConsoleLogger).singleton(),
     migrateDatabase: asFunction(
-      ({ dbPath }: ElectronCradle) => () => runSqliteMigrations(dbPath),
+      ({ dbPath }: ElectronCradle) =>
+        () =>
+          runSqliteMigrations(dbPath),
     ).singleton(),
     libraries: asFunction(
       ({ dbPath }: ElectronCradle) => new SqliteLibraryRepository(dbPath),
@@ -208,7 +267,11 @@ export function createElectronContainer(
     filesystemWatcher: asClass(NodeFilesystemLibraryWatcher).singleton(),
     reader: asClass(MusicMetadataReader).singleton(),
     playlistService: asFunction(
-      ({ playlists, generatePlaylistId, generatePlaylistEntryId }: ElectronCradle) =>
+      ({
+        playlists,
+        generatePlaylistId,
+        generatePlaylistEntryId,
+      }: ElectronCradle) =>
         new PlaylistApplicationService(
           playlists,
           generatePlaylistId,
@@ -224,7 +287,13 @@ export function createElectronContainer(
         new ReconcileFilesystemLibrariesService(libraries, scanLibraryService),
     ).singleton(),
     scanLibraryService: asFunction(
-      ({ libraries, tracks, walker, reader, generateTrackId }: ElectronCradle) =>
+      ({
+        libraries,
+        tracks,
+        walker,
+        reader,
+        generateTrackId,
+      }: ElectronCradle) =>
         new ScanLibraryService(
           libraries,
           tracks,
@@ -286,8 +355,16 @@ export function createElectronContainer(
         new ListTrackPlayCountsCommand(playHistory),
     ).singleton(),
     prepareTrackAudioSourceCommand: asFunction(
-      ({ prepareTrackAudioSourceService, libraries, dropboxAudioSources }: ElectronCradle) =>
-        new PrepareTrackAudioSourceCommand(prepareTrackAudioSourceService, libraries, dropboxAudioSources),
+      ({
+        prepareTrackAudioSourceService,
+        libraries,
+        dropboxAudioSources,
+      }: ElectronCradle) =>
+        new PrepareTrackAudioSourceCommand(
+          prepareTrackAudioSourceService,
+          libraries,
+          dropboxAudioSources,
+        ),
     ).singleton(),
     recordTrackPlayCommand: asFunction(
       ({
@@ -321,10 +398,32 @@ export function createElectronContainer(
         new ClearTrackMetadataOverrideCommand(tracks),
     ).singleton(),
     commandHandlers: asFunction((cradle: ElectronCradle) => [
-      ...(["dropbox_begin", "dropbox_complete", "dropbox_status", "dropbox_disconnect"] as const)
-        .map((command) => new DropboxAccountCommand(command, cradle.dropboxAccountService)),
-      ...(["dropbox_add_library", "dropbox_sync_library", "dropbox_sync_status", "dropbox_set_sync_interval"] as const)
-        .map((command) => new DropboxLibraryCommand(command, cradle.dropboxLibraries, cradle.dropboxPoller)),
+      ...(
+        [
+          "dropbox_begin",
+          "dropbox_complete",
+          "dropbox_status",
+          "dropbox_disconnect",
+        ] as const
+      ).map(
+        (command) =>
+          new DropboxAccountCommand(command, cradle.dropboxAccountService),
+      ),
+      ...(
+        [
+          "dropbox_add_library",
+          "dropbox_sync_library",
+          "dropbox_sync_status",
+          "dropbox_set_sync_interval",
+        ] as const
+      ).map(
+        (command) =>
+          new DropboxLibraryCommand(
+            command,
+            cradle.dropboxLibraries,
+            cradle.dropboxPoller,
+          ),
+      ),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),
@@ -345,12 +444,14 @@ export function createElectronContainer(
         new CommandDispatcher(commandHandlers),
     ).singleton(),
     reconcileFilesystemLibraries: asFunction(
-      ({ reconcileFilesystemLibrariesService }: ElectronCradle) => () =>
-        reconcileFilesystemLibrariesService.reconcile(),
+      ({ reconcileFilesystemLibrariesService }: ElectronCradle) =>
+        () =>
+          reconcileFilesystemLibrariesService.reconcile(),
     ).singleton(),
     watchFilesystemLibraries: asFunction(
-      ({ watchFilesystemLibrariesService }: ElectronCradle) => () =>
-        watchFilesystemLibrariesService.watch(),
+      ({ watchFilesystemLibrariesService }: ElectronCradle) =>
+        () =>
+          watchFilesystemLibrariesService.watch(),
     ).singleton(),
   });
 

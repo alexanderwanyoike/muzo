@@ -35,7 +35,9 @@ describe("NowPlayingBar", () => {
       />,
     );
     expect(screen.getByText("Not Playing")).toBeDefined();
-    expect(screen.getByRole("button", { name: "Play" }).hasAttribute("disabled")).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Play" }).hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("shows the track title and artist when a track is loaded", () => {
@@ -154,7 +156,9 @@ describe("NowPlayingBar", () => {
       />,
     );
 
-    const fill = container.querySelector<HTMLElement>(".now-playing-bar__progress-fill");
+    const fill = container.querySelector<HTMLElement>(
+      ".now-playing-bar__progress-fill",
+    );
     expect(fill?.style.transform).toBe("scaleX(0.5)");
   });
 
@@ -179,14 +183,53 @@ describe("NowPlayingBar", () => {
     const user = userEvent.setup();
     const onNext = vi.fn();
     const onPrevious = vi.fn();
-    const view = render(<NowPlayingBar current={track} status="playing" positionSeconds={0} durationSeconds={391} volume={1} playbackError={null} onToggle={() => {}} onSeek={() => {}} onSetVolume={() => {}} hasNext hasPrevious={false} onNext={onNext} onPrevious={onPrevious} />);
-    expect(screen.getByRole("button", { name: "Previous track" }).hasAttribute("disabled")).toBe(true);
+    const view = render(
+      <NowPlayingBar
+        current={track}
+        status="playing"
+        positionSeconds={0}
+        durationSeconds={391}
+        volume={1}
+        playbackError={null}
+        onToggle={() => {}}
+        onSeek={() => {}}
+        onSetVolume={() => {}}
+        hasNext
+        hasPrevious={false}
+        onNext={onNext}
+        onPrevious={onPrevious}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Previous track" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
     await user.click(screen.getByRole("button", { name: "Next track" }));
     expect(onNext).toHaveBeenCalledOnce();
-    view.rerender(<NowPlayingBar current={track} status="playing" positionSeconds={0} durationSeconds={391} volume={1} playbackError={null} onToggle={() => {}} onSeek={() => {}} onSetVolume={() => {}} hasNext={false} hasPrevious onNext={onNext} onPrevious={onPrevious} />);
-    expect(screen.getByRole("button", { name: "Next track" }).hasAttribute("disabled")).toBe(true);
+    view.rerender(
+      <NowPlayingBar
+        current={track}
+        status="playing"
+        positionSeconds={0}
+        durationSeconds={391}
+        volume={1}
+        playbackError={null}
+        onToggle={() => {}}
+        onSeek={() => {}}
+        onSetVolume={() => {}}
+        hasNext={false}
+        hasPrevious
+        onNext={onNext}
+        onPrevious={onPrevious}
+      />,
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Next track" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
     await user.click(screen.getByRole("button", { name: "Previous track" }));
     expect(onPrevious).toHaveBeenCalledOnce();
   });
-
 });

@@ -22,17 +22,35 @@ export class AddLibraryCommand implements CommandHandler {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;
     const { name, kind, location } = input.value;
-    if (typeof name !== "string" || typeof location !== "string" || (kind !== "filesystem" && kind !== "dropbox")) return failure("repository", "invalid add_library input");
-    if (!name.trim()) return failure("emptyName", "Library name must not be empty.");
-    if (!location.trim()) return failure("emptyLocation", "Library location must not be empty.");
-    const library: LibraryRecord = { id: this.generateLibraryId(), name, kind, location };
+    if (
+      typeof name !== "string" ||
+      typeof location !== "string" ||
+      (kind !== "filesystem" && kind !== "dropbox")
+    )
+      return failure("repository", "invalid add_library input");
+    if (!name.trim())
+      return failure("emptyName", "Library name must not be empty.");
+    if (!location.trim())
+      return failure("emptyLocation", "Library location must not be empty.");
+    const library: LibraryRecord = {
+      id: this.generateLibraryId(),
+      name,
+      kind,
+      location,
+    };
     const saved = await repositoryResult(() => this.libraries.add(library));
     if (!saved.ok) return saved;
     const watchFailure = await this.watcher.watchLibrary(library);
-    if (watchFailure) this.logger.error(`initial library watch failed for ${library.id}: ${watchFailure.message}`);
+    if (watchFailure)
+      this.logger.error(
+        `initial library watch failed for ${library.id}: ${watchFailure.message}`,
+      );
     if (library.kind === "filesystem") {
       const scan = await this.scanner.scan(library.id);
-      if (!scan.ok) this.logger.error(`initial library scan failed for ${library.id}: ${scan.error.message}`);
+      if (!scan.ok)
+        this.logger.error(
+          `initial library scan failed for ${library.id}: ${scan.error.message}`,
+        );
     }
     return success(library);
   }
