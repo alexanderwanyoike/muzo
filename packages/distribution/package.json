@@ -8,7 +8,9 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --environment node",
-    "clean": "tsc --build --clean"
+    "clean": "tsc --build --clean",
+    "context": "tsx release-context-cli.ts",
+    "assemble": "tsx assemble-release-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
@@ -16,6 +18,7 @@
     "eslint-config-airbnb-extended": "3.3.0",
     "globals": "^15.11.0",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.4"
+    "vitest": "^2.1.4",
+    "tsx": "^4.23.0"
   }
 }
