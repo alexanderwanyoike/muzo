@@ -19,7 +19,7 @@ export function createPlayerWindowModeController(window: PlayerWindow) {
   let mode: PlayerWindowMode = "library";
   let library: {
     bounds: ReturnType<PlayerWindow["getNormalBounds"]>;
-    minimum: [number, number];
+    minimum: number[];
     maximized: boolean;
   } | null = null;
   function setMode(next: unknown): Result<void> {
@@ -31,7 +31,7 @@ export function createPlayerWindowModeController(window: PlayerWindow) {
     try {
       if (next === "library") {
         if (library) {
-          window.setMinimumSize(...library.minimum);
+          window.setMinimumSize(library.minimum[0], library.minimum[1]);
           window.setBounds(library.bounds);
           if (library.maximized) window.maximize();
         }
