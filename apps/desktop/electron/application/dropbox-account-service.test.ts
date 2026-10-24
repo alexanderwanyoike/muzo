@@ -52,4 +52,19 @@ describe("Dropbox account connection", () => {
     expect(stored).toBeNull();
   });
 
+  it("does not connect when authorization expires while token exchange is in flight", async () => {
+    let now = 0;
+    let finish: (token: { accessToken: string; refreshToken: string; expiresIn: number; accountId: string }) => void = () => {};
+    const token = new Promise<{ accessToken: string; refreshToken: string; expiresIn: number; accountId: string }>((resolve) => { finish = resolve; });
+    const save = vi.fn();
+    const service = new DropboxAccountService({ find: async () => null, save, disconnect: async () => {} },
+      () => ({ exchangeAuthorizationCode: () => token, refreshAccessToken: vi.fn() }), async () => {}, () => now);
+    await service.begin("app-key");
+    const connecting = service.complete("code");
+    now = 601;
+    finish({ accessToken: "secret", refreshToken: "refresh", expiresIn: 3600, accountId: "account" });
+    expect(await connecting).toMatchObject({ ok: false, error: { kind: "authorization" } });
+    expect(save).not.toHaveBeenCalled();
+  });
+
 });
