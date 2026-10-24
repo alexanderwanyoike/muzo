@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 const port = Number(process.env.MUZO_DESKTOP_PORT ?? 1420);
 
 export default defineConfig(() => ({
+  base: "./",
   plugins: react() as unknown as PluginOption[],
 
   // Vitest needs an explicit environment for DOM APIs.
