@@ -1,5 +1,5 @@
-import { Cloud, Folder, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { Cloud, Folder, Search, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import type { LibraryDto } from "./types";
 
 interface LibraryListProps {
@@ -24,6 +24,11 @@ export default function LibraryList({
   onRemove,
   renderTracks: TrackListSlot,
 }: LibraryListProps) {
+  const [query, setQuery] = useState("");
+  const search = query.trim().toLowerCase();
+  const visibleLibraries = libraries.filter((library) =>
+    [library.name, library.location].some((value) => value.toLowerCase().includes(search)),
+  );
   if (libraries.length === 0) {
     return (
       <p className="library-list__empty">
@@ -33,8 +38,13 @@ export default function LibraryList({
   }
 
   return (
-    <ul className="library-list">
-      {libraries.map((library) => {
+    <div className="source-browser">
+      <div className="source-browser__search">
+        <Search aria-hidden="true" />
+        <input type="search" aria-label="Search sources" placeholder="Search sources" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </div>
+    <ul className="library-list" aria-label="Sources">
+      {visibleLibraries.map((library) => {
         const count = trackCounts[library.id] ?? 0;
         const isSelected = selectedLibraryId === library.id;
         const trackContent = isSelected ? TrackListSlot(library.id) : null;
@@ -94,5 +104,6 @@ export default function LibraryList({
         );
       })}
     </ul>
+    </div>
   );
 }
