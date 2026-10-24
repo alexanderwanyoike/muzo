@@ -141,3 +141,21 @@ Remaining parity work:
 - Mobile/PWA app.
 - MusicBrainz or internet metadata lookup.
 - Batch metadata editing.
+
+## October 2026 review corrections
+
+The initial completion review found two migration regressions: legacy SQLite
+history was not adopted before ALTER migrations ran, and packaged file URLs used
+absolute renderer asset paths. Regression tests now cover Tauri schema versions
+0, 4, and 5, the earliest unversioned schema, unchanged bytes on incompatible
+schemas, and asset resolution from a real packaged renderer build.
+
+Filesystem registration now performs its initial scan and open track lists refresh
+automatically. Application records are owned by the inner layer, expected command
+and service failures use typed Results, and exception compatibility is confined to
+IPC. Command and transport classes are separated into individual files.
+
+Verification after corrections: 178 tests pass, with lint, typecheck, build,
+package, and Linux zip/deb creation passing. The commit history records failing
+regression tests before their corresponding fixes. Historical pre-review commits
+are retained rather than rewritten to invent missing TDD evidence.
