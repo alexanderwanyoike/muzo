@@ -8,6 +8,19 @@ const logger = { error: vi.fn() };
 
 import { TrackArtworkService } from "./track-artwork-service";
 
+it("shows a persisted Dropbox thumbnail offline without reading credentials or media again", async () => {
+  const accessFor = vi.fn().mockResolvedValue({ ok: false, error: { kind: "notConnected", message: "Offline" } });
+  const read = vi.fn();
+  const service = new TrackArtworkService(
+    { find: async () => ({ libraryId: "cloud", trackId: "song", path: "/Music/song.flac", kind: "dropbox", revision: "1:2" }) },
+    { read }, { create: vi.fn() }, { read }, { accessFor },
+    { find: async () => ({ ok: true, value: { uri: "data:image/png;base64,cached" } }), save: emptyCache.save }, logger,
+  );
+  expect(await service.get("cloud", "song")).toEqual({ ok: true, value: "data:image/png;base64,cached" });
+  expect(accessFor).not.toHaveBeenCalled();
+  expect(read).not.toHaveBeenCalled();
+});
+
 it("reads Dropbox artwork with account-bound credentials without returning them to the renderer", async () => {
   const source = {
     libraryId: "cloud",
