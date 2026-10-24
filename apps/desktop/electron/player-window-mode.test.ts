@@ -153,3 +153,28 @@ it("preserves native compositor corners on macOS and native Wayland", () => {
     vi.unstubAllEnvs();
   }
 });
+
+it("keeps the X11 native title bar seam intact while rounding the bottom edges", () => {
+  vi.stubEnv("XDG_SESSION_TYPE", "x11");
+  try {
+    const window = windowFixture();
+    const controller = createPlayerWindowModeController(window, "linux");
+    expect(controller.setMode("compact").ok).toBe(true);
+    const shape = window.setShape.mock.calls.at(-1)?.[0] as {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }[];
+    expect(
+      shape.some((rect) => rect.x === 0 && rect.y === 0 && rect.width === 420),
+    ).toBe(true);
+    expect(
+      shape.some(
+        (rect) => rect.x === 0 && rect.y <= 559 && rect.y + rect.height > 559,
+      ),
+    ).toBe(false);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
