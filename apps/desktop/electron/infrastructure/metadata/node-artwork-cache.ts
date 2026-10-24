@@ -6,6 +6,10 @@ import { failure, success, type Result } from "../../application/result";
 
 const maximumBytes = 128 * 1024 * 1024;
 const maximumEntries = 4096;
+function hash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 const cacheFilename = /^[a-f0-9]{64}\.json$/;
 interface Limits { maximumBytes?: number; maximumEntries?: number; }
 
@@ -24,15 +28,16 @@ export class NodeArtworkCache implements ArtworkCache {
         const path = join(this.directory, filename);
         const text = await readFile(path, "utf8");
         const value: unknown = JSON.parse(text);
-        if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,")))) {
+        if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,"))) && "digest" in value && value.digest === hash(JSON.stringify(value.uri))) {
           this.touch(filename, Buffer.byteLength(text));
           const now = new Date();
           await utimes(path, now, now);
           await this.trim();
           return success({ uri: value.uri });
         }
-        return success(null);
+        return await this.discard(filename);
       } catch (error) {
+        if (error instanceof SyntaxError) return await this.discard(filename);
         if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
           this.entries?.delete(filename);
           return success(null);
@@ -47,7 +52,7 @@ export class NodeArtworkCache implements ArtworkCache {
       const temporary = join(this.directory, `${randomUUID()}.tmp`);
       try {
         await this.loadIndex();
-        const text = JSON.stringify({ uri });
+        const text = JSON.stringify({ uri, digest: hash(JSON.stringify(uri)) });
         await writeFile(temporary, text, { mode: 0o600 });
         const filename = this.filename(key);
         await rename(temporary, join(this.directory, filename));
@@ -60,6 +65,16 @@ export class NodeArtworkCache implements ArtworkCache {
         await rm(temporary, { force: true }).catch(() => undefined);
       }
     });
+  }
+
+  private async discard(filename: string): Promise<Result<null>> {
+    try {
+      await rm(join(this.directory, filename), { force: true });
+      this.entries?.delete(filename);
+      return success(null);
+    } catch {
+      return failure("storage", "Invalid artwork cache could not be removed.");
+    }
   }
 
   private async loadIndex(): Promise<void> {
@@ -101,6 +116,6 @@ export class NodeArtworkCache implements ArtworkCache {
   }
 
   private filename(key: string): string {
-    return `${createHash("sha256").update(key).digest("hex")}.json`;
+    return `${hash(key)}.json`;
   }
 }
