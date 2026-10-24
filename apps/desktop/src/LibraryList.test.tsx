@@ -31,6 +31,22 @@ it("filters sources by name or folder without changing the selected source", asy
 });
 
 describe("LibraryList", () => {
+  it("clears an unmatched search and restores selection without selecting or removing anything", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onRemove = vi.fn();
+    render(<LibraryList libraries={[{ id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" }]} trackCounts={NO_COUNTS} selectedLibraryId="one" onSelect={onSelect} onRemove={onRemove} renderTracks={() => null} />);
+    const search = screen.getByRole("searchbox", { name: "Search sources" });
+    await user.type(search, "missing");
+    expect(screen.getByText("No sources match your search.")).toBeDefined();
+    expect(screen.getByText("0 of 1 sources")).toBeDefined();
+    await user.click(screen.getByRole("button", { name: "Clear source search" }));
+    expect(search).toBe(document.activeElement);
+    expect(screen.getByRole("button", { name: "Show tracks for Jazz" }).getAttribute("aria-pressed")).toBe("true");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onRemove).not.toHaveBeenCalled();
+  });
+
   it("renders an empty state when there are no libraries", () => {
     render(
       <LibraryList
