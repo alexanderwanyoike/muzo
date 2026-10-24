@@ -67,8 +67,8 @@
               Your folders. Your finds. The records you come back to. Bring them
               together in a player made for your desktop.
             </p>
-            <a class="button" href="#get-started"
-              >Build from source <span aria-hidden="true">↓</span></a
+            <a class="button" href="#downloads"
+              >Download Muzo <span aria-hidden="true">↓</span></a
             >
             <p class="small-note">
               An early desktop player, built with Electron.
@@ -261,46 +261,88 @@
         </div>
       </section>
       <section
-        class="get-started wrap"
-        id="get-started"
-        aria-labelledby="start-title"
+        class="downloads wrap"
+        id="downloads"
+        aria-labelledby="downloads-title"
       >
-        <div>
-          <p class="eyebrow">Try the desktop preview</p>
-          <h2 id="start-title">Bring some music.</h2>
-          <p>
-            Muzo is in early development. Packaged downloads are not published
-            yet, so the current way to try it is from source.
-          </p>
-          <p>
-            You'll need Node 22.12 or newer, Yarn 1.22.22 or newer, and
-            Electron's runtime dependencies for your system.
-          </p>
-          <div class="text-links">
-            <a href="https://github.com/alexanderwanyoike/muzo#requirements"
-              >Setup guide <span aria-hidden="true">↗</span></a
-            ><a href="https://github.com/alexanderwanyoike/muzo/releases"
-              >Release history <span aria-hidden="true">↗</span></a
-            >
+        <div class="downloads-heading">
+          <div>
+            <p class="eyebrow">For your desktop</p>
+            <h2 id="downloads-title">Download Muzo.</h2>
           </div>
+          <p data-release-status>
+            Windows, macOS and Linux packages are being prepared. The links
+            below become available when a complete release is published.
+          </p>
         </div>
-        <div class="source-install">
-          <div class="terminal-label">
-            <span>Build from source</span><span>v0.0.1</span>
-          </div>
-          <pre
-            aria-label="Source installation commands"
-          ><code>git clone --branch v0.0.1 \
-  https://github.com/alexanderwanyoike/muzo.git
-cd muzo
-yarn install
-yarn desktop:dev</code></pre>
+        <div class="download-platforms">
+          <article
+            class="download-platform"
+            aria-labelledby="download-linux-title"
+          >
+            <p class="platform-label">01 / Linux</p>
+            <h3 id="download-linux-title">Linux</h3>
+            <p class="download-format">AppImage · x64</p>
+            <div data-release-download="linux-x64">
+              <span class="download-button" aria-disabled="true"
+                >Preparing release</span
+              >
+            </div>
+            <p class="install-note">
+              Make the AppImage executable, then open it. No source checkout
+              required.
+            </p>
+          </article>
+          <article
+            class="download-platform"
+            aria-labelledby="download-macos-title"
+          >
+            <p class="platform-label">02 / macOS</p>
+            <h3 id="download-macos-title">macOS</h3>
+            <p class="download-format">DMG · Apple silicon &amp; Intel</p>
+            <div data-release-download="macos-arm64">
+              <span class="download-button" aria-disabled="true"
+                >Preparing release · Apple silicon</span
+              >
+            </div>
+            <div data-release-download="macos-x64">
+              <span
+                class="download-button download-button--secondary"
+                aria-disabled="true"
+                >Preparing release · Intel</span
+              >
+            </div>
+            <p class="install-note">
+              Open the disk image and drag Muzo into Applications.
+            </p>
+          </article>
+          <article
+            class="download-platform"
+            aria-labelledby="download-windows-title"
+          >
+            <p class="platform-label">03 / Windows</p>
+            <h3 id="download-windows-title">Windows</h3>
+            <p class="download-format">Installer · x64</p>
+            <div data-release-download="windows-x64">
+              <span class="download-button" aria-disabled="true"
+                >Preparing release</span
+              >
+            </div>
+            <p class="install-note">
+              Download the installer and follow the setup steps.
+            </p>
+          </article>
+        </div>
+        <div class="download-details">
           <p>
-            For Dropbox, connect your own app key in Settings.
-            <a href="https://github.com/alexanderwanyoike/muzo#dropbox-setup"
-              >Dropbox setup</a
-            >
+            Early desktop preview. Packages are unsigned, so your system may ask
+            you to approve the app.
           </p>
+          <div>
+            <a href="https://github.com/alexanderwanyoike/muzo/releases"
+              >All releases</a
+            ><span data-release-checksums></span>
+          </div>
         </div>
       </section>
     </main>
