@@ -487,3 +487,59 @@ it("keeps old audio paused when a delayed pause event arrives during the next tr
   expect(play).toHaveBeenCalledTimes(1);
   expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
 });
+
+it.each(["preparation", "engine"] as const)(
+  "retries the selected queue track after %s failure instead of resuming stale audio",
+  async (failureStage) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    const nextTrack = { ...track, id: "next-track", title: "Next" };
+    await act(async () =>
+      result.current.playQueue([
+        { entryId: "first", track },
+        { entryId: "next", track: nextTrack },
+      ]),
+    );
+    const audio = MockAudio.instances[0];
+    act(() => audio.emit("playing"));
+    if (failureStage === "preparation") {
+      apiMocks.prepareTrackAudioSource.mockRejectedValueOnce(
+        new Error("download failed"),
+      );
+    } else {
+      apiMocks.prepareTrackAudioSource.mockResolvedValueOnce({
+        url: "source-next",
+        mimeType: "audio/mpeg",
+      });
+      MockAudio.nextPlayError = new Error("source failed");
+    }
+    await act(async () => result.current.next());
+    expect(result.current.status).toBe("error");
+    const play = vi.spyOn(audio, "play");
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    act(() => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(3);
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenLastCalledWith({
+      libraryId: nextTrack.libraryId,
+      trackId: nextTrack.id,
+    });
+    expect(result.current.status).toBe("loading");
+    expect(result.current.currentQueueEntryId).toBe("next");
+    expect(audio.paused).toBe(true);
+    expect(play).not.toHaveBeenCalled();
+    await act(async () =>
+      finish({ url: "source-next-retry", mimeType: "audio/mpeg" }),
+    );
+    expect(audio.src).toBe("source-next-retry");
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+    expect(apiMocks.recordTrackPlay).toHaveBeenLastCalledWith({
+      libraryId: nextTrack.libraryId,
+      trackId: nextTrack.id,
+    });
+  },
+);
