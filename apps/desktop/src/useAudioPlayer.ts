@@ -131,25 +131,27 @@ export function useAudioPlayer(
     };
   }, []);
 
+  const resumeAudio = useCallback((audio: AudioElementLike) => {
+    setPlaybackError(null);
+    setStatus("loading");
+    const requestId = playRequestRef.current;
+    void Promise.resolve(audio.play()).catch((err: unknown) => {
+      if (requestId !== playRequestRef.current) return;
+      currentTrackIdRef.current = null;
+      setStatus("error");
+      setPlaybackError(
+        formatPlaybackError("The audio engine rejected playback", err),
+      );
+    });
+  }, []);
+
   const startTrack = useCallback(
     (track: TrackDto) => {
       const audio = audioRef.current;
       if (!audio) return;
       if (currentTrackIdRef.current === track.id) {
         if (statusRef.current === "loading") return;
-        if (audio.paused) {
-          setPlaybackError(null);
-          setStatus("loading");
-          const requestId = playRequestRef.current;
-          void Promise.resolve(audio.play()).catch((err: unknown) => {
-            if (requestId !== playRequestRef.current) return;
-            currentTrackIdRef.current = null;
-            setStatus("error");
-            setPlaybackError(
-              formatPlaybackError("The audio engine rejected playback", err),
-            );
-          });
-        }
+        if (audio.paused) resumeAudio(audio);
         return;
       }
       statusRef.current = "loading";
@@ -173,7 +175,7 @@ export function useAudioPlayer(
         onTrackPlayRecorded,
       );
     },
-    [onTrackPlayRecorded],
+    [onTrackPlayRecorded, resumeAudio],
   );
 
   const clearQueue = useCallback(() => {
@@ -232,21 +234,11 @@ export function useAudioPlayer(
       return;
     }
     if (audio.paused) {
-      setPlaybackError(null);
-      setStatus("loading");
-      const requestId = playRequestRef.current;
-      void Promise.resolve(audio.play()).catch((err: unknown) => {
-        if (requestId !== playRequestRef.current) return;
-        currentTrackIdRef.current = null;
-        setStatus("error");
-        setPlaybackError(
-          formatPlaybackError("The audio engine rejected playback", err),
-        );
-      });
+      resumeAudio(audio);
     } else {
       audio.pause();
     }
-  }, [current, startTrack]);
+  }, [current, startTrack, resumeAudio]);
 
   const seek = useCallback((seconds: number) => {
     const audio = audioRef.current;
