@@ -397,6 +397,21 @@ describe("PlaylistPanel", () => {
     ], 0);
   });
 
+  it("starts at a selected duplicate entry rather than toggling another occurrence", async () => {
+    const user = userEvent.setup();
+    const repeated = { ...playlists[0], entries: [playlists[0].entries[0], { ...playlists[0].entries[0], id: "repeat", position: 1 }] };
+    mockedInvoke.mockResolvedValueOnce([repeated]);
+    const onPlayQueue = vi.fn();
+    const onToggleCurrentTrack = vi.fn();
+    render(<PlaylistPanel currentTrackId="track-1" currentQueueEntryId="entry-1" isPlaying onPlayQueue={onPlayQueue} onToggleCurrentTrack={onToggleCurrentTrack} />);
+    await user.click(await screen.findByRole("button", { name: "Play Hotel California from Road Trip" }));
+    expect(onToggleCurrentTrack).not.toHaveBeenCalled();
+    expect(onPlayQueue).toHaveBeenCalledWith([
+      { entryId: "entry-1", track: expect.objectContaining({ id: "track-1" }) },
+      { entryId: "repeat", track: expect.objectContaining({ id: "track-1" }) },
+    ], 1);
+  });
+
 });
 
 function entryLabels(): string[] {
