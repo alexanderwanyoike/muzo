@@ -33,6 +33,9 @@ export async function inspectInstaller(
       await handle.read(header, 0, header.length, 0);
       if (target.platform === "linux") {
         valid =
+          header[4] === 2 &&
+          header[5] === 1 &&
+          header.readUInt16LE(18) === 62 &&
           header.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])) &&
           header.subarray(8, 11).equals(Buffer.from([0x41, 0x49, 2]));
       } else if (target.platform === "windows") {
