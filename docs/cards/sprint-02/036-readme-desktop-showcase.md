@@ -22,3 +22,9 @@ first to preserve its merge policy and release ancestry documentation.
 All ordered gates pass, including 337 desktop tests and Linux ZIP/DEB packaging.
 Both review cycles have zero findings on both axes. See the
 [review record](../../reviews/2026-10-24-readme-desktop-showcase.md).
+
+Screenshot refresh: depends on the seek-focus fix (Card 038) before integration.
+The current capture uses that fix and lives in the future Vite public/ asset
+directory with its native .jpg extension. Source art remains original PNG demo
+art, while the viewport capture itself is JPEG. Application checks now total 338
+tests on the included fix; the original 337-test baseline above is historical.
