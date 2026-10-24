@@ -94,3 +94,12 @@ describe("Dropbox account connection", () => {
   });
 
 });
+
+it("never returns another account's token, including concurrent callers", async () => {
+  const stored: StoredDropboxAccount = { accountId: "account-B", clientId: "app-key", accessToken: "token-B", refreshToken: "refresh-B", accessTokenExpiresAtUnixSeconds: 9999, connectedAtUnixSeconds: 1 };
+  const service = new DropboxAccountService({ find: async () => stored, save: async () => {}, disconnect: async () => {} },
+    () => ({ exchangeAuthorizationCode: vi.fn(), refreshAccessToken: vi.fn() }), async () => {}, () => 1000);
+  const [wrongOwner, actualOwner] = await Promise.all([service.accessToken("account-A"), service.accessToken("account-B")]);
+  expect(wrongOwner).toMatchObject({ ok: false, error: { kind: "notConnected" } });
+  expect(actualOwner).toEqual({ ok: true, value: "token-B" });
+});

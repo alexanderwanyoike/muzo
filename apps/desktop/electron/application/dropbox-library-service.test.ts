@@ -38,3 +38,24 @@ it("shares an in-flight library sync between background polling and manual refre
   finish({ tracksScanned: 2 });
   expect(await Promise.all([first, second])).toEqual([{ ok: true, value: { tracksScanned: 2 } }, { ok: true, value: { tracksScanned: 2 } }]);
 });
+
+it("binds token retrieval to the library owner when the connected account changes during lookup", async () => {
+  let connectedAccount = "account-A";
+  let finishLookup: (owner: string) => void = () => {};
+  const owner = new Promise<string>((resolve) => { finishLookup = resolve; });
+  const accessToken = vi.fn(async (expectedAccount?: string) => expectedAccount && expectedAccount !== connectedAccount
+    ? { ok: false as const, error: { kind: "notConnected" as const, message: "Account changed" } }
+    : { ok: true as const, value: "token-B" });
+  const library: LibraryDto = { id: "cloud", kind: "dropbox", name: "Cloud", location: "/Music" };
+  const scan = vi.fn(async () => ({ ok: true as const, value: { tracksScanned: 0 } }));
+  const service = new DropboxLibraryService({ add: async () => {}, list: async () => [library], findById: async () => library },
+    { status: async () => ({ ok: true, value: { connected: true, accountId: connectedAccount } }), accessToken },
+    { bind: async () => {}, accountFor: () => owner, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
+  const syncing = service.sync("cloud");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  connectedAccount = "account-B";
+  finishLookup("account-A");
+  expect(await syncing).toMatchObject({ ok: false, error: { kind: "notConnected" } });
+  expect(accessToken).toHaveBeenCalledWith("account-A");
+  expect(scan).not.toHaveBeenCalled();
+});
