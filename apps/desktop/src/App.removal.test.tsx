@@ -7,6 +7,8 @@ import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 const library = { id: "source", name: "Music", kind: "filesystem", location: "/music" };
 let invoke: ReturnType<typeof vi.fn>;
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute("open", ""); };
+  HTMLDialogElement.prototype.close = function close() { this.removeAttribute("open"); this.dispatchEvent(new Event("close")); };
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
   invoke = vi.fn().mockImplementation(async (command: string) => {
