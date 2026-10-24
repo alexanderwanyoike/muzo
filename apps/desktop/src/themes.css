@@ -261,6 +261,7 @@
   --text: #192b3a;
   --text-muted: #43515f;
   --glass-highlight: #ffffffa0;
+  --glass-wash: #ffffff99;
   --material:
     radial-gradient(ellipse at 12% 0%, #ffffffb0, transparent 65%),
     linear-gradient(125deg, #a1bfda18, #ffffff10 48%, #8c9ab21a);
@@ -274,6 +275,7 @@
   --text: #edf5fb;
   --text-muted: #b9c9d5;
   --glass-highlight: #ffffff20;
+  --glass-wash: #ffffff10;
   --material:
     radial-gradient(ellipse at 12% 0%, #afcce218, transparent 65%),
     linear-gradient(125deg, #739fbe0c, #ffffff03 48%, #7794b510);

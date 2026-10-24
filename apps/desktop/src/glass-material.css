@@ -73,3 +73,41 @@
     backdrop-filter: none;
   }
 }
+
+[data-theme="glass"] .compact-player__header,
+[data-theme="glass"] .compact-player__body,
+[data-theme="glass"] .compact-queue {
+  background-image: linear-gradient(132deg, var(--glass-wash), transparent 42%);
+}
+[data-theme="glass"] .compact-player__body {
+  box-shadow:
+    inset 1px 0 0 var(--glass-highlight),
+    inset 0 1px 0 var(--glass-highlight);
+}
+[data-theme="glass"]
+  .compact-player
+  .now-playing-bar__controls
+  .now-playing-bar__play {
+  background:
+    linear-gradient(145deg, var(--glass-wash), transparent 70%),
+    color-mix(in srgb, var(--accent) 10%, var(--panel-raised));
+  border: 1px solid var(--glass-highlight);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 4px 12px #00000014;
+}
+[data-theme="glass"] .compact-queue__list button[aria-current] {
+  border-radius: 8px;
+  outline: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+  outline-offset: -1px;
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 2px 8px #0000000a;
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="glass"] .compact-player__header,
+  [data-theme="glass"] .compact-player__body,
+  [data-theme="glass"] .compact-queue {
+    background-image: none;
+  }
+}
