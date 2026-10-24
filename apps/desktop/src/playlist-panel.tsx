@@ -23,10 +23,6 @@ import {
   trackFromEntry,
 } from "./playlist-playback";
 
-interface PlaylistError {
-  message?: string;
-}
-
 interface PlaylistPanelProps {
   active?: boolean;
   navigationTarget?: HTMLElement | null;
@@ -65,18 +61,11 @@ export default function PlaylistPanel({
     let cancelled = false;
     setPlaylists(null);
     setError(null);
-    listPlaylists()
-      .then((result) => {
-        if (!cancelled) {
-          setPlaylists(result);
-        }
-      })
-      .catch((err: PlaylistError) => {
-        if (!cancelled) {
-          setError(err.message ?? "Could not load playlists.");
-          setPlaylists([]);
-        }
-      });
+    playlistRequest(listPlaylists, "Could not load playlists.").then((result) => {
+      if (cancelled) return;
+      if (result.ok) setPlaylists(result.value);
+      else { setError(result.error.message); setPlaylists([]); }
+    });
 
     return () => {
       cancelled = true;
@@ -98,22 +87,10 @@ export default function PlaylistPanel({
   ) {
     setRemovingEntryId(entry.id);
     setError(null);
-    try {
-      const updated = await removePlaylistEntry({
-        playlistId: playlist.id,
-        entryId: entry.id,
-      });
-      setPlaylists((prev) =>
-        (prev ?? []).map((candidate) =>
-          candidate.id === updated.id ? updated : candidate,
-        ),
-      );
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not remove playlist entry.");
-    } finally {
-      setRemovingEntryId(null);
-    }
+    const result = await playlistRequest(() => removePlaylistEntry({ playlistId: playlist.id, entryId: entry.id }), "Could not remove playlist entry.");
+    if (result.ok) setPlaylists((prev) => (prev ?? []).map((candidate) => candidate.id === result.value.id ? result.value : candidate));
+    else setError(result.error.message);
+    setRemovingEntryId(null);
   }
 
   async function handleMoveEntry(
@@ -140,22 +117,10 @@ export default function PlaylistPanel({
 
     setReorderingEntryId(entry.id);
     setError(null);
-    try {
-      const updated = await reorderPlaylistEntries({
-        playlistId: playlist.id,
-        orderedEntryIds: reorderedEntries.map((candidate) => candidate.id),
-      });
-      setPlaylists((prev) =>
-        (prev ?? []).map((candidate) =>
-          candidate.id === updated.id ? updated : candidate,
-        ),
-      );
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not reorder playlist entries.");
-    } finally {
-      setReorderingEntryId(null);
-    }
+    const result = await playlistRequest(() => reorderPlaylistEntries({ playlistId: playlist.id, orderedEntryIds: reorderedEntries.map((candidate) => candidate.id) }), "Could not reorder playlist entries.");
+    if (result.ok) setPlaylists((prev) => (prev ?? []).map((candidate) => candidate.id === result.value.id ? result.value : candidate));
+    else setError(result.error.message);
+    setReorderingEntryId(null);
   }
 
   function handlePlayEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
