@@ -7,7 +7,8 @@
   "packageManager": "yarn@1.22.22",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "site"
   ],
   "engines": {
     "node": ">=22.12.0",
@@ -25,7 +26,10 @@
     "test": "yarn workspaces run test",
     "clean": "yarn workspaces run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
+    "site:verify": "yarn workspace @muzo/site test",
+    "site:build": "yarn workspace @muzo/site build",
+    "site:preview": "yarn workspace @muzo/site preview"
   },
   "devDependencies": {
     "eslint-config-prettier": "10.1.8",
