@@ -249,7 +249,7 @@ export default function TrackList({
               )}
             </button>
             <span className="track-list__index">{index + 1}</span>
-            <TrackArtwork track={track} />
+            <TrackArtwork track={track} refreshKey={refreshKey} />
             <div className="track-list__meta">
               <div className="track-list__title">{track.title}</div>
               <div className="track-list__artist">{trackSubtitle(track)}</div>

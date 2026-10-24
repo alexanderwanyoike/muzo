@@ -7,11 +7,13 @@ import "./track-artwork.css";
 interface Props {
   track: Pick<TrackDto, "id" | "libraryId" | "title" | "album">;
   eager?: boolean;
+  refreshKey?: number;
   className?: string;
 }
 export default function TrackArtwork({
   track,
   eager = false,
+  refreshKey = 0,
   className = "",
 }: Props) {
   const element = useRef<HTMLSpanElement>(null);
@@ -21,7 +23,7 @@ export default function TrackArtwork({
     uri: string | null;
     error: string | null;
   } | null>(null);
-  const key = JSON.stringify([track.libraryId, track.id]);
+  const key = JSON.stringify([track.libraryId, track.id, refreshKey]);
   const label = track.album ?? track.title;
   useEffect(() => {
     if (eager || !("IntersectionObserver" in window)) {
