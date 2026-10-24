@@ -35,7 +35,7 @@ class TestAudio extends EventTarget {
   }
 }
 
-function installMusic() {
+function installMusic(sourceFailure = false) {
   vi.stubGlobal("Audio", TestAudio);
   const track = {
     id: "first",
@@ -89,8 +89,10 @@ function installMusic() {
           ],
         },
       ];
-    if (command === "prepare_track_audio_source")
+    if (command === "prepare_track_audio_source") {
+      if (sourceFailure) throw new Error("Audio is offline");
       return { url: "source-first", mimeType: "audio/flac" };
+    }
     if (command === "get_track_artwork") return { ok: true, value: null };
     return [];
   });
@@ -187,4 +189,22 @@ it("shows and selects the live playback queue without replacing it when compact 
   expect(screen.queryByRole("list", { name: "Playback queue" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Return to library" }));
   expect(screen.getByRole("heading", { name: "Evening" })).toBeDefined();
+});
+
+it("shows the album and a readable playback error in the mini player", async () => {
+  installMusic(true);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(
+    await screen.findByRole("button", { name: "Show tracks for Music" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Play First light" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Mini player" }));
+  expect(
+    await screen.findByRole("heading", { name: "First light" }),
+  ).toBeDefined();
+  expect(screen.getByText("North Window")).toBeDefined();
+  expect(screen.getByRole("alert").textContent).toContain("Audio is offline");
 });
