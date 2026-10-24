@@ -607,3 +607,70 @@ it("prepares a fresh source after a media error while preserving the queue", asy
   expect(audio.src).toBe("source-retry");
   expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
 });
+
+it.each(["toggle", "select-current"] as const)(
+  "prepares a fresh source after a rejected %s resume",
+  async (resumeControl) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => result.current.play(track));
+    const audio = MockAudio.instances[0];
+    act(() => {
+      audio.emit("playing");
+      result.current.toggle();
+    });
+    MockAudio.nextPlayError = new Error("resume rejected");
+    await act(async () => {
+      if (resumeControl === "toggle") result.current.toggle();
+      else result.current.play(track);
+    });
+    expect(result.current.status).toBe("error");
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const play = vi.spyOn(audio, "play");
+    act(() => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe("loading");
+    expect(play).not.toHaveBeenCalled();
+    await act(async () =>
+      finish({ url: "fresh-source", mimeType: "audio/mpeg" }),
+    );
+    expect(audio.src).toBe("fresh-source");
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["toggle", "select-current"] as const)(
+  "ignores a late rejected %s resume after another track starts",
+  async (resumeControl) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => result.current.play(track));
+    const audio = MockAudio.instances[0];
+    act(() => {
+      audio.emit("playing");
+      result.current.toggle();
+    });
+    let rejectResume: (error: Error) => void = () => {};
+    const pendingResume = new Promise<void>((_resolve, reject) => {
+      rejectResume = reject;
+    });
+    vi.spyOn(audio, "play").mockImplementationOnce(() => pendingResume);
+    act(() => {
+      if (resumeControl === "toggle") result.current.toggle();
+      else result.current.play(track);
+    });
+    const nextTrack = { ...track, id: "next-track" };
+    await act(async () => result.current.play(nextTrack));
+    act(() => audio.emit("playing"));
+    await act(async () => rejectResume(new Error("old resume failed")));
+    expect(result.current.current?.id).toBe(nextTrack.id);
+    expect(result.current.status).toBe("playing");
+    expect(result.current.playbackError).toBeNull();
+    act(() => result.current.toggle());
+    await act(async () => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  },
+);
