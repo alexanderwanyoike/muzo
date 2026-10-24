@@ -57,12 +57,17 @@ export default function DropboxFolderPicker({
     setMessage(null);
     const failures: string[] = [];
     let added = 0;
-    for (const folder of selected) {
-      const result = await addDropboxLibrary({
-        name: folder.name,
-        location: folder.path,
-        accountId,
-      });
+    const outcomes = await Promise.all(
+      selected.map(async (folder) => ({
+        folder,
+        result: await addDropboxLibrary({
+          name: folder.name,
+          location: folder.path,
+          accountId,
+        }),
+      })),
+    );
+    for (const { folder, result } of outcomes) {
       if (!result.ok) {
         failures.push(`${folder.name}: ${result.error.message}`);
         continue;
