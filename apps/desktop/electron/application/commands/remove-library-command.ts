@@ -4,6 +4,7 @@ import type { CommandHandler } from "./command-handler";
 
 export class RemoveLibraryCommand implements CommandHandler {
   readonly command = "remove_library";
+
   constructor(private readonly libraries: RemoveLibraryService) {}
 
   async handle(args: unknown): Promise<Result<void>> {

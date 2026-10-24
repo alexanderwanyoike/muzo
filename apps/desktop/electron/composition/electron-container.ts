@@ -1,7 +1,3 @@
-import type { LibraryWatchStopper } from "../application/interfaces/library-removal";
-import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
-import { RemoveLibraryService } from "../application/remove-library-service";
-import { SqliteLibraryRemover } from "../infrastructure/sqlite/sqlite-library-remover";
 import {
   asClass,
   asFunction,
@@ -11,8 +7,12 @@ import {
   type AwilixContainer,
 } from "awilix";
 import { ulid } from "ulid";
-
 import { dirname, join } from "node:path";
+import type { LibraryWatchStopper } from "../application/interfaces/library-removal";
+import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
+import { RemoveLibraryService } from "../application/remove-library-service";
+import { SqliteLibraryRemover } from "../infrastructure/sqlite/sqlite-library-remover";
+
 import { BrowseDropboxFoldersCommand } from "../application/commands/browse-dropbox-folders-command";
 import { BrowseDropboxFoldersService } from "../application/browse-dropbox-folders-service";
 import { AddLibraryCommand } from "../application/commands/add-library-command";

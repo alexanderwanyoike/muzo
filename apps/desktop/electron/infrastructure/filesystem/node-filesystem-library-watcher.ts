@@ -1,5 +1,5 @@
-import type { LibraryWatchStopper } from "../../application/interfaces/library-removal";
 import { watch, type FSWatcher } from "chokidar";
+import type { LibraryWatchStopper } from "../../application/interfaces/library-removal";
 
 import type {
   FilesystemLibraryChangeHandler,
