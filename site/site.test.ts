@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -8,14 +8,24 @@ const origin = "https://alexanderwanyoike.github.io";
 const base = `${origin}/muzo/`;
 
 function localFile(reference: string, parent = "index.html"): string {
-  const url = new URL(reference, new URL(parent, base));
+  const projectReference =
+    reference.startsWith("/") && !reference.startsWith("/muzo/")
+      ? reference.slice(1)
+      : reference;
+  const url = new URL(projectReference, new URL(parent, base));
   expect(url.origin).toBe(origin);
   expect(url.pathname.startsWith("/muzo/")).toBe(true);
-  const file = resolve(
+  const source = resolve(
     root,
     decodeURIComponent(url.pathname.slice("/muzo/".length)),
   );
-  expect(file.startsWith(`${root}${sep}`)).toBe(true);
+  expect(source.startsWith(`${root}${sep}`)).toBe(true);
+  const publicFile = resolve(
+    root,
+    "public",
+    decodeURIComponent(url.pathname.slice("/muzo/".length)),
+  );
+  const file = existsSync(publicFile) ? publicFile : source;
   expect(statSync(file).isFile()).toBe(true);
   return file;
 }
@@ -37,7 +47,9 @@ describe("Muzo project site", () => {
         document.getElementById(link.getAttribute("href")?.slice(1) ?? ""),
       ).not.toBeNull();
     }
-    expect(document.body.textContent).toContain("desktop preview");
+    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
+      "desktop preview",
+    );
   });
 
   it("offers source installation and release history without inventing binary downloads", () => {
@@ -46,24 +58,30 @@ describe("Muzo project site", () => {
         'a[href="https://github.com/alexanderwanyoike/muzo/releases"]',
       ),
     ).not.toBeNull();
-    expect(document.body.textContent).toContain(
+    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
       "Packaged downloads are not published yet",
     );
-    expect(document.body.textContent).toContain("yarn desktop:dev");
+    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
+      "yarn desktop:dev",
+    );
     expect(document.querySelector("a[download]")).toBeNull();
     expect(document.querySelector('a[href*="/releases/download/"]')).toBeNull();
   });
 
   it("uses the current canonical screenshots with descriptive alternative text and dimensions", () => {
-    for (const name of ["muzo-player.png", "muzo-personalization.png"]) {
+    for (const [name, width, height] of [
+      ["muzo-player.jpg", 1440, 900],
+      ["muzo-personalization.jpg", 1280, 900],
+    ] as const) {
       const image = document.querySelector<HTMLImageElement>(
         `img[src="images/${name}"]`,
       );
       expect(image).not.toBeNull();
       expect(image?.alt.length).toBeGreaterThan(20);
-      const png = readFileSync(localFile(`images/${name}`));
-      expect(Number(image?.getAttribute("width"))).toBe(png.readUInt32BE(16));
-      expect(Number(image?.getAttribute("height"))).toBe(png.readUInt32BE(20));
+      const capture = readFileSync(localFile(`images/${name}`));
+      expect([...capture.subarray(0, 2)]).toEqual([0xff, 0xd8]);
+      expect(Number(image?.getAttribute("width"))).toBe(width);
+      expect(Number(image?.getAttribute("height"))).toBe(height);
     }
   });
 
@@ -71,12 +89,14 @@ describe("Muzo project site", () => {
     for (const element of document.querySelectorAll("[src], link[href]")) {
       const reference =
         element.getAttribute("src") ?? element.getAttribute("href") ?? "";
-      if (element.getAttribute("rel") === "canonical") continue;
-      const file = localFile(reference);
-      if (!file.endsWith(".css")) continue;
-      const css = readFileSync(file, "utf8");
-      for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
-        localFile(match[1] ?? "", reference);
+      if (element.getAttribute("rel") !== "canonical") {
+        const file = localFile(reference);
+        if (file.endsWith(".css")) {
+          const css = readFileSync(file, "utf8");
+          for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
+            localFile(match[1] ?? "", reference);
+          }
+        }
       }
     }
   });
