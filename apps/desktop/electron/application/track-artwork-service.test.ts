@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { expect, it, vi } from "vitest";
+
+import { TrackArtworkService } from "./track-artwork-service";
+
 const emptyCache = {
   find: async () => ({ ok: true as const, value: null }),
   save: async () => ({ ok: true as const, value: undefined }),
 };
 const logger = { error: vi.fn() };
-
-import { TrackArtworkService } from "./track-artwork-service";
 
 it("shows a persisted Dropbox thumbnail offline without reading credentials or media again", async () => {
   const accessFor = vi.fn().mockResolvedValue({ ok: false, error: { kind: "notConnected", message: "Offline" } });
@@ -126,4 +127,24 @@ it("keeps artwork available when the persistent cache cannot be read or written"
   );
   expect(await service.get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover" });
   expect(errors.error).toHaveBeenCalledTimes(2);
+});
+
+it("invalidates persisted artwork after a scanned file revision changes", async () => {
+  let revision = "1:2";
+  const values = new Map<string, { uri: string | null }>();
+  const persisted = {
+    find: async (key: string) => ({ ok: true as const, value: values.get(key) ?? null }),
+    save: async (key: string, uri: string | null) => { values.set(key, { uri }); return { ok: true as const, value: undefined }; },
+  };
+  const read = vi.fn().mockResolvedValue({ data: new Uint8Array([1]), format: "image/png" });
+  const make = () => new TrackArtworkService(
+    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision }) },
+    { read }, { create: () => `data:image/png;base64,cover${read.mock.calls.length}` }, { read: vi.fn() }, { accessFor: vi.fn() }, persisted, logger,
+  );
+  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover1" });
+  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover1" });
+  expect(read).toHaveBeenCalledOnce();
+  revision = "1:3";
+  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover2" });
+  expect(read).toHaveBeenCalledTimes(2);
 });

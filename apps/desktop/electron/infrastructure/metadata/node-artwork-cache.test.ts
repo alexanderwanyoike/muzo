@@ -68,8 +68,8 @@ it("replaces a truncated record and stores private cache files", async () => {
     expect(files).toHaveLength(1);
     const file = join(cacheDir, files[0]);
     if (process.platform !== "win32") {
-      expect(statSync(cacheDir).mode & 0o777).toBe(0o700);
-      expect(statSync(file).mode & 0o777).toBe(0o600);
+      expect(statSync(cacheDir).mode % 0o1000).toBe(0o700);
+      expect(statSync(file).mode % 0o1000).toBe(0o600);
     }
     writeFileSync(file, "{");
     expect(await cache.find("../../untrusted-source")).toEqual({ ok: true, value: null });
