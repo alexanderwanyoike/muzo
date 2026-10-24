@@ -12,10 +12,9 @@ export class RemoveLibraryService {
 
   async remove(libraryId: string): Promise<Result<void>> {
     try {
+      if (!(await this.libraries.remove(libraryId))) return failure("libraryNotFound", "This source has already been removed.");
       await this.watcher.unwatch(libraryId);
-      return (await this.libraries.remove(libraryId))
-        ? success(undefined)
-        : failure("libraryNotFound", "This source has already been removed.");
+      return success(undefined);
     } catch {
       return failure("repository", "Could not remove the source. Try again.");
     }
