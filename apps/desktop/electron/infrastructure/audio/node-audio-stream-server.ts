@@ -16,7 +16,10 @@ export class NodeAudioStreamServer implements AudioSourceRegistry {
 
   constructor() {
     this.server = createServer((request, response) => {
-      void this.handle(request, response);
+      void this.handle(request, response).catch(() => {
+        if (!response.headersSent) response.writeHead(404, { "Content-Type": "text/plain" });
+        response.end("audio source unavailable");
+      });
     });
     this.origin = new Promise((resolve, reject) => {
       this.server.once("error", reject);
@@ -71,7 +74,7 @@ export class NodeAudioStreamServer implements AudioSourceRegistry {
     }
 
     response.writeHead(statusCode, headers);
-    createReadStream(route.filePath, { start, end }).pipe(response);
+    createReadStream(route.filePath, { start, end }).on("error", () => response.destroy()).pipe(response);
   }
 }
 
