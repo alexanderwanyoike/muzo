@@ -125,4 +125,18 @@ it.each(["relative.AppImage", "/tmp/Muzo\nIcon=injected.AppImage", "/tmp/Muzo=pr
   }
 });
 
+
+it("registers safely when two AppImage launches overlap", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-concurrent-menu-"));
+  try {
+    const options = { appImagePath: join(directory, "Muzo.AppImage"), dataDirectory: directory, iconPath: join(import.meta.dirname, "../assets/icons/muzo-window.png") };
+    const results = await Promise.all([registerAppImageMenuEntry(options), registerAppImageMenuEntry(options)]);
+    expect(results.every((result) => result.ok)).toBe(true);
+    const entry = await readFile(join(directory, "applications/muzo.desktop"), "utf8");
+    expect(entry).toContain("StartupWMClass=muzo");
+    expect(entry).toContain(options.appImagePath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 });
