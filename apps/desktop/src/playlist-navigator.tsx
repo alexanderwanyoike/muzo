@@ -1,3 +1,4 @@
+import SidebarPanel from "./sidebar-panel";
 import CreatePlaylistForm from "./create-playlist-form";
 import type { Result } from "../shared/result";
 import { useEffect, useRef, useState } from "react";
@@ -23,12 +24,9 @@ export default function PlaylistNavigator({ playlists, selectedId, onSelect, onC
   const visible = playlists?.filter((playlist) => playlist.name.toLowerCase().includes(search));
   function clearSearch() { setQuery(""); searchInput.current?.focus(); }
   return (
-    <section className="sources-panel" aria-labelledby="playlists-panel-heading">
-      <header className="sources-panel__header">
-        <ListMusic aria-hidden="true" />
-        <h2 id="playlists-panel-heading">Playlists</h2>
-        <span className="sources-panel__total" aria-live="polite">{playlists?.length ?? "..."}</span>
-      </header>
+    <SidebarPanel title="Playlists" headingId="playlists-panel-heading" icon={<ListMusic aria-hidden="true" />} count={playlists?.length ?? null} footer={
+        creating ? <CreatePlaylistForm onCreate={async (name) => { const result = await onCreate(name); if (result.ok) setQuery(""); return result; }} onClose={closeCreate} /> : <button ref={addButton} type="button" disabled={playlists === null} onClick={() => setCreating(true)}><Plus aria-hidden="true" /> New playlist</button>
+    }>
       <div className="source-browser">
         <div className="source-browser__search">
           <Search aria-hidden="true" />
@@ -49,9 +47,6 @@ export default function PlaylistNavigator({ playlists, selectedId, onSelect, onC
           ))}
         </ul>
       </div>
-      <footer className="sources-panel__footer">
-        {creating ? <CreatePlaylistForm onCreate={async (name) => { const result = await onCreate(name); if (result.ok) setQuery(""); return result; }} onClose={closeCreate} /> : <button ref={addButton} type="button" disabled={playlists === null} onClick={() => setCreating(true)}><Plus aria-hidden="true" /> New playlist</button>}
-      </footer>
-    </section>
+    </SidebarPanel>
   );
 }

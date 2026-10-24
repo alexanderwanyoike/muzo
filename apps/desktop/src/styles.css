@@ -2,7 +2,7 @@
 @import "./settings-view.css";
 @import "./transport.css";
 @import "./library-list.css";
-@import "./sources-panel.css";
+@import "./sidebar-panels.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;
