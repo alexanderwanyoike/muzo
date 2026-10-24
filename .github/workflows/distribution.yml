@@ -136,7 +136,7 @@ jobs:
           original="$GITHUB_WORKSPACE/apps/desktop/out/Muzo-darwin-${MUZO_TARGET#macos-}/Muzo.app"
           cmp "$original/Contents/Info.plist" "$installed/Contents/Info.plist"
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$installed/Contents/Info.plist")
-          lipo -verify_arch "$MUZO_ARCH" "$installed/Contents/MacOS/$executable"
+          lipo "$installed/Contents/MacOS/$executable" -verify_arch "$MUZO_ARCH"
           for asset in main.cjs sql-wasm.wasm; do
             cmp "$original/Contents/Resources/app/dist-electron/$asset" "$installed/Contents/Resources/app/dist-electron/$asset"
           done
