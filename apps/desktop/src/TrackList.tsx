@@ -50,9 +50,10 @@ export default function TrackList({
     setError(null);
     setEditingTrack(null);
     setDraft(null);
-    listTracks(libraryId)
+    const load = () => listTracks(libraryId)
       .then((result) => {
         if (!cancelled) {
+          setError(null);
           setTracks(result);
           onTracksLoaded?.(libraryId, result.length);
         }
@@ -60,11 +61,14 @@ export default function TrackList({
       .catch((err: { message?: string }) => {
         if (!cancelled) {
           setError(err.message ?? "Could not load tracks.");
-          setTracks([]);
+          setTracks((previous) => previous ?? []);
         }
       });
+    void load();
+    const timer = setInterval(() => { void load(); }, 5000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [libraryId, onTracksLoaded, refreshKey]);
 
