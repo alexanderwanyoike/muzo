@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 ---
 
 # Card 044 - Round the native mini player edges
@@ -19,7 +19,7 @@ adding curved compact-player edges where the native platform supports shaping.
 - [x] Resize listeners are removed when the window closes.
 - [x] The renderer follows the native bottom curve for every material.
 - [x] macOS and native Wayland retain compositor-provided corner treatment.
-- [ ] Ordered gates, two review cycles and PR handoff complete.
+- [x] Ordered gates, two review cycles and PR handoff complete.
 
 ## Established pattern and platform constraints
 
@@ -54,3 +54,7 @@ XShape rectangles through libXext, and captures the root desktop with the native
 frame. The compact region excludes both bottom corners and includes the centre;
 the restored library region is one full rectangle. Root captures contain safe,
 original fictional artwork and are not postprocessed to simulate corner clipping.
+
+Both Standards and Spec reviews returned no actionable findings in both cycles.
+All ordered gates passed with 356 tests in 83 files, native checks, build, package
+and make. See the [review record](../../reviews/2026-10-24-rounded-mini-player.md).
