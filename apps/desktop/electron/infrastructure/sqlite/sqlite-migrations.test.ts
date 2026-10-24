@@ -128,6 +128,20 @@ describe("Electron SQLite migrations", () => {
     }
   });
 
+  it("adopts the original unversioned library and track schema", async () => {
+    const path = tempDatabasePath();
+    const SQL = await initSqlJs();
+    const database = new SQL.Database();
+    const legacy = readFileSync(new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url), "utf8");
+    database.run(legacy.slice(0, legacy.indexOf("ALTER TABLE")));
+    database.run("INSERT INTO libraries (id, name, kind, location) VALUES ('old', 'Original', 'Filesystem', '/music')");
+    writeDatabase(path, database);
+    await runSqliteMigrations(path);
+    const migrated = await openDatabase(path);
+    try { expect(countRows(migrated, "libraries")).toBe(1); expect(tableColumns(migrated, "tracks")).toContain("album"); }
+    finally { migrated.close(); }
+  });
+
 });
 
 async function openDatabase(dbPath: string): Promise<Database> {
