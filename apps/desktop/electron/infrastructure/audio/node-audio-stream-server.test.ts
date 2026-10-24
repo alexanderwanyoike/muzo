@@ -33,6 +33,14 @@ describe("NodeAudioStreamServer", () => {
       body: "bcd",
     });
   });
+  it("returns a recoverable response when a downloaded audio file was evicted", async () => {
+    const server = new NodeAudioStreamServer();
+    servers.push(server);
+    const url = await server.register(join(tmpdir(), `missing-muzo-${Date.now()}.mp3`), "audio/mpeg");
+    const response = await fetch(url, { signal: AbortSignal.timeout(500) });
+    expect(response.status).toBe(404);
+  });
+
 });
 
 function get(
