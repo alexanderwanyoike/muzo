@@ -39,6 +39,12 @@ Vite preview cannot connect to real Dropbox or local music files.
 8. Resize to the minimum 800 by 600 window. The transport and sidebar should stay
    in their desktop arrangement without horizontal window scrolling.
 
+9. Add several sources, search by a name fragment and folder path, then clear
+   by the button and Escape. Selection and playback should stay unchanged.
+   Scroll the source list to the end; navigation, search and artwork stay visible.
+10. Check the native window after restart: no File/Edit/View/Window menus on
+    Windows/Linux. On macOS check the Muzo app controls and editing shortcuts.
+
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native
 thumbnail bounds. Live Dropbox behavior still depends on the account, connection
