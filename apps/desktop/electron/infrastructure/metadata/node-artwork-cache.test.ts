@@ -5,6 +5,13 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { NodeArtworkCache } from "./node-artwork-cache";
 
+it.each(["data:image/svg+xml,<svg/>", `data:image/png;base64,${"A".repeat(256 * 1024)}`])("refuses an invalid or oversized thumbnail", async (uri) => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-invalid-"));
+  try {
+    expect(await new NodeArtworkCache(directory).save("song", uri)).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
 it("discards a thumbnail whose stored image bytes were corrupted", async () => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-corrupt-"));
   try {
