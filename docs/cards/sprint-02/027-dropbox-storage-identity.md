@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Fix
-- Status: In review
+- Status: Done
 - Depends on: 026 (PR #53)
 
 # Card 027 - Preserve Dropbox secure storage identity
@@ -17,7 +17,7 @@ credentials are intact and readable under their original identity.
 - [x] Keep the existing Muzo renderer/session profile and appearance preferences.
 - [x] Read existing credentials without rewriting them or asking for reauthorization.
 - [x] Verify fresh profile startup with real Electron.
-- [ ] Complete ordered checks and two review cycles.
+- [x] Complete ordered checks and two review cycles (286 tests).
 
 ## Reproduction and evidence
 
@@ -43,3 +43,5 @@ renderer profile independently of the credential namespace.
 https://www.electronjs.org/docs/latest/api/app
 https://www.electronjs.org/docs/latest/api/safe-storage
 No cryptographic implementation or keyring content is copied.
+
+Review record: [two cycles](../../reviews/2026-10-24-dropbox-storage-identity.md).
