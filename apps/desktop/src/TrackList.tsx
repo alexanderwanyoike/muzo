@@ -52,22 +52,27 @@ export default function TrackList({
     setError(null);
     setEditingTrack(null);
     setDraft(null);
-    const load = () => listTracks(libraryId)
-      .then((result) => {
-        if (!cancelled) {
-          setError(null);
-          setTracks(result);
-          onTracksLoaded?.(libraryId, result.length);
-        }
-      })
-      .catch((err: { message?: string }) => {
-        if (!cancelled) {
-          setError(err.message ?? "Could not load tracks.");
-          setTracks((previous) => previous ?? []);
-        }
-      });
+    const load = () =>
+      listTracks(libraryId)
+        .then((result) => {
+          if (!cancelled) {
+            setError(null);
+            setTracks(result);
+            onTracksLoaded?.(libraryId, result.length);
+          }
+        })
+        .catch((err: { message?: string }) => {
+          if (!cancelled) {
+            setError(err.message ?? "Could not load tracks.");
+            setTracks((previous) => previous ?? []);
+          }
+        });
     void load();
-    const timer = refreshIntervalMs ? setInterval(() => { void load(); }, refreshIntervalMs) : null;
+    const timer = refreshIntervalMs
+      ? setInterval(() => {
+          void load();
+        }, refreshIntervalMs)
+      : null;
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
@@ -135,9 +140,7 @@ export default function TrackList({
           candidate.id === playlist.id ? playlist : candidate,
         ),
       );
-      setPlaylistMessage(
-        `Added ${playlistTrack.title} to ${playlist.name}.`,
-      );
+      setPlaylistMessage(`Added ${playlistTrack.title} to ${playlist.name}.`);
       setPlaylistTrack(null);
       setSelectedPlaylistId("");
     } catch (err) {
@@ -217,16 +220,14 @@ export default function TrackList({
         const isEditing = editingTrack?.id === track.id && draft;
         const isChoosingPlaylist = playlistTrack?.id === track.id;
         const playButtonLabel =
-          isCurrent && isPlaying ? `Pause ${track.title}` : `Play ${track.title}`;
+          isCurrent && isPlaying
+            ? `Pause ${track.title}`
+            : `Play ${track.title}`;
         const rowClass = isCurrent
           ? "track-list__row track-list__row--current"
           : "track-list__row";
         return (
-          <li
-            key={track.id}
-            className={rowClass}
-            data-track-id={track.id}
-          >
+          <li key={track.id} className={rowClass} data-track-id={track.id}>
             <button
               type="button"
               className="track-list__play"
@@ -434,7 +435,8 @@ interface MetadataDraft {
 }
 
 function trackSubtitle(track: TrackDto): string {
-  const source = track.album ?? (track.metadataOverridden ? "Edited in Muzo" : null);
+  const source =
+    track.album ?? (track.metadataOverridden ? "Edited in Muzo" : null);
   return source ? `${track.artist} - ${source}` : track.artist;
 }
 

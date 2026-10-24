@@ -23,12 +23,15 @@ describe("AddLibraryCommand", () => {
       },
     });
 
-    expect(result).toEqual({ ok: true, value: ({
-      id: "lib-1",
-      name: "Local Music",
-      kind: "filesystem",
-      location: "/music",
-    }) });
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        id: "lib-1",
+        name: "Local Music",
+        kind: "filesystem",
+        location: "/music",
+      },
+    });
     expect(scanner.scan).toHaveBeenCalledWith("lib-1");
     expect(libraries.add).toHaveBeenCalledWith({
       id: "lib-1",
@@ -49,14 +52,20 @@ describe("AddLibraryCommand", () => {
     const watcher = addedLibraryWatcher();
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
+      new AddLibraryCommand(
+        libraries,
+        () => "lib-1",
+        watcher,
+        initialScanner(),
+        commandLogger(),
+      ).handle({
         input: {
           name: " ",
           kind: "filesystem",
           location: "/music",
         },
       }),
-    ).resolves.toMatchObject({ ok: false, error: ({ kind: "emptyName" }) });
+    ).resolves.toMatchObject({ ok: false, error: { kind: "emptyName" } });
 
     expect(libraries.add).not.toHaveBeenCalled();
     expect(watcher.watchLibrary).not.toHaveBeenCalled();
@@ -67,14 +76,20 @@ describe("AddLibraryCommand", () => {
     const watcher = addedLibraryWatcher();
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
+      new AddLibraryCommand(
+        libraries,
+        () => "lib-1",
+        watcher,
+        initialScanner(),
+        commandLogger(),
+      ).handle({
         input: {
           name: "Local Music",
           kind: "filesystem",
           location: "",
         },
       }),
-    ).resolves.toMatchObject({ ok: false, error: ({ kind: "emptyLocation" }) });
+    ).resolves.toMatchObject({ ok: false, error: { kind: "emptyLocation" } });
 
     expect(libraries.add).not.toHaveBeenCalled();
     expect(watcher.watchLibrary).not.toHaveBeenCalled();
@@ -89,19 +104,28 @@ describe("AddLibraryCommand", () => {
     });
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
+      new AddLibraryCommand(
+        libraries,
+        () => "lib-1",
+        watcher,
+        initialScanner(),
+        commandLogger(),
+      ).handle({
         input: {
           name: "Local Music",
           kind: "filesystem",
           location: "/music",
         },
       }),
-    ).resolves.toEqual({ ok: true, value: ({
-      id: "lib-1",
-      name: "Local Music",
-      kind: "filesystem",
-      location: "/music",
-    }) });
+    ).resolves.toEqual({
+      ok: true,
+      value: {
+        id: "lib-1",
+        name: "Local Music",
+        kind: "filesystem",
+        location: "/music",
+      },
+    });
   });
 });
 
@@ -120,7 +144,12 @@ function addedLibraryWatcher() {
 }
 
 function initialScanner() {
-  return { scan: vi.fn(async () => ({ ok: true as const, value: { tracksScanned: 0 } })) };
+  return {
+    scan: vi.fn(async () => ({
+      ok: true as const,
+      value: { tracksScanned: 0 },
+    })),
+  };
 }
 function commandLogger() {
   return { error: vi.fn() };

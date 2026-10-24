@@ -1,6 +1,8 @@
 import type { Result } from "../result";
-import type { PlaylistDto } from "../interfaces/playlist-interfaces";
-import type { PlaylistService } from "../interfaces/playlist-interfaces";
+import type {
+  PlaylistDto,
+  PlaylistService,
+} from "../interfaces/playlist-interfaces";
 import type { CommandHandler } from "./command-handler";
 
 export class ListPlaylistsCommand implements CommandHandler {

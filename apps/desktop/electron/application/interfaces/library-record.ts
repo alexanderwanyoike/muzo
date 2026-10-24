@@ -12,4 +12,3 @@ export interface AddLibraryInput {
   kind: LibraryKind;
   location: string;
 }
-

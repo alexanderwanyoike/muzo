@@ -1,6 +1,5 @@
 const dropboxTokenUrl = "https://api.dropboxapi.com/oauth2/token";
-const dropboxListFolderUrl =
-  "https://api.dropboxapi.com/2/files/list_folder";
+const dropboxListFolderUrl = "https://api.dropboxapi.com/2/files/list_folder";
 const dropboxListFolderContinueUrl =
   "https://api.dropboxapi.com/2/files/list_folder/continue";
 
@@ -11,7 +10,7 @@ export interface DropboxClientConfig {
 export interface DropboxHttpRequest {
   method: string;
   url: string;
-  headers: Array<[string, string]>;
+  headers: [string, string][];
   body: string;
 }
 
@@ -96,7 +95,7 @@ export class DropboxApiClient {
     );
 
     const entries = [...firstPage.entries];
-    let cursor = firstPage.cursor;
+    let { cursor } = firstPage;
     let hasMore = firstPage.has_more;
 
     while (hasMore) {
@@ -121,7 +120,8 @@ export class DropboxApiClient {
       body,
     });
     assertOk(response);
-    return dropboxTokenFromResponse(JSON.parse(response.body));
+    const payload: unknown = JSON.parse(response.body);
+    return dropboxTokenFromResponse(payload);
   }
 
   private async postJson<T>(
@@ -145,13 +145,6 @@ export class DropboxApiClient {
 
 export { FetchDropboxHttpTransport } from "./fetch-dropbox-http-transport";
 
-interface DropboxTokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in: number;
-  account_id?: string;
-}
-
 interface DropboxListFolderResponse {
   entries: DropboxEntryResponse[];
   cursor: string;
@@ -172,24 +165,48 @@ interface DropboxEntryResponse {
 
 function assertOk(response: DropboxHttpResponse): void {
   if (response.status !== 200) {
-    throw {
+    throw Object.assign(new Error(`Dropbox returned HTTP ${response.status}`), {
       kind: "unexpectedStatus",
       status: response.status,
       body: response.body,
-    };
+    });
   }
 }
 
-function dropboxTokenFromResponse(response: DropboxTokenResponse): DropboxToken {
+function dropboxTokenFromResponse(response: unknown): DropboxToken {
+  if (
+    !response ||
+    typeof response !== "object" ||
+    !("access_token" in response) ||
+    typeof response.access_token !== "string" ||
+    !response.access_token ||
+    !("expires_in" in response) ||
+    typeof response.expires_in !== "number" ||
+    !Number.isFinite(response.expires_in) ||
+    response.expires_in <= 0
+  ) {
+    throw new Error("Invalid Dropbox token response");
+  }
+  const refreshToken =
+    "refresh_token" in response ? response.refresh_token : undefined;
+  const accountId = "account_id" in response ? response.account_id : undefined;
+  if (
+    (refreshToken !== undefined && typeof refreshToken !== "string") ||
+    (accountId !== undefined && typeof accountId !== "string")
+  ) {
+    throw new Error("Invalid Dropbox token response");
+  }
   return {
     accessToken: response.access_token,
-    refreshToken: response.refresh_token ?? null,
+    refreshToken: refreshToken ?? null,
     expiresIn: response.expires_in,
-    accountId: response.account_id ?? null,
+    accountId: accountId ?? null,
   };
 }
 
-function dropboxEntryFromResponse(response: DropboxEntryResponse): DropboxEntry {
+function dropboxEntryFromResponse(
+  response: DropboxEntryResponse,
+): DropboxEntry {
   return {
     tag: response[".tag"],
     name: response.name,

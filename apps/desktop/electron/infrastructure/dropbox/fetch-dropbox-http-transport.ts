@@ -1,4 +1,8 @@
-import type { DropboxHttpTransport, DropboxHttpRequest, DropboxHttpResponse } from "./dropbox-api-client";
+import type {
+  DropboxHttpTransport,
+  DropboxHttpRequest,
+  DropboxHttpResponse,
+} from "./dropbox-api-client";
 
 export class FetchDropboxHttpTransport implements DropboxHttpTransport {
   async send(request: DropboxHttpRequest): Promise<DropboxHttpResponse> {
@@ -13,4 +17,3 @@ export class FetchDropboxHttpTransport implements DropboxHttpTransport {
     };
   }
 }
-

@@ -48,12 +48,7 @@ export class SqlitePlayHistoryRepository implements PlayHistoryRepository {
         `INSERT INTO play_history (
           id, library_id, track_id, played_at_unix_seconds
         ) VALUES (?, ?, ?, ?)`,
-        [
-          entry.id,
-          entry.libraryId,
-          entry.trackId,
-          entry.playedAtUnixSeconds,
-        ],
+        [entry.id, entry.libraryId, entry.trackId, entry.playedAtUnixSeconds],
       );
       writeFileSync(this.dbPath, database.export());
     } finally {
@@ -73,10 +68,7 @@ function playCountFromRow(row: Record<string, unknown>): PlayCount {
   return {
     trackId: stringColumn(row, "track_id"),
     playCount: numberColumn(row, "play_count"),
-    lastPlayedAtUnixSeconds: nullableNumber(
-      row,
-      "last_played_at_unix_seconds",
-    ),
+    lastPlayedAtUnixSeconds: nullableNumber(row, "last_played_at_unix_seconds"),
   };
 }
 

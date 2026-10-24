@@ -18,14 +18,21 @@ type Listener = (event: unknown) => void;
 
 class MockAudio {
   static instances: MockAudio[] = [];
+
   static nextPlayError: Error | null = null;
 
   src = "";
+
   currentTime = 0;
+
   duration = 0;
+
   volume = 1;
+
   paused = true;
+
   load = vi.fn();
+
   private listeners = new Map<string, Set<Listener>>();
 
   constructor() {
@@ -42,10 +49,12 @@ class MockAudio {
     this.listeners.get("play")?.forEach((fn) => fn({}));
     return Promise.resolve();
   }
+
   pause() {
     this.paused = true;
     this.listeners.get("pause")?.forEach((fn) => fn({}));
   }
+
   addEventListener(type: string, listener: Listener) {
     let set = this.listeners.get(type);
     if (!set) {
@@ -54,9 +63,11 @@ class MockAudio {
     }
     set.add(listener);
   }
+
   removeEventListener(type: string, listener: Listener) {
     this.listeners.get(type)?.delete(listener);
   }
+
   emit(type: string) {
     this.listeners.get(type)?.forEach((fn) => fn({}));
   }
@@ -256,7 +267,10 @@ describe("useAudioPlayer", () => {
   });
 
   it("includes the rejected play error details", async () => {
-    MockAudio.nextPlayError = new DOMException("The element has no supported sources.", "NotSupportedError");
+    MockAudio.nextPlayError = new DOMException(
+      "The element has no supported sources.",
+      "NotSupportedError",
+    );
     const { result } = renderHook(() => useAudioPlayer());
 
     await act(async () => {
@@ -265,12 +279,16 @@ describe("useAudioPlayer", () => {
 
     expect(result.current.status).toBe("error");
     expect(result.current.playbackError).toContain("NotSupportedError");
-    expect(result.current.playbackError).toContain("The element has no supported sources.");
+    expect(result.current.playbackError).toContain(
+      "The element has no supported sources.",
+    );
     expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
   });
 
   it("reports an error when the track audio source cannot be loaded", async () => {
-    apiMocks.prepareTrackAudioSource.mockRejectedValue(new Error("track file is missing"));
+    apiMocks.prepareTrackAudioSource.mockRejectedValue(
+      new Error("track file is missing"),
+    );
     const { result } = renderHook(() => useAudioPlayer());
 
     await act(async () => {
@@ -284,16 +302,25 @@ describe("useAudioPlayer", () => {
   });
   it("advances through duplicate playlist entries and stops at the end of the queue", async () => {
     const { result } = renderHook(() => useAudioPlayer());
-    const queue = [{ entryId: "first", track }, { entryId: "repeat", track }];
-    await act(async () => { result.current.playQueue(queue); });
+    const queue = [
+      { entryId: "first", track },
+      { entryId: "repeat", track },
+    ];
+    await act(async () => {
+      result.current.playQueue(queue);
+    });
     expect(result.current.currentQueueEntryId).toBe("first");
     expect(result.current.hasNext).toBe(true);
-    await act(async () => { MockAudio.instances[0].emit("ended"); });
+    await act(async () => {
+      MockAudio.instances[0].emit("ended");
+    });
     expect(result.current.currentQueueEntryId).toBe("repeat");
     expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
     expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
     expect(result.current.hasNext).toBe(false);
-    act(() => { MockAudio.instances[0].emit("ended"); });
+    act(() => {
+      MockAudio.instances[0].emit("ended");
+    });
     expect(result.current.status).toBe("paused");
     expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
   });
@@ -301,40 +328,74 @@ describe("useAudioPlayer", () => {
   it("supports previous and next entries, and clears the queue when a song is selected directly", async () => {
     const { result } = renderHook(() => useAudioPlayer());
     const second = { ...track, id: "second" };
-    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: second }]); });
+    await act(async () => {
+      result.current.playQueue([
+        { entryId: "a", track },
+        { entryId: "b", track: second },
+      ]);
+    });
     expect(result.current.hasPrevious).toBe(false);
-    await act(async () => { result.current.next(); });
+    await act(async () => {
+      result.current.next();
+    });
     expect(result.current.current?.id).toBe("second");
     expect(result.current.hasPrevious).toBe(true);
-    await act(async () => { result.current.previous(); });
+    await act(async () => {
+      result.current.previous();
+    });
     expect(result.current.currentQueueEntryId).toBe("a");
-    await act(async () => { result.current.play({ ...track, id: "direct" }); });
+    await act(async () => {
+      result.current.play({ ...track, id: "direct" });
+    });
     expect(result.current.currentQueueEntryId).toBeNull();
     expect(result.current.hasNext).toBe(false);
-    act(() => { MockAudio.instances[0].emit("ended"); });
+    act(() => {
+      MockAudio.instances[0].emit("ended");
+    });
     expect(result.current.current?.id).toBe("direct");
   });
 
   it("pauses the old source while the next queued track is being prepared", async () => {
     const { result } = renderHook(() => useAudioPlayer());
-    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "next" } }]); });
+    await act(async () => {
+      result.current.playQueue([
+        { entryId: "a", track },
+        { entryId: "b", track: { ...track, id: "next" } },
+      ]);
+    });
     expect(MockAudio.instances[0].paused).toBe(false);
     let finish: (source: { url: string; mimeType: string }) => void = () => {};
-    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
-    act(() => { result.current.next(); });
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    act(() => {
+      result.current.next();
+    });
     expect(MockAudio.instances[0].paused).toBe(true);
-    await act(async () => { finish({ url: "next-source", mimeType: "audio/mpeg" }); });
+    await act(async () => {
+      finish({ url: "next-source", mimeType: "audio/mpeg" });
+    });
     expect(MockAudio.instances[0].src).toBe("next-source");
   });
 
   it("cancels pending playback and releases audio when the player unmounts", async () => {
     let finish: (source: { url: string; mimeType: string }) => void = () => {};
-    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
     const { result, unmount } = renderHook(() => useAudioPlayer());
-    act(() => { result.current.play(track); });
+    act(() => {
+      result.current.play(track);
+    });
     const audio = MockAudio.instances[0];
     unmount();
-    await act(async () => { finish({ url: "late-source", mimeType: "audio/mpeg" }); });
+    await act(async () => {
+      finish({ url: "late-source", mimeType: "audio/mpeg" });
+    });
     expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
     expect(audio.paused).toBe(true);
     expect(audio.src).toBe("");
@@ -342,40 +403,77 @@ describe("useAudioPlayer", () => {
 
   it("does not resume a stale source while the next queue entry is loading", async () => {
     const { result } = renderHook(() => useAudioPlayer());
-    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "second" } }]); });
+    await act(async () => {
+      result.current.playQueue([
+        { entryId: "a", track },
+        { entryId: "b", track: { ...track, id: "second" } },
+      ]);
+    });
     let finish: (source: { url: string; mimeType: string }) => void = () => {};
-    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
-    act(() => { result.current.next(); });
-    await act(async () => { result.current.toggle(); });
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    act(() => {
+      result.current.next();
+    });
+    await act(async () => {
+      result.current.toggle();
+    });
     expect(MockAudio.instances[0].paused).toBe(true);
-    await act(async () => { finish({ url: "second-source", mimeType: "audio/mpeg" }); });
+    await act(async () => {
+      finish({ url: "second-source", mimeType: "audio/mpeg" });
+    });
   });
 
   it("stops on a failed queued source and lets the user skip it without recording a play", async () => {
     const { result } = renderHook(() => useAudioPlayer());
-    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "missing" } }, { entryId: "c", track: { ...track, id: "last" } }]); });
-    apiMocks.prepareTrackAudioSource.mockRejectedValueOnce(new Error("Download failed"));
-    await act(async () => { MockAudio.instances[0].emit("ended"); });
+    await act(async () => {
+      result.current.playQueue([
+        { entryId: "a", track },
+        { entryId: "b", track: { ...track, id: "missing" } },
+        { entryId: "c", track: { ...track, id: "last" } },
+      ]);
+    });
+    apiMocks.prepareTrackAudioSource.mockRejectedValueOnce(
+      new Error("Download failed"),
+    );
+    await act(async () => {
+      MockAudio.instances[0].emit("ended");
+    });
     expect(result.current.status).toBe("error");
     expect(result.current.currentQueueEntryId).toBe("b");
     expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(1);
-    await act(async () => { result.current.next(); });
+    await act(async () => {
+      result.current.next();
+    });
     expect(result.current.currentQueueEntryId).toBe("c");
     expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
   });
-
 });
 
 it("keeps old audio paused when a delayed pause event arrives during the next track's preparation", async () => {
   const { result } = renderHook(() => useAudioPlayer());
   const nextTrack = { ...track, id: "trk-2", title: "Next" };
-  await act(async () => result.current.playQueue([{ entryId: "first", track }, { entryId: "next", track: nextTrack }]));
+  await act(async () =>
+    result.current.playQueue([
+      { entryId: "first", track },
+      { entryId: "next", track: nextTrack },
+    ]),
+  );
   const audio = MockAudio.instances[0];
   act(() => audio.emit("playing"));
   const play = vi.spyOn(audio, "play");
-  vi.spyOn(audio, "pause").mockImplementation(() => { audio.paused = true; });
+  vi.spyOn(audio, "pause").mockImplementation(() => {
+    audio.paused = true;
+  });
   let finish: (source: { url: string; mimeType: string }) => void = () => {};
-  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
   act(() => result.current.next());
   expect(result.current.status).toBe("loading");
   act(() => audio.emit("pause"));

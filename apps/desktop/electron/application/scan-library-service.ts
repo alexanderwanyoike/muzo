@@ -28,40 +28,47 @@ export class ScanLibraryService implements LibraryScanner {
 
   async scan(libraryId: string): Promise<Result<ScanReport>> {
     try {
-    const library = await this.libraries.findById(libraryId);
-    if (!library) {
-      return failure("libraryNotFound", "The library no longer exists.", { libraryId });
-    }
-
-    const walkedFiles = await this.walker.walkAudioFiles(library.location);
-    const walkedPaths = new Set(walkedFiles.map((file) => file.path));
-
-    for (const file of walkedFiles) {
-      const metadata = await this.reader.read(file.path);
-      await this.tracks.upsertScannedTrack({
-        id: this.generateTrackId(),
-        libraryId,
-        title: metadata.title,
-        artist: metadata.artist,
-        album: metadata.album,
-        trackNumber: metadata.trackNumber,
-        discNumber: metadata.discNumber,
-        genre: metadata.genre,
-        year: metadata.year,
-        durationSeconds: metadata.durationSeconds,
-        filePath: file.path,
-        fileSize: file.size,
-        fileMtime: file.mtime,
-      } satisfies ScannedTrack);
-    }
-
-    for (const track of await this.tracks.listForLibrary(libraryId)) {
-      if (!walkedPaths.has(track.filePath)) {
-        await this.tracks.deleteByLibraryAndPath(libraryId, track.filePath);
+      const library = await this.libraries.findById(libraryId);
+      if (!library) {
+        return failure("libraryNotFound", "The library no longer exists.", {
+          libraryId,
+        });
       }
-    }
 
-    return success({ tracksScanned: walkedFiles.length });
-    } catch { return failure("repository", "Could not scan the filesystem library. Check the folder and refresh in Settings."); }
+      const walkedFiles = await this.walker.walkAudioFiles(library.location);
+      const walkedPaths = new Set(walkedFiles.map((file) => file.path));
+
+      for (const file of walkedFiles) {
+        const metadata = await this.reader.read(file.path);
+        await this.tracks.upsertScannedTrack({
+          id: this.generateTrackId(),
+          libraryId,
+          title: metadata.title,
+          artist: metadata.artist,
+          album: metadata.album,
+          trackNumber: metadata.trackNumber,
+          discNumber: metadata.discNumber,
+          genre: metadata.genre,
+          year: metadata.year,
+          durationSeconds: metadata.durationSeconds,
+          filePath: file.path,
+          fileSize: file.size,
+          fileMtime: file.mtime,
+        } satisfies ScannedTrack);
+      }
+
+      for (const track of await this.tracks.listForLibrary(libraryId)) {
+        if (!walkedPaths.has(track.filePath)) {
+          await this.tracks.deleteByLibraryAndPath(libraryId, track.filePath);
+        }
+      }
+
+      return success({ tracksScanned: walkedFiles.length });
+    } catch {
+      return failure(
+        "repository",
+        "Could not scan the filesystem library. Check the folder and refresh in Settings.",
+      );
+    }
   }
 }

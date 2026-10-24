@@ -16,7 +16,10 @@ export class NodeAudioFileWalker implements AudioFileWalker {
   }
 }
 
-async function walk(directory: string, files: WalkedAudioFile[]): Promise<void> {
+async function walk(
+  directory: string,
+  files: WalkedAudioFile[],
+): Promise<void> {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
     const path = join(directory, entry.name);

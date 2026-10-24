@@ -94,37 +94,65 @@ describe("Electron SQLite migrations", () => {
     }
   });
 
-  it.each([0, 4, 5])("adopts a legacy Tauri database at version %s without losing data", async (version) => {
-    const dbPath = tempDatabasePath();
-    const SQL = await initSqlJs();
-    const old = new SQL.Database();
-    old.run(readFileSync(new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url), "utf8"));
-    if (version === 4) old.run("DROP TABLE play_history");
-    old.run(`PRAGMA user_version = ${version}`);
-    old.run("INSERT INTO libraries (id, name, kind, location) VALUES ('legacy', 'Music', 'Filesystem', '/music')");
-    old.run("INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, album, override_title) VALUES ('song', 'legacy', 'Song', 'Artist', 120, '/music/song.mp3', 100, 10, 'Album', 'Edited')");
-    writeDatabase(dbPath, old);
-    await runSqliteMigrations(dbPath);
-    const migrated = await openDatabase(dbPath);
-    try {
-      expect(userVersion(migrated)).toBeGreaterThan(5);
-      expect(migrated.exec("SELECT album, override_title FROM tracks")[0].values).toEqual([["Album", "Edited"]]);
-      expect(countRows(migrated, "libraries")).toBe(1);
-      expect(countRows(migrated, "electron_migrations")).toBe(userVersion(migrated));
-    } finally { migrated.close(); }
-    await expect(runSqliteMigrations(dbPath)).resolves.toBeUndefined();
-  });
+  it.each([0, 4, 5])(
+    "adopts a legacy Tauri database at version %s without losing data",
+    async (version) => {
+      const dbPath = tempDatabasePath();
+      const SQL = await initSqlJs();
+      const old = new SQL.Database();
+      old.run(
+        readFileSync(
+          new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url),
+          "utf8",
+        ),
+      );
+      if (version === 4) old.run("DROP TABLE play_history");
+      old.run(`PRAGMA user_version = ${version}`);
+      old.run(
+        "INSERT INTO libraries (id, name, kind, location) VALUES ('legacy', 'Music', 'Filesystem', '/music')",
+      );
+      old.run(
+        "INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, album, override_title) VALUES ('song', 'legacy', 'Song', 'Artist', 120, '/music/song.mp3', 100, 10, 'Album', 'Edited')",
+      );
+      writeDatabase(dbPath, old);
+      await runSqliteMigrations(dbPath);
+      const migrated = await openDatabase(dbPath);
+      try {
+        expect(userVersion(migrated)).toBeGreaterThan(5);
+        expect(
+          migrated.exec("SELECT album, override_title FROM tracks")[0].values,
+        ).toEqual([["Album", "Edited"]]);
+        expect(countRows(migrated, "libraries")).toBe(1);
+        expect(countRows(migrated, "electron_migrations")).toBe(
+          userVersion(migrated),
+        );
+      } finally {
+        migrated.close();
+      }
+      await expect(runSqliteMigrations(dbPath)).resolves.toBeUndefined();
+    },
+  );
 
   it("leaves unsupported or inconsistent legacy databases untouched", async () => {
-    for (const invalid of ["PRAGMA user_version = 99", "ALTER TABLE tracks DROP COLUMN album"]) {
+    for (const invalid of [
+      "PRAGMA user_version = 99",
+      "ALTER TABLE tracks DROP COLUMN album",
+    ]) {
       const path = tempDatabasePath();
       const SQL = await initSqlJs();
       const database = new SQL.Database();
-      database.run(readFileSync(new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url), "utf8"));
+      database.run(
+        readFileSync(
+          new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url),
+          "utf8",
+        ),
+      );
       database.run(invalid);
       writeDatabase(path, database);
       const before = readFileSync(path);
-      await expect(runSqliteMigrations(path)).rejects.toThrow(/legacy database/i);
+      await expect(runSqliteMigrations(path)).rejects.toThrow(
+        /legacy database/i,
+      );
       expect(readFileSync(path)).toEqual(before);
     }
   });
@@ -133,16 +161,24 @@ describe("Electron SQLite migrations", () => {
     const path = tempDatabasePath();
     const SQL = await initSqlJs();
     const database = new SQL.Database();
-    const legacy = readFileSync(new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url), "utf8");
+    const legacy = readFileSync(
+      new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url),
+      "utf8",
+    );
     database.run(legacy.slice(0, legacy.indexOf("ALTER TABLE")));
-    database.run("INSERT INTO libraries (id, name, kind, location) VALUES ('old', 'Original', 'Filesystem', '/music')");
+    database.run(
+      "INSERT INTO libraries (id, name, kind, location) VALUES ('old', 'Original', 'Filesystem', '/music')",
+    );
     writeDatabase(path, database);
     await runSqliteMigrations(path);
     const migrated = await openDatabase(path);
-    try { expect(countRows(migrated, "libraries")).toBe(1); expect(tableColumns(migrated, "tracks")).toContain("album"); }
-    finally { migrated.close(); }
+    try {
+      expect(countRows(migrated, "libraries")).toBe(1);
+      expect(tableColumns(migrated, "tracks")).toContain("album");
+    } finally {
+      migrated.close();
+    }
   });
-
 });
 
 async function openDatabase(dbPath: string): Promise<Database> {

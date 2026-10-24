@@ -11,13 +11,16 @@ interface AudioRoute {
 
 export class NodeAudioStreamServer implements AudioSourceRegistry {
   private readonly routes = new Map<string, AudioRoute>();
+
   private readonly server: Server;
+
   private readonly origin: Promise<string>;
 
   constructor() {
     this.server = createServer((request, response) => {
       void this.handle(request, response).catch(() => {
-        if (!response.headersSent) response.writeHead(404, { "Content-Type": "text/plain" });
+        if (!response.headersSent)
+          response.writeHead(404, { "Content-Type": "text/plain" });
         response.end("audio source unavailable");
       });
     });
@@ -27,7 +30,9 @@ export class NodeAudioStreamServer implements AudioSourceRegistry {
         this.server.unref();
         const address = this.server.address();
         if (!address || typeof address === "string") {
-          reject(new Error("audio stream server did not bind to a TCP address"));
+          reject(
+            new Error("audio stream server did not bind to a TCP address"),
+          );
           return;
         }
         resolve(`http://127.0.0.1:${address.port}`);
@@ -74,7 +79,9 @@ export class NodeAudioStreamServer implements AudioSourceRegistry {
     }
 
     response.writeHead(statusCode, headers);
-    createReadStream(route.filePath, { start, end }).on("error", () => response.destroy()).pipe(response);
+    createReadStream(route.filePath, { start, end })
+      .on("error", () => response.destroy())
+      .pipe(response);
   }
 }
 

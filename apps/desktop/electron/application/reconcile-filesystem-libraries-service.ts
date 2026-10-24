@@ -29,7 +29,11 @@ export class ReconcileFilesystemLibrariesService {
       try {
         const result = await this.scanLibraryService.scan(library.id);
         if (result.ok) librariesReconciled += 1;
-        else failures.push({ libraryId: library.id, message: result.error.message });
+        else
+          failures.push({
+            libraryId: library.id,
+            message: result.error.message,
+          });
       } catch (error) {
         failures.push({
           libraryId: library.id,
@@ -50,7 +54,7 @@ function errorMessage(error: unknown): string {
     error &&
     typeof error === "object" &&
     "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
+    typeof error.message === "string"
   ) {
     return (error as { message: string }).message;
   }

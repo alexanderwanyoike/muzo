@@ -33,7 +33,7 @@ A React Native / PWA mobile app will live under `apps/mobile` in a future sprint
 
 ## Requirements
 
-- Node `>= 20.10`
+- Node `>= 22.12`
 - Yarn `>= 1.22.22`
 - Electron runtime dependencies for your OS
 
@@ -79,9 +79,15 @@ affect the next queue started, leaving the current listening order intact.
 | `yarn desktop:build` | Build the desktop frontend for Electron |
 | `yarn desktop:package` | Build an unpacked Electron app bundle |
 | `yarn desktop:make` | Build Electron distributable artifacts |
-| `yarn lint` | Lint every workspace |
+| `yarn format` | Automatically format maintained code and configuration |
+| `yarn format:check` | Check formatting without writing |
+| `yarn lint` | Run the Airbnb TypeScript and React lint baseline |
 | `yarn typecheck` | Typecheck every workspace |
 | `yarn test` | Run tests in every workspace |
+
+Formatting is checked in CI before lint, type checking, tests and desktop packaging.
+Run `yarn format` before pushing. Lint rejects explicit any and unsafe operations in
+production TypeScript; test fixtures have narrowly scoped exceptions.
 
 ## Engineering principles
 

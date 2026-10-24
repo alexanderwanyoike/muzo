@@ -1,4 +1,11 @@
-import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  safeStorage,
+  shell,
+} from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -41,25 +48,28 @@ async function createWindow() {
   }
 }
 
-ipcMain.handle("muzo:invoke", async (_event, command: string, args?: unknown) => {
-  try {
-    return {
-      ok: true,
-      value: await commandDispatcher.handleElectronCommand(command, args),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error,
-    };
-  }
-});
+ipcMain.handle(
+  "muzo:invoke",
+  async (_event, command: string, args?: unknown) => {
+    try {
+      return {
+        ok: true,
+        value: await commandDispatcher.handleElectronCommand(command, args),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error,
+      };
+    }
+  },
+);
 
 ipcMain.handle("muzo:open-directory", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openDirectory"],
   });
-  return result.canceled ? null : result.filePaths[0] ?? null;
+  return result.canceled ? null : (result.filePaths[0] ?? null);
 });
 
 app.whenReady().then(async () => {

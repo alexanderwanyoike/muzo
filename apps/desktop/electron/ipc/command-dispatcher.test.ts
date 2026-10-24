@@ -24,8 +24,6 @@ describe("Electron command dispatcher", () => {
 
     await expect(
       dispatcher.handleElectronCommand("create_playlist"),
-    ).rejects.toThrow(
-      "Electron command is not implemented: create_playlist",
-    );
+    ).rejects.toThrow("Electron command is not implemented: create_playlist");
   });
 });

@@ -177,7 +177,7 @@ describe("DropboxApiClient", () => {
   it("sends HTTP requests with fetch", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
       status: 200,
-      text: async () => "{\"done\":true}\n",
+      text: async () => '{"done":true}\n',
     } as Response);
 
     const response = await new FetchDropboxHttpTransport().send({
@@ -187,7 +187,7 @@ describe("DropboxApiClient", () => {
         ["Authorization", "Bearer access-123"],
         ["Content-Type", "application/json"],
       ],
-      body: "{\"ok\":true}",
+      body: '{"ok":true}',
     });
 
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -198,18 +198,19 @@ describe("DropboxApiClient", () => {
           Authorization: "Bearer access-123",
           "Content-Type": "application/json",
         },
-        body: "{\"ok\":true}",
+        body: '{"ok":true}',
       },
     );
     expect(response).toEqual({
       status: 200,
-      body: "{\"done\":true}\n",
+      body: '{"done":true}\n',
     });
   });
 });
 
 class FakeTransport implements DropboxHttpTransport {
   readonly requests: DropboxHttpRequest[] = [];
+
   private readonly responses: DropboxHttpResponse[];
 
   constructor(responses: DropboxHttpResponse[]) {
@@ -229,3 +230,35 @@ class FakeTransport implements DropboxHttpTransport {
 function formFromBody(body: string): Record<string, string> {
   return Object.fromEntries(new URLSearchParams(body));
 }
+
+it.each([
+  null,
+  {},
+  { access_token: 42, expires_in: 3600 },
+  { access_token: "token", expires_in: "3600" },
+  { access_token: "token", expires_in: -1 },
+  { access_token: "token", expires_in: 3600, refresh_token: 42 },
+  { access_token: "token", expires_in: 3600, account_id: 42 },
+])("rejects malformed Dropbox token data: %j", async (payload) => {
+  const client = new DropboxApiClient(
+    { clientId: "key" },
+    new FakeTransport([{ status: 200, body: JSON.stringify(payload) }]),
+  );
+  await expect(client.refreshAccessToken("refresh")).rejects.toThrow(
+    "Invalid Dropbox token response",
+  );
+});
+
+it("rejects unsuccessful Dropbox HTTP responses with an error carrying status details", async () => {
+  const client = new DropboxApiClient(
+    { clientId: "key" },
+    new FakeTransport([{ status: 401, body: "invalid credentials" }]),
+  );
+  const request = client.refreshAccessToken("refresh");
+  await expect(request).rejects.toThrow("Dropbox returned HTTP 401");
+  await expect(request).rejects.toMatchObject({
+    kind: "unexpectedStatus",
+    status: 401,
+    body: "invalid credentials",
+  });
+});

@@ -11,7 +11,10 @@ export interface AudioElementLike {
   play: () => Promise<void> | void;
   pause: () => void;
   addEventListener: (type: string, listener: (event: unknown) => void) => void;
-  removeEventListener: (type: string, listener: (event: unknown) => void) => void;
+  removeEventListener: (
+    type: string,
+    listener: (event: unknown) => void,
+  ) => void;
 }
 
 export async function loadAndPlayTrack(
@@ -34,7 +37,9 @@ export async function loadAndPlayTrack(
     if (requestId !== playRequestRef.current) return;
     currentTrackIdRef.current = null;
     setStatus("error");
-    setPlaybackError(formatPlaybackError("The audio source could not be loaded", err));
+    setPlaybackError(
+      formatPlaybackError("The audio source could not be loaded", err),
+    );
     return;
   }
 
@@ -47,7 +52,9 @@ export async function loadAndPlayTrack(
   } catch (err) {
     if (requestId !== playRequestRef.current) return;
     setStatus("error");
-    setPlaybackError(formatPlaybackError("The audio engine rejected playback", err));
+    setPlaybackError(
+      formatPlaybackError("The audio engine rejected playback", err),
+    );
     return;
   }
   if (requestId !== playRequestRef.current) return;
@@ -63,7 +70,10 @@ export async function loadAndPlayTrack(
   onTrackPlayRecorded?.(track);
 }
 
-export function createAudioElement(): { audio: AudioElementLike; cleanup: () => void } {
+export function createAudioElement(): {
+  audio: AudioElementLike;
+  cleanup: () => void;
+} {
   if (typeof Audio !== "undefined") {
     const audio = new Audio() as unknown as AudioElementLike;
     const maybeDomAudio = audio as Partial<HTMLAudioElement>;
@@ -98,7 +108,12 @@ export function formatPlaybackError(reason: string, err: unknown): string {
 
 function isErrorLike(err: unknown): err is { name: string; message: string } {
   if (!err || typeof err !== "object") return false;
-  return "name" in err && "message" in err && typeof err.name === "string" && typeof err.message === "string";
+  return (
+    "name" in err &&
+    "message" in err &&
+    typeof err.name === "string" &&
+    typeof err.message === "string"
+  );
 }
 
 function createStubAudioElement(): AudioElementLike {

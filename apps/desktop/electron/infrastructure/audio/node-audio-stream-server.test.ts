@@ -19,7 +19,10 @@ describe("NodeAudioStreamServer", () => {
   });
 
   it("serves registered audio bytes with range support", async () => {
-    const filePath = join(tmpdir(), `muzo-audio-${Date.now()}-${Math.random()}.mp3`);
+    const filePath = join(
+      tmpdir(),
+      `muzo-audio-${Date.now()}-${Math.random()}.mp3`,
+    );
     writeFileSync(filePath, "abcdef");
     const server = new NodeAudioStreamServer();
     servers.push(server);
@@ -36,11 +39,13 @@ describe("NodeAudioStreamServer", () => {
   it("returns a recoverable response when a downloaded audio file was evicted", async () => {
     const server = new NodeAudioStreamServer();
     servers.push(server);
-    const url = await server.register(join(tmpdir(), `missing-muzo-${Date.now()}.mp3`), "audio/mpeg");
+    const url = await server.register(
+      join(tmpdir(), `missing-muzo-${Date.now()}.mp3`),
+      "audio/mpeg",
+    );
     const response = await fetch(url, { signal: AbortSignal.timeout(500) });
     expect(response.status).toBe(404);
   });
-
 });
 
 function get(

@@ -10,7 +10,13 @@ import {
 } from "./api";
 
 import type { PlaybackQueueItem } from "./useAudioPlayer";
-import { entryLabel, isCurrentEntry, playableEntries, playButtonLabel, trackFromEntry } from "./playlist-playback";
+import {
+  entryLabel,
+  isCurrentEntry,
+  playableEntries,
+  playButtonLabel,
+  trackFromEntry,
+} from "./playlist-playback";
 
 interface PlaylistError {
   message?: string;
@@ -39,7 +45,9 @@ export default function PlaylistPanel({
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [removingEntryId, setRemovingEntryId] = useState<string | null>(null);
-  const [reorderingEntryId, setReorderingEntryId] = useState<string | null>(null);
+  const [reorderingEntryId, setReorderingEntryId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +92,10 @@ export default function PlaylistPanel({
     }
   }
 
-  async function handleRemoveEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
+  async function handleRemoveEntry(
+    playlist: PlaylistDto,
+    entry: PlaylistEntryDto,
+  ) {
     setRemovingEntryId(entry.id);
     setError(null);
     try {
@@ -113,7 +124,8 @@ export default function PlaylistPanel({
     const currentIndex = playlist.entries.findIndex(
       (candidate) => candidate.id === entry.id,
     );
-    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    const targetIndex =
+      direction === "up" ? currentIndex - 1 : currentIndex + 1;
     if (
       currentIndex < 0 ||
       targetIndex < 0 ||
@@ -156,7 +168,10 @@ export default function PlaylistPanel({
     if (track) {
       if (onPlayQueue) {
         const entries = playableEntries(playlist);
-        onPlayQueue(entries, entries.findIndex((candidate) => candidate.entryId === entry.id));
+        onPlayQueue(
+          entries,
+          entries.findIndex((candidate) => candidate.entryId === entry.id),
+        );
       } else onPlayTrack(track);
     }
   }
@@ -205,8 +220,12 @@ export default function PlaylistPanel({
               <div className="playlist-panel__summary">
                 <h3>{playlist.name}</h3>
                 <p>{formatTrackCount(playlist.entries.length)}</p>
-                <button type="button" disabled={!playableEntries(playlist).length}
-                  aria-label={`Play ${playlist.name}`} onClick={() => handlePlayPlaylist(playlist)}>
+                <button
+                  type="button"
+                  disabled={!playableEntries(playlist).length}
+                  aria-label={`Play ${playlist.name}`}
+                  onClick={() => handlePlayPlaylist(playlist)}
+                >
                   Play playlist
                 </button>
               </div>
@@ -222,7 +241,9 @@ export default function PlaylistPanel({
                         <span data-testid="playlist-entry-label">
                           {entryLabel(entry)}
                         </span>
-                        {entry.trackArtist && <small>{entry.trackArtist}</small>}
+                        {entry.trackArtist && (
+                          <small>{entry.trackArtist}</small>
+                        )}
                       </div>
                       <div className="playlist-panel__entry-actions">
                         <button
@@ -238,7 +259,11 @@ export default function PlaylistPanel({
                             activeEntryId,
                           )}
                         >
-                          {isCurrentEntry(entry, currentTrackId, activeEntryId) && isPlaying
+                          {isCurrentEntry(
+                            entry,
+                            currentTrackId,
+                            activeEntryId,
+                          ) && isPlaying
                             ? "||"
                             : ">"}
                         </button>
@@ -258,7 +283,9 @@ export default function PlaylistPanel({
                             index === playlist.entries.length - 1 ||
                             reorderingEntryId === entry.id
                           }
-                          onClick={() => handleMoveEntry(playlist, entry, "down")}
+                          onClick={() =>
+                            handleMoveEntry(playlist, entry, "down")
+                          }
                           aria-label={`Move ${entryLabel(entry)} down in ${playlist.name}`}
                         >
                           v
@@ -269,7 +296,9 @@ export default function PlaylistPanel({
                           onClick={() => handleRemoveEntry(playlist, entry)}
                           aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
                         >
-                          {removingEntryId === entry.id ? "Removing..." : "Remove"}
+                          {removingEntryId === entry.id
+                            ? "Removing..."
+                            : "Remove"}
                         </button>
                       </div>
                     </li>

@@ -3,5 +3,7 @@ import type { Result } from "../../../shared/result";
 
 export interface DropboxSyncController {
   status(): Promise<Result<DropboxSyncStatus>>;
-  setIntervalMinutes(minutes: number): Promise<Result<{ intervalMinutes: number }>>;
+  setIntervalMinutes(
+    minutes: number,
+  ): Promise<Result<{ intervalMinutes: number }>>;
 }

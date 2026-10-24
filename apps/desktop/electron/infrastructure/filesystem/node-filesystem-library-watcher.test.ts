@@ -49,7 +49,7 @@ describe("NodeFilesystemLibraryWatcher", () => {
 });
 
 class FakeChokidarWatcher {
-  private readonly handlers = new Map<string, Array<() => void>>();
+  private readonly handlers = new Map<string, (() => void)[]>();
 
   on(eventName: string, handler: () => void): this {
     const handlers = this.handlers.get(eventName) ?? [];

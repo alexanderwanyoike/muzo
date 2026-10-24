@@ -18,7 +18,10 @@ export function buildDropboxAuthorizationUrl(
   url.searchParams.set("response_type", "code");
   url.searchParams.set("token_access_type", "offline");
   url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("code_challenge", pkceS256Challenge(request.codeVerifier));
+  url.searchParams.set(
+    "code_challenge",
+    pkceS256Challenge(request.codeVerifier),
+  );
   url.searchParams.set("state", request.state);
 
   if (request.redirectUri) {
@@ -32,7 +35,5 @@ export function buildDropboxAuthorizationUrl(
 }
 
 function pkceS256Challenge(codeVerifier: string): string {
-  return createHash("sha256")
-    .update(codeVerifier)
-    .digest("base64url");
+  return createHash("sha256").update(codeVerifier).digest("base64url");
 }

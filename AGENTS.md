@@ -111,7 +111,7 @@ chore(repo): init yarn workspaces
 ## Toolchain
 
 - **Package manager:** Yarn (classic) workspaces. Always. No npm, no pnpm, no bun.
-- **Node:** `>= 20.10`.
+- **Node:** `>= 22.12`.
 - **Frontend:** React + TypeScript + Vite.
 - **Desktop shell:** Electron.
 

@@ -48,23 +48,27 @@ describe("DropboxLibraryCatalogAdapter", () => {
       ]),
     );
 
-    await expect(adapter.listAudioFiles("access-123", "/Music")).resolves.toEqual(
-      [
-        {
-          path: "/Music/Album/Song.MP3",
-          size: 12_345,
-          modifiedEpochSeconds: 1_782_383_400,
-        },
-      ],
-    );
+    await expect(
+      adapter.listAudioFiles("access-123", "/Music"),
+    ).resolves.toEqual([
+      {
+        path: "/Music/Album/Song.MP3",
+        size: 12_345,
+        modifiedEpochSeconds: 1_782_383_400,
+      },
+    ]);
   });
   it("scans the Dropbox root using the API's empty path", async () => {
     let requestedPath: string | null = null;
-    const adapter = new DropboxLibraryCatalogAdapter({ listFolderRecursive: async (_token, path) => { requestedPath = path; return []; } });
+    const adapter = new DropboxLibraryCatalogAdapter({
+      listFolderRecursive: async (_token, path) => {
+        requestedPath = path;
+        return [];
+      },
+    });
     await adapter.listAudioFiles("token", "/");
     expect(requestedPath).toBe("");
   });
-
 });
 
 class FakeDropboxFileLister implements DropboxFileLister {

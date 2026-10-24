@@ -51,7 +51,7 @@ describe("ListTrackPlayCountsCommand", () => {
       new ListTrackPlayCountsCommand(playHistory).handle({
         input: { libraryId: "lib-1" },
       }),
-    ).resolves.toEqual({ ok: true, value: (counts) });
+    ).resolves.toEqual({ ok: true, value: counts });
 
     expect(playHistory.listPlayCounts).toHaveBeenCalledWith("lib-1");
   });

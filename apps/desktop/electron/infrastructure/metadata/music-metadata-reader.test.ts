@@ -2,13 +2,13 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("music-metadata", () => ({
-  parseFile: vi.fn(),
-}));
-
 import { parseFile } from "music-metadata";
 
 import { MusicMetadataReader } from "./music-metadata-reader";
+
+vi.mock("music-metadata", () => ({
+  parseFile: vi.fn(),
+}));
 
 const mockedParseFile = vi.mocked(parseFile);
 
