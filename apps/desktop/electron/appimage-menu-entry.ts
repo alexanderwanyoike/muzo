@@ -79,7 +79,8 @@ export async function registerAppImageMenuEntry(
         "Type=Application",
         "Name=Muzo",
         "Comment=Muzo desktop music player",
-        `Exec=${executable(options.appImagePath)}`,
+        // GLib checks executable existence before expanding literal percent escapes.
+        `Exec=${options.appImagePath.includes("%") ? "env " : ""}${executable(options.appImagePath)}`,
         `Icon=${desktopString(icon)}`,
         "Terminal=false",
         "StartupWMClass=muzo",
