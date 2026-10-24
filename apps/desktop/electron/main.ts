@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  Menu,
   nativeImage,
   safeStorage,
   shell,
@@ -13,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { createElectronContainer } from "./composition/electron-container";
 import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/electron-safe-storage-dropbox-token-cipher";
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
+import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
@@ -76,6 +78,7 @@ ipcMain.handle("muzo:open-directory", async () => {
 });
 
 app.whenReady().then(async () => {
+  installDesktopMenu(Menu, process.platform);
   await runStartupTasks({
     migrateDatabase,
     reconcileFilesystemLibraries,
