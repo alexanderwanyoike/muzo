@@ -1,4 +1,4 @@
-import { failure } from "../../../shared/result";
+import { failure, type Result } from "../../../shared/result";
 import type { DropboxLibraryService } from "../dropbox-library-service";
 import type { DropboxSyncController } from "../interfaces/dropbox-sync-controller";
 import type { CommandHandler } from "./command-handler";
@@ -12,7 +12,7 @@ export class DropboxLibraryCommand implements CommandHandler {
     private readonly sync: DropboxSyncController,
   ) {}
 
-  async handle(args: unknown): Promise<unknown> {
+  async handle(args: unknown): Promise<Result<unknown>> {
     if (this.command === "dropbox_sync_status") return this.sync.status();
     const input = args && typeof args === "object" && "input" in args ? args.input : null;
     if (!input || typeof input !== "object") return failure("invalidInput", "Missing Dropbox input.");

@@ -6,7 +6,7 @@ import type { LibraryDto } from "../../src/types";
 it("registers and syncs a Dropbox library using main-process credentials", async () => {
   const libraries: LibraryDto[] = [];
   const bindings = new Map<string, string>();
-  const scan = vi.fn(async () => ({ tracksScanned: 2 }));
+  const scan = vi.fn(async () => ({ ok: true as const, value: { tracksScanned: 2 } }));
   const service = new DropboxLibraryService({
     add: async (library) => { libraries.push(library); }, list: async () => libraries,
     findById: async (id) => libraries.find((library) => library.id === id) ?? null,
@@ -27,7 +27,7 @@ it("shares an in-flight library sync between background polling and manual refre
   const library: LibraryDto = { id: "cloud", kind: "dropbox", name: "Cloud", location: "/Music" };
   let finish: (report: { tracksScanned: number }) => void = () => {};
   const report = new Promise<{ tracksScanned: number }>((resolve) => { finish = resolve; });
-  const scan = vi.fn(() => report);
+  const scan = vi.fn(async () => ({ ok: true as const, value: await report }));
   const service = new DropboxLibraryService({ add: async () => {}, list: async () => [library], findById: async () => library },
     { status: async () => ({ ok: true, value: { connected: true, accountId: "account" } }), accessToken: async () => ({ ok: true, value: "token" }) },
     { bind: async () => {}, accountFor: async () => "account", intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
