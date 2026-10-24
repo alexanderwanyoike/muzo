@@ -222,6 +222,10 @@ export function useAudioPlayer(
   const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !current || statusRef.current === "loading") return;
+    if (currentTrackIdRef.current !== current.id) {
+      startTrack(current);
+      return;
+    }
     if (audio.paused) {
       setPlaybackError(null);
       setStatus("loading");
@@ -234,7 +238,7 @@ export function useAudioPlayer(
     } else {
       audio.pause();
     }
-  }, [current]);
+  }, [current, startTrack]);
 
   const seek = useCallback((seconds: number) => {
     const audio = audioRef.current;
