@@ -46,6 +46,12 @@ export default function App() {
     volume,
     playbackError,
     play,
+    playQueue,
+    currentQueueEntryId,
+    hasNext,
+    hasPrevious,
+    next,
+    previous,
     toggle,
     seek,
     setVolume,
@@ -291,6 +297,8 @@ export default function App() {
           </div>
         ) : activeView === "playlists" ? (
           <PlaylistPanel
+            onPlayQueue={playQueue}
+            currentQueueEntryId={currentQueueEntryId}
             currentTrackId={current?.id ?? null}
             isPlaying={status === "playing"}
             onPlayTrack={play}
@@ -328,6 +336,10 @@ export default function App() {
       </section>
 
       <NowPlayingBar
+        hasNext={hasNext}
+        hasPrevious={hasPrevious}
+        onNext={next}
+        onPrevious={previous}
         current={current}
         status={status}
         positionSeconds={positionSeconds}
