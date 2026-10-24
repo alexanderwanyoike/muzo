@@ -1,5 +1,5 @@
 import { Cloud, Folder, Search, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { LibraryDto } from "./types";
 
 interface LibraryListProps {
@@ -25,6 +25,11 @@ export default function LibraryList({
   renderTracks: TrackListSlot,
 }: LibraryListProps) {
   const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const clearSearch = () => {
+    setQuery("");
+    searchInput.current?.focus();
+  };
   const search = query.trim().toLowerCase();
   const visibleLibraries = libraries.filter((library) =>
     [library.name, library.location].some((value) => value.toLowerCase().includes(search)),
@@ -41,8 +46,11 @@ export default function LibraryList({
     <div className="source-browser">
       <div className="source-browser__search">
         <Search aria-hidden="true" />
-        <input type="search" aria-label="Search sources" placeholder="Search sources" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input ref={searchInput} type="search" aria-label="Search sources" placeholder="Search sources" value={query} onChange={(event) => setQuery(event.target.value)} />
+        {query && <button type="button" aria-label="Clear source search" onClick={clearSearch}><X aria-hidden="true" /></button>}
       </div>
+      <p className="source-browser__count" aria-live="polite">{visibleLibraries.length} of {libraries.length} sources</p>
+      {visibleLibraries.length === 0 && <p className="library-list__empty">No sources match your search.</p>}
     <ul className="library-list" aria-label="Sources">
       {visibleLibraries.map((library) => {
         const count = trackCounts[library.id] ?? 0;
