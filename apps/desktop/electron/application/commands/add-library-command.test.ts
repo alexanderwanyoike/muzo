@@ -8,10 +8,13 @@ describe("AddLibraryCommand", () => {
   it("validates and persists a library", async () => {
     const libraries = libraryRepository();
     const watcher = addedLibraryWatcher();
+    const scanner = initialScanner();
     const result = await new AddLibraryCommand(
       libraries,
       () => "lib-1",
       watcher,
+      scanner,
+      commandLogger(),
     ).handle({
       input: {
         name: "Local Music",
@@ -26,6 +29,7 @@ describe("AddLibraryCommand", () => {
       kind: "filesystem",
       location: "/music",
     });
+    expect(scanner.scan).toHaveBeenCalledWith("lib-1");
     expect(libraries.add).toHaveBeenCalledWith({
       id: "lib-1",
       name: "Local Music",
@@ -45,7 +49,7 @@ describe("AddLibraryCommand", () => {
     const watcher = addedLibraryWatcher();
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher).handle({
+      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
         input: {
           name: " ",
           kind: "filesystem",
@@ -63,7 +67,7 @@ describe("AddLibraryCommand", () => {
     const watcher = addedLibraryWatcher();
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher).handle({
+      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
         input: {
           name: "Local Music",
           kind: "filesystem",
@@ -85,7 +89,7 @@ describe("AddLibraryCommand", () => {
     });
 
     await expect(
-      new AddLibraryCommand(libraries, () => "lib-1", watcher).handle({
+      new AddLibraryCommand(libraries, () => "lib-1", watcher, initialScanner(), commandLogger()).handle({
         input: {
           name: "Local Music",
           kind: "filesystem",
@@ -113,4 +117,11 @@ function addedLibraryWatcher() {
   return {
     watchLibrary: vi.fn().mockResolvedValue(null),
   };
+}
+
+function initialScanner() {
+  return { scan: vi.fn(async () => ({ tracksScanned: 0 })) };
+}
+function commandLogger() {
+  return { error: vi.fn() };
 }
