@@ -298,4 +298,21 @@ describe("useAudioPlayer", () => {
     expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
   });
 
+  it("supports previous and next entries, and clears the queue when a song is selected directly", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+    const second = { ...track, id: "second" };
+    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: second }]); });
+    expect(result.current.hasPrevious).toBe(false);
+    await act(async () => { result.current.next(); });
+    expect(result.current.current?.id).toBe("second");
+    expect(result.current.hasPrevious).toBe(true);
+    await act(async () => { result.current.previous(); });
+    expect(result.current.currentQueueEntryId).toBe("a");
+    await act(async () => { result.current.play({ ...track, id: "direct" }); });
+    expect(result.current.currentQueueEntryId).toBeNull();
+    expect(result.current.hasNext).toBe(false);
+    act(() => { MockAudio.instances[0].emit("ended"); });
+    expect(result.current.current?.id).toBe("direct");
+  });
+
 });
