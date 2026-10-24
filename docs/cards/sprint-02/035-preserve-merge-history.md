@@ -14,9 +14,12 @@ and tagging the release. Use merge commits consistently and preserve shared hist
 - [x] Update AGENTS.md and README with the merge/tag policy.
 - [x] Record rationale in ADR 0008 without rewriting historical records.
 - [x] Include the main release commit in the feature branch ancestry with identical application files, ready for integration into dev through this PR.
-- [ ] Complete ordered checks and both review cycles.
+- [x] Complete ordered checks and both review cycles.
 
 This change contains repository policy/documentation and an ancestry-only merge.
 There is no production logic change, so no artificial TDD tests are added. Repo
 settings and the remote annotated tag are verified directly. The policy PR stays
 open for the user's merge; the setting change and release tag are already applied.
+
+All ordered gates pass with 337 tests. Both Standards/Spec review cycles have
+zero findings. See [review record](../../reviews/2026-10-24-preserve-merge-history.md).
