@@ -1,4 +1,4 @@
-.dropbox-settings {
+.settings-view__section.dropbox-settings {
   grid-template-columns: minmax(0, 1fr);
   gap: 1.4rem;
 }
