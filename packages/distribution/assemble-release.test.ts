@@ -111,3 +111,46 @@ it("rejects a renamed AppImage for another CPU before creating release output", 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+it("refuses incomplete or corrupt installers and never overwrites a release set", async () => {
+  const { assembleRelease } = await import("./assemble-release");
+  const directory = await mkdtemp(join(tmpdir(), "muzo-release-guard-"));
+  const input = {
+    inputDirectory: directory,
+    outputDirectory: join(directory, "release-set"),
+    version: "0.0.2",
+    tag: "v0.0.2",
+    sourceCommit: "a".repeat(40),
+  };
+  try {
+    expect((await assembleRelease(input)).ok).toBe(false);
+    await Promise.all(
+      RELEASE_TARGETS.map(({ id }) =>
+        writeFile(
+          join(directory, releaseAssetName(id, "0.0.2")),
+          installer(id),
+        ),
+      ),
+    );
+    await writeFile(
+      join(directory, releaseAssetName("windows-x64", "0.0.2")),
+      Buffer.alloc(1024),
+    );
+    expect((await assembleRelease(input)).ok).toBe(false);
+    await writeFile(
+      join(directory, releaseAssetName("windows-x64", "0.0.2")),
+      installer("windows-x64"),
+    );
+    expect((await assembleRelease(input)).ok).toBe(true);
+    const before = await readFile(
+      join(input.outputDirectory, "SHA256SUMS"),
+      "utf8",
+    );
+    expect((await assembleRelease(input)).ok).toBe(false);
+    expect(
+      await readFile(join(input.outputDirectory, "SHA256SUMS"), "utf8"),
+    ).toBe(before);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
