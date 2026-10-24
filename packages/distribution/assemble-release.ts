@@ -9,6 +9,8 @@ import {
 import { inspectInstaller } from "./inspect-installer";
 import {
   RELEASE_TARGETS,
+  isStableReleaseVersion,
+  isReleaseSourceCommit,
   releaseManifestName,
   validateReleaseManifest,
   type ReleaseArtifact,
@@ -27,9 +29,9 @@ export async function assembleRelease(
 ): Promise<DistributionResult<ReleaseManifest>> {
   const { tag, version, sourceCommit, inputDirectory, outputDirectory } = input;
   if (
-    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) ||
+    !isStableReleaseVersion(version) ||
     tag !== `v${version}` ||
-    !/^[0-9a-f]{40}$/.test(sourceCommit)
+    !isReleaseSourceCommit(sourceCommit)
   )
     return distributionFailure(
       "invalidRelease",

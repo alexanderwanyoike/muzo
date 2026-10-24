@@ -4,7 +4,11 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, promisify } from "node:util";
-import { releaseAssetName, type DistributionResult } from "@muzo/distribution";
+import {
+  releaseAssetName,
+  isStableReleaseVersion,
+  type DistributionResult,
+} from "@muzo/distribution";
 import { distributionPlan } from "./distribution-plan";
 
 async function makeDistribution(): Promise<DistributionResult<string>> {
@@ -20,8 +24,7 @@ async function makeDistribution(): Promise<DistributionResult<string>> {
       !metadata ||
       typeof metadata !== "object" ||
       !("version" in metadata) ||
-      typeof metadata.version !== "string" ||
-      !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(metadata.version)
+      !isStableReleaseVersion(metadata.version)
     )
       return {
         ok: false,

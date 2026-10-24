@@ -2,6 +2,10 @@ import {
   distributionFailure,
   type DistributionResult,
 } from "./distribution-result";
+import {
+  isStableReleaseVersion,
+  isReleaseSourceCommit,
+} from "./release-contract";
 
 interface ReleaseContextInput {
   rootVersion: unknown;
@@ -19,11 +23,9 @@ export function releaseContext(
 ): DistributionResult<ReleaseContext> {
   const { rootVersion, desktopVersion, sourceCommit, tag } = input;
   if (
-    typeof rootVersion !== "string" ||
-    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(rootVersion) ||
+    !isStableReleaseVersion(rootVersion) ||
     rootVersion !== desktopVersion ||
-    typeof sourceCommit !== "string" ||
-    !/^[0-9a-f]{40}$/.test(sourceCommit) ||
+    !isReleaseSourceCommit(sourceCommit) ||
     (tag !== undefined && tag !== `v${rootVersion}`)
   )
     return distributionFailure(
