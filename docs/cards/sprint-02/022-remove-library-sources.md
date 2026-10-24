@@ -15,12 +15,13 @@ Dropbox contents. Preserve playlist entries as unavailable references.
 - [x] Visible removal controls in the sidebar and Settings, with confirmation/cancel.
 - [x] Atomically remove the library, tracks, play counts, overrides and Dropbox binding.
 - [x] Preserve all source files, other libraries and playlist entries.
-- [x] Stop filesystem watching and cancel pending reconciliation callbacks.
+- [x] Commit removal before stopping filesystem watching; deactivate callbacks during close.
 - [x] Prevent an in-flight scan from recreating removed catalogue tracks.
 - [x] Stop/invalidate pending playback from the removed source.
 - [x] Preserve playback from other sources and filter removed entries from its queue.
 - [x] Update Sources and Settings immediately and discard stale refresh results.
-- [x] Report typed failures without dismissing the confirmation or hiding the source.
+- [x] Report typed storage failures while retaining the source and its watcher.
+- [x] Report watcher cleanup failure as a visible warning after successful removal.
 - [ ] Full repository checks, visual verification and two review cycles pass.
 
 ## Established patterns
@@ -41,4 +42,7 @@ file preservation, retained playlist references and late scans. UI tests cover
 confirmation/cancel, sidebar removal, retry after failure and refresh completion
 races. Player tests cover pending audio invalidation and unaffected queue playback;
 watcher tests cover closing, debounce cancellation and later registration.
+Review fixes cover events during watcher close, storage failure preserving sync,
+cleanup warning display, typed Dropbox failure invalidation and visible playlist
+availability after removal.
 Visual tests use a disposable in-memory fixture, never the user's real catalogue.
