@@ -24,8 +24,9 @@ launcher with the outer AppImage path made it discoverable immediately.
 - [x] Preserve existing external integrations and repair the known temporary Cinnamon launcher in place.
 - [x] Handle invalid paths, concurrent launches and storage failures explicitly.
 - [x] Leave development, unpacked, Windows and macOS launches unchanged.
-- [ ] Pass ordered repository gates and real AppImage first-launch CI.
-- [ ] Complete initial review and fix re-review.
+- [x] Pass ordered repository gates and real AppImage first-launch smoke tests.
+- [x] Add real AppImage first-launch verification to Linux CI.
+- [x] Complete initial review and fix re-review.
 
 ## Established patterns
 
