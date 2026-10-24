@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "Muzo - a desktop music player built with Electron. Multiple libraries, playlists, recursive folder sync.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "packageManager": "yarn@1.22.22",
   "workspaces": [
     "apps/*",

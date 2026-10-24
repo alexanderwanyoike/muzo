@@ -149,4 +149,4 @@ feature/*   <- one branch per card. PRs target dev.
 
 ## License
 
-UNLICENSED (proprietary).
+[MIT](./LICENSE). Third-party dependencies and bundled assets retain their own licences.
