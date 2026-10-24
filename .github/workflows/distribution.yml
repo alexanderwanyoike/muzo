@@ -118,6 +118,7 @@ jobs:
             cmp "$GITHUB_WORKSPACE/apps/desktop/out/Muzo-linux-x64/resources/app/dist-electron/$asset" "squashfs-root/resources/app/dist-electron/$asset"
           done
           test -f squashfs-root/resources/app/dist/index.html
+          test -f squashfs-root/resources/app/assets/licenses/manrope-OFL.txt
       - name: Verify DMG payload and architecture without changing bundle identity
         if: startsWith(matrix.target, 'macos-')
         shell: bash
@@ -140,6 +141,7 @@ jobs:
             cmp "$original/Contents/Resources/app/dist-electron/$asset" "$installed/Contents/Resources/app/dist-electron/$asset"
           done
           test -f "$installed/Contents/Resources/app/dist/index.html"
+          test -f "$installed/Contents/Resources/app/assets/licenses/manrope-OFL.txt"
       - name: Verify Windows installer and installed payload
         if: matrix.target == 'windows-x64'
         shell: pwsh
@@ -156,6 +158,7 @@ jobs:
             if ($before -ne $after) { throw "Installed $asset changed" }
           }
           if (!(Test-Path "$installDir/resources/app/dist/index.html")) { throw 'Installed renderer missing' }
+          if (!(Test-Path "$installDir/resources/app/assets/licenses/manrope-OFL.txt")) { throw 'Font licence missing' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installer-${{ matrix.target }}
