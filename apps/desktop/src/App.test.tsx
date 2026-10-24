@@ -69,6 +69,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Settings" }));
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Dropbox" })).toBeDefined();
     expect(screen.getByRole("button", { name: /browse/i })).toBeDefined();
     expect(screen.getByRole("button", { name: /add library/i })).toBeDefined();
   });
@@ -233,5 +234,6 @@ describe("App", () => {
       ),
     );
     expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Dropbox" })).toBeDefined();
   });
 });
