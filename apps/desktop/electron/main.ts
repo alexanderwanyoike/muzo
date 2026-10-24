@@ -16,6 +16,7 @@ import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
 import { configureDesktopIdentity } from "./desktop-identity";
 import { configureDesktopIcon } from "./desktop-icon";
+import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
 
@@ -57,6 +58,10 @@ async function createWindow(icon: string) {
     await window.loadURL(devUrl);
   }
 }
+
+installPlayerWindowMode(ipcMain, (event) =>
+  BrowserWindow.fromWebContents(event.sender),
+);
 
 ipcMain.handle(
   "muzo:invoke",
