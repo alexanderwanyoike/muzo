@@ -8,6 +8,10 @@ it("accepts only a known player window's main frame and validates requested mode
   const event = { senderFrame: frame, sender: { mainFrame: frame } };
   const window = {
     isDestroyed: () => false,
+    getSize: () => [420, 560] as [number, number],
+    setShape: vi.fn(),
+    on: vi.fn(),
+    removeListener: vi.fn(),
     getNormalBounds: () => ({ x: 20, y: 30, width: 1200, height: 800 }),
     getMinimumSize: () => [800, 600] as [number, number],
     isMaximized: () => false,

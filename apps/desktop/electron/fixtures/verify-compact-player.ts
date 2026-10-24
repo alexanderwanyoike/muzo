@@ -1,6 +1,8 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, Menu } from "electron";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { installDesktopMenu } from "../desktop-menu";
 import { installPlayerWindowMode } from "../install-player-window-mode";
 
 const [page, preload, resultPath] = process.argv.slice(-3);
@@ -74,6 +76,34 @@ installPlayerWindowMode(ipcMain, (event) =>
   BrowserWindow.fromWebContents(event.sender),
 );
 
+async function nativeShape(
+  window: BrowserWindow,
+  label: string,
+): Promise<string | null> {
+  if (process.platform !== "linux") return null;
+  const id = String(window.getNativeWindowHandle().readUInt32LE());
+  const report = execFileSync("xwininfo", ["-id", id, "-shape"], {
+    encoding: "utf8",
+  });
+  const directory = process.env.MUZO_COMPACT_NATIVE_CAPTURE_DIR;
+  if (directory) {
+    await window.webContents.executeJavaScript(
+      "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+    );
+    await new Promise((resolve) => {
+      setTimeout(resolve, 100);
+    });
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, `${label}.txt`), report);
+    execFileSync("import", [
+      "-window",
+      "root",
+      join(directory, `${label}.png`),
+    ]);
+  }
+  return report;
+}
+
 function measureCompact() {
   const root = document.querySelector<HTMLElement>(".compact-player");
   if (!root) throw new Error("Mini player missing");
@@ -145,7 +175,9 @@ function measureCompact() {
 }
 void app.whenReady().then(async () => {
   try {
+    installDesktopMenu(Menu, process.platform);
     const window = new BrowserWindow({
+      title: "Muzo",
       width: 1200,
       height: 800,
       minWidth: 800,
@@ -230,6 +262,10 @@ void app.whenReady().then(async () => {
             mode,
             queue: false,
             layout,
+            nativeShape: await nativeShape(
+              window,
+              `${theme}-${mode}-solo-${width}`,
+            ),
           });
         }
         await click("Show queue");
@@ -308,7 +344,17 @@ void app.whenReady().then(async () => {
           await until(
             "document.querySelector('.compact-queue__list li:last-child button').getAttribute('aria-current') === 'true'",
           );
-          measurements.push({ theme, mode, queue: true, layout, queueAccess });
+          measurements.push({
+            theme,
+            mode,
+            queue: true,
+            layout,
+            queueAccess,
+            nativeShape: await nativeShape(
+              window,
+              `${theme}-${mode}-queue-${width}`,
+            ),
+          });
         }
         await click("Return to library");
         await until("!document.querySelector('.compact-player')");
@@ -353,6 +399,7 @@ void app.whenReady().then(async () => {
         original,
         restored: window.getNormalBounds(),
         minimum: window.getMinimumSize(),
+        restoredShape: await nativeShape(window, "library-restored"),
       }),
     );
     window.destroy();

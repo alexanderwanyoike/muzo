@@ -58,6 +58,9 @@ it("fits compact controls at native minimum sizes and restores the library windo
           ...process.env,
           ELECTRON_RUN_AS_NODE: undefined,
           NODE_OPTIONS: undefined,
+          XDG_SESSION_TYPE:
+            process.platform === "linux" ? "x11" : process.env.XDG_SESSION_TYPE,
+          WAYLAND_DISPLAY: undefined,
         },
       },
     );
@@ -66,6 +69,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
     const result = JSON.parse(readFileSync(resultPath, "utf8")) as {
       failure?: string;
       measurements: {
+        nativeShape: string | null;
         theme: string;
         mode: string;
         queue: boolean;
@@ -94,6 +98,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
         };
       }[];
       fallback: { queueAlpha: number };
+      restoredShape: string | null;
       original: unknown;
       restored: unknown;
       minimum: number[];
@@ -102,6 +107,14 @@ it("fits compact controls at native minimum sizes and restores the library windo
     expect(result.measurements).toHaveLength(16);
     expect(result.fallback.queueAlpha).toBe(255);
     expect(result.restored).toEqual(result.original);
+    if (process.platform === "linux") {
+      expect(result.restoredShape).toMatch(
+        /Window shape extents:\s+1200x800\+0\+0/,
+      );
+      for (const measurement of result.measurements) {
+        expect(measurement.nativeShape).toContain("Window shape extents:");
+      }
+    }
     expect(result.minimum).toEqual([800, 600]);
     for (const {
       theme,
