@@ -178,3 +178,20 @@ it("keeps the X11 native title bar seam intact while rounding the bottom edges",
     vi.unstubAllEnvs();
   }
 });
+
+it("keeps the X11 library region rectangular and synchronizes it after later resize", () => {
+  vi.stubEnv("XDG_SESSION_TYPE", "x11");
+  try {
+    const window = windowFixture();
+    const controller = createPlayerWindowModeController(window, "linux");
+    expect(controller.setMode("compact").ok).toBe(true);
+    expect(controller.setMode("library").ok).toBe(true);
+    window.setContentSize(1100, 700);
+    window.events.emit("resize");
+    expect(window.setShape).toHaveBeenLastCalledWith([
+      { x: 0, y: 0, width: 1100, height: 700 },
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
