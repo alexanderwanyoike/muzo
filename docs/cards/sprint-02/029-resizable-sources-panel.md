@@ -20,7 +20,7 @@ sidebar divider, preserving selection, playback, search and source removal.
 - [x] Treat unavailable/corrupt saved preferences as typed failures and keep resizing usable.
 - [x] Keep search, navigation, footer and artwork visible at 800 by 600.
 - [x] Verify light/dark materials and 80-source scrolling in the browser.
-- [ ] Complete ordered checks and two review cycles.
+- [x] Complete ordered checks and two review cycles.
 
 ## Established patterns
 
@@ -48,3 +48,8 @@ a new document. At 800 by 600, the list had 99px of visible height and 2560px of
 content; sidebar scrollHeight equalled its 518px height and album art stayed
 visible. Add source focused setup directly. Light and dark screenshots were
 inspected. Source removal continues through the existing confirmation dialog.
+
+All ordered gates passed with 320 tests. Initial Spec review found a cancelled
+resize could lose the wider preference after window narrowing. A red-first
+regression reproduced it; separating transient width fixed it. Both final review
+axes report zero findings. See [review record](../../reviews/2026-10-24-resizable-sources-panel.md).
