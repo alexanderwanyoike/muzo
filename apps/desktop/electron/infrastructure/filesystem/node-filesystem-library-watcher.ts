@@ -63,7 +63,11 @@ export class NodeFilesystemLibraryWatcher
     registration: WatchRegistration,
     onChange: FilesystemLibraryChangeHandler,
   ): void {
-    if (!registration.active || this.registrations.get(libraryId) !== registration) return;
+    if (
+      !registration.active ||
+      this.registrations.get(libraryId) !== registration
+    )
+      return;
     if (registration.debounce) {
       clearTimeout(registration.debounce);
     }

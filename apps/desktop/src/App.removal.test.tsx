@@ -32,7 +32,8 @@ beforeEach(() => {
     if (command === "list_libraries") return [library];
     if (command === "dropbox_status")
       return { ok: true, value: { connected: false, accountId: null } };
-    if (command === "remove_library") return { ok: true, value: { warning: null } };
+    if (command === "remove_library")
+      return { ok: true, value: { warning: null } };
     return [];
   });
   installTestRuntime({ invoke, openDirectory: vi.fn() });
@@ -124,7 +125,8 @@ it("does not restore source counts when an old refresh finishes after removal", 
         finishScan = resolve;
       });
     if (command === "list_tracks") return [{ id: "late-track" }];
-    if (command === "remove_library") return { ok: true, value: { warning: null } };
+    if (command === "remove_library")
+      return { ok: true, value: { warning: null } };
     return [];
   });
   const user = userEvent.setup();
@@ -149,38 +151,68 @@ it("does not restore source counts when an old refresh finishes after removal", 
   expect(screen.queryByText("Refreshed Music: 1 track.")).toBeNull();
 });
 
-
 it("shows a completed-removal cleanup warning after dismissing the confirmation", async () => {
   invoke.mockImplementation(async (command: string) => {
     if (command === "list_libraries") return [library];
-    if (command === "remove_library") return { ok: true, value: { warning: "Source removed. Restart Muzo to release its filesystem watcher." } };
+    if (command === "remove_library")
+      return {
+        ok: true,
+        value: {
+          warning:
+            "Source removed. Restart Muzo to release its filesystem watcher.",
+        },
+      };
     return [];
   });
   render(<App />);
-  await userEvent.click(await screen.findByRole("button", { name: "Remove Music" }));
-  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
-  expect(await screen.findByRole("status")).toHaveProperty("textContent", "Source removed. Restart Muzo to release its filesystem watcher.");
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Remove Music" }),
+  );
+  await userEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Remove source",
+    }),
+  );
+  expect(await screen.findByRole("status")).toHaveProperty(
+    "textContent",
+    "Source removed. Restart Muzo to release its filesystem watcher.",
+  );
   expect(screen.queryByRole("dialog")).toBeNull();
 });
-
 
 it("discards a typed Dropbox refresh failure after its source was removed", async () => {
   let finishSync: ((value: unknown) => void) | undefined;
   invoke.mockImplementation(async (command: string) => {
     if (command === "list_libraries") return [{ ...library, kind: "dropbox" }];
-    if (command === "dropbox_status") return { ok: true, value: { connected: false, accountId: null } };
-    if (command === "dropbox_sync_library") return new Promise(resolve => { finishSync = resolve; });
-    if (command === "remove_library") return { ok: true, value: { warning: null } };
+    if (command === "dropbox_status")
+      return { ok: true, value: { connected: false, accountId: null } };
+    if (command === "dropbox_sync_library")
+      return new Promise((resolve) => {
+        finishSync = resolve;
+      });
+    if (command === "remove_library")
+      return { ok: true, value: { warning: null } };
     return [];
   });
   render(<App />);
   await userEvent.click(screen.getByRole("button", { name: "Settings" }));
-  const sources = within(screen.getByRole("region", { name: "Indexed sources" }));
+  const sources = within(
+    screen.getByRole("region", { name: "Indexed sources" }),
+  );
   await userEvent.click(sources.getByRole("button", { name: "Refresh Music" }));
   await userEvent.click(sources.getByRole("button", { name: "Remove Music" }));
-  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  await userEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Remove source",
+    }),
+  );
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  await act(async () => finishSync?.({ ok: false, error: { kind: "remote", message: "Stale Dropbox error" } }));
+  await act(async () =>
+    finishSync?.({
+      ok: false,
+      error: { kind: "remote", message: "Stale Dropbox error" },
+    }),
+  );
   expect(screen.queryByText("Stale Dropbox error")).toBeNull();
 });
 
@@ -188,16 +220,48 @@ it("marks retained playlist entries unavailable immediately after sidebar remova
   let removed = false;
   invoke.mockImplementation(async (command: string) => {
     if (command === "list_libraries") return [library];
-    if (command === "list_playlists") return [{ id: "playlist", name: "Evening", entries: [{ id: "entry", trackId: "track", position: 0, trackTitle: removed ? null : "Song", trackLibraryId: removed ? null : "source", trackArtist: "Artist", trackDurationSeconds: 120 }] }];
-    if (command === "remove_library") { removed = true; return { ok: true, value: { warning: null } }; }
+    if (command === "list_playlists")
+      return [
+        {
+          id: "playlist",
+          name: "Evening",
+          entries: [
+            {
+              id: "entry",
+              trackId: "track",
+              position: 0,
+              trackTitle: removed ? null : "Song",
+              trackLibraryId: removed ? null : "source",
+              trackArtist: "Artist",
+              trackDurationSeconds: 120,
+            },
+          ],
+        },
+      ];
+    if (command === "remove_library") {
+      removed = true;
+      return { ok: true, value: { warning: null } };
+    }
     return [];
   });
   render(<App />);
   await userEvent.click(screen.getByRole("button", { name: "Playlists" }));
-  expect(await screen.findByRole("button", { name: "Play Song from Evening" })).toBeDefined();
+  expect(
+    await screen.findByRole("button", { name: "Play Song from Evening" }),
+  ).toBeDefined();
   await userEvent.click(screen.getByRole("button", { name: "Remove Music" }));
-  await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  await userEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Remove source",
+    }),
+  );
   expect(await screen.findByText("Unavailable source")).toBeDefined();
-  expect(screen.getByRole("button", { name: "Track track is unavailable in Evening" }).hasAttribute("disabled")).toBe(true);
-  expect(screen.queryByRole("button", { name: "Play Song from Evening" })).toBeNull();
+  expect(
+    screen
+      .getByRole("button", { name: "Track track is unavailable in Evening" })
+      .hasAttribute("disabled"),
+  ).toBe(true);
+  expect(
+    screen.queryByRole("button", { name: "Play Song from Evening" }),
+  ).toBeNull();
 });

@@ -245,7 +245,9 @@ export default function PlaylistPanel({
                         <span data-testid="playlist-entry-label">
                           {entryLabel(entry)}
                         </span>
-                        {!entry.trackLibraryId && <small>Unavailable source</small>}
+                        {!entry.trackLibraryId && (
+                          <small>Unavailable source</small>
+                        )}
                         {entry.trackArtist && (
                           <small>{entry.trackArtist}</small>
                         )}

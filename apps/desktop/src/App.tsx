@@ -195,7 +195,7 @@ export default function App() {
 
   function handleSourceRemoved(libraryId: string, warning: string | null) {
     removedLibraryIds.current.add(libraryId);
-    setSourceRevision(revision => revision + 1);
+    setSourceRevision((revision) => revision + 1);
     removeSource(libraryId);
     setLibraries((items) =>
       (items ?? []).filter((library) => library.id !== libraryId),
