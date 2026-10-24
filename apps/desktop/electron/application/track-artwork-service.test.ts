@@ -14,3 +14,22 @@ it("reads Dropbox artwork with account-bound credentials without returning them 
   expect(await service.get("cloud", "track")).toMatchObject({ ok: false, error: { kind: "notConnected" } });
   expect(read).toHaveBeenCalledOnce();
 });
+
+it("shares in-flight cover reads and reloads them when the stored file revision changes", async () => {
+  let revision = "1:2";
+  let finish: ((value: { format: string; data: Uint8Array }) => void) | undefined;
+  const picture = { format: "image/png", data: new Uint8Array([1]) };
+  const read = vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue(picture);
+  const service = new TrackArtworkService({ find: async () => ({ libraryId: "local", trackId: "track", path: "/music/song.flac", kind: "filesystem", revision }) }, { read }, { create: () => "data:image/png;base64,cover" }, { read: vi.fn() }, { accessFor: vi.fn() });
+  const first = service.get("local", "track");
+  const second = service.get("local", "track");
+  await vi.waitFor(() => expect(read).toHaveBeenCalled());
+  finish?.(picture);
+  await Promise.all([first, second]);
+  expect(read).toHaveBeenCalledOnce();
+  await service.get("local", "track");
+  expect(read).toHaveBeenCalledOnce();
+  revision = "1:3";
+  await service.get("local", "track");
+  expect(read).toHaveBeenCalledTimes(2);
+});
