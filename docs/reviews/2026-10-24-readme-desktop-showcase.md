@@ -176,3 +176,97 @@ Both native JPEG dimensions/encoding were verified. Format check passes; include
 application files are identical to PR #65, whose complete ordered gates pass with
 338 tests. No additional application changes require repeating those gates.
 Totals for the refreshed content: Standards 0, Spec 0 in both cycles.
+
+## Current integrated native captures
+
+Base: `d634223`; reviewed head: `d245f926fe582f568607bbe6d1c8bfd0b28a8ff7`.
+This refresh contains documentation and native JPEGs only.
+
+### Initial Standards
+
+# README capture refresh Standards review
+
+Base `d634223`; reviewed head `d245f926fe582f568607bbe6d1c8bfd0b28a8ff7`.
+Reviewed the complete three-dot diff, both focused documentation commits, AGENTS.md and the twelve Fowler smell heuristics.
+
+Hard documented violations: none found.
+
+Judgement-call smells: none actionable.
+
+The five-file change remains documentation and canonical JPEG assets. It introduces no runtime logic or artificial tests. The README and capture guide share the unchanged public asset paths. The original fixture artwork, isolated native capture provenance and pending feature dependencies are explicit.
+
+Both committed images were viewed. Listening is 1440 x 900 with Frosted glass dark/Cobalt, fully loaded artwork, the mini-player control and full-width source rows. Settings is 1280 x 1000 with Aluminium light/Rose, seven materials and ten accents. The seek control has no pointer-focus rectangle, and the final text colours are settled. The copy accurately distinguishes the combined development preview from tagged releases.
+
+Findings: 0 hard violations; 0 judgement-call smells. This read-only review did not rerun gates or change repository state.
+
+
+### Initial Spec
+
+# Spec review: current README captures, initial cycle
+
+Pinned diff: `d634223...d245f926fe582f568607bbe6d1c8bfd0b28a8ff7`. Reviewed the complete five-file diff and two commits against Card 036 and its current integrated capture refresh.
+
+## Missing or partial requirements
+
+No actionable findings. The README embeds the actual current listening capture near the introduction, satisfying Card 036 lines 11-12. Native inspection confirms artwork in the transport, track rows and sleeve, plus searchable Sources, removal controls and the mini-player toggle.
+
+## Unasked scope
+
+No actionable findings. Only documentation and canonical JPEGs change; no runtime behavior or artificial tests are introduced.
+
+## Apparently implemented requirements done incorrectly
+
+No actionable findings. The 1440x900 listening JPEG matches Frosted glass dark/Cobalt, with settled artwork and a clean seek control at 1:13. The 1280x1000 Settings JPEG shows satin aluminium light/Rose, all seven material choices, ten accents and fictional connected Dropbox state. Names and original geometric artwork remain restrained demo data. Dimensions, encoding and copy match the provenance guide.
+
+Card 036 lines 34-39 explicitly tie these captures to the pending combined preview and keep application changes in their own prerequisite PRs. Shared public image paths satisfy line 14's canonical asset requirement. Existing preview/source availability text was not changed by this refresh.
+
+Findings: 0. This read-only review did not rerun gates or certify pending integration/publication.
+
+
+### Final Standards
+
+# README capture refresh final Standards review
+
+Base `d634223`; reviewed head `d245f926fe582f568607bbe6d1c8bfd0b28a8ff7`.
+Rechecked the complete three-dot diff and two commits. No content changed after the initial review.
+
+Hard documented violations: none found.
+
+Judgement-call smells: none actionable.
+
+The change remains limited to README, capture provenance/card documentation and two shared canonical JPEGs. Native dimensions, fully loaded artwork, settled theme text, Glass dark/Cobalt and Aluminium light/Rose remain consistent with the visually inspected committed images. Seven materials and ten accents are accurately shown. Fictional content, isolated native capture provenance and dependency merge requirements remain explicit.
+
+No production behavior or artificial tests were introduced. The focused commits preserve the documentation-only boundary and unchanged public asset paths. This read-only re-review does not independently certify ordered repository gates.
+
+Findings: 0 hard violations; 0 judgement-call smells.
+
+
+### Final Spec
+
+# Spec review: current README captures, final cycle
+
+Pinned diff: `d634223...d245f926fe582f568607bbe6d1c8bfd0b28a8ff7`. Rechecked the full five-file diff and two commits after the initial zero-finding review. No content changed between cycles.
+
+## Missing or partial requirements
+
+No actionable findings. Card 036 lines 11-12 require a current listening screenshot with actual artwork, transport and Sources. The embedded 1440x900 JPEG provides those elements with settled art, full-width source rows and the mini-player control. The pointer-focused seek timeline has no blue rectangle.
+
+## Unasked scope
+
+No actionable findings. The refresh remains documentation and canonical screenshot assets only.
+
+## Apparently implemented requirements done incorrectly
+
+No actionable findings. The inspected listening capture is Frosted glass dark/Cobalt, playing First light at 1:13. The 1280x1000 Settings capture is satin aluminium light/Rose and visibly contains seven materials and ten accents. Image encodings, dimensions, alt text and provenance agree. Fictional catalogue labels and original North Window artwork meet the safe-demo requirement.
+
+The captures retain one public asset copy shared by README and site, satisfying line 14. Card 036 lines 34-39 identify the combined preview and its separate application prerequisites, so the refreshed marketing imagery is not presented as an immutable v0.0.1 capture. Existing installation availability text is unchanged in this narrowly scoped update.
+
+Findings: 0. This read-only re-review did not run suites, change repository state or certify future publication.
+
+
+Both axes returned zero findings in both cycles. Native images are 1440x900
+Glass dark/Cobalt and 1280x1000 Aluminium light/Rose with seven materials.
+Source rows span the panel; artwork and colour transitions have settled.
+Application behavior remains in the separate dependent feature PRs. Existing
+338-test source baseline was fully gated; the documentation/asset refresh needs
+visual verification, not artificial tests.
