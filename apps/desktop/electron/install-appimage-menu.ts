@@ -17,9 +17,10 @@ export async function installAppImageMenu(
   if (runtime.platform !== "linux" || !runtime.isPackaged || !appImagePath)
     return success("skipped");
   const configured = runtime.environment.XDG_DATA_HOME;
-  const dataDirectory = configured && isAbsolute(configured)
-    ? configured
-    : join(runtime.homeDirectory, ".local/share");
+  const dataDirectory =
+    configured && isAbsolute(configured)
+      ? configured
+      : join(runtime.homeDirectory, ".local/share");
   return registerAppImageMenuEntry({
     appImagePath,
     dataDirectory,
