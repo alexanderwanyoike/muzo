@@ -54,8 +54,9 @@ No network call or release parsing runs in the visitor's browser.
 
 ## Publication
 
-PRs to dev/main verify source and build behavior. Main pushes, manual runs on main
-and published stable release events can deploy. Deployment always checks out main,
+PRs to dev/main verify source and build behavior. Main pushes and manual runs on main can deploy. A published stable release
+event dispatches a fresh run on main; checking out main within a tag-triggered
+job would not satisfy the main-only environment policy. Deployment checks out main,
 then rebuilds against the current complete published release. Main/release runs
 share one production concurrency group so Pages deployments cannot race.
 
@@ -64,7 +65,7 @@ Merge prerequisites using merge commits, then promote dev through a release PR.
 The distribution workflow prepares installers from the new immutable main tag;
 publish the reviewed draft release with all its assets. In Settings > Pages,
 select GitHub Actions and keep the github-pages environment limited to main.
-A published release event rebuilds the site automatically. If Pages is configured
+A published release event dispatches the main rebuild automatically. If Pages is configured
 later, run Project site manually on main.
 
 Intended address: https://alexanderwanyoike.github.io/muzo/
@@ -78,3 +79,7 @@ The download section uses the Windows, Apple and Tux symbols from Bootstrap Icon
 (MIT), pinned to source revision e568465481c0c541f63a78f6452d09387711d489.
 Original SVGs, provenance and the licence are kept in `site/public/icons/`.
 Platform names and architecture choices remain text, so the marks are decorative.
+
+GitHub explicitly permits workflow_dispatch runs created with GITHUB_TOKEN:
+https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow
+Only the release-refresh job has actions:write; PR verification stays read-only.
