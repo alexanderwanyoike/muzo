@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In review
+- Status: Done
 - Depends on: 025 (PR #52)
 
 # Card 026 - Native app icons
@@ -22,7 +22,7 @@ follow-up request to replace the continuous M with a waveform style.
 - [x] Decode the real platform image and create a native window in integration tests.
 - [x] Add Windows/macOS native icon tests and packaging to CI.
 - [x] Complete ordered checks and two review cycles (285 tests).
-- [ ] Verify native platform CI.
+- [x] Verify native platform CI on Linux, Windows and macOS.
 
 ## Established pattern
 
@@ -62,3 +62,6 @@ Electron 43's installed index.js downloads synchronously on first require, so
 parallel fresh workers can race over the same installation. Prepare the binary
 once before Vitest starts, using Electron's own entry point. Keep the native tests
 and their assertions intact; watch mode uses the same preparation.
+
+Final waveform CI: https://github.com/alexanderwanyoike/muzo/actions/runs/40094628589
+All three jobs passed, including fresh-install preparation and native packaging.

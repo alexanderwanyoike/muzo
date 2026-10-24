@@ -177,3 +177,13 @@ Findings: Standards 0, Spec 0.
 All ordered local gates passed again with 285 tests on the waveform revision.
 Native Windows/macOS checks passed on the preceding asset revision; the latest
 asset and Electron preparation receive fresh three-platform CI on the PR.
+
+## Final native CI
+
+[Run 40094628589](https://github.com/alexanderwanyoike/muzo/actions/runs/40094628589)
+passed all jobs on waveform code/documentation head
+1903c19c409708c653352699915c80fa51458232:
+Linux full verification, Windows native decoding/package, and macOS native
+decoding/package. No native test assertions were skipped. The final handoff
+commit only records these results. All feature PRs now target dev under the
+updated user instructions, with prerequisite merge order #47 through #53.
