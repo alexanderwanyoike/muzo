@@ -54,9 +54,15 @@ export class TrackArtworkService {
           const cached = await this.persisted.find(key);
           if (cached.ok && cached.value) return success(cached.value.uri);
           if (!cached.ok) this.logger.error(cached.error.message);
-          const access = source.kind === "dropbox" ? await this.accounts.accessFor(libraryId) : null;
+          const access =
+            source.kind === "dropbox"
+              ? await this.accounts.accessFor(libraryId)
+              : null;
           if (access && !access.ok) return access;
-          const result = await this.read(source, access?.ok ? access.value.accessToken : null);
+          const result = await this.read(
+            source,
+            access?.ok ? access.value.accessToken : null,
+          );
           if (result.ok) {
             const saved = await this.persisted.save(key, result.value);
             if (!saved.ok) this.logger.error(saved.error.message);
@@ -76,7 +82,10 @@ export class TrackArtworkService {
           this.inFlight.delete(key);
         });
       this.inFlight.set(key, pending);
-      this.reading = pending.then(() => undefined, () => undefined);
+      this.reading = pending.then(
+        () => undefined,
+        () => undefined,
+      );
       return await pending;
     } catch {
       return failure("repository", "Album artwork could not be read.");

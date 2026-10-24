@@ -1,4 +1,3 @@
-import { NodeArtworkCache } from "../infrastructure/metadata/node-artwork-cache";
 import {
   asClass,
   asFunction,
@@ -9,6 +8,7 @@ import {
 } from "awilix";
 import { ulid } from "ulid";
 import { dirname, join } from "node:path";
+import { NodeArtworkCache } from "../infrastructure/metadata/node-artwork-cache";
 import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
 import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
 import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";

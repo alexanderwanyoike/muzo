@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, readdirSync, statSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  readdirSync,
+  statSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -11,16 +18,28 @@ it("discards an oversized cache record instead of loading it", async () => {
     const cache = new NodeArtworkCache(directory);
     await cache.save("song", null);
     const file = join(directory, readdirSync(directory)[0]);
-    writeFileSync(file, `${readFileSync(file, "utf8")}${" ".repeat(300 * 1024)}`);
+    writeFileSync(
+      file,
+      `${readFileSync(file, "utf8")}${" ".repeat(300 * 1024)}`,
+    );
     expect(await cache.find("song")).toEqual({ ok: true, value: null });
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
-it.each(["data:image/svg+xml,<svg/>", `data:image/png;base64,${"A".repeat(256 * 1024)}`])("refuses an invalid or oversized thumbnail", async (uri) => {
+it.each([
+  "data:image/svg+xml,<svg/>",
+  `data:image/png;base64,${"A".repeat(256 * 1024)}`,
+])("refuses an invalid or oversized thumbnail", async (uri) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-invalid-"));
   try {
-    expect(await new NodeArtworkCache(directory).save("song", uri)).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+    expect(
+      await new NodeArtworkCache(directory).save("song", uri),
+    ).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 it("discards a thumbnail whose stored image bytes were corrupted", async () => {
@@ -33,30 +52,53 @@ it("discards a thumbnail whose stored image bytes were corrupted", async () => {
     const record = JSON.parse(readFileSync(file, "utf8")) as { uri: string };
     record.uri = `${record.uri.slice(0, 100)}${record.uri[100] === "A" ? "B" : "A"}${record.uri.slice(101)}`;
     writeFileSync(file, JSON.stringify(record));
-    expect(await new NodeArtworkCache(directory).find("song")).toEqual({ ok: true, value: null });
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+    expect(await new NodeArtworkCache(directory).find("song")).toEqual({
+      ok: true,
+      value: null,
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
-it.each(["entries", "bytes"])("evicts the least recently used thumbnail to respect the %s budget", async (budget) => {
-  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-budget-"));
-  try {
-    await new NodeArtworkCache(directory).save("seed", null);
-    const entryBytes = readdirSync(directory).reduce((sum, file) => sum + statSync(join(directory, file)).size, 0);
-    rmSync(directory, { recursive: true });
-    const limits = budget === "entries" ? { maximumEntries: 2, maximumBytes: entryBytes * 100 } : { maximumEntries: 100, maximumBytes: entryBytes * 2 };
-    const cache = new NodeArtworkCache(directory, limits);
-    await cache.save("a", null);
-    await cache.save("b", null);
-    await cache.find("a");
-    await cache.save("c", null);
-    expect(await cache.find("b")).toEqual({ ok: true, value: null });
-    expect(await new NodeArtworkCache(directory, limits).find("a")).toEqual({ ok: true, value: { uri: null } });
-    expect(await cache.find("c")).toEqual({ ok: true, value: { uri: null } });
-    const sizes = readdirSync(directory).map((file) => statSync(join(directory, file)).size);
-    expect(sizes.length).toBeLessThanOrEqual(limits.maximumEntries);
-    expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(limits.maximumBytes);
-  } finally { rmSync(directory, { recursive: true, force: true }); }
-});
+it.each(["entries", "bytes"])(
+  "evicts the least recently used thumbnail to respect the %s budget",
+  async (budget) => {
+    const directory = mkdtempSync(join(tmpdir(), "muzo-cache-budget-"));
+    try {
+      await new NodeArtworkCache(directory).save("seed", null);
+      const entryBytes = readdirSync(directory).reduce(
+        (sum, file) => sum + statSync(join(directory, file)).size,
+        0,
+      );
+      rmSync(directory, { recursive: true });
+      const limits =
+        budget === "entries"
+          ? { maximumEntries: 2, maximumBytes: entryBytes * 100 }
+          : { maximumEntries: 100, maximumBytes: entryBytes * 2 };
+      const cache = new NodeArtworkCache(directory, limits);
+      await cache.save("a", null);
+      await cache.save("b", null);
+      await cache.find("a");
+      await cache.save("c", null);
+      expect(await cache.find("b")).toEqual({ ok: true, value: null });
+      expect(await new NodeArtworkCache(directory, limits).find("a")).toEqual({
+        ok: true,
+        value: { uri: null },
+      });
+      expect(await cache.find("c")).toEqual({ ok: true, value: { uri: null } });
+      const sizes = readdirSync(directory).map(
+        (file) => statSync(join(directory, file)).size,
+      );
+      expect(sizes.length).toBeLessThanOrEqual(limits.maximumEntries);
+      expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(
+        limits.maximumBytes,
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 it("replaces a truncated record and stores private cache files", async () => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-private-"));
@@ -72,21 +114,38 @@ it("replaces a truncated record and stores private cache files", async () => {
       expect(statSync(file).mode % 0o1000).toBe(0o600);
     }
     writeFileSync(file, "{");
-    expect(await cache.find("../../untrusted-source")).toEqual({ ok: true, value: null });
-    expect(await cache.save("../../untrusted-source", null)).toEqual({ ok: true, value: undefined });
-    expect(await cache.find("../../untrusted-source")).toEqual({ ok: true, value: { uri: null } });
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+    expect(await cache.find("../../untrusted-source")).toEqual({
+      ok: true,
+      value: null,
+    });
+    expect(await cache.save("../../untrusted-source", null)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(await cache.find("../../untrusted-source")).toEqual({
+      ok: true,
+      value: { uri: null },
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 it("serializes concurrent cache writes and reports an unavailable cache directory", async () => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-concurrent-"));
   try {
     const cache = new NodeArtworkCache(join(directory, "valid"));
-    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => cache.save(String(i), null)));
+    const results = await Promise.all(
+      Array.from({ length: 12 }, (_, i) => cache.save(String(i), null)),
+    );
     expect(results.every((result) => result.ok)).toBe(true);
     expect(await cache.find("11")).toEqual({ ok: true, value: { uri: null } });
     const unavailable = join(directory, "file");
     writeFileSync(unavailable, "not a directory");
-    expect(await new NodeArtworkCache(unavailable).save("song", null)).toMatchObject({ ok: false, error: { kind: "storage" } });
-  } finally { rmSync(directory, { recursive: true, force: true }); }
+    expect(
+      await new NodeArtworkCache(unavailable).save("song", null),
+    ).toMatchObject({ ok: false, error: { kind: "storage" } });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

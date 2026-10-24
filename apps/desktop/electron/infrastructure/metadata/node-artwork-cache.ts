@@ -1,7 +1,19 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  open,
+  readdir,
+  rename,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
-import type { ArtworkCache, CachedArtwork } from "../../application/interfaces/artwork-cache";
+import type {
+  ArtworkCache,
+  CachedArtwork,
+} from "../../application/interfaces/artwork-cache";
 import { failure, success, type Result } from "../../application/result";
 
 const maximumUriLength = 256 * 1024;
@@ -9,7 +21,14 @@ const maximumRecordBytes = maximumUriLength + 128;
 const pngPrefix = "data:image/png;base64,";
 const pngSignature = Buffer.from("89504e470d0a1a0a", "hex");
 function validUri(uri: string | null): boolean {
-  return uri === null || (uri.length <= maximumUriLength && uri.startsWith(pngPrefix) && Buffer.from(uri.slice(pngPrefix.length), "base64").subarray(0, pngSignature.length).equals(pngSignature));
+  return (
+    uri === null ||
+    (uri.length <= maximumUriLength &&
+      uri.startsWith(pngPrefix) &&
+      Buffer.from(uri.slice(pngPrefix.length), "base64")
+        .subarray(0, pngSignature.length)
+        .equals(pngSignature))
+  );
 }
 
 const maximumBytes = 128 * 1024 * 1024;
@@ -19,14 +38,20 @@ function hash(value: string): string {
 }
 
 const cacheFilename = /^[a-f0-9]{64}\.json$/;
-interface Limits { maximumBytes?: number; maximumEntries?: number; }
+interface Limits {
+  maximumBytes?: number;
+  maximumEntries?: number;
+}
 
 export class NodeArtworkCache implements ArtworkCache {
   private entries: Map<string, number> | null = null;
 
   private working: Promise<void> = Promise.resolve();
 
-  constructor(private readonly directory: string, private readonly limits: Limits = {}) {}
+  constructor(
+    private readonly directory: string,
+    private readonly limits: Limits = {},
+  ) {}
 
   find(key: string): Promise<Result<CachedArtwork | null>> {
     return this.exclusive(async () => {
@@ -37,7 +62,17 @@ export class NodeArtworkCache implements ArtworkCache {
         const text = await this.readBounded(path);
         if (text === null) return await this.discard(filename);
         const value: unknown = JSON.parse(text);
-        if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,"))) && "digest" in value && value.digest === hash(JSON.stringify(value.uri)) && validUri(value.uri)) {
+        if (
+          value &&
+          typeof value === "object" &&
+          "uri" in value &&
+          (value.uri === null ||
+            (typeof value.uri === "string" &&
+              value.uri.startsWith("data:image/png;base64,"))) &&
+          "digest" in value &&
+          value.digest === hash(JSON.stringify(value.uri)) &&
+          validUri(value.uri)
+        ) {
           this.touch(filename, Buffer.byteLength(text));
           const now = new Date();
           await utimes(path, now, now);
@@ -46,8 +81,13 @@ export class NodeArtworkCache implements ArtworkCache {
         }
         return await this.discard(filename);
       } catch (error) {
-        if (error instanceof SyntaxError) return await this.discard(filename);
-        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        if (error instanceof SyntaxError) return this.discard(filename);
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "ENOENT"
+        ) {
           this.entries?.delete(filename);
           return success(null);
         }
@@ -57,7 +97,10 @@ export class NodeArtworkCache implements ArtworkCache {
   }
 
   save(key: string, uri: string | null): Promise<Result<void>> {
-    if (!validUri(uri)) return Promise.resolve(failure("invalidInput", "Artwork thumbnail is invalid or too large."));
+    if (!validUri(uri))
+      return Promise.resolve(
+        failure("invalidInput", "Artwork thumbnail is invalid or too large."),
+      );
     return this.exclusive(async () => {
       const temporary = join(this.directory, `${randomUUID()}.tmp`);
       try {
@@ -85,7 +128,12 @@ export class NodeArtworkCache implements ArtworkCache {
       const buffer = Buffer.alloc(size + 1);
       let offset = 0;
       while (offset < buffer.length) {
-        const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, offset);
+        const { bytesRead } = await file.read(
+          buffer,
+          offset,
+          buffer.length - offset,
+          offset,
+        );
         if (bytesRead === 0) break;
         offset += bytesRead;
       }
@@ -113,7 +161,11 @@ export class NodeArtworkCache implements ArtworkCache {
     for (const file of files) {
       if (!file.isFile() || !cacheFilename.test(file.name)) continue;
       const info = await stat(join(this.directory, file.name));
-      entries.push({ name: file.name, bytes: info.size, modified: info.mtimeMs });
+      entries.push({
+        name: file.name,
+        bytes: info.size,
+        modified: info.mtimeMs,
+      });
     }
     entries.sort((a, b) => a.modified - b.modified);
     this.entries = new Map(entries.map((entry) => [entry.name, entry.bytes]));
@@ -128,7 +180,10 @@ export class NodeArtworkCache implements ArtworkCache {
   private async trim(): Promise<void> {
     if (!this.entries) return;
     let bytes = [...this.entries.values()].reduce((sum, size) => sum + size, 0);
-    while (this.entries.size > (this.limits.maximumEntries ?? maximumEntries) || bytes > (this.limits.maximumBytes ?? maximumBytes)) {
+    while (
+      this.entries.size > (this.limits.maximumEntries ?? maximumEntries) ||
+      bytes > (this.limits.maximumBytes ?? maximumBytes)
+    ) {
       const oldest = this.entries.entries().next().value;
       if (!oldest) break;
       await rm(join(this.directory, oldest[0]), { force: true });
@@ -137,9 +192,14 @@ export class NodeArtworkCache implements ArtworkCache {
     }
   }
 
-  private exclusive<T>(operation: () => Promise<Result<T>>): Promise<Result<T>> {
+  private exclusive<T>(
+    operation: () => Promise<Result<T>>,
+  ): Promise<Result<T>> {
     const result = this.working.then(operation);
-    this.working = result.then(() => undefined, () => undefined);
+    this.working = result.then(
+      () => undefined,
+      () => undefined,
+    );
     return result;
   }
 

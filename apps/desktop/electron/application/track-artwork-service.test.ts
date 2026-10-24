@@ -10,24 +10,69 @@ const emptyCache = {
 const logger = { error: vi.fn() };
 
 it("continues serving artwork after an unexpected cache failure", async () => {
-  const find = vi.fn().mockRejectedValueOnce(new Error("Cache failed unexpectedly")).mockResolvedValue({ ok: true, value: null });
+  const find = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Cache failed unexpectedly"))
+    .mockResolvedValue({ ok: true, value: null });
   const service = new TrackArtworkService(
-    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision: "1:2" }) },
-    { read: async () => ({ data: new Uint8Array([1]), format: "image/png" }) }, { create: () => "data:image/png;base64,cover" }, { read: vi.fn() }, { accessFor: vi.fn() }, { find, save: emptyCache.save }, logger,
+    {
+      find: async () => ({
+        libraryId: "local",
+        trackId: "track",
+        path: "/song",
+        kind: "filesystem",
+        revision: "1:2",
+      }),
+    },
+    { read: async () => ({ data: new Uint8Array([1]), format: "image/png" }) },
+    { create: () => "data:image/png;base64,cover" },
+    { read: vi.fn() },
+    { accessFor: vi.fn() },
+    { find, save: emptyCache.save },
+    logger,
   );
   expect(await service.get("local", "track")).toMatchObject({ ok: false });
-  expect(await service.get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover" });
+  expect(await service.get("local", "track")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cover",
+  });
 });
 
 it("shows a persisted Dropbox thumbnail offline without reading credentials or media again", async () => {
-  const accessFor = vi.fn().mockResolvedValue({ ok: false, error: { kind: "notConnected", message: "Offline" } });
+  const accessFor = vi
+    .fn()
+    .mockResolvedValue({
+      ok: false,
+      error: { kind: "notConnected", message: "Offline" },
+    });
   const read = vi.fn();
   const service = new TrackArtworkService(
-    { find: async () => ({ libraryId: "cloud", trackId: "song", path: "/Music/song.flac", kind: "dropbox", revision: "1:2" }) },
-    { read }, { create: vi.fn() }, { read }, { accessFor },
-    { find: async () => ({ ok: true, value: { uri: "data:image/png;base64,cached" } }), save: emptyCache.save }, logger,
+    {
+      find: async () => ({
+        libraryId: "cloud",
+        trackId: "song",
+        path: "/Music/song.flac",
+        kind: "dropbox",
+        revision: "1:2",
+      }),
+    },
+    { read },
+    { create: vi.fn() },
+    { read },
+    { accessFor },
+    {
+      find: async () => ({
+        ok: true,
+        value: { uri: "data:image/png;base64,cached" },
+      }),
+      save: emptyCache.save,
+    },
+    logger,
   );
-  expect(await service.get("cloud", "song")).toEqual({ ok: true, value: "data:image/png;base64,cached" });
+  expect(await service.get("cloud", "song")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cached",
+  });
   expect(accessFor).not.toHaveBeenCalled();
   expect(read).not.toHaveBeenCalled();
 });
@@ -130,12 +175,35 @@ it("shares in-flight cover reads and reloads them when the stored file revision 
 it("keeps artwork available when the persistent cache cannot be read or written", async () => {
   const errors = { error: vi.fn() };
   const service = new TrackArtworkService(
-    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision: "1:2" }) },
+    {
+      find: async () => ({
+        libraryId: "local",
+        trackId: "track",
+        path: "/song",
+        kind: "filesystem",
+        revision: "1:2",
+      }),
+    },
     { read: async () => ({ data: new Uint8Array([1]), format: "image/png" }) },
-    { create: () => "data:image/png;base64,cover" }, { read: vi.fn() }, { accessFor: vi.fn() },
-    { find: async () => ({ ok: false, error: { kind: "storage", message: "Read unavailable" } }), save: async () => ({ ok: false, error: { kind: "storage", message: "Write unavailable" } }) }, errors,
+    { create: () => "data:image/png;base64,cover" },
+    { read: vi.fn() },
+    { accessFor: vi.fn() },
+    {
+      find: async () => ({
+        ok: false,
+        error: { kind: "storage", message: "Read unavailable" },
+      }),
+      save: async () => ({
+        ok: false,
+        error: { kind: "storage", message: "Write unavailable" },
+      }),
+    },
+    errors,
   );
-  expect(await service.get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover" });
+  expect(await service.get("local", "track")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cover",
+  });
   expect(errors.error).toHaveBeenCalledTimes(2);
 });
 
@@ -143,18 +211,49 @@ it("invalidates persisted artwork after a scanned file revision changes", async 
   let revision = "1:2";
   const values = new Map<string, { uri: string | null }>();
   const persisted = {
-    find: async (key: string) => ({ ok: true as const, value: values.get(key) ?? null }),
-    save: async (key: string, uri: string | null) => { values.set(key, { uri }); return { ok: true as const, value: undefined }; },
+    find: async (key: string) => ({
+      ok: true as const,
+      value: values.get(key) ?? null,
+    }),
+    save: async (key: string, uri: string | null) => {
+      values.set(key, { uri });
+      return { ok: true as const, value: undefined };
+    },
   };
-  const read = vi.fn().mockResolvedValue({ data: new Uint8Array([1]), format: "image/png" });
-  const make = () => new TrackArtworkService(
-    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision }) },
-    { read }, { create: () => `data:image/png;base64,cover${read.mock.calls.length}` }, { read: vi.fn() }, { accessFor: vi.fn() }, persisted, logger,
-  );
-  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover1" });
-  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover1" });
+  const read = vi
+    .fn()
+    .mockResolvedValue({ data: new Uint8Array([1]), format: "image/png" });
+  const make = () =>
+    new TrackArtworkService(
+      {
+        find: async () => ({
+          libraryId: "local",
+          trackId: "track",
+          path: "/song",
+          kind: "filesystem",
+          revision,
+        }),
+      },
+      { read },
+      { create: () => `data:image/png;base64,cover${read.mock.calls.length}` },
+      { read: vi.fn() },
+      { accessFor: vi.fn() },
+      persisted,
+      logger,
+    );
+  expect(await make().get("local", "track")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cover1",
+  });
+  expect(await make().get("local", "track")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cover1",
+  });
   expect(read).toHaveBeenCalledOnce();
   revision = "1:3";
-  expect(await make().get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover2" });
+  expect(await make().get("local", "track")).toEqual({
+    ok: true,
+    value: "data:image/png;base64,cover2",
+  });
   expect(read).toHaveBeenCalledTimes(2);
 });
