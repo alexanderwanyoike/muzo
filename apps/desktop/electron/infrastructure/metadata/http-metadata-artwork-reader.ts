@@ -1,7 +1,10 @@
 import { HttpClient } from "@tokenizer/http";
 import { tokenizer, type IRangeRequestClient } from "@tokenizer/range";
 import { parseFromTokenizer, selectCover } from "music-metadata";
-import type { ArtworkPicture, HttpArtworkReader } from "../../application/interfaces/track-artwork";
+import type {
+  ArtworkPicture,
+  HttpArtworkReader,
+} from "../../application/interfaces/track-artwork";
 
 const metadataBudgetBytes = 8 * 1024 * 1024;
 const metadataChunkBytes = 16 * 1024;

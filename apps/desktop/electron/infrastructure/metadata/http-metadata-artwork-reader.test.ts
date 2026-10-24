@@ -45,7 +45,10 @@ it("reads an embedded remote cover using ranges without downloading the audio pa
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => {
-      server.close((error) => { if (error) reject(error); else resolve(); });
+      server.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
     });
   }
 });

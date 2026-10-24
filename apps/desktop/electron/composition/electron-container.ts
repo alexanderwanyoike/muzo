@@ -177,13 +177,19 @@ export function createElectronContainer(
   const dropboxTransport =
     options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
-    trackArtwork: asFunction(({ dbPath, dropboxLibraries }: ElectronCradle) => new TrackArtworkService(
-      new SqliteTrackArtworkSources(dbPath),
-      new MusicMetadataArtworkReader(),
-      options.artworkThumbnails ?? { create: () => null },
-      new DropboxMetadataArtworkReader(new DropboxApiClient({ clientId: "" }, dropboxTransport), new HttpMetadataArtworkReader()),
-      dropboxLibraries,
-    )).singleton(),
+    trackArtwork: asFunction(
+      ({ dbPath, dropboxLibraries }: ElectronCradle) =>
+        new TrackArtworkService(
+          new SqliteTrackArtworkSources(dbPath),
+          new MusicMetadataArtworkReader(),
+          options.artworkThumbnails ?? { create: () => null },
+          new DropboxMetadataArtworkReader(
+            new DropboxApiClient({ clientId: "" }, dropboxTransport),
+            new HttpMetadataArtworkReader(),
+          ),
+          dropboxLibraries,
+        ),
+    ).singleton(),
     dropboxFolders: asFunction(
       ({ dropboxAccountService, libraries, dropboxSettings }: ElectronCradle) =>
         new BrowseDropboxFoldersService(

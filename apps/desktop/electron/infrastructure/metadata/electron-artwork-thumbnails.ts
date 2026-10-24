@@ -30,10 +30,19 @@ export class ElectronArtworkThumbnails implements ArtworkThumbnails {
     const size = image.getSize();
     const encode = (edge: number) => {
       const scale = Math.min(1, edge / Math.max(size.width, size.height));
-      return image.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)), quality: "good" }).toDataURL();
+      return image
+        .resize({
+          width: Math.max(1, Math.round(size.width * scale)),
+          height: Math.max(1, Math.round(size.height * scale)),
+          quality: "good",
+        })
+        .toDataURL();
     };
     const fullSize = encode(thumbnailEdge);
-    const thumbnail = fullSize.length <= maximumThumbnailLength ? fullSize : encode(thumbnailEdge / 2);
+    const thumbnail =
+      fullSize.length <= maximumThumbnailLength
+        ? fullSize
+        : encode(thumbnailEdge / 2);
     return thumbnail.length <= maximumThumbnailLength ? thumbnail : null;
   }
 }

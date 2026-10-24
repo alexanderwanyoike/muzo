@@ -13,20 +13,18 @@ it("reads Dropbox artwork with account-bound credentials without returning them 
   const read = vi
     .fn()
     .mockResolvedValue({ format: "image/png", data: new Uint8Array([1]) });
-  const accessFor = vi
-    .fn()
-    .mockResolvedValue({
-      ok: true,
-      value: {
-        accessToken: "private-token",
-        library: {
-          id: "cloud",
-          kind: "dropbox",
-          location: "/Music",
-          name: "Music",
-        },
+  const accessFor = vi.fn().mockResolvedValue({
+    ok: true,
+    value: {
+      accessToken: "private-token",
+      library: {
+        id: "cloud",
+        kind: "dropbox",
+        location: "/Music",
+        name: "Music",
       },
-    });
+    },
+  });
   const service = new TrackArtworkService(
     { find: async () => source },
     { read: vi.fn() },
@@ -54,7 +52,8 @@ it("reads Dropbox artwork with account-bound credentials without returning them 
 it("shares in-flight cover reads and reloads them when the stored file revision changes", async () => {
   let revision = "1:2";
   let finish:
-    ((value: { format: string; data: Uint8Array }) => void) | undefined;
+    | ((value: { format: string; data: Uint8Array }) => void)
+    | undefined;
   const picture = { format: "image/png", data: new Uint8Array([1]) };
   const read = vi
     .fn()

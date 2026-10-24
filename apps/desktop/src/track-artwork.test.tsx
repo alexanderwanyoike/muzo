@@ -47,11 +47,25 @@ it("loads embedded artwork when its track enters the visible listening area", as
 });
 
 it("reloads the cover when its library refresh completes", async () => {
-  const invoke = vi.fn().mockResolvedValueOnce({ ok: true, value: "data:image/png;base64,old" }).mockResolvedValueOnce({ ok: true, value: "data:image/png;base64,new" });
+  const invoke = vi
+    .fn()
+    .mockResolvedValueOnce({ ok: true, value: "data:image/png;base64,old" })
+    .mockResolvedValueOnce({ ok: true, value: "data:image/png;base64,new" });
   installTestRuntime({ invoke, openDirectory: vi.fn() });
-  const track = { id: "track", libraryId: "music", title: "Song", album: "Evening" };
+  const track = {
+    id: "track",
+    libraryId: "music",
+    title: "Song",
+    album: "Evening",
+  };
   const view = render(<TrackArtwork track={track} eager refreshKey={0} />);
   await screen.findByRole("img", { name: "Artwork for Evening" });
   view.rerender(<TrackArtwork track={track} eager refreshKey={1} />);
-  await vi.waitFor(() => expect(screen.getByRole("img", { name: "Artwork for Evening" }).getAttribute("src")).toBe("data:image/png;base64,new"));
+  await vi.waitFor(() =>
+    expect(
+      screen
+        .getByRole("img", { name: "Artwork for Evening" })
+        .getAttribute("src"),
+    ).toBe("data:image/png;base64,new"),
+  );
 });
