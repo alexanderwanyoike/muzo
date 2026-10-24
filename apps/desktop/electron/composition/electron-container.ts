@@ -1,5 +1,3 @@
-import { BrowseDropboxFoldersService } from "../application/browse-dropbox-folders-service";
-import { BrowseDropboxFoldersCommand } from "../application/commands/browse-dropbox-folders-command";
 import {
   asClass,
   asFunction,
@@ -11,6 +9,8 @@ import {
 import { ulid } from "ulid";
 
 import { dirname, join } from "node:path";
+import { BrowseDropboxFoldersCommand } from "../application/commands/browse-dropbox-folders-command";
+import { BrowseDropboxFoldersService } from "../application/browse-dropbox-folders-service";
 import { AddLibraryCommand } from "../application/commands/add-library-command";
 import type { IpcCommandHandler } from "../ipc/ipc-command-handler";
 import { LegacyResultCommandAdapter } from "../ipc/legacy-result-command-adapter";

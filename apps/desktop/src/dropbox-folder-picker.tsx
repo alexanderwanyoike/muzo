@@ -1,5 +1,5 @@
-import FolderIcon from "./folder-icon";
 import { useEffect, useState } from "react";
+import FolderIcon from "./folder-icon";
 import type { DropboxFolder } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
 import { addDropboxLibrary, listDropboxFolders } from "./dropbox-api";
@@ -72,14 +72,14 @@ export default function DropboxFolderPicker({
     for (const { folder, result } of outcomes) {
       if (!result.ok) {
         failures.push(`${folder.name}: ${result.error.message}`);
-        continue;
+      } else {
+        onAdded(result.value);
+        added += 1;
+        setAddedPaths((previous) => [...previous, folder.path.toLowerCase()]);
+        setSelected((previous) =>
+          previous.filter((item) => item.path !== folder.path),
+        );
       }
-      onAdded(result.value);
-      added += 1;
-      setAddedPaths((previous) => [...previous, folder.path.toLowerCase()]);
-      setSelected((previous) =>
-        previous.filter((item) => item.path !== folder.path),
-      );
     }
     if (added)
       setMessage(`Added ${added} ${added === 1 ? "folder" : "folders"}.`);

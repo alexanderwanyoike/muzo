@@ -158,8 +158,8 @@ export default function App() {
   }
 
   function rememberLibrary(library: LibraryDto) {
-    setLibraries((previous) => [...(previous ?? []), library]);
-    setTrackCounts((previous) => ({ ...previous, [library.id]: 0 }));
+    setLibraries((items) => [...(items ?? []), library]);
+    setTrackCounts((counts) => ({ ...counts, [library.id]: 0 }));
   }
 
   function handleLibraryAdded(library: LibraryDto) {
@@ -284,11 +284,7 @@ export default function App() {
           <div className="settings-view">
             <DropboxSettings
               onLibraryAdded={(library) => {
-                setLibraries((previous) => [...(previous ?? []), library]);
-                setTrackCounts((previous) => ({
-                  ...previous,
-                  [library.id]: 0,
-                }));
+                rememberLibrary(library);
                 void handleRefresh(library);
               }}
             />

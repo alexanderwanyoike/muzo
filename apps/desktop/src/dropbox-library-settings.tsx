@@ -1,6 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import FolderIcon from "./folder-icon";
 import DropboxFolderPicker from "./dropbox-folder-picker";
-import { useEffect, useRef, useState } from "react";
 import { dropboxSyncStatus, setDropboxSyncInterval } from "./dropbox-api";
 import type { LibraryDto } from "./types";
 
