@@ -14,11 +14,12 @@ import { fileURLToPath } from "node:url";
 import { createElectronContainer } from "./composition/electron-container";
 import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/electron-safe-storage-dropbox-token-cipher";
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
+import { configureDesktopIdentity } from "./desktop-identity";
 import { configureDesktopIcon } from "./desktop-icon";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
 
-app.setName("Muzo");
+configureDesktopIdentity(app);
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
