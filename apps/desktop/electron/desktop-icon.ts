@@ -1,13 +1,19 @@
+import type { Dock } from "electron";
 import { join } from "node:path";
 
 interface DesktopIconApp {
   readonly isPackaged: boolean;
+  readonly dock?: Pick<Dock, "setIcon">;
 }
 
 export function configureDesktopIcon(
-  _app: DesktopIconApp,
+  app: DesktopIconApp,
   electronDir: string,
   platform: NodeJS.Platform,
 ): string {
-  return join(electronDir, "..", "assets", "icons", platform === "win32" ? "muzo.ico" : "muzo.png");
+  const path = join(electronDir, "..", "assets", "icons", platform === "win32" ? "muzo.ico" : "muzo.png");
+  if (platform === "darwin" && !app.isPackaged) {
+    app.dock?.setIcon(path);
+  }
+  return path;
 }
