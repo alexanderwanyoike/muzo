@@ -44,7 +44,7 @@ jobs:
       - run: yarn desktop:make
 
   native-icons:
-    name: Native icons (${{ matrix.os }})
+    name: Native desktop (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -72,5 +72,5 @@ jobs:
       - name: Check reproducible icon exports
         run: git diff --exit-code -- apps/desktop/assets/icons
       - name: Verify icon containers, configuration and native decoding
-        run: yarn workspace @muzo/desktop test electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts
+        run: yarn workspace @muzo/desktop test electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts electron/infrastructure/metadata/node-artwork-cache.test.ts electron/application/track-artwork-service.test.ts
       - run: yarn desktop:package

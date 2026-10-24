@@ -50,6 +50,13 @@ Vite preview cannot connect to real Dropbox or local music files.
     launcher entry. On Windows/macOS check the packaged executable/app bundle.
     Inspect small icons and a high-density display as well as the large icon.
 
+12. View several album covers, quit and reopen the same build. Existing covers
+    should come from the local thumbnail cache. Cached Dropbox covers remain
+    visible offline. The first view after installing this change populates it.
+    Modify an embedded cover, refresh its source and check the updated image.
+13. Restart the packaged build and browse Dropbox using the existing account.
+    The secure-storage identity fix should restore the saved connection.
+
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native
 thumbnail bounds. Live Dropbox behavior still depends on the account, connection

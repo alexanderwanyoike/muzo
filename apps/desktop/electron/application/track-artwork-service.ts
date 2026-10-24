@@ -1,3 +1,5 @@
+import type { ArtworkCache } from "./interfaces/artwork-cache";
+import type { Logger } from "./interfaces/logger-interfaces";
 import type { DropboxLibraryService } from "./dropbox-library-service";
 import type {
   TrackArtworkSources,
@@ -23,6 +25,8 @@ export class TrackArtworkService {
     private readonly thumbnails: ArtworkThumbnails,
     private readonly remote: DropboxArtworkReader,
     private readonly accounts: Pick<DropboxLibraryService, "accessFor">,
+    private readonly persisted: ArtworkCache,
+    private readonly logger: Logger,
   ) {}
 
   async get(
@@ -36,11 +40,6 @@ export class TrackArtworkService {
           "trackNotFound",
           "This track is no longer in the library.",
         );
-      const access =
-        source.kind === "dropbox"
-          ? await this.accounts.accessFor(libraryId)
-          : null;
-      if (access && !access.ok) return access;
       const key = JSON.stringify([
         libraryId,
         trackId,
@@ -51,9 +50,25 @@ export class TrackArtworkService {
       const existing = this.inFlight.get(key);
       if (existing) return await existing;
       const pending = this.reading
-        .then(() =>
-          this.read(source, access?.ok ? access.value.accessToken : null),
-        )
+        .then(async () => {
+          const cached = await this.persisted.find(key);
+          if (cached.ok && cached.value) return success(cached.value.uri);
+          if (!cached.ok) this.logger.error(cached.error.message);
+          const access =
+            source.kind === "dropbox"
+              ? await this.accounts.accessFor(libraryId)
+              : null;
+          if (access && !access.ok) return access;
+          const result = await this.read(
+            source,
+            access?.ok ? access.value.accessToken : null,
+          );
+          if (result.ok) {
+            const saved = await this.persisted.save(key, result.value);
+            if (!saved.ok) this.logger.error(saved.error.message);
+          }
+          return result;
+        })
         .then((result) => {
           if (result.ok) {
             this.cache.set(key, result.value);
@@ -67,7 +82,10 @@ export class TrackArtworkService {
           this.inFlight.delete(key);
         });
       this.inFlight.set(key, pending);
-      this.reading = pending.then(() => undefined);
+      this.reading = pending.then(
+        () => undefined,
+        () => undefined,
+      );
       return await pending;
     } catch {
       return failure("repository", "Album artwork could not be read.");

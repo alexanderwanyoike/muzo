@@ -8,6 +8,7 @@ import {
 } from "awilix";
 import { ulid } from "ulid";
 import { dirname, join } from "node:path";
+import { NodeArtworkCache } from "../infrastructure/metadata/node-artwork-cache";
 import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
 import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
 import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
@@ -178,7 +179,7 @@ export function createElectronContainer(
     options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
     trackArtwork: asFunction(
-      ({ dbPath, dropboxLibraries }: ElectronCradle) =>
+      ({ dbPath, dropboxLibraries, logger }: ElectronCradle) =>
         new TrackArtworkService(
           new SqliteTrackArtworkSources(dbPath),
           new MusicMetadataArtworkReader(),
@@ -188,6 +189,8 @@ export function createElectronContainer(
             new HttpMetadataArtworkReader(),
           ),
           dropboxLibraries,
+          new NodeArtworkCache(join(dirname(dbPath), "artwork-cache")),
+          logger,
         ),
     ).singleton(),
     dropboxFolders: asFunction(
