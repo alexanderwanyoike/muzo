@@ -1,6 +1,6 @@
 {
   "name": "@muzo/desktop",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Muzo desktop music player",
   "private": true,
   "type": "module",
