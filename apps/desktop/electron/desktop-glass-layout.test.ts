@@ -49,6 +49,7 @@ it("reveals a changing desktop through the native library and mini player while 
       restoredSize: number[];
       originalSize: number[];
       backdropDifference: number;
+      desktopCompositingError: number;
       reducedAlpha: number;
     };
     expect(result.failure).toBeUndefined();
@@ -66,7 +67,10 @@ it("reveals a changing desktop through the native library and mini player while 
     expect(result.restoredAlpha).toBe(255);
     expect(result.reducedAlpha).toBe(255);
     expect(result.restoredSize).toEqual(result.originalSize);
-    if (process.platform === "linux") expect(result.backdropDifference).toBeGreaterThan(10);
+    if (process.platform === "linux") {
+      expect(result.backdropDifference).toBeGreaterThan(10);
+      expect(result.desktopCompositingError).toBeLessThanOrEqual(6);
+    }
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

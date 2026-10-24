@@ -112,16 +112,20 @@ void app.whenReady().then(async () => {
       await until("!document.querySelector('.compact-player')");
     }
     let backdropDifference = 0;
+    let desktopCompositingError = 0;
     if (backdrop) {
       await settle();
       const location = await point();
       const bounds = window.getContentBounds();
+      const surface = await sample();
       const before = await desktop();
       await backdrop.webContents.executeJavaScript("document.body.style.background='#b6a690'");
       await new Promise((resolve) => { setTimeout(resolve, 150); });
       const after = await desktop();
       const offset = ((bounds.y+location.y)*after.getSize().width+bounds.x+location.x)*4;
       const first = before.toBitmap();
+      const backdropColour = [102, 137, 176];
+      desktopCompositingError = [0,1,2].reduce((sum,channel)=>sum+Math.abs(first[offset+2-channel]-Math.round(surface.colour[channel]*surface.alpha/255+backdropColour[channel]*(1-surface.alpha/255))),0);
       const second = after.toBitmap();
       backdropDifference = [0,1,2].reduce((sum,channel)=>sum+Math.abs(first[offset+channel]-second[offset+channel]),0);
       await capture("glass-dark-library-warm-desktop");
@@ -135,7 +139,7 @@ void app.whenReady().then(async () => {
     await until("!document.documentElement.dataset.desktopGlass");
     await click("Songs");
     const restoredAlpha = (await sample()).alpha;
-    writeFileSync(resultPath,JSON.stringify({samples,restoredAlpha,reducedAlpha,restoredSize:window.getSize(),originalSize,backdropDifference}));
+    writeFileSync(resultPath,JSON.stringify({samples,restoredAlpha,reducedAlpha,restoredSize:window.getSize(),originalSize,backdropDifference,desktopCompositingError}));
   } catch(error) {
     writeFileSync(resultPath,JSON.stringify({failure:String(error)}));
   } finally {
