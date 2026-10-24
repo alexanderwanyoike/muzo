@@ -99,11 +99,20 @@ export class DropboxApiClient {
       await this.listEntries(accessToken, path === "/" ? "" : path, false)
     )
       .filter((entry) => entry[".tag"] === "folder")
-      .map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        path: entry.path_display ?? entry.path_lower ?? "",
-      }));
+      .map((entry) => {
+        const pathValue = entry.path_display ?? entry.path_lower;
+        if (
+          typeof entry.id !== "string" ||
+          !entry.id ||
+          typeof entry.name !== "string" ||
+          !entry.name ||
+          typeof pathValue !== "string" ||
+          !pathValue.startsWith("/")
+        ) {
+          throw new Error("Invalid Dropbox folder metadata");
+        }
+        return { id: entry.id, name: entry.name, path: pathValue };
+      });
   }
 
   private async listEntries(
