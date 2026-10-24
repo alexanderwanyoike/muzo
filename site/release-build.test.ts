@@ -18,8 +18,14 @@ it("builds native download links only for a complete published release matching 
     await writeFile(releasePath, JSON.stringify(github));
     await writeFile(manifestPath, JSON.stringify(manifest));
     await promisify(execFile)(
-      "yarn",
-      ["site:build", "--outDir", join(directory, "dist")],
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        fileURLToPath(new URL("build-site.ts", import.meta.url)),
+        "--outDir",
+        join(directory, "dist"),
+      ],
       {
         cwd: dirname(dirname(fileURLToPath(import.meta.url))),
         timeout: 15_000,
@@ -72,8 +78,14 @@ it("refuses a production build when published release metadata is absent", async
   try {
     await expect(
       promisify(execFile)(
-        "yarn",
-        ["site:build", "--outDir", join(directory, "dist")],
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          fileURLToPath(new URL("build-site.ts", import.meta.url)),
+          "--outDir",
+          join(directory, "dist"),
+        ],
         {
           cwd: dirname(dirname(fileURLToPath(import.meta.url))),
           timeout: 15_000,
