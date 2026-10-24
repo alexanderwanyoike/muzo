@@ -1,4 +1,12 @@
-import { Disc3, Pause, Play, SkipBack, SkipForward, Volume2, LoaderCircle } from "lucide-react";
+import {
+  Disc3,
+  Pause,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  LoaderCircle,
+} from "lucide-react";
 import { formatDuration } from "./formatDuration";
 import type { TrackDto } from "./api";
 
@@ -59,7 +67,13 @@ export default function NowPlayingBar({
           aria-label={status === "playing" ? "Pause" : "Play"}
           disabled={!isPlayable}
         >
-          {status === "playing" ? <Pause aria-hidden="true" /> : status === "loading" ? <LoaderCircle aria-hidden="true" /> : <Play aria-hidden="true" />}
+          {status === "playing" ? (
+            <Pause aria-hidden="true" />
+          ) : status === "loading" ? (
+            <LoaderCircle aria-hidden="true" />
+          ) : (
+            <Play aria-hidden="true" />
+          )}
         </button>
 
         <button
@@ -71,48 +85,48 @@ export default function NowPlayingBar({
         >
           <SkipForward aria-hidden="true" />
         </button>
-
       </div>
       <div className="now-playing-bar__display">
-        <div className="now-playing-bar__art" aria-hidden="true"><Disc3 /></div>
-      <div className="now-playing-bar__track">
-        <div className="now-playing-bar__title">{title}</div>
-        <div className="now-playing-bar__artist">{artist}</div>
-        {playbackError && (
-          <div className="now-playing-bar__error">{playbackError}</div>
-        )}
-      </div>
-
-        <div className="now-playing-bar__timeline">
-        <span className="now-playing-bar__time">
-          {formatDuration(positionSeconds)}
-        </span>
-
-        <div className="now-playing-bar__progress-shell">
-          <div className="now-playing-bar__progress-track" aria-hidden="true">
-            <div
-              className="now-playing-bar__progress-fill"
-              style={{ transform: `scaleX(${boundedProgress})` }}
-            />
-          </div>
-          <input
-            type="range"
-            className="now-playing-bar__progress"
-            aria-label="Seek"
-            min={0}
-            max={Math.max(0, durationSeconds)}
-            step={1}
-            value={Math.min(positionSeconds, durationSeconds || 0)}
-            disabled={!canSeek}
-            onChange={(e) => onSeek(Number(e.target.value))}
-          />
+        <div className="now-playing-bar__art" aria-hidden="true">
+          <Disc3 />
+        </div>
+        <div className="now-playing-bar__track">
+          <div className="now-playing-bar__title">{title}</div>
+          <div className="now-playing-bar__artist">{artist}</div>
+          {playbackError && (
+            <div className="now-playing-bar__error">{playbackError}</div>
+          )}
         </div>
 
-        <span className="now-playing-bar__time">
-          {formatDuration(durationSeconds)}
-        </span>
-      </div>
+        <div className="now-playing-bar__timeline">
+          <span className="now-playing-bar__time">
+            {formatDuration(positionSeconds)}
+          </span>
 
+          <div className="now-playing-bar__progress-shell">
+            <div className="now-playing-bar__progress-track" aria-hidden="true">
+              <div
+                className="now-playing-bar__progress-fill"
+                style={{ transform: `scaleX(${boundedProgress})` }}
+              />
+            </div>
+            <input
+              type="range"
+              className="now-playing-bar__progress"
+              aria-label="Seek"
+              min={0}
+              max={Math.max(0, durationSeconds)}
+              step={1}
+              value={Math.min(positionSeconds, durationSeconds || 0)}
+              disabled={!canSeek}
+              onChange={(e) => onSeek(Number(e.target.value))}
+            />
+          </div>
+
+          <span className="now-playing-bar__time">
+            {formatDuration(durationSeconds)}
+          </span>
+        </div>
       </div>
       <div className="now-playing-bar__volume">
         <Volume2 aria-hidden="true" />

@@ -44,8 +44,8 @@ it("remembers a material, dark appearance and accent across a restart", async ()
   await waitFor(() =>
     expect(
       screen.getByRole<HTMLInputElement>("radio", {
-          name: "Brushed aluminium",
-        }).checked,
+        name: "Brushed aluminium",
+      }).checked,
     ).toBe(true),
   );
   expect(

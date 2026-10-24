@@ -26,7 +26,11 @@ interface ListError {
 }
 
 export default function App() {
-  const { appearance, changeAppearance, error: appearanceError } = useAppearance();
+  const {
+    appearance,
+    changeAppearance,
+    error: appearanceError,
+  } = useAppearance();
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [trackPlayCounts, setTrackPlayCounts] = useState<
@@ -286,7 +290,11 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
-            <AppearanceSettings appearance={appearance} onChange={changeAppearance} error={appearanceError} />
+            <AppearanceSettings
+              appearance={appearance}
+              onChange={changeAppearance}
+              error={appearanceError}
+            />
             <DropboxSettings
               onLibraryAdded={(library) => {
                 rememberLibrary(library);

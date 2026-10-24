@@ -264,9 +264,11 @@ export default function PlaylistPanel({
                             entry,
                             currentTrackId,
                             activeEntryId,
-                          ) && isPlaying
-                            ? <Pause aria-hidden="true" />
-                            : <Play aria-hidden="true" />}
+                          ) && isPlaying ? (
+                            <Pause aria-hidden="true" />
+                          ) : (
+                            <Play aria-hidden="true" />
+                          )}
                         </button>
                         <button
                           type="button"

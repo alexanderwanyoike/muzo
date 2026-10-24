@@ -6,9 +6,7 @@ import type {
 } from "./interfaces/audio-source-interfaces";
 import type { TrackReader } from "./interfaces/repository-interfaces";
 
-export class PrepareTrackAudioSourceApplicationService
-  implements PrepareTrackAudioSourceService
-{
+export class PrepareTrackAudioSourceApplicationService implements PrepareTrackAudioSourceService {
   constructor(
     private readonly tracks: TrackReader,
     private readonly audioSources: AudioSourceRegistry,

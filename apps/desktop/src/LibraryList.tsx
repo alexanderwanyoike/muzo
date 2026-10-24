@@ -53,13 +53,23 @@ export default function LibraryList({
               aria-pressed={isSelected}
               title={`${library.name}: ${library.location}`}
             >
-              {library.kind === "dropbox" ? <Cloud aria-hidden="true" /> : <Folder aria-hidden="true" />}
+              {library.kind === "dropbox" ? (
+                <Cloud aria-hidden="true" />
+              ) : (
+                <Folder aria-hidden="true" />
+              )}
               <span className="library-list__primary">
                 <span className="library-list__name">{library.name}</span>
-                <span className="library-list__kind">{KIND_LABEL[library.kind]}</span>
-                <span className="library-list__location">{library.location}</span>
+                <span className="library-list__kind">
+                  {KIND_LABEL[library.kind]}
+                </span>
+                <span className="library-list__location">
+                  {library.location}
+                </span>
               </span>
-              <span className="library-list__count">{count === 1 ? "1 track" : `${count} tracks`}</span>
+              <span className="library-list__count">
+                {count === 1 ? "1 track" : `${count} tracks`}
+              </span>
             </button>
 
             {trackContent && (

@@ -7,9 +7,7 @@ export interface ElectronSafeStorage {
   decryptString(value: Buffer): string;
 }
 
-export class ElectronSafeStorageDropboxTokenCipher
-  implements DropboxTokenCipher
-{
+export class ElectronSafeStorageDropboxTokenCipher implements DropboxTokenCipher {
   constructor(private readonly safeStorage: ElectronSafeStorage) {}
 
   protect(token: string): string {

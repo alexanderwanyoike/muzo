@@ -241,7 +241,11 @@ export default function TrackList({
               }}
               aria-label={playButtonLabel}
             >
-              {isCurrent && isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+              {isCurrent && isPlaying ? (
+                <Pause aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
             </button>
             <span className="track-list__index">{index + 1}</span>
             <div className="track-list__meta">
