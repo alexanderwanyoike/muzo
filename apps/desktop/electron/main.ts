@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import { createElectronContainer } from "./composition/electron-container";
 import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/electron-safe-storage-dropbox-token-cipher";
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
+import { configureDesktopIcon } from "./desktop-icon";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
 
@@ -34,9 +35,10 @@ const reconcileFilesystemLibraries = container.resolve(
 const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
 const logger = container.resolve("logger");
 
-async function createWindow() {
+async function createWindow(icon: string) {
   const window = new BrowserWindow({
     title: "Muzo",
+    icon,
     width: 1200,
     height: 800,
     minWidth: 800,
@@ -81,6 +83,7 @@ ipcMain.handle("muzo:open-directory", async () => {
 
 app.whenReady().then(async () => {
   installDesktopMenu(Menu, process.platform);
+  const icon = configureDesktopIcon(app, electronDir, process.platform);
   await runStartupTasks({
     migrateDatabase,
     reconcileFilesystemLibraries,
@@ -88,11 +91,11 @@ app.whenReady().then(async () => {
     logger,
   });
   container.resolve("dropboxPoller").start();
-  void createWindow();
+  void createWindow(icon);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      void createWindow();
+      void createWindow(icon);
     }
   });
 });

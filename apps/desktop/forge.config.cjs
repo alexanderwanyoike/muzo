@@ -1,6 +1,11 @@
+const path = require("node:path");
+
+const icon = path.join(__dirname, "assets", "icons", "muzo");
+
 module.exports = {
   packagerConfig: {
     asar: false,
+    icon,
     executableName: "muzo",
     name: "Muzo",
     prune: false,
@@ -29,6 +34,7 @@ module.exports = {
         options: {
           name: "muzo",
           bin: "muzo",
+          icon: `${icon}.png`,
           description: "Muzo desktop music player",
           maintainer: "Muzo",
           homepage: "https://github.com/alexanderwanyoike/muzo",
