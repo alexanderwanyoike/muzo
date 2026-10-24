@@ -28,17 +28,12 @@ export class ElectronArtworkThumbnails implements ArtworkThumbnails {
     const image = this.images.createFromBuffer(Buffer.from(picture.data));
     if (image.isEmpty()) return null;
     const size = image.getSize();
-    const scale = Math.min(
-      1,
-      thumbnailEdge / Math.max(size.width, size.height),
-    );
-    const thumbnail = image
-      .resize({
-        width: Math.max(1, Math.round(size.width * scale)),
-        height: Math.max(1, Math.round(size.height * scale)),
-        quality: "good",
-      })
-      .toDataURL();
+    const encode = (edge: number) => {
+      const scale = Math.min(1, edge / Math.max(size.width, size.height));
+      return image.resize({ width: Math.max(1, Math.round(size.width * scale)), height: Math.max(1, Math.round(size.height * scale)), quality: "good" }).toDataURL();
+    };
+    const fullSize = encode(thumbnailEdge);
+    const thumbnail = fullSize.length <= maximumThumbnailLength ? fullSize : encode(thumbnailEdge / 2);
     return thumbnail.length <= maximumThumbnailLength ? thumbnail : null;
   }
 }
