@@ -34,3 +34,9 @@ Depends on PR #16, which includes token persistence PR #40. Merge #16 first,
 then retarget this card's PR to dev. New tests cover the durable public app key,
 authorization service, cancellation, IPC composition, OS storage policy, and
 Settings connection controls.
+
+### Review corrections
+
+- Reject authorization that expires while the token exchange is in flight.
+- Share the inner application Result contract with the Dropbox IPC commands.
+- Re-ran installation, lint, type checking, all 184 tests, build, package and make successfully.
