@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("__MUZO_RUNTIME__", {
     }
     throw result.error;
   },
+  setDesktopGlass: (enabled) => ipcRenderer.invoke("muzo:desktop-glass", enabled),
   setPlayerWindowMode: (mode) =>
     ipcRenderer.invoke("muzo:player-window-mode", mode),
   openDirectory: () => ipcRenderer.invoke("muzo:open-directory"),

@@ -5,9 +5,11 @@ import {
   ipcMain,
   Menu,
   nativeImage,
+  nativeTheme,
   safeStorage,
   shell,
 } from "electron";
+import { release } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +18,7 @@ import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
 import { configureDesktopIdentity } from "./desktop-identity";
 import { configureDesktopIcon } from "./desktop-icon";
+import { installDesktopGlass } from "./install-desktop-glass";
 import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
@@ -61,6 +64,16 @@ async function createWindow(icon: string) {
 
 installPlayerWindowMode(ipcMain, (event) =>
   BrowserWindow.fromWebContents(event.sender),
+);
+
+installDesktopGlass(
+  ipcMain,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  () => ({
+    platform: process.platform,
+    release: release(),
+    reducedTransparency: nativeTheme.prefersReducedTransparency,
+  }),
 );
 
 ipcMain.handle(
