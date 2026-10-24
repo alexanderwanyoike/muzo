@@ -28,3 +28,12 @@ The current capture uses that fix and lives in the future Vite public/ asset
 directory with its native .jpg extension. Source art remains original PNG demo
 art, while the viewport capture itself is JPEG. Application checks now total 338
 tests on the included fix; the original 337-test baseline above is historical.
+
+## Current integrated capture refresh
+
+The native Electron captures now reflect the combined preview of cards 040, 041,
+042 and 045: mini-player control, satin aluminium, seven materials including
+Frosted glass and source rows that reach the panel edge. The listening image is
+1440 x 900 Glass dark/Cobalt; Settings is 1280 x 1000 Aluminium light/Rose.
+The canonical files remain shared with the site; no image retouching is used.
+The application changes stay in their own PRs, which must merge before Site #66.
