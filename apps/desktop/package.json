@@ -18,7 +18,7 @@
     "test": "yarn electron:prepare && vitest run",
     "test:watch": "yarn electron:prepare && vitest",
     "clean": "rm -rf dist dist-electron out node_modules",
-    "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc && electron --no-sandbox electron/export-window-icon.cjs",
+    "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc && electron --no-sandbox export-window-icon.cjs",
     "electron:prepare": "node -e \"require('electron')\""
   },
   "dependencies": {

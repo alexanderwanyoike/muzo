@@ -16,7 +16,7 @@ yarn workspace @muzo/desktop icons:generate
 ```
 
 The command also exports the small window variant through Electron nativeImage
-from the two-colour pixel geometry in `electron/export-window-icon.cjs`. It keeps
+from the two-colour pixel geometry in `export-window-icon.cjs`. It keeps
 the approved waveform silhouette and does not modify the generated master. On a
 headless Linux machine, prefix the command with `xvfb-run -a`.
 
