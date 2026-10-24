@@ -5,12 +5,13 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { NodeArtworkCache } from "./node-artwork-cache";
 
-it.each([
-  { maximumEntries: 2, maximumBytes: 1000 },
-  { maximumEntries: 100, maximumBytes: 24 },
-])("evicts the least recently used thumbnail to respect the disk budget %j", async (limits) => {
+it.each(["entries", "bytes"])("evicts the least recently used thumbnail to respect the %s budget", async (budget) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-cache-budget-"));
   try {
+    await new NodeArtworkCache(directory).save("seed", null);
+    const entryBytes = readdirSync(directory).reduce((sum, file) => sum + statSync(join(directory, file)).size, 0);
+    rmSync(directory, { recursive: true });
+    const limits = budget === "entries" ? { maximumEntries: 2, maximumBytes: entryBytes * 100 } : { maximumEntries: 100, maximumBytes: entryBytes * 2 };
     const cache = new NodeArtworkCache(directory, limits);
     await cache.save("a", null);
     await cache.save("b", null);
