@@ -83,3 +83,28 @@ it("preserves a launcher already installed by another package or integration too
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+
+it("repairs Cinnamon's temporary-mount launcher without changing its pinned identity", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-cinnamon-menu-"));
+  try {
+    await mkdir(join(directory, "applications"));
+    const filename = "Muzo.cinnamon-generated.desktop";
+    const launcher = join(directory, "applications", filename);
+    await writeFile(launcher, "[Desktop Entry]\nType=Application\nName=Muzo\nExec=/tmp/.mount_Muzo-old/muzo\nTerminal=false\n");
+    const appImagePath = join(directory, "Applications/Muzo.AppImage");
+    expect(await registerAppImageMenuEntry({
+      appImagePath,
+      dataDirectory: directory,
+      iconPath: join(import.meta.dirname, "../assets/icons/muzo.png"),
+    })).toEqual({ ok: true, value: "registered" });
+    const entry = await readFile(launcher, "utf8");
+    expect(entry).toContain(appImagePath);
+    expect(entry).toContain("StartupWMClass=muzo");
+    expect(entry).toContain("Icon=");
+    expect(entry).not.toContain(".mount_");
+    await expect(readFile(join(directory, "applications/muzo.desktop"))).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
