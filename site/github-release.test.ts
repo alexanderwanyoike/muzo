@@ -55,6 +55,7 @@ it("rejects incomplete installer sets, missing checksums and mismatched tags", (
 it("rejects installer URLs, sizes and available SHA-256 digests that differ from the manifest", () => {
   const { github, manifest } = publishedReleaseFixture();
   for (const changes of [
+    { digest: "" },
     { size: 101 },
     { digest: `sha256:${"c".repeat(64)}` },
     { browser_download_url: "https://example.invalid/installer" },
