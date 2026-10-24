@@ -68,6 +68,22 @@ describe("PlaylistPanel", () => {
     expect(screen.getByText("track-2")).toBeDefined();
   });
 
+  it("selects one playlist from a searchable sidebar instead of showing every track", async () => {
+    mockedInvoke.mockResolvedValueOnce([
+      ...playlists,
+      { id: "quiet", name: "Quiet hours", entries: [{ ...playlists[0].entries[0], id: "quiet-entry", trackTitle: "Nightfall" }] },
+    ]);
+    render(<PlaylistPanel />);
+    const navigator = await screen.findByRole("region", { name: "Playlists" });
+    expect(navigator.contains(screen.getByRole("searchbox", { name: "Search playlists" }))).toBe(true);
+    expect(await screen.findByText("Hotel California")).toBeDefined();
+    expect(screen.queryByText("Nightfall")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Open playlist Quiet hours" }));
+    expect(screen.getByText("Nightfall")).toBeDefined();
+    expect(screen.queryByText("Hotel California")).toBeNull();
+    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("shows an empty state for playlists without entries", async () => {
     mockedInvoke.mockResolvedValueOnce([
       {
