@@ -115,6 +115,10 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       audio.removeEventListener("stalled", onWaiting);
       audio.removeEventListener("error", onError);
       currentTrackIdRef.current = null;
+      playRequestRef.current += 1;
+      audio.pause();
+      audio.src = "";
+      audio.load();
       cleanup();
     };
   }, []);
