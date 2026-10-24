@@ -106,12 +106,6 @@
   font-size: 10px;
   line-height: 1.5;
 }
-.settings-view__source-setup {
-  display: grid;
-  gap: 16px;
-  scroll-margin-top: 16px;
-  outline: none;
-}
 .sidebar-panel__footer button:hover {
   background: var(--selected);
 }

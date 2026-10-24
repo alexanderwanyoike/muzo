@@ -1,7 +1,5 @@
-.appearance-settings {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
+.appearance-settings .settings-section__body {
+  gap: 20px;
 }
 .appearance-settings fieldset {
   min-width: 0;
@@ -39,7 +37,7 @@
   display: grid;
   grid-template-columns: 28% 1fr;
   grid-template-rows: 19px 1fr;
-  height: 94px;
+  height: 76px;
   border: 1px solid var(--line);
   border-radius: 6px;
   overflow: hidden;

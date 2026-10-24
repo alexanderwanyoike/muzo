@@ -1,5 +1,6 @@
-import "./dropbox-settings.css";
 import { useEffect, useState } from "react";
+import SettingsSection from "./settings-section";
+import "./dropbox-settings.css";
 import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
 import DropboxLibrarySettings from "./dropbox-library-settings";
@@ -70,22 +71,20 @@ export default function DropboxSettings({
   }
 
   return (
-    <section
-      className="settings-view__section dropbox-settings"
-      aria-label="Dropbox"
-    >
-      <header className="dropbox-settings__header">
-        <div>
-          <h3>Dropbox</h3>
-          <p>Choose the folders you want in your music collection.</p>
-        </div>
-        {connection?.connected && (
+    <SettingsSection
+      title="Dropbox"
+      headingId="dropbox-heading"
+      description="Choose the folders you want in your music collection."
+      className="dropbox-settings"
+      accessory={
+        connection?.connected && (
           <span className="dropbox-settings__connected" role="status">
             <span aria-hidden="true" />
             Connected to Dropbox.
           </span>
-        )}
-      </header>
+        )
+      }
+    >
       {connection?.connected ? (
         <div className="dropbox-settings__body">
           <DropboxLibrarySettings
@@ -108,7 +107,7 @@ export default function DropboxSettings({
       ) : (
         <div className="add-library-form">
           <label className="add-library-form__field">
-            Dropbox app key
+            <span>Dropbox app key</span>
             <input
               value={clientId}
               onChange={(event) => setClientId(event.target.value)}
@@ -132,7 +131,7 @@ export default function DropboxSettings({
                 code here.
               </p>
               <label className="add-library-form__field">
-                Authorization code
+                <span>Authorization code</span>
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
@@ -167,6 +166,6 @@ export default function DropboxSettings({
           {error}
         </p>
       )}
-    </section>
+    </SettingsSection>
   );
 }
