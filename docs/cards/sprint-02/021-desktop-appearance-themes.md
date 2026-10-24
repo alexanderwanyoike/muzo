@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In review
+- Status: Done
 - Depends on: 020 (PR #47)
 
 # Card 021 - Polish the desktop music workspace
@@ -19,7 +19,7 @@ inside the window. Preserve playback, queue, metadata and library workflows.
 - [x] Cohesive surfaces, controls, typography, icons and states across the app.
 - [x] Fixed top transport, compact sidebar and full-row source selection.
 - [x] Keep the desktop arrangement at the 800 by 600 minimum window size.
-- [ ] Full repository gates and both review cycles pass.
+- [x] Full repository gates and both review cycles pass (246 tests, Linux zip/deb).
 
 Source removal and real embedded album artwork are separate functional cards 022
 and 023. The transport reserves an artwork slot in this visual change.
@@ -45,3 +45,5 @@ Existing playback, queue, playlist, metadata and Dropbox tests remain in place.
 Visual checks exercise the rendered app through controlled runtime fixtures, with
 no changes to real files or Dropbox data. Verify all six material/mode combinations,
 accent contrast, minimum desktop width and packaged offline assets.
+
+Review evidence: [two review cycles](../../reviews/2026-10-24-desktop-appearance-themes.md).
