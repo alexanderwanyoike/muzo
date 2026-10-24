@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In review
+- Status: Done
 - Depends on: 021 (PR #48)
 
 # Card 022 - Remove sources from Muzo
@@ -22,7 +22,7 @@ Dropbox contents. Preserve playlist entries as unavailable references.
 - [x] Update Sources and Settings immediately and discard stale refresh results.
 - [x] Report typed storage failures while retaining the source and its watcher.
 - [x] Report watcher cleanup failure as a visible warning after successful removal.
-- [ ] Full repository checks, visual verification and two review cycles pass.
+- [x] Full repository checks, visual verification and two review cycles pass (261 tests).
 
 ## Established patterns
 
@@ -46,3 +46,5 @@ Review fixes cover events during watcher close, storage failure preserving sync,
 cleanup warning display, typed Dropbox failure invalidation and visible playlist
 availability after removal.
 Visual tests use a disposable in-memory fixture, never the user's real catalogue.
+
+Review evidence: [two review cycles](../../reviews/2026-10-24-remove-library-sources.md).
