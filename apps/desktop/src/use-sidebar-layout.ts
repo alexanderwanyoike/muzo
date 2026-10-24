@@ -14,6 +14,7 @@ export function useSidebarLayout() {
     initial.ok ? initial.value : defaultSidebarWidth,
   );
   const [viewport, setViewport] = useState(window.innerWidth);
+  const [draft, setDraft] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(
     initial.ok ? null : initial.error.message,
   );
@@ -22,9 +23,10 @@ export function useSidebarLayout() {
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
-  const width = clampSidebarWidth(preferred, viewport);
+  const width = clampSidebarWidth(draft ?? preferred, viewport);
   function commit(requested: number) {
     const next = clampSidebarWidth(requested, viewport);
+    setDraft(null);
     setPreferred(next);
     const saved = saveSidebarWidth(next);
     setError(saved.ok ? null : saved.error.message);
@@ -33,7 +35,8 @@ export function useSidebarLayout() {
     width,
     minimum: minimumSidebarWidth,
     maximum: sidebarWidthLimit(viewport),
-    preview: setPreferred,
+    preview: setDraft,
+    cancel: () => setDraft(null),
     commit,
     error,
   };

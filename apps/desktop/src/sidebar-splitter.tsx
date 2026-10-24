@@ -7,6 +7,7 @@ interface Props {
   maximum: number;
   onPreview: (width: number) => void;
   onCommit: (width: number) => void;
+  onCancel: () => void;
 }
 interface Drag {
   pointer: number;
@@ -22,6 +23,7 @@ export default function SidebarSplitter({
   maximum,
   onPreview,
   onCommit,
+  onCancel,
 }: Props) {
   const drag = useRef<Drag | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -30,7 +32,7 @@ export default function SidebarSplitter({
     if (!active) return;
     drag.current = null;
     setDragging(false);
-    onPreview(active.startWidth);
+    onCancel();
     if (element.hasPointerCapture?.(active.pointer))
       element.releasePointerCapture(active.pointer);
   }

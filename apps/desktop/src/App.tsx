@@ -311,6 +311,7 @@ export default function App() {
           maximum={sidebar.maximum}
           onPreview={sidebar.preview}
           onCommit={sidebar.commit}
+          onCancel={sidebar.cancel}
         />
       </aside>
 
