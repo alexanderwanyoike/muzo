@@ -102,3 +102,13 @@ it.each(["Carbon fibre", "Walnut", "Porcelain"])("remembers the %s material acro
   expect(screen.getByRole<HTMLInputElement>("radio", { name: material }).checked).toBe(true);
   expect(screen.getByRole<HTMLInputElement>("radio", { name: "Dark" }).checked).toBe(true);
 });
+
+it.each(["Teal", "Rose", "Slate", "Violet", "Ice"])("remembers the %s accent across a restart", async (accent) => {
+  const first = render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await userEvent.click(screen.getByRole("radio", { name: accent }));
+  first.unmount();
+  render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByRole<HTMLInputElement>("radio", { name: accent }).checked).toBe(true);
+});
