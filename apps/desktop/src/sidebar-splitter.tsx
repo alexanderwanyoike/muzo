@@ -1,5 +1,5 @@
-import { defaultSidebarWidth } from "./sidebar-layout";
 import { useRef, useState, type PointerEvent } from "react";
+import { defaultSidebarWidth } from "./sidebar-layout";
 
 interface Props {
   width: number;
@@ -25,7 +25,7 @@ export default function SidebarSplitter({
 }: Props) {
   const drag = useRef<Drag | null>(null);
   const [dragging, setDragging] = useState(false);
-  function cancel(element: HTMLDivElement) {
+  function cancel(element: HTMLButtonElement) {
     const active = drag.current;
     if (!active) return;
     drag.current = null;
@@ -34,7 +34,7 @@ export default function SidebarSplitter({
     if (element.hasPointerCapture?.(active.pointer))
       element.releasePointerCapture(active.pointer);
   }
-  function finish(event: PointerEvent<HTMLDivElement>) {
+  function finish(event: PointerEvent<HTMLButtonElement>) {
     const active = drag.current;
     if (!active || active.pointer !== event.pointerId) return;
     drag.current = null;
@@ -44,7 +44,8 @@ export default function SidebarSplitter({
       event.currentTarget.releasePointerCapture(event.pointerId);
   }
   return (
-    <div
+    <button
+      type="button"
       className="sidebar-splitter"
       role="separator"
       tabIndex={0}

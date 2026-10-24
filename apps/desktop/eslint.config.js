@@ -80,6 +80,11 @@ export default defineConfig(
       ],
       // Lifecycle effects reset loading/editor state. React Compiler is not enabled.
       "react-hooks/set-state-in-effect": "off",
+      // ARIA in HTML permits a native button to host a focusable splitter.
+      "jsx-a11y/no-interactive-element-to-noninteractive-role": [
+        "error",
+        { tr: ["none", "presentation"], button: ["separator"] },
+      ],
       "react/jsx-no-bind": [
         "error",
         { allowArrowFunctions: true, allowFunctions: true },
