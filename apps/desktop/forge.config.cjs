@@ -33,6 +33,8 @@ module.exports = {
       config: {
         options: {
           name: "muzo",
+          productName: "Muzo",
+          genericName: "Music player",
           bin: "muzo",
           icon: `${icon}.png`,
           description: "Muzo desktop music player",
