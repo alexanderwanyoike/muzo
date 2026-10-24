@@ -20,6 +20,7 @@ describe("Electron Dropbox account repository", () => {
 
     await repository.save({
       accountId: "dbid:account-1",
+      clientId: "public-app-key",
       accessToken: "access-token-1",
       refreshToken: "refresh-token-1",
       accessTokenExpiresAtUnixSeconds: 1_780_000_000,
@@ -28,6 +29,7 @@ describe("Electron Dropbox account repository", () => {
 
     await expect(repository.find()).resolves.toEqual({
       accountId: "dbid:account-1",
+      clientId: "public-app-key",
       accessToken: "access-token-1",
       refreshToken: "refresh-token-1",
       accessTokenExpiresAtUnixSeconds: 1_780_000_000,
@@ -58,6 +60,7 @@ describe("Electron Dropbox account repository", () => {
 
     await repository.save({
       accountId: "dbid:account-1",
+      clientId: "public-app-key",
       accessToken: "access-token-1",
       refreshToken: "refresh-token-1",
       accessTokenExpiresAtUnixSeconds: 1_780_000_000,
