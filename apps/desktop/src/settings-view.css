@@ -29,7 +29,7 @@
   gap: 10px 16px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
-  background: var(--chrome);
+  background: var(--material), var(--chrome);
   border-radius: 3px 3px 0 0;
 }
 .settings-section__header > div {

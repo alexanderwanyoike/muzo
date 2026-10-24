@@ -122,7 +122,8 @@
 .appearance-accents {
   display: flex;
   align-items: center;
-  height: 31px;
+  min-height: 31px;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .appearance-accents label {

@@ -17,7 +17,7 @@
   min-height: 33px;
   padding: 6px 10px;
   border-bottom: 1px solid var(--line);
-  background: var(--chrome);
+  background: var(--material), var(--chrome);
 }
 .sidebar-panel__header > svg {
   width: 14px;
@@ -43,7 +43,7 @@
   min-height: 32px;
   padding: 3px 5px;
   border-top: 1px solid var(--line);
-  background: var(--chrome);
+  background: var(--material), var(--chrome);
 }
 .sidebar-panel__footer button {
   display: flex;
