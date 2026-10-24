@@ -109,3 +109,47 @@ it("rounds native compact bounds, updates the shape after resize and clears it o
   window.events.emit("closed");
   expect(window.events.listenerCount("resize")).toBe(0);
 });
+
+it("rolls back a rejected shape and allows compact mode to be retried", () => {
+  const window = windowFixture();
+  const controller = createPlayerWindowModeController(window, "win32");
+  window.setShape.mockImplementationOnce(() => {
+    throw new Error("Native region rejected");
+  });
+  expect(controller.setMode("compact").ok).toBe(false);
+  expect(window.setShape).toHaveBeenLastCalledWith([]);
+  expect(window.setMinimumSize).toHaveBeenLastCalledWith(800, 600);
+  expect(controller.setMode("compact").ok).toBe(true);
+  expect(controller.setMode("library").ok).toBe(true);
+});
+
+it("keeps resize failures inside the native boundary and reports a failed rectangular fallback", () => {
+  const window = windowFixture();
+  const logger = { error: vi.fn() };
+  const controller = createPlayerWindowModeController(window, "win32", logger);
+  expect(controller.setMode("compact").ok).toBe(true);
+  window.setShape.mockImplementation(() => {
+    throw new Error("Native region unavailable");
+  });
+  expect(() => window.events.emit("resize")).not.toThrow();
+  expect(window.setShape).toHaveBeenLastCalledWith([]);
+  expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("edges"));
+});
+
+it("preserves native compositor corners on macOS and native Wayland", () => {
+  const mac = windowFixture();
+  expect(
+    createPlayerWindowModeController(mac, "darwin").setMode("compact").ok,
+  ).toBe(true);
+  expect(mac.setShape).not.toHaveBeenCalled();
+  vi.stubEnv("XDG_SESSION_TYPE", "wayland");
+  try {
+    const wayland = windowFixture();
+    expect(
+      createPlayerWindowModeController(wayland, "linux").setMode("compact").ok,
+    ).toBe(true);
+    expect(wayland.setShape).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});
