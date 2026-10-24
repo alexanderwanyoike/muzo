@@ -5,48 +5,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import {
-  RELEASE_TARGETS,
-  releaseAssetName,
-  releaseManifestName,
-} from "@muzo/distribution";
+import publishedReleaseFixture from "./fixtures/published-release";
 import { JSDOM } from "jsdom";
 import { expect, it } from "vitest";
 
 it("builds native download links only for a complete published release matching its manifest", async () => {
   const directory = await mkdtemp(join(tmpdir(), "muzo-download-build-"));
   try {
-    const version = "9.8.7";
-    const tag = `v${version}`;
-    const artifacts = RELEASE_TARGETS.map(({ id, platform, arch }) => ({
-      platform,
-      arch,
-      name: releaseAssetName(id, version),
-      size: 100,
-      sha256: "a".repeat(64),
-    }));
-    const manifest = {
-      schemaVersion: 1,
-      version,
-      tag,
-      sourceCommit: "b".repeat(40),
-      artifacts,
-    };
-    const github = {
-      tag_name: tag,
-      draft: false,
-      prerelease: false,
-      published_at: "2026-10-24T12:00:00Z",
-      assets: [
-        ...artifacts,
-        { name: releaseManifestName(version), size: 500 },
-        { name: "SHA256SUMS", size: 500 },
-      ].map(({ name, size }) => ({
-        name,
-        size,
-        browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/${tag}/${name}`,
-      })),
-    };
+    const { tag, artifacts, manifest, github } = publishedReleaseFixture();
     const releasePath = join(directory, "github.json");
     const manifestPath = join(directory, "manifest.json");
     await writeFile(releasePath, JSON.stringify(github));
