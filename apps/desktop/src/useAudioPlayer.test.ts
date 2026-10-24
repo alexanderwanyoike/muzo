@@ -315,4 +315,16 @@ describe("useAudioPlayer", () => {
     expect(result.current.current?.id).toBe("direct");
   });
 
+  it("pauses the old source while the next queued track is being prepared", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => { result.current.playQueue([{ entryId: "a", track }, { entryId: "b", track: { ...track, id: "next" } }]); });
+    expect(MockAudio.instances[0].paused).toBe(false);
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    act(() => { result.current.next(); });
+    expect(MockAudio.instances[0].paused).toBe(true);
+    await act(async () => { finish({ url: "next-source", mimeType: "audio/mpeg" }); });
+    expect(MockAudio.instances[0].src).toBe("next-source");
+  });
+
 });
