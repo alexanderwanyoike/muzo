@@ -18,7 +18,7 @@ Vite preview cannot connect to real Dropbox or local music files.
 1. Open Settings and browse the connected Dropbox account. Select folders in
    different locations, review the selection and add them together. Settings
    should stay open; Sources should update and added folders should be marked.
-2. Try all three materials in light and dark, then the five accents. Check Songs,
+2. Try all six materials in light and dark, then the ten accents. Check Songs,
    playlists, folder selection, fields, focus rings and disabled controls.
    Restart Muzo and verify the chosen appearance is restored.
 3. Select a source by clicking its name. Play local MP3/FLAC tracks containing
@@ -76,6 +76,13 @@ Vite preview cannot connect to real Dropbox or local music files.
     same edge as the Location/Browse row. Check connected/disconnected Dropbox,
     folder selection, long source paths/actions, all materials and both modes.
     Errors should remain visible in the danger colour and keyboard focus clear.
+
+18. Check Carbon fibre, Walnut and Porcelain in light/dark, plus Teal, Rose, Slate,
+    Violet and Ice accents. Restart to confirm persistence. All ten swatches should
+    fit or wrap cleanly with a wide sidebar at the minimum size. In Cinnamon,
+    restart the packaged player and check the waveform has distinct bars at the
+    panel's 24/32px icon size.
+
 
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native

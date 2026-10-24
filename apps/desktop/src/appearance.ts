@@ -12,6 +12,17 @@ export const MATERIALS = [
     name: "Warm paper",
     detail: "Soft neutrals with a little warmth",
   },
+  {
+    id: "carbon",
+    name: "Carbon fibre",
+    detail: "Fine weave and cool graphite",
+  },
+  { id: "walnut", name: "Walnut", detail: "Soft wood grain and warm tones" },
+  {
+    id: "porcelain",
+    name: "Porcelain",
+    detail: "Smooth ceramic and gentle highlights",
+  },
 ] as const;
 export const MODES = ["light", "dark"] as const;
 export const ACCENTS = [
@@ -20,6 +31,11 @@ export const ACCENTS = [
   { id: "sage", name: "Sage" },
   { id: "plum", name: "Plum" },
   { id: "amber", name: "Amber" },
+  { id: "teal", name: "Teal" },
+  { id: "rose", name: "Rose" },
+  { id: "slate", name: "Slate" },
+  { id: "violet", name: "Violet" },
+  { id: "ice", name: "Ice" },
 ] as const;
 export interface Appearance {
   theme: (typeof MATERIALS)[number]["id"];

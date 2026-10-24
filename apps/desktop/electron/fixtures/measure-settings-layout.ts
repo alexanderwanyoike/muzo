@@ -51,7 +51,27 @@ export async function measureSettingsLayout() {
   const browse = viewport
     .querySelector(".add-library-form__field button")
     ?.getBoundingClientRect();
+  const root = getComputedStyle(document.documentElement);
+  const colour = (token: string) => root.getPropertyValue(token).trim();
+  const colours = {
+    panel: colour("--panel"),
+    raised: colour("--panel-raised"),
+    sidebar: colour("--sidebar"),
+    chrome: colour("--chrome"),
+    text: colour("--text"),
+    muted: colour("--text-muted"),
+    onAccent: colour("--on-accent"),
+    accents: Array.from(
+      document.querySelectorAll(".appearance-accents label"),
+    ).map((label) => ({
+      id: label.getAttribute("data-accent"),
+      colour: getComputedStyle(label).getPropertyValue("--accent").trim(),
+    })),
+  };
   return {
+    selectedTheme: document.documentElement.dataset.theme,
+    selectedMode: document.documentElement.dataset.mode,
+    colours,
     sections,
     controls,
     formEdges: [name?.left, name?.right, location?.left, browse?.right],
