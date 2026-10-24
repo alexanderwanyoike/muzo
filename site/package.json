@@ -1,0 +1,29 @@
+{
+  "name": "@muzo/site",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --base=/muzo/ --host 127.0.0.1",
+    "build": "tsx build-site.ts",
+    "preview": "vite preview --base=/muzo/ --host 127.0.0.1",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --environment jsdom",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/jsdom": "21.1.7",
+    "@types/node": "^20.17.0",
+    "eslint": "^9.14.0",
+    "eslint-config-airbnb-extended": "3.3.0",
+    "globals": "^15.11.0",
+    "jsdom": "^25.0.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4",
+    "@muzo/distribution": "0.0.1"
+  },
+  "license": "MIT"
+}

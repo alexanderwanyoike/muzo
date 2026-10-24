@@ -12,7 +12,9 @@ Muzo treats your music collection as a set of **libraries** and **playlists**. A
 
 Muzo is a desktop preview. The first tagged version is
 [v0.0.1](https://github.com/alexanderwanyoike/muzo/tree/v0.0.1).
-Run it from source with the quick start below; packaged downloads are not published yet.
+Native Windows installers, macOS DMGs and Linux AppImages are being prepared.
+Published packages will be available from [Releases](https://github.com/alexanderwanyoike/muzo/releases).
+Contributor setup is documented under Development below.
 
 - Local folders and Dropbox libraries, with recursive scanning and background sync.
 - Searchable, resizable Sources and Playlists panels, with source removal controls.
@@ -32,6 +34,7 @@ muzo/
 │       ├── src/         # React frontend
 │       └── electron/    # Electron main process backend
 ├── packages/            # Shared TS packages (future)
+├── site/                # Static project site and its verification workspace
 ├── docs/
 │   ├── cards/           # Sprint cards: docs/cards/<sprint>/<card-title>.md
 │   └── adr/             # Architecture Decision Records
@@ -47,7 +50,7 @@ A React Native / PWA mobile app will live under `apps/mobile` in a future sprint
 - Yarn `>= 1.22.22`
 - Electron runtime dependencies for your OS
 
-## Quick start
+## Development
 
 ```bash
 yarn install                 # install all workspace deps
@@ -121,6 +124,9 @@ manual testing of the integrated feature stack.
 | `yarn desktop:build` | Build the desktop frontend for Electron |
 | `yarn desktop:package` | Build an unpacked Electron app bundle |
 | `yarn desktop:make` | Build Electron distributable artifacts |
+| `yarn site:verify` | Verify site content, local assets and navigation |
+| `yarn site:build` | Build the static GitHub Pages site |
+| `yarn site:preview` | Preview the built site locally |
 | `yarn format` | Automatically format maintained code and configuration |
 | `yarn format:check` | Check formatting without writing |
 | `yarn lint` | Run the Airbnb TypeScript and React lint baseline |
@@ -130,6 +136,8 @@ manual testing of the integrated feature stack.
 Formatting is checked in CI before lint, type checking, tests and desktop packaging.
 Run `yarn format` before pushing. Lint rejects explicit any and unsafe operations in
 production TypeScript; test fixtures have narrowly scoped exceptions.
+
+See the [project site guide](./docs/project-site.md) for Pages setup and publication.
 
 ## Engineering principles
 
@@ -161,4 +169,5 @@ feature/*   <- one branch per card. PRs target dev.
 
 ## License
 
-UNLICENSED (proprietary).
+Muzo is licensed under the [MIT License](./LICENSE). Bundled third-party fonts,
+icons and runtime components retain their own licences and notices.

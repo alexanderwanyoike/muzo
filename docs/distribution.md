@@ -97,6 +97,13 @@ Preview installers are currently unsigned; macOS builds are not notarized. Prese
 that status alongside downloads rather than claiming trusted signing or updates.
 Linux users mark the downloaded AppImage executable before opening it.
 
+## Project licence
+
+Muzo is MIT licensed. The complete project licence ships as
+`assets/licenses/Muzo-MIT.txt` inside the app, matching the root `LICENSE`.
+Third-party notices, including Manrope OFL and the Electron/Chromium runtime
+notices, remain under their original terms and are retained in the payload.
+
 ## Established tools and licences
 
 - electron-builder, MIT, used unmodified as a build dependency:
