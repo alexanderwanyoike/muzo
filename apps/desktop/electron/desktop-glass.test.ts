@@ -36,3 +36,29 @@ it.each(["linux", "darwin", "win32"] as const)(
       expect(window.setBackgroundMaterial).toHaveBeenLastCalledWith("none");
   },
 );
+
+it("keeps an unsupported Windows desktop opaque without calling its material API", () => {
+  const window = {
+    isDestroyed: () => false,
+    setBackgroundColor: vi.fn(),
+    setVibrancy: vi.fn(),
+    setBackgroundMaterial: vi.fn(),
+  };
+  const environment = {
+    platform: "win32" as const,
+    release: "10.0.19045",
+    reducedTransparency: false,
+  };
+  expect(setDesktopGlass(window, true, environment)).toMatchObject({
+    ok: false,
+    error: { kind: "remote" },
+  });
+  expect(window.setBackgroundMaterial).not.toHaveBeenCalled();
+  expect(window.setBackgroundColor).not.toHaveBeenCalled();
+  expect(setDesktopGlass(window, false, environment)).toEqual({
+    ok: true,
+    value: false,
+  });
+  expect(window.setBackgroundMaterial).not.toHaveBeenCalled();
+  expect(window.setBackgroundColor).toHaveBeenCalledWith("#ffffff");
+});
