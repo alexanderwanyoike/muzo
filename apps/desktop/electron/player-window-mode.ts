@@ -49,7 +49,9 @@ export function createPlayerWindowModeController(
     if (!supportsShape || window.isDestroyed()) return success(undefined);
     try {
       const [width, height] = window.getSize();
-      window.setShape(rounded ? roundedWindowShape(width, height) : []);
+      window.setShape(
+        rounded ? roundedWindowShape(width, height, platform !== "linux") : [],
+      );
       return success(undefined);
     } catch {
       return failure(

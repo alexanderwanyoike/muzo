@@ -2,7 +2,11 @@ import type { Rectangle } from "electron";
 
 export const MINI_PLAYER_CORNER_RADIUS = 14;
 
-export function roundedWindowShape(width: number, height: number): Rectangle[] {
+export function roundedWindowShape(
+  width: number,
+  height: number,
+  roundTop = true,
+): Rectangle[] {
   const radius = Math.min(
     MINI_PLAYER_CORNER_RADIUS,
     Math.floor(width / 2),
@@ -14,7 +18,8 @@ export function roundedWindowShape(width: number, height: number): Rectangle[] {
     const inset = Math.ceil(
       radius - Math.sqrt(radius * radius - distance * distance),
     );
-    rows.push({ x: inset, y, width: width - inset * 2, height: 1 });
+    if (roundTop)
+      rows.push({ x: inset, y, width: width - inset * 2, height: 1 });
     rows.push({
       x: inset,
       y: height - y - 1,
@@ -22,6 +27,11 @@ export function roundedWindowShape(width: number, height: number): Rectangle[] {
       height: 1,
     });
   }
-  rows.push({ x: 0, y: radius, width, height: height - radius * 2 });
+  rows.push({
+    x: 0,
+    y: roundTop ? radius : 0,
+    width,
+    height: height - radius * (roundTop ? 2 : 1),
+  });
   return rows;
 }
