@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { copyFile, link, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join } from "node:path";
 import { failure, success, type Result } from "./application/result";
@@ -92,7 +92,12 @@ export async function registerAppImageMenuEntry(
     if (state.value.kind === "managed") {
       await rename(temporary, join(directory, state.value.filename));
     } else {
-      await writeFile(join(directory, state.value.filename), await readFile(temporary), { flag: "wx", mode: 0o644 });
+      try {
+        await link(temporary, join(directory, state.value.filename));
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "EEXIST") return success("existing");
+        throw error;
+      }
     }
     return success("registered");
   } catch {
