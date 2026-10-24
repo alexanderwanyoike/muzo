@@ -5,7 +5,9 @@ import { parseInput, parseNonEmptyString } from "./command-arguments";
 
 export class RemovePlaylistEntryCommand implements CommandHandler {
   readonly command = "remove_playlist_entry";
+
   constructor(private readonly service: PlaylistService) {}
+
   async handle(args: unknown): Promise<Result<PlaylistDto>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

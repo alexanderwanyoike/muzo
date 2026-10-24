@@ -2,9 +2,12 @@ import type { PlayCount, PlayHistoryRepository } from "../interfaces/play-histor
 import type { CommandHandler } from "./command-handler";
 import { repositoryResult, type Result } from "../result";
 import { parseInput, parseNonEmptyString } from "./command-arguments";
+
 export class ListTrackPlayCountsCommand implements CommandHandler {
   readonly command = "list_track_play_counts";
+
   constructor(private readonly history: PlayHistoryRepository) {}
+
   async handle(args: unknown): Promise<Result<PlayCount[]>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

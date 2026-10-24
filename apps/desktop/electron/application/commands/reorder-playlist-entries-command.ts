@@ -5,7 +5,9 @@ import { parseInput, parseNonEmptyString, parseStringArray } from "./command-arg
 
 export class ReorderPlaylistEntriesCommand implements CommandHandler {
   readonly command = "reorder_playlist_entries";
+
   constructor(private readonly service: PlaylistService) {}
+
   async handle(args: unknown): Promise<Result<PlaylistDto>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

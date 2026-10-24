@@ -11,7 +11,7 @@ export interface DropboxClientConfig {
 export interface DropboxHttpRequest {
   method: string;
   url: string;
-  headers: Array<[string, string]>;
+  headers: [string, string][];
   body: string;
 }
 
@@ -96,7 +96,7 @@ export class DropboxApiClient {
     );
 
     const entries = [...firstPage.entries];
-    let cursor = firstPage.cursor;
+    let {cursor} = firstPage;
     let hasMore = firstPage.has_more;
 
     while (hasMore) {

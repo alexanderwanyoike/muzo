@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import type { LibraryDto } from "../../src/types";
 import { describe, expect, it } from "vitest";
+import type { LibraryDto } from "../../src/types";
 import type { TrackDto } from "../../src/api";
 import type {
   LibraryRepository,

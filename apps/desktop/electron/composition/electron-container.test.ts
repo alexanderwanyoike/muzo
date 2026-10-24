@@ -279,5 +279,5 @@ function tempDirectory(): string {
 
 function playlistEntryIdGenerator(): () => string {
   let next = 0;
-  return () => `entry-${++next}`;
+  return () => { next += 1; return `entry-${next}`; };
 }

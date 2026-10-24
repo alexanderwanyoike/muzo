@@ -5,7 +5,9 @@ import { parseInput, parseNonEmptyString } from "./command-arguments";
 
 export class AddTrackToPlaylistCommand implements CommandHandler {
   readonly command = "add_track_to_playlist";
+
   constructor(private readonly service: PlaylistService) {}
+
   async handle(args: unknown): Promise<Result<PlaylistDto>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

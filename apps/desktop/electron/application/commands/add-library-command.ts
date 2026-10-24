@@ -9,6 +9,7 @@ import { parseInput } from "./command-arguments";
 
 export class AddLibraryCommand implements CommandHandler {
   readonly command = "add_library";
+
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly generateLibraryId: () => string,

@@ -417,7 +417,7 @@ describe("TrackList", () => {
         "Could not write override",
       ),
     );
-    expect((screen.getByLabelText("Title") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Title").value).toBe(
       "Hotel California Live",
     );
   });

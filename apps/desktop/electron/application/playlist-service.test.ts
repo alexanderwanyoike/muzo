@@ -46,7 +46,7 @@ describe("PlaylistApplicationService", () => {
     const service = new PlaylistApplicationService(
       repository,
       () => "playlist-1",
-      () => `entry-${++entryNumber}`,
+      () => { entryNumber += 1; return `entry-${entryNumber}`; },
     );
     const created = await service.create("Road Trip");
     expect(created.ok).toBe(true);

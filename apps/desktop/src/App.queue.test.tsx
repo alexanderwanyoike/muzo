@@ -6,14 +6,23 @@ import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
 class TestAudio extends EventTarget {
   static current: TestAudio;
+
   src = "";
+
   currentTime = 0;
+
   duration = 120;
+
   volume = 1;
+
   paused = true;
+
   constructor() { super(); TestAudio.current = this; }
+
   load() {}
+
   async play() { this.paused = false; this.dispatchEvent(new Event("playing")); }
+
   pause() { this.paused = true; this.dispatchEvent(new Event("pause")); }
 }
 

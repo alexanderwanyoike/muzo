@@ -8,6 +8,7 @@ import {
 } from "awilix";
 import { ulid } from "ulid";
 
+import { dirname, join } from "node:path";
 import { AddLibraryCommand } from "../application/commands/add-library-command";
 import type { IpcCommandHandler } from "../ipc/ipc-command-handler";
 import { LegacyResultCommandAdapter } from "../ipc/legacy-result-command-adapter";
@@ -67,7 +68,6 @@ import type { DropboxTokenCipher } from "../application/interfaces/dropbox-accou
 import { DropboxApiClient, FetchDropboxHttpTransport, type DropboxHttpTransport } from "../infrastructure/dropbox/dropbox-api-client";
 import { SqliteDropboxAccountRepository } from "../infrastructure/sqlite/sqlite-dropbox-account-repository";
 
-import { dirname, join } from "node:path";
 import { DropboxLibraryService } from "../application/dropbox-library-service";
 import { DropboxTrackAudioSourceService } from "../application/dropbox-track-audio-source-service";
 import { ScanDropboxLibraryService } from "../application/scan-dropbox-library-service";
@@ -139,11 +139,11 @@ export interface ElectronCradle {
   migrateDatabase: () => Promise<void>;
   reconcileFilesystemLibraries: () => Promise<{
     librariesReconciled: number;
-    failures: Array<{ libraryId: string; message: string }>;
+    failures: { libraryId: string; message: string }[];
   }>;
   watchFilesystemLibraries: () => Promise<{
     librariesWatched: number;
-    failures: Array<{ libraryId: string; message: string }>;
+    failures: { libraryId: string; message: string }[];
   }>;
 }
 
@@ -181,7 +181,7 @@ export function createElectronContainer(
       ),
     ).singleton(),
     dbPath: asValue(options.dbPath ?? muzoDatabasePath()),
-    currentUnixSeconds: asValue(options.currentUnixSeconds ?? currentUnixSeconds),
+    currentUnixSeconds: asValue(options.currentUnixSeconds ?? defaultCurrentUnixSeconds),
     generateLibraryId: asValue(options.generateLibraryId ?? ulid),
     generatePlaylistEntryId: asValue(options.generatePlaylistEntryId ?? ulid),
     generatePlaylistId: asValue(options.generatePlaylistId ?? ulid),
@@ -357,6 +357,6 @@ export function createElectronContainer(
   return container;
 }
 
-function currentUnixSeconds(): number {
+function defaultCurrentUnixSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }

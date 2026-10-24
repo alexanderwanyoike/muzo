@@ -10,9 +10,13 @@ const millisecondsPerMinute = 60_000;
 
 export class DropboxLibraryPoller {
   private active = false;
+
   private syncing = false;
+
   private timer: ReturnType<typeof setTimeout> | null = null;
+
   private lastError: string | null = null;
+
   private lastSyncedAtUnixSeconds: number | null = null;
 
   constructor(

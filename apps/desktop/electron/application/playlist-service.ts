@@ -59,8 +59,8 @@ export class PlaylistApplicationService implements PlaylistService {
   }
 
   private async persist(playlist: PlaylistDto): Promise<Result<PlaylistDto>> {
-    playlist.entries = playlist.entries.map((entry, position) => ({ ...entry, position }));
-    const saved = await repositoryResult(() => this.playlists.save(playlist));
-    return saved.ok ? success(playlist) : saved;
+    const normalized = { ...playlist, entries: playlist.entries.map((entry, position) => ({ ...entry, position })) };
+    const saved = await repositoryResult(() => this.playlists.save(normalized));
+    return saved.ok ? success(normalized) : saved;
   }
 }

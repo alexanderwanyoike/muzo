@@ -39,8 +39,8 @@ interface UseAudioPlayerOptions {
 
 export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer {
   const { onTrackPlayRecorded } = options;
-  const queueRef = useRef<{ entries: PlaybackQueueItem[]; index: number }>({ entries: [], index: -1 });
-  const [queue, setQueueState] = useState(queueRef.current);
+  const [queue, setQueueState] = useState<{ entries: PlaybackQueueItem[]; index: number }>({ entries: [], index: -1 });
+  const queueRef = useRef(queue);
   const advanceRef = useRef<() => boolean>(() => false);
   const setQueue = useCallback((entries: PlaybackQueueItem[], index: number) => {
     const state = { entries, index };

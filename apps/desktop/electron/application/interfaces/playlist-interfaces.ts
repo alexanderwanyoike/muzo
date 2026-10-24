@@ -1,4 +1,5 @@
 import type { Result } from "../result";
+
 export interface PlaylistEntryDto {
   id: string;
   trackId: string;

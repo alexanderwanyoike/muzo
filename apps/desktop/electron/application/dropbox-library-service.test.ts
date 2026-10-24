@@ -33,7 +33,7 @@ it("shares an in-flight library sync between background polling and manual refre
     { register: async () => {}, accountFor: async () => "account", intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
   const first = service.sync("cloud");
   const second = service.sync("cloud");
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => { setImmediate(resolve); });
   expect(scan).toHaveBeenCalledTimes(1);
   finish({ tracksScanned: 2 });
   expect(await Promise.all([first, second])).toEqual([{ ok: true, value: { tracksScanned: 2 } }, { ok: true, value: { tracksScanned: 2 } }]);
@@ -52,7 +52,7 @@ it("binds token retrieval to the library owner when the connected account change
     { status: async () => ({ ok: true, value: { connected: true, accountId: connectedAccount } }), accessToken },
     { register: async () => {}, accountFor: () => owner, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
   const syncing = service.sync("cloud");
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => { setImmediate(resolve); });
   connectedAccount = "account-B";
   finishLookup("account-A");
   expect(await syncing).toMatchObject({ ok: false, error: { kind: "notConnected" } });

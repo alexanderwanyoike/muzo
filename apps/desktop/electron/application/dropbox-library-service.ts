@@ -12,6 +12,7 @@ export interface DropboxLibraryAccess {
 
 export class DropboxLibraryService {
   private readonly inFlight = new Map<string, Promise<Result<DropboxScanReport>>>();
+
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly account: DropboxLibraryAccess,

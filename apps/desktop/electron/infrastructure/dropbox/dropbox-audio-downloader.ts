@@ -6,7 +6,9 @@ import type { DropboxAudioDownload } from "../../application/interfaces/dropbox-
 
 export class DropboxAudioDownloader implements DropboxAudioDownload {
   private publishing: Promise<void> = Promise.resolve();
+
   private latestTarget: string | null = null;
+
   constructor(
     private readonly directory: string,
     private readonly request: typeof fetch = fetch,

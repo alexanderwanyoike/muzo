@@ -2,9 +2,12 @@ import type { PlayHistoryRepository } from "../interfaces/play-history-interface
 import type { CommandHandler } from "./command-handler";
 import { repositoryResult, type Result } from "../result";
 import { parseInput, parseNonEmptyString } from "./command-arguments";
+
 export class RecordTrackPlayCommand implements CommandHandler {
   readonly command = "record_track_play";
+
   constructor(private readonly history: PlayHistoryRepository, private readonly generateId: () => string, private readonly now: () => number) {}
+
   async handle(args: unknown): Promise<Result<void>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

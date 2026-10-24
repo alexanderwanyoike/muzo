@@ -210,6 +210,7 @@ describe("DropboxApiClient", () => {
 
 class FakeTransport implements DropboxHttpTransport {
   readonly requests: DropboxHttpRequest[] = [];
+
   private readonly responses: DropboxHttpResponse[];
 
   constructor(responses: DropboxHttpResponse[]) {

@@ -112,7 +112,7 @@ describe("PlaylistPanel", () => {
     );
     expect(screen.getByText("Late Night")).toBeDefined();
     expect(screen.getByText("0 tracks")).toBeDefined();
-    expect((screen.getByLabelText("Playlist name") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Playlist name").value).toBe(
       "",
     );
   });
@@ -166,7 +166,7 @@ describe("PlaylistPanel", () => {
         "Could not create playlist",
       ),
     );
-    expect((screen.getByLabelText("Playlist name") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Playlist name").value).toBe(
       "Morning",
     );
   });
@@ -264,16 +264,16 @@ describe("PlaylistPanel", () => {
 
     expect(
       (
-        screen.getByRole("button", {
+        screen.getByRole<HTMLButtonElement>("button", {
           name: "Move Hotel California up in Road Trip",
-        }) as HTMLButtonElement
+        })
       ).disabled,
     ).toBe(true);
     expect(
       (
-        screen.getByRole("button", {
+        screen.getByRole<HTMLButtonElement>("button", {
           name: "Move track-2 down in Road Trip",
-        }) as HTMLButtonElement
+        })
       ).disabled,
     ).toBe(true);
   });
@@ -347,7 +347,7 @@ describe("PlaylistPanel", () => {
     render(
       <PlaylistPanel
         currentTrackId="track-1"
-        isPlaying={true}
+        isPlaying
         onPlayTrack={onPlayTrack}
         onToggleCurrentTrack={onToggleCurrentTrack}
       />,
@@ -380,9 +380,9 @@ describe("PlaylistPanel", () => {
 
     expect(
       (
-        screen.getByRole("button", {
+        screen.getByRole<HTMLButtonElement>("button", {
           name: "Track track-2 is unavailable in Road Trip",
-        }) as HTMLButtonElement
+        })
       ).disabled,
     ).toBe(true);
   });

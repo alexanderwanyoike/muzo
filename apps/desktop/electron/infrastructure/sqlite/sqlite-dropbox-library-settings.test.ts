@@ -1,10 +1,10 @@
 import initSqlJs from "sql.js";
-import { locateSqlWasm } from "./sql-wasm-path";
 // @vitest-environment node
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
+import { locateSqlWasm } from "./sql-wasm-path";
 import { runSqliteMigrations } from "./sqlite-migrations";
 import { SqliteLibraryRepository } from "./sqlite-library-repository";
 import { SqliteDropboxLibrarySettings } from "./sqlite-dropbox-library-settings";

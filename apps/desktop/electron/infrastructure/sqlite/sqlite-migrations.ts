@@ -24,6 +24,47 @@ interface MigrationContext {
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "migrations");
 
+class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
+  constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
+
+  async executed(): Promise<string[]> {
+    this.ensureTable();
+    const result = this.database.exec(
+      "SELECT name FROM electron_migrations ORDER BY version",
+    );
+    if (result.length === 0) {
+      return [];
+    }
+    return result[0].values.map((row) => String(row[0]));
+  }
+
+  async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
+    this.ensureTable();
+    this.database.run(
+      "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
+      [migrationVersion(name), name, Math.floor(Date.now() / 1000)],
+    );
+  }
+
+  async unlogMigration({
+    name,
+  }: MigrationParams<MigrationContext>): Promise<void> {
+    this.ensureTable();
+    this.database.run("DELETE FROM electron_migrations WHERE name = ?", [name]);
+  }
+
+  private ensureTable(): void {
+    this.database.run(`
+      CREATE TABLE IF NOT EXISTS electron_migrations (
+        version INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        applied_at_unix_seconds INTEGER NOT NULL
+      );
+    `);
+  }
+}
+
+
 export async function runSqliteMigrations(dbPath: string): Promise<void> {
   const SQL = await loadSqlModule();
   const database = existsSync(dbPath)
@@ -69,45 +110,6 @@ function createMigrator(
   });
 }
 
-class SqliteMigrationStorage implements UmzugStorage<MigrationContext> {
-  constructor(private readonly database: InstanceType<SqlJsStatic["Database"]>) {}
-
-  async executed(): Promise<string[]> {
-    this.ensureTable();
-    const result = this.database.exec(
-      "SELECT name FROM electron_migrations ORDER BY version",
-    );
-    if (result.length === 0) {
-      return [];
-    }
-    return result[0].values.map((row) => String(row[0]));
-  }
-
-  async logMigration({ name }: MigrationParams<MigrationContext>): Promise<void> {
-    this.ensureTable();
-    this.database.run(
-      "INSERT OR REPLACE INTO electron_migrations (version, name, applied_at_unix_seconds) VALUES (?, ?, ?)",
-      [migrationVersion(name), name, Math.floor(Date.now() / 1000)],
-    );
-  }
-
-  async unlogMigration({
-    name,
-  }: MigrationParams<MigrationContext>): Promise<void> {
-    this.ensureTable();
-    this.database.run("DELETE FROM electron_migrations WHERE name = ?", [name]);
-  }
-
-  private ensureTable(): void {
-    this.database.run(`
-      CREATE TABLE IF NOT EXISTS electron_migrations (
-        version INTEGER PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        applied_at_unix_seconds INTEGER NOT NULL
-      );
-    `);
-  }
-}
 
 function loadSqlModule(): Promise<SqlJsStatic> {
   sqlModulePromise ??= initSqlJs({

@@ -50,7 +50,7 @@ export default function DropboxLibrarySettings({ onAdded }: { onAdded: (library:
 
   return (
     <div>
-      <form className="add-library-form" onSubmit={(event) => void add(event)}>
+      <form className="add-library-form" onSubmit={(event) => { void add(event); }}>
         <label className="add-library-form__field">Dropbox library name
           <input value={name} onChange={(event) => setName(event.target.value)} autoComplete="off" disabled={busy} />
         </label>
@@ -60,7 +60,7 @@ export default function DropboxLibrarySettings({ onAdded }: { onAdded: (library:
         <button type="submit" disabled={busy || !name.trim() || !location.trim()}>Add Dropbox library</button>
       </form>
       <label>Sync Dropbox every
-        <select value={minutes} disabled={savingInterval} onChange={(event) => void changeInterval(Number(event.target.value))}>
+        <select value={minutes} disabled={savingInterval} onChange={(event) => { void changeInterval(Number(event.target.value)); }}>
           {[1, 5, 15, 30, 60].map((value) => <option key={value} value={value}>{value} {value === 1 ? "minute" : "minutes"}</option>)}
         </select>
       </label>

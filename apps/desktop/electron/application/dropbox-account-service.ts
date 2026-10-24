@@ -9,7 +9,9 @@ const authorizationLifetimeSeconds = 600;
 
 export class DropboxAccountService {
   private revision = 0;
+
   private refreshing: Promise<Result<{ accountId: string; accessToken: string }>> | null = null;
+
   private pending: { clientId: string; codeVerifier: string; expiresAt: number } | null = null;
 
   constructor(
@@ -38,7 +40,7 @@ export class DropboxAccountService {
   }
 
   async complete(code: string): Promise<Result<DropboxConnectionStatus>> {
-    const pending = this.pending;
+    const {pending} = this;
     if (!pending || pending.expiresAt <= this.now() || !code.trim()) {
       return failure("authorization", "Start a new Dropbox connection and enter its authorization code.");
     }

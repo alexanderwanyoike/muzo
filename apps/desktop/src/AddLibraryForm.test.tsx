@@ -68,7 +68,7 @@ describe("AddLibraryForm", () => {
     await user.click(screen.getByRole("button", { name: /browse/i }));
 
     expect(
-      (screen.getByLabelText(/location/i) as HTMLInputElement).value,
+      screen.getByLabelText<HTMLInputElement>(/location/i).value,
     ).toBe("/home/user/Picked");
   });
 

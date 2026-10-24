@@ -1,5 +1,5 @@
-import { failure, success, type Result } from "./result";
 import { posix } from "node:path";
+import { failure, success, type Result } from "./result";
 
 import type {
   DropboxLibraryCatalog,

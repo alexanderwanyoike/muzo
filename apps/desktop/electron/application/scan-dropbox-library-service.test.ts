@@ -18,7 +18,7 @@ import { ScanDropboxLibraryService } from "./scan-dropbox-library-service";
 describe("ScanDropboxLibraryService", () => {
   it("scans a Dropbox library and persists remote audio files", async () => {
     const libraries = new InMemoryLibraries([
-      library("lib-1", "dropbox", "/Music"),
+      createLibrary("lib-1", "dropbox", "/Music"),
     ]);
     const tracks = new InMemoryTracks();
     const catalog = new FakeDropboxCatalog([
@@ -61,7 +61,7 @@ describe("ScanDropboxLibraryService", () => {
 
   it("rejects a non-Dropbox library", async () => {
     const libraries = new InMemoryLibraries([
-      library("lib-1", "filesystem", "/Music"),
+      createLibrary("lib-1", "filesystem", "/Music"),
     ]);
     const tracks = new InMemoryTracks();
     const catalog = new FakeDropboxCatalog([]);
@@ -96,7 +96,7 @@ describe("ScanDropboxLibraryService", () => {
 
   it("removes tracks missing from the latest Dropbox listing", async () => {
     const libraries = new InMemoryLibraries([
-      library("lib-1", "dropbox", "/Music"),
+      createLibrary("lib-1", "dropbox", "/Music"),
     ]);
     const tracks = new InMemoryTracks([
       scannedTrack({
@@ -205,7 +205,7 @@ class InMemoryTracks implements ScannedTrackRepository {
 }
 
 class FakeDropboxCatalog implements DropboxLibraryCatalog {
-  readonly calls: Array<{ accessToken: string; root: string }> = [];
+  readonly calls: { accessToken: string; root: string }[] = [];
 
   constructor(private readonly files: DropboxSourceFile[]) {}
 
@@ -218,7 +218,7 @@ class FakeDropboxCatalog implements DropboxLibraryCatalog {
   }
 }
 
-function library(
+function createLibrary(
   id: string,
   kind: LibraryDto["kind"],
   location: string,

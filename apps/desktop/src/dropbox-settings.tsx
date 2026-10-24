@@ -64,14 +64,14 @@ export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibra
         <div>
           <p role="status">Connected to Dropbox.</p>
           <DropboxLibrarySettings onAdded={onLibraryAdded} />
-          <button type="button" disabled={busy} onClick={() => void disconnect()}>Disconnect Dropbox</button>
+          <button type="button" disabled={busy} onClick={() => { void disconnect(); }}>Disconnect Dropbox</button>
         </div>
       ) : (
         <div className="add-library-form">
           <label className="add-library-form__field">Dropbox app key
             <input value={clientId} onChange={(event) => setClientId(event.target.value)} autoComplete="off" disabled={busy || pending} />
           </label>
-          <button type="button" disabled={busy || !clientId.trim()} onClick={() => void begin()}>
+          <button type="button" disabled={busy || !clientId.trim()} onClick={() => { void begin(); }}>
             {pending ? "Restart authorization" : "Connect Dropbox"}
           </button>
           {pending && <>
@@ -79,8 +79,8 @@ export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibra
             <label className="add-library-form__field">Authorization code
               <input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="off" disabled={busy} />
             </label>
-            <button type="button" disabled={busy || !code.trim()} onClick={() => void complete()}>Finish connecting</button>
-            <button type="button" disabled={busy} onClick={() => void disconnect()}>Cancel connection</button>
+            <button type="button" disabled={busy || !code.trim()} onClick={() => { void complete(); }}>Finish connecting</button>
+            <button type="button" disabled={busy} onClick={() => { void disconnect(); }}>Cancel connection</button>
           </>}
         </div>
       )}

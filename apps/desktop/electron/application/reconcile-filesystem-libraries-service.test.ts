@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import type { Result } from "./result";
 import { describe, expect, it } from "vitest";
+import type { Result } from "./result";
 
 import type { LibraryDto } from "../../src/types";
 import type { LibraryRepository } from "./interfaces/repository-interfaces";
@@ -10,8 +10,8 @@ import { ReconcileFilesystemLibrariesService } from "./reconcile-filesystem-libr
 describe("ReconcileFilesystemLibrariesService", () => {
   it("scans persisted filesystem libraries", async () => {
     const libraries = new InMemoryLibraries([
-      library("fs-1", "filesystem", "/music"),
-      library("dropbox-1", "dropbox", "/dropbox"),
+      createLibrary("fs-1", "filesystem", "/music"),
+      createLibrary("dropbox-1", "dropbox", "/dropbox"),
     ]);
     const scanner = new FakeScanner();
 
@@ -29,8 +29,8 @@ describe("ReconcileFilesystemLibrariesService", () => {
 
   it("records filesystem scan failures and continues", async () => {
     const libraries = new InMemoryLibraries([
-      library("bad", "filesystem", "/missing"),
-      library("good", "filesystem", "/music"),
+      createLibrary("bad", "filesystem", "/missing"),
+      createLibrary("good", "filesystem", "/music"),
     ]);
     const scanner = new FakeScanner({ bad: new Error("not found") });
 
@@ -78,7 +78,7 @@ class FakeScanner {
   }
 }
 
-function library(
+function createLibrary(
   id: string,
   kind: LibraryDto["kind"],
   location: string,

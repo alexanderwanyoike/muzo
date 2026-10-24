@@ -27,7 +27,9 @@ describe("ElectronSafeStorageDropboxTokenCipher", () => {
 
 class FakeSafeStorage {
   isEncryptionAvailable(): boolean { return true; }
+
   getSelectedStorageBackend(): string { return "gnome_libsecret"; }
+
   encryptString(value: string): Buffer {
     return Buffer.from(`enc:${value}`);
   }

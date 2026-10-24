@@ -18,14 +18,21 @@ type Listener = (event: unknown) => void;
 
 class MockAudio {
   static instances: MockAudio[] = [];
+
   static nextPlayError: Error | null = null;
 
   src = "";
+
   currentTime = 0;
+
   duration = 0;
+
   volume = 1;
+
   paused = true;
+
   load = vi.fn();
+
   private listeners = new Map<string, Set<Listener>>();
 
   constructor() {
@@ -42,10 +49,12 @@ class MockAudio {
     this.listeners.get("play")?.forEach((fn) => fn({}));
     return Promise.resolve();
   }
+
   pause() {
     this.paused = true;
     this.listeners.get("pause")?.forEach((fn) => fn({}));
   }
+
   addEventListener(type: string, listener: Listener) {
     let set = this.listeners.get(type);
     if (!set) {
@@ -54,9 +63,11 @@ class MockAudio {
     }
     set.add(listener);
   }
+
   removeEventListener(type: string, listener: Listener) {
     this.listeners.get(type)?.delete(listener);
   }
+
   emit(type: string) {
     this.listeners.get(type)?.forEach((fn) => fn({}));
   }

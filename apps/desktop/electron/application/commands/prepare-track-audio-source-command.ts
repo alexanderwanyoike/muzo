@@ -6,11 +6,13 @@ import type { LibraryRepository } from "../interfaces/repository-interfaces";
 
 export class PrepareTrackAudioSourceCommand implements CommandHandler {
   readonly command = "prepare_track_audio_source";
+
   constructor(
     private readonly service: PrepareTrackAudioSourceService,
     private readonly libraries?: LibraryRepository,
     private readonly dropboxSources?: PrepareTrackAudioSourceService,
   ) {}
+
   async handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;

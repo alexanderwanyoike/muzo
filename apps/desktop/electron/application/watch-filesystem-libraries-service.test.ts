@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import type { Result } from "./result";
 import { describe, expect, it, vi } from "vitest";
+import type { Result } from "./result";
 
 import type { LibraryDto } from "../../src/types";
 import type { Logger } from "./interfaces/logger-interfaces";
@@ -15,8 +15,8 @@ import { WatchFilesystemLibrariesService } from "./watch-filesystem-libraries-se
 describe("WatchFilesystemLibrariesService", () => {
   it("watches persisted filesystem libraries and scans them when they change", async () => {
     const libraries = new InMemoryLibraries([
-      library("fs-1", "filesystem", "/music"),
-      library("dropbox-1", "dropbox", "/dropbox"),
+      createLibrary("fs-1", "filesystem", "/music"),
+      createLibrary("dropbox-1", "dropbox", "/dropbox"),
     ]);
     const watcher = new FakeFilesystemLibraryWatcher();
     const scanner = new FakeScanner();
@@ -40,8 +40,8 @@ describe("WatchFilesystemLibrariesService", () => {
 
   it("records watcher failures and continues", async () => {
     const libraries = new InMemoryLibraries([
-      library("bad", "filesystem", "/missing"),
-      library("good", "filesystem", "/music"),
+      createLibrary("bad", "filesystem", "/missing"),
+      createLibrary("good", "filesystem", "/music"),
     ]);
     const watcher = new FakeFilesystemLibraryWatcher({
       bad: new Error("permission denied"),
@@ -67,7 +67,7 @@ describe("WatchFilesystemLibrariesService", () => {
 
   it("logs scan failures when a watched library changes", async () => {
     const libraries = new InMemoryLibraries([
-      library("bad", "filesystem", "/music"),
+      createLibrary("bad", "filesystem", "/music"),
     ]);
     const watcher = new FakeFilesystemLibraryWatcher();
     const scanner = new FakeScanner({ bad: new Error("scan failed") });
@@ -106,6 +106,7 @@ class InMemoryLibraries implements LibraryRepository {
 
 class FakeFilesystemLibraryWatcher implements FilesystemLibraryWatcher {
   private readonly watched = new Map<string, string>();
+
   private readonly handlers = new Map<string, FilesystemLibraryChangeHandler>();
 
   constructor(private readonly failures: Record<string, Error> = {}) {}
@@ -123,7 +124,7 @@ class FakeFilesystemLibraryWatcher implements FilesystemLibraryWatcher {
     }
   }
 
-  watchedLibraries(): Array<{ libraryId: string; root: string }> {
+  watchedLibraries(): { libraryId: string; root: string }[] {
     return Array.from(this.watched.entries()).map(([libraryId, root]) => ({
       libraryId,
       root,
@@ -150,7 +151,7 @@ class FakeScanner {
   }
 }
 
-function library(
+function createLibrary(
   id: string,
   kind: LibraryDto["kind"],
   location: string,

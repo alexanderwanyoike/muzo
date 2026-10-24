@@ -11,7 +11,9 @@ interface AudioRoute {
 
 export class NodeAudioStreamServer implements AudioSourceRegistry {
   private readonly routes = new Map<string, AudioRoute>();
+
   private readonly server: Server;
+
   private readonly origin: Promise<string>;
 
   constructor() {
