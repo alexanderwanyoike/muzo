@@ -3,14 +3,13 @@ import { repositoryResult, type Result } from "../result";
 import type { CommandHandler } from "./command-handler";
 import { parseInput, parseNonEmptyString } from "./command-arguments";
 import type { LibraryRepository } from "../interfaces/repository-interfaces";
-import type { DropboxTrackAudioSourceService } from "../dropbox-track-audio-source-service";
 
 export class PrepareTrackAudioSourceCommand implements CommandHandler {
   readonly command = "prepare_track_audio_source";
   constructor(
     private readonly service: PrepareTrackAudioSourceService,
     private readonly libraries?: LibraryRepository,
-    private readonly dropboxSources?: DropboxTrackAudioSourceService,
+    private readonly dropboxSources?: PrepareTrackAudioSourceService,
   ) {}
   async handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
     const input = parseInput(args, this.command);
