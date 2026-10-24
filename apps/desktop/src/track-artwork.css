@@ -1,0 +1,5 @@
+.track-artwork { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; overflow: hidden; border: 1px solid var(--line); border-radius: 3px; background: var(--sidebar); color: var(--text-muted); }
+.track-artwork img { width: 100%; height: 100%; object-fit: cover; }
+.track-artwork > svg { width: 19px; height: 19px; stroke-width: 1; }
+.track-artwork--large { width: 100%; height: auto; aspect-ratio: 1; border-radius: 5px; box-shadow: 0 3px 12px #00000018; }
+.track-artwork--large > svg { width: 35%; height: 35%; opacity: .5; }
