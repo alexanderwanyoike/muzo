@@ -12,7 +12,9 @@ import { expect, it } from "vitest";
 interface Measurement {
   width: number;
   connected: boolean;
-  layout: { sections: { name: string; left: number; width: number; headingLeft: number }[]; controls: number[]; overflow: number };
+  theme: string;
+  mode: string;
+  layout: { sections: { name: string; left: number; width: number; top: number; bottom: number; headingLeft: number }[]; controls: number[]; overflow: number };
 }
 
 it("aligns Settings sections and controls without overflow at desktop and minimum sizes", async () => {
@@ -30,14 +32,17 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
     const args = ["--no-sandbox", `--user-data-dir=${join(directory, "profile")}`, runner, page, resultPath];
     await promisify(execFile)(process.platform === "linux" ? "xvfb-run" : electron, process.platform === "linux" ? ["-a", electron, ...args] : args, { timeout: 30_000, env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined, NODE_OPTIONS: undefined } });
     const measurements = JSON.parse(readFileSync(resultPath, "utf8")) as Measurement[];
-    expect(measurements).toHaveLength(4);
-    for (const { width, connected, layout } of measurements) {
-      const context = `${width}px, Dropbox ${connected ? "connected" : "disconnected"}`;
+    expect(measurements).toHaveLength(24);
+    for (const { width, connected, theme, mode, layout } of measurements) {
+      const context = `${width}px, ${theme}/${mode}, Dropbox ${connected ? "connected" : "disconnected"}`;
       expect(layout.sections.map(({ name }) => name), context).toEqual(["Appearance", "Dropbox", "Library folders", "Indexed sources"]);
       for (const section of layout.sections) {
         expect(section.width, `${context}, ${section.name} width`).toBeCloseTo(layout.sections[0].width, 0);
         expect(section.left, `${context}, ${section.name} edge`).toBeCloseTo(layout.sections[0].left, 0);
         expect(section.headingLeft, `${context}, ${section.name} heading`).toBeCloseTo(layout.sections[0].headingLeft, 0);
+      }
+      for (let index = 1; index < layout.sections.length; index += 1) {
+        expect(layout.sections[index].top - layout.sections[index - 1].bottom, `${context}, section spacing`).toBeCloseTo(20, 0);
       }
       expect(layout.overflow, context).toBeLessThanOrEqual(1);
       expect(Math.max(...layout.controls) - Math.min(...layout.controls), `${context}, control heights`).toBeLessThanOrEqual(1);

@@ -1,3 +1,4 @@
+import { saveSidebarWidth } from "../../src/sidebar-layout";
 import { createRoot } from "react-dom/client";
 import App from "../../src/App";
 import { applyAppearance, saveAppearance, type Appearance } from "../../src/appearance";
@@ -15,6 +16,8 @@ const appearance: Appearance = {
 const saved = saveAppearance(appearance);
 if (!saved.ok) throw new Error(saved.error.message);
 applyAppearance(appearance);
+const sidebar = saveSidebarWidth(360);
+if (!sidebar.ok) throw new Error(sidebar.error.message);
 const libraries = [{ id: "local", name: "Evening listening", kind: "filesystem", location: `/Music/${"Long album collection/".repeat(8)}` }];
 function response(command: string): unknown {
   if (command === "list_libraries") return libraries;

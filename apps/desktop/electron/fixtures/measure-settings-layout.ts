@@ -16,7 +16,7 @@ export async function measureSettingsLayout() {
   const sections = Array.from(document.querySelectorAll<HTMLElement>(".settings-view__section")).map((element) => {
     const rect = element.getBoundingClientRect();
     const heading = element.querySelector("h3")?.getBoundingClientRect();
-    return { name: element.querySelector("h3")?.textContent, left: rect.left, width: rect.width, headingLeft: heading?.left };
+    return { name: element.querySelector("h3")?.textContent, left: rect.left, width: rect.width, top: rect.top, bottom: rect.bottom, headingLeft: heading?.left };
   });
   const controls = Array.from(viewport.querySelectorAll<HTMLElement>(".add-library-form input, .add-library-form button, .dropbox-browse-button, .dropbox-sync select, .dropbox-settings__connection button, .settings-view__source-actions button")).map((element) => element.getBoundingClientRect().height);
   return { sections, controls, overflow: viewport.scrollWidth - viewport.clientWidth };
