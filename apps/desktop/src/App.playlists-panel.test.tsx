@@ -31,7 +31,11 @@ it("uses the existing sidebar and remembered divider for Playlists", async () =>
   expect(divider.getAttribute("aria-valuenow")).toBe("248");
   await userEvent.click(await within(panel).findByRole("button", { name: "Open playlist Quiet hours" }));
   expect(screen.getByRole("heading", { name: "Quiet hours" })).toBeDefined();
+  await userEvent.type(screen.getByRole("searchbox", { name: "Search playlists" }), "Quiet");
   await userEvent.click(screen.getByRole("button", { name: "Songs", exact: true }));
   expect(screen.getByRole("region", { name: "Sources" })).toBeDefined();
   expect(screen.getByRole("separator", { name: "Sources" }).getAttribute("aria-valuenow")).toBe("248");
+  await userEvent.click(screen.getByRole("button", { name: "Playlists", exact: true }));
+  expect(await screen.findByRole("heading", { name: "Quiet hours" })).toBeDefined();
+  expect(screen.getByRole<HTMLInputElement>("searchbox", { name: "Search playlists" }).value).toBe("Quiet");
 });
