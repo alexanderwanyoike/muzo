@@ -60,3 +60,27 @@ it("offers removal beside a sidebar source and keeps it when removal fails", asy
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.queryByRole("button", { name: "Show tracks for Music" })).toBeNull();
 });
+
+it("does not restore source counts when an old refresh finishes after removal", async () => {
+  let finishScan: ((value: { tracksScanned: number }) => void) | undefined;
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "list_libraries") return [library];
+    if (command === "dropbox_status") return { ok: true, value: { connected: false, accountId: null } };
+    if (command === "scan_library") return new Promise(resolve => { finishScan = resolve; });
+    if (command === "list_tracks") return [{ id: "late-track" }];
+    if (command === "remove_library") return { ok: true, value: undefined };
+    return [];
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  const sources = within(screen.getByRole("region", { name: "Indexed sources" }));
+  await user.click(sources.getByRole("button", { name: "Refresh Music" }));
+  await user.click(sources.getByRole("button", { name: "Remove Music" }));
+  await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  finishScan?.({ tracksScanned: 1 });
+  await waitFor(() => expect(invoke).toHaveBeenCalledWith("list_tracks", { libraryId: "source" }));
+  expect(screen.getByText("0 libraries - 0 tracks")).toBeDefined();
+  expect(screen.queryByText("Refreshed Music: 1 track.")).toBeNull();
+});
