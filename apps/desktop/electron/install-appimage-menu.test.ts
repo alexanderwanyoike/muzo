@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { expect, it } from "vitest";
 import { installAppImageMenu } from "./install-appimage-menu";
 
-it("registers a packaged AppImage in the Linux desktop's configured data directory", async () => {
+it.skipIf(process.platform !== "linux")("registers a packaged AppImage in the Linux desktop's configured data directory", async () => {
   const directory = await mkdtemp(join(tmpdir(), "muzo-appimage-startup-"));
   try {
     const data = join(directory, "custom data");

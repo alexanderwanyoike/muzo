@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { registerAppImageMenuEntry } from "./appimage-menu-entry";
 
+describe.skipIf(process.platform !== "linux")("Linux AppImage menu integration", () => {
 it.skipIf(process.platform !== "linux")(
   "makes the portable player discoverable and launchable through the desktop menu",
   async () => {
@@ -107,4 +108,21 @@ it("repairs Cinnamon's temporary-mount launcher without changing its pinned iden
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+
+it.each(["relative.AppImage", "/tmp/Muzo\nIcon=injected.AppImage", "/tmp/Muzo=preview.AppImage"])("rejects an invalid desktop executable path: %j", async (appImagePath) => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-invalid-menu-"));
+  try {
+    const result = await registerAppImageMenuEntry({
+      appImagePath, dataDirectory: directory,
+      iconPath: join(import.meta.dirname, "../assets/icons/muzo.png"),
+    });
+    expect(result).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
+    expect(await readdir(directory)).toEqual([]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 });
