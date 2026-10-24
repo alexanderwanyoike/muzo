@@ -614,10 +614,8 @@ it.each(["toggle", "select-current"] as const)(
     const { result } = renderHook(() => useAudioPlayer());
     await act(async () => result.current.play(track));
     const audio = MockAudio.instances[0];
-    act(() => {
-      audio.emit("playing");
-      result.current.toggle();
-    });
+    act(() => audio.emit("playing"));
+    act(() => result.current.toggle());
     MockAudio.nextPlayError = new Error("resume rejected");
     await act(async () => {
       if (resumeControl === "toggle") result.current.toggle();
@@ -649,10 +647,8 @@ it.each(["toggle", "select-current"] as const)(
     const { result } = renderHook(() => useAudioPlayer());
     await act(async () => result.current.play(track));
     const audio = MockAudio.instances[0];
-    act(() => {
-      audio.emit("playing");
-      result.current.toggle();
-    });
+    act(() => audio.emit("playing"));
+    act(() => result.current.toggle());
     let rejectResume: (error: Error) => void = () => {};
     const pendingResume = new Promise<void>((_resolve, reject) => {
       rejectResume = reject;
