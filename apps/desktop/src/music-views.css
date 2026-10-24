@@ -198,3 +198,9 @@
   padding: 22px 0;
   line-height: 1.7;
 }
+
+.playlist-panel__entry-meta {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
