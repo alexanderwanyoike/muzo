@@ -1,6 +1,6 @@
 import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { failure, success, type Result } from "./application/result";
 
 export interface AppImageMenuEntryOptions {
@@ -57,6 +57,11 @@ async function appImageMenuState(
 export async function registerAppImageMenuEntry(
   options: AppImageMenuEntryOptions,
 ): Promise<Result<"registered" | "existing">> {
+  if (![options.appImagePath, options.dataDirectory, options.iconPath].every(
+    (path) => isAbsolute(path) && !/[\x00-\x1f\x7f]/.test(path),
+  ) || options.appImagePath.includes("=")) {
+    return failure("invalidInput", "The AppImage or menu location cannot be used in a desktop launcher.");
+  }
   const state = await appImageMenuState(options.dataDirectory);
   if (!state.ok) return state;
   if (state.value.kind === "external") return success("existing");
