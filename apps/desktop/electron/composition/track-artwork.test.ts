@@ -1,0 +1,92 @@
+// @vitest-environment node
+import { mkdtempSync, rmSync, copyFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { expect, it, vi } from "vitest";
+import { createElectronContainer } from "./electron-container";
+
+it.each(["flac", "mp3"])(
+  "reads embedded %s artwork through IPC using the stored track identity",
+  async (extension) => {
+    const directory = mkdtempSync(join(tmpdir(), "muzo-artwork-"));
+    const filePath = join(directory, `song.${extension}`);
+    copyFileSync(
+      fileURLToPath(
+        new URL(
+          `../infrastructure/metadata/fixtures/embedded-cover.${extension}`,
+          import.meta.url,
+        ),
+      ),
+      filePath,
+    );
+    const thumbnail = vi.fn(
+      (picture: { data: Uint8Array; format: string }) =>
+        `data:${picture.format};base64,${Buffer.from(picture.data).toString("base64")}`,
+    );
+    const container = createElectronContainer({
+      dbPath: join(directory, "catalog.sqlite"),
+      artworkThumbnails: { create: thumbnail },
+    });
+    try {
+      await container.resolve("migrateDatabase")();
+      await container.resolve("libraries").add({
+        id: "source",
+        name: "Music",
+        kind: "filesystem",
+        location: directory,
+      });
+      await container.resolve("tracks").upsertScannedTrack({
+        id: "track",
+        libraryId: "source",
+        title: "Song",
+        artist: "Artist",
+        album: "Album",
+        trackNumber: 1,
+        discNumber: 1,
+        genre: null,
+        year: null,
+        durationSeconds: 120,
+        filePath,
+        fileSize: 200,
+        fileMtime: 1,
+      });
+      const command = container.resolve("commandDispatcher");
+      const result = await command.handleElectronCommand("get_track_artwork", {
+        input: {
+          libraryId: "source",
+          trackId: "track",
+          filePath: "/untrusted/ignored.flac",
+        },
+      });
+      expect(result).toMatchObject({
+        ok: true,
+        value: expect.stringMatching(/^data:image\/png;base64,/),
+      });
+      expect(thumbnail).toHaveBeenCalledOnce();
+      rmSync(filePath);
+      const reopened = createElectronContainer({
+        dbPath: join(directory, "catalog.sqlite"),
+        artworkThumbnails: {
+          create: vi.fn(() => {
+            throw new Error("Cached artwork should not be decoded again");
+          }),
+        },
+      });
+      expect(
+        await reopened
+          .resolve("commandDispatcher")
+          .handleElectronCommand("get_track_artwork", {
+            input: { libraryId: "source", trackId: "track" },
+          }),
+      ).toEqual(result);
+      await expect(
+        command.handleElectronCommand("get_track_artwork", {
+          input: { libraryId: "other", trackId: "track" },
+        }),
+      ).resolves.toMatchObject({ ok: false, error: { kind: "trackNotFound" } });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);

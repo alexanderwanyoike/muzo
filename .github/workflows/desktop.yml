@@ -1,0 +1,80 @@
+name: Desktop verification
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VITEST_MAX_FORKS: 2
+      VITEST_MIN_FORKS: 1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - name: Prepare Yarn, native image tests and Linux packaging tools
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb x11-utils libgtk-3-0t64 libasound2t64 libgbm1
+      - run: yarn install --frozen-lockfile
+      - name: Check reproducible icon exports
+        run: |
+          xvfb-run -a yarn workspace @muzo/desktop icons:generate
+          git diff --exit-code -- apps/desktop/assets/icons
+      - run: yarn format:check
+      - run: yarn lint
+      - run: yarn typecheck
+      - run: yarn test
+      - run: yarn desktop:build
+      - run: yarn desktop:package
+      - run: yarn desktop:make
+
+  native-icons:
+    name: Native desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      VITEST_MAX_FORKS: 2
+      VITEST_MIN_FORKS: 1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - name: Prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @muzo/desktop icons:generate
+      - name: Check reproducible icon exports
+        run: git diff --exit-code -- apps/desktop/assets/icons
+      - name: Verify native desktop adapters and Settings layout
+        run: yarn workspace @muzo/desktop test electron/settings-layout.test.ts electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts electron/infrastructure/metadata/node-artwork-cache.test.ts electron/application/track-artwork-service.test.ts
+      - run: yarn desktop:package

@@ -1,0 +1,272 @@
+@import "./music-views.css";
+@import "./settings-view.css";
+@import "./transport.css";
+@import "./library-list.css";
+@import "./sidebar-panels.css";
+
+:root {
+  font-family: "Manrope Variable", sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+* {
+  box-sizing: border-box;
+}
+body,
+html,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  overflow: hidden;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 5px 11px;
+  cursor: pointer;
+  box-shadow: var(--inset);
+}
+button:where(:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--text) 5%, var(--panel-raised));
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.7;
+  flex-shrink: 0;
+}
+input:not([type="range"], [type="radio"], [type="checkbox"]),
+select {
+  min-height: 31px;
+  min-width: 0;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel-raised);
+  color: var(--text);
+  box-shadow: inset 0 1px 2px #00000006;
+}
+input[type="range"],
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.app-shell {
+  height: 100dvh;
+  min-height: 600px;
+  display: grid;
+  grid-template: 82px minmax(0, 1fr) / 218px minmax(0, 1fr);
+  background: var(--panel);
+}
+.app-sidebar {
+  position: relative;
+  grid-area: 2 / 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 8px;
+  background: var(--sidebar);
+  border-right: 1px solid var(--line);
+  user-select: none;
+}
+.app-sidebar__header {
+  padding: 0 10px 14px;
+  flex-shrink: 0;
+}
+.app-sidebar__header h1 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.6px;
+  font-weight: 750;
+}
+.app-sidebar__header p {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 5px 0 0;
+}
+.app-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+.app-sidebar__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 33px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+}
+.app-sidebar__nav-item svg {
+  color: var(--text-muted);
+}
+.app-sidebar__nav-item--active {
+  background: var(--panel-raised);
+  box-shadow: 0 1px 3px #0000000b;
+}
+.app-sidebar__nav-item--active svg {
+  color: var(--accent);
+}
+.app-content {
+  grid-area: 2 / 2;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-content__toolbar {
+  min-height: 65px;
+  display: flex;
+  align-items: center;
+  padding: 12px 26px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-raised);
+  flex-shrink: 0;
+}
+.app-content__toolbar h2 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.35px;
+  line-height: 1.3;
+  margin: 0;
+}
+.app-content__eyebrow {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin: 0 0 3px;
+}
+.app-content__tracks {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.app-content__empty {
+  margin: auto;
+  padding: 35px;
+  max-width: 430px;
+  text-align: center;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.app-content__empty h2 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 650;
+}
+.app-content__empty-action {
+  margin-top: 12px;
+}
+.app__placeholder {
+  margin: 15px 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.app__error,
+.app__info {
+  margin: 12px 24px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.app__error,
+[role="alert"] {
+  color: var(--danger);
+}
+.app__info {
+  color: var(--green);
+}
+@media (max-width: 950px) {
+  .app-shell {
+    grid-template-columns: 192px minmax(0, 1fr);
+  }
+  .now-playing-bar {
+    grid-template-columns: 150px minmax(0, 1fr) 112px;
+    padding-inline: 17px;
+    gap: 14px;
+  }
+  .now-playing-bar__volume-slider {
+    width: 75px;
+  }
+  .settings-view {
+    padding: 18px;
+  }
+  .track-list__row {
+    gap: 7px;
+    padding-inline: 15px;
+    grid-template-columns: 24px 18px 36px minmax(0, 1fr) 38px 52px 26px 26px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    transition:
+      background-color 100ms ease,
+      color 100ms ease;
+  }
+}
+.app-sidebar__sleeve {
+  margin: 12px auto 0;
+  width: 100%;
+  max-width: 164px;
+  flex-shrink: 0;
+}
+@media (max-height: 700px) {
+  .app-sidebar__sleeve {
+    max-width: 96px;
+  }
+}
+
+@media (max-height: 700px) {
+  .app-sidebar {
+    padding-block: 12px;
+  }
+  .app-sidebar__header {
+    padding-bottom: 10px;
+  }
+  .app-sidebar__nav {
+    margin-bottom: 12px;
+  }
+}

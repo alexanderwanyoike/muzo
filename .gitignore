@@ -5,15 +5,13 @@ node_modules/
 
 # Build outputs
 dist/
+dist-electron/
+out/
 build/
 target/
 *.tsbuildinfo
 apps/*/vite.config.js
 apps/*/vite.config.d.ts
-
-# Tauri
-apps/*/src-tauri/target/
-apps/*/src-tauri/gen/
 
 # IDE
 .vscode/*
