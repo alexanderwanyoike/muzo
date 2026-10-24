@@ -90,3 +90,15 @@ it("recovers from malformed saved preferences without applying untrusted values"
     ).textContent,
   ).toContain("could not be read");
 });
+
+it.each(["Carbon fibre", "Walnut", "Porcelain"])("remembers the %s material across a restart", async (material) => {
+  const first = render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await userEvent.click(screen.getByRole("radio", { name: material }));
+  await userEvent.click(screen.getByRole("radio", { name: "Dark" }));
+  first.unmount();
+  render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(screen.getByRole<HTMLInputElement>("radio", { name: material }).checked).toBe(true);
+  expect(screen.getByRole<HTMLInputElement>("radio", { name: "Dark" }).checked).toBe(true);
+});
