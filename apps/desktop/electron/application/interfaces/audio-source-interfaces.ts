@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 export interface PreparedTrackAudioSource {
   mimeType: string;
   url: string;
@@ -7,7 +8,7 @@ export interface PrepareTrackAudioSourceService {
   prepare(
     libraryId: string,
     trackId: string,
-  ): Promise<PreparedTrackAudioSource>;
+  ): Promise<Result<PreparedTrackAudioSource>>;
 }
 
 export interface AudioSourceRegistry {

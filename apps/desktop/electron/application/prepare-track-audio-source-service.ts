@@ -1,3 +1,4 @@
+import { failure, success, type Result } from "./result";
 import type {
   AudioSourceRegistry,
   PreparedTrackAudioSource,
@@ -16,22 +17,24 @@ export class PrepareTrackAudioSourceApplicationService
   async prepare(
     libraryId: string,
     trackId: string,
-  ): Promise<PreparedTrackAudioSource> {
+  ): Promise<Result<PreparedTrackAudioSource>> {
+    try {
     const tracks = await this.tracks.listForLibrary(libraryId);
     const track = tracks.find((candidate) => candidate.id === trackId);
     if (!track) {
-      throw { kind: "trackNotFound", message: trackId };
+      return failure("trackNotFound", trackId);
     }
 
     const mimeType = mimeTypeForPath(track.filePath);
     if (!mimeType) {
-      throw { kind: "unsupportedFileType", message: track.filePath };
+      return failure("unsupportedFileType", track.filePath);
     }
 
-    return {
+    return success({
       mimeType,
       url: await this.audioSources.register(track.filePath, mimeType),
-    };
+    });
+    } catch { return failure("repository", "Could not prepare the track audio source."); }
   }
 }
 

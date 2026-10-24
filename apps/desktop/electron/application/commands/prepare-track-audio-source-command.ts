@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 import type {
   PreparedTrackAudioSource,
   PrepareTrackAudioSourceService,
@@ -11,7 +12,7 @@ export class PrepareTrackAudioSourceCommand implements CommandHandler {
     private readonly prepareTrackAudioSourceService: PrepareTrackAudioSourceService,
   ) {}
 
-  handle(args: unknown): Promise<PreparedTrackAudioSource> {
+  handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
     const input = parsePrepareTrackAudioSourceArgs(args);
     return this.prepareTrackAudioSourceService.prepare(
       input.libraryId,
