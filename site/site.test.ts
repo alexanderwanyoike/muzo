@@ -52,20 +52,32 @@ describe("Muzo project site", () => {
     );
   });
 
-  it("offers source installation and release history without inventing binary downloads", () => {
+  it("offers native platform downloads without asking listeners to build the app", () => {
+    const downloads = document.getElementById("downloads");
+    expect(downloads).not.toBeNull();
+    expect(
+      document.querySelector('a[href="#downloads"]')?.textContent,
+    ).toContain("Download Muzo");
+    const text = downloads?.textContent?.replace(/\s+/g, " ") ?? "";
+    for (const platform of [
+      "Windows",
+      "macOS",
+      "Linux",
+      "AppImage",
+      "Apple silicon",
+      "Intel",
+    ]) {
+      expect(text).toContain(platform);
+    }
+    expect(text).toContain("Preparing release");
+    expect(document.body.textContent).not.toContain("yarn desktop:dev");
+    expect(document.body.textContent).not.toContain("git clone");
+    expect(document.querySelector('a[href*="/releases/download/"]')).toBeNull();
     expect(
       document.querySelector(
         'a[href="https://github.com/alexanderwanyoike/muzo/releases"]',
       ),
     ).not.toBeNull();
-    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
-      "Packaged downloads are not published yet",
-    );
-    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
-      "yarn desktop:dev",
-    );
-    expect(document.querySelector("a[download]")).toBeNull();
-    expect(document.querySelector('a[href*="/releases/download/"]')).toBeNull();
   });
 
   it("uses the current canonical screenshots with descriptive alternative text and dimensions", () => {
