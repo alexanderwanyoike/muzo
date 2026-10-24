@@ -24,7 +24,7 @@
 }
 @supports (backdrop-filter: blur(1px)) {
   [data-theme="glass"] .app-sidebar,
-  [data-theme="glass"] .appearance-preview__sidebar {
+  [data-theme="glass"].appearance-preview .appearance-preview__sidebar {
     background: color-mix(in srgb, var(--sidebar) 90%, transparent);
     backdrop-filter: blur(24px) saturate(110%);
   }
@@ -55,7 +55,7 @@
     display: none;
   }
   [data-theme="glass"] .app-sidebar,
-  [data-theme="glass"] .appearance-preview__sidebar,
+  [data-theme="glass"].appearance-preview .appearance-preview__sidebar,
   [data-theme="glass"] .compact-queue {
     background: var(--sidebar);
     backdrop-filter: none;
