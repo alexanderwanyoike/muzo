@@ -136,3 +136,117 @@
     padding-bottom: 16px;
   }
 }
+
+.compact-player__window-actions {
+  display: flex;
+  gap: 8px;
+}
+.compact-player__workspace {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+}
+.compact-player__body {
+  min-width: 0;
+}
+.compact-queue {
+  width: 260px;
+  min-width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--sidebar) 88%, transparent);
+  border-right: 1px solid var(--line);
+}
+.compact-queue__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.compact-queue__header > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+}
+.compact-queue__header h2 {
+  margin: 0;
+  font-size: 12px;
+}
+.compact-queue__header p {
+  margin: 3px 0 0;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.compact-queue__list {
+  list-style: none;
+  padding: 0 8px 12px;
+  margin: 0;
+  overflow-y: auto;
+  min-height: 0;
+}
+.compact-queue__list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 7px;
+  text-align: left;
+}
+.compact-queue__list button[aria-current] {
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel-raised));
+}
+.compact-queue__list .track-artwork {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.compact-queue__metadata {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.compact-queue__metadata strong {
+  font-size: 11px;
+  font-weight: 650;
+}
+.compact-queue__metadata > span {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.compact-queue__metadata strong,
+.compact-queue__metadata > span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.compact-queue__position {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.compact-queue__position svg {
+  width: 12px;
+  height: 12px;
+}
+.compact-queue__empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 0 18px;
+  line-height: 1.7;
+}
+@media (max-width: 680px) {
+  .compact-queue {
+    width: 220px;
+  }
+  .compact-player--queue .compact-player__body {
+    padding-inline: 18px;
+  }
+  .compact-player--queue .compact-player__sleeve {
+    width: min(100%, 210px);
+  }
+}

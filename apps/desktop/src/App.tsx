@@ -240,6 +240,14 @@ export default function App() {
       {playerWindow.mode !== "library" && (
         <CompactPlayer
           player={player}
+          queueOpen={playerWindow.mode === "compact-queue"}
+          onToggleQueue={() => {
+            void playerWindow.changeMode(
+              playerWindow.mode === "compact-queue"
+                ? "compact"
+                : "compact-queue",
+            );
+          }}
           artworkRefreshKey={
             current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0
           }
