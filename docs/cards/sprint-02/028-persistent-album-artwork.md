@@ -20,6 +20,7 @@ them before requesting media or Dropbox credentials.
 - [x] Use private directories/files, hashed filenames and atomic record replacement.
 - [x] Verify content integrity and bounded PNG payload/record reads.
 - [x] Recover from truncated/corrupt records and unavailable cache storage.
+- [x] Remove abandoned atomic writes while preserving another active writer.
 - [ ] Complete ordered checks and two review cycles.
 
 ## Design
@@ -54,3 +55,8 @@ without invoking the decoder again. Other tests cover offline Dropbox hits,
 persisted revision invalidation, bounded LRU eviction, corrupt bytes, oversized
 payloads/reads, private storage, concurrent writes, storage failures and queue
 recovery. Cache failures preserve normal artwork reads and never block playback.
+
+Initial Spec review found abandoned temporary files outside the budget. A
+red-first regression now covers legacy, current-process orphan and exited-process
+files. A real child-process test verifies that active foreign writes are preserved
+and cleaned after the writer exits. New temporary names include their owner PID.
