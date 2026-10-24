@@ -7,7 +7,9 @@
 
 Give Muzo a consistent app identity on Windows, Linux and macOS. The user
 rejected the metallic design and requested blue, black and flat. Ship the
-simple blue M/audio-wave mark on a black rounded tile, with transparent corners.
+blue waveform bars on a black rounded tile, with transparent corners. The bars
+form two peaks and a central trough that suggest an M, following the user's
+follow-up request to replace the continuous M with a waveform style.
 
 ## Acceptance criteria
 
@@ -50,3 +52,13 @@ the containers to detect drift and packages their native applications.
 Manual OS-shell appearance still needs user testing on the target desktop.
 
 Review evidence: [two cycles and final correction](../../reviews/2026-10-24-native-app-icons.md).
+
+## Fresh-install native test fix
+
+The first PR CI run 40093947210 passed native decoding and packaging on Windows
+and macOS. Linux failed the existing artwork native test while the new icon
+native test passed. Both workers logged "Downloading Electron binary...".
+Electron 43's installed index.js downloads synchronously on first require, so
+parallel fresh workers can race over the same installation. Prepare the binary
+once before Vitest starts, using Electron's own entry point. Keep the native tests
+and their assertions intact; watch mode uses the same preparation.
