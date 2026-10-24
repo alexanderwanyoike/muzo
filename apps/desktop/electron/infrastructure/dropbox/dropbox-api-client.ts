@@ -143,19 +143,7 @@ export class DropboxApiClient {
   }
 }
 
-export class FetchDropboxHttpTransport implements DropboxHttpTransport {
-  async send(request: DropboxHttpRequest): Promise<DropboxHttpResponse> {
-    const response = await fetch(request.url, {
-      method: request.method,
-      headers: Object.fromEntries(request.headers),
-      body: request.body,
-    });
-    return {
-      status: response.status,
-      body: await response.text(),
-    };
-  }
-}
+export { FetchDropboxHttpTransport } from "./fetch-dropbox-http-transport";
 
 interface DropboxTokenResponse {
   access_token: string;
