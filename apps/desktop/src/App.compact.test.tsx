@@ -53,6 +53,33 @@ function installMusic() {
         },
       ];
     if (command === "list_tracks") return [track];
+    if (command === "list_playlists")
+      return [
+        {
+          id: "evening",
+          name: "Evening",
+          entries: [
+            {
+              id: "a",
+              trackId: "first",
+              trackTitle: "First light",
+              trackArtist: "Linden",
+              trackLibraryId: "library",
+              trackDurationSeconds: 240,
+              position: 0,
+            },
+            {
+              id: "b",
+              trackId: "first",
+              trackTitle: "First light",
+              trackArtist: "Linden",
+              trackLibraryId: "library",
+              trackDurationSeconds: 240,
+              position: 1,
+            },
+          ],
+        },
+      ];
     if (command === "prepare_track_audio_source")
       return { url: "source-first", mimeType: "audio/flac" };
     if (command === "get_track_artwork") return { ok: true, value: null };
@@ -115,4 +142,34 @@ it("switches to the mini player and back without restarting playback or losing t
   expect(screen.getByRole("heading", { name: "Music" })).toBeDefined();
   expect(audio.currentTime).toBe(74);
   expect(audio.paused).toBe(false);
+});
+
+it("shows and selects the live playback queue without replacing it when compact mode is expanded", async () => {
+  const { setPlayerWindowMode, invoke } = installMusic();
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole("button", { name: "Playlists" }));
+  await user.click(await screen.findByRole("button", { name: "Play Evening" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Pause" })).toBeDefined(),
+  );
+  await user.click(screen.getByRole("button", { name: "Mini player" }));
+  await user.click(await screen.findByRole("button", { name: "Show queue" }));
+  expect(setPlayerWindowMode).toHaveBeenLastCalledWith("compact-queue");
+  const queue = await screen.findByRole("list", { name: "Playback queue" });
+  expect(queue.querySelectorAll("li")).toHaveLength(2);
+  const items = queue.querySelectorAll("button");
+  expect(items[0].getAttribute("aria-current")).toBe("true");
+  await user.click(items[1]);
+  expect(items[1].getAttribute("aria-current")).toBe("true");
+  expect(
+    invoke.mock.calls.filter(
+      ([command]) => command === "prepare_track_audio_source",
+    ),
+  ).toHaveLength(2);
+  await user.click(screen.getByRole("button", { name: "Hide queue" }));
+  expect(setPlayerWindowMode).toHaveBeenLastCalledWith("compact");
+  expect(screen.queryByRole("list", { name: "Playback queue" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Return to library" }));
+  expect(screen.getByRole("heading", { name: "Evening" })).toBeDefined();
 });
