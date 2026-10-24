@@ -331,8 +331,3 @@
   }
 }
 
-.compact-player {
-  --mini-player-corner-radius: 14px;
-  border-radius: 0 0 var(--mini-player-corner-radius)
-    var(--mini-player-corner-radius);
-}
