@@ -235,6 +235,9 @@ void app.whenReady().then(async () => {
             "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
           );
           if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
+            await until(
+              "(()=>{const list=document.querySelector('.compact-queue__list');const bounds=list.getBoundingClientRect();return [...list.children].filter(row=>{const r=row.getBoundingClientRect();return r.bottom>bounds.top && r.top<bounds.bottom}).every(row=>row.querySelector('img')?.complete)})()",
+            );
             mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {
               recursive: true,
             });
