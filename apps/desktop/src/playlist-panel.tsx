@@ -9,6 +9,8 @@ import {
   type TrackDto,
 } from "./api";
 
+import type { PlaybackQueueItem } from "./useAudioPlayer";
+
 interface PlaylistError {
   message?: string;
 }
@@ -16,6 +18,7 @@ interface PlaylistError {
 interface PlaylistPanelProps {
   currentTrackId?: string | null;
   isPlaying?: boolean;
+  onPlayQueue?: (entries: PlaybackQueueItem[], startIndex: number) => void;
   onPlayTrack?: (track: TrackDto) => void;
   onToggleCurrentTrack?: () => void;
 }
@@ -24,6 +27,7 @@ export default function PlaylistPanel({
   currentTrackId = null,
   isPlaying = false,
   onPlayTrack = () => {},
+  onPlayQueue,
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
@@ -150,6 +154,13 @@ export default function PlaylistPanel({
     }
   }
 
+  function handlePlayPlaylist(playlist: PlaylistDto) {
+    const entries = playableEntries(playlist);
+    if (!entries.length) return;
+    if (onPlayQueue) onPlayQueue(entries, 0);
+    else onPlayTrack(entries[0].track);
+  }
+
   return (
     <div className="playlist-panel">
       <section className="playlist-panel__create">
@@ -187,6 +198,10 @@ export default function PlaylistPanel({
               <div className="playlist-panel__summary">
                 <h3>{playlist.name}</h3>
                 <p>{formatTrackCount(playlist.entries.length)}</p>
+                <button type="button" disabled={!playableEntries(playlist).length}
+                  aria-label={`Play ${playlist.name}`} onClick={() => handlePlayPlaylist(playlist)}>
+                  Play playlist
+                </button>
               </div>
               {playlist.entries.length === 0 ? (
                 <p className="playlist-panel__empty-entries">
@@ -304,4 +319,11 @@ function trackFromEntry(entry: PlaylistEntryDto): TrackDto | null {
     durationSeconds: entry.trackDurationSeconds ?? 0,
     filePath: "",
   };
+}
+
+function playableEntries(playlist: PlaylistDto): PlaybackQueueItem[] {
+  return playlist.entries.flatMap((entry) => {
+    const track = trackFromEntry(entry);
+    return track ? [{ entryId: entry.id, track }] : [];
+  });
 }
