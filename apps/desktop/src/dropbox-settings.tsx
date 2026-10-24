@@ -1,3 +1,4 @@
+import "./dropbox-settings.css";
 import { useEffect, useState } from "react";
 import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
@@ -69,27 +70,40 @@ export default function DropboxSettings({
   }
 
   return (
-    <section className="settings-view__section" aria-label="Dropbox">
-      <div>
-        <h3>Dropbox</h3>
-        <p>Connect your music in Dropbox.</p>
-      </div>
-      {connection?.connected ? (
+    <section
+      className="settings-view__section dropbox-settings"
+      aria-label="Dropbox"
+    >
+      <header className="dropbox-settings__header">
         <div>
-          <p role="status">Connected to Dropbox.</p>
+          <h3>Dropbox</h3>
+          <p>Choose the folders you want in your music collection.</p>
+        </div>
+        {connection?.connected && (
+          <span className="dropbox-settings__connected" role="status">
+            <span aria-hidden="true" />
+            Connected to Dropbox.
+          </span>
+        )}
+      </header>
+      {connection?.connected ? (
+        <div className="dropbox-settings__body">
           <DropboxLibrarySettings
             accountId={connection.accountId ?? ""}
             onAdded={onLibraryAdded}
           />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              void disconnect();
-            }}
-          >
-            Disconnect Dropbox
-          </button>
+          <footer className="dropbox-settings__connection">
+            <span>Account connection</span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void disconnect();
+              }}
+            >
+              Disconnect Dropbox
+            </button>
+          </footer>
         </div>
       ) : (
         <div className="add-library-form">

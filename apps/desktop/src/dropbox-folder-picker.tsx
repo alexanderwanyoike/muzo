@@ -1,3 +1,4 @@
+import FolderIcon from "./folder-icon";
 import { useEffect, useState } from "react";
 import type { DropboxFolder } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
@@ -189,14 +190,7 @@ export default function DropboxFolderPicker({
               onChange={() => toggleFolder(folder)}
             />
             <span className="dropbox-picker__folder-icon" aria-hidden="true">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-              </svg>
+              <FolderIcon />
             </span>
             <button
               className="dropbox-picker__open"
@@ -227,7 +221,7 @@ export default function DropboxFolderPicker({
                 <button
                   type="button"
                   disabled={busy}
-                  aria-label={`Remove ${folder.name} from selection`}
+                  aria-label={`Remove ${folder.path} from selection`}
                   onClick={() => toggleFolder(folder)}
                 >
                   ×

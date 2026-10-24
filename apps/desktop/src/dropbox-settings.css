@@ -1,0 +1,316 @@
+.dropbox-settings {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.4rem;
+}
+
+.dropbox-settings__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dropbox-settings__connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--green);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.dropbox-settings__connected > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dropbox-settings button,
+.dropbox-settings select {
+  min-height: 36px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--panel-raised);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.dropbox-settings button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.dropbox-settings button:focus-visible,
+.dropbox-settings input:focus-visible,
+.dropbox-settings select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.dropbox-library-controls,
+.dropbox-settings__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dropbox-settings .dropbox-browse-button {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  background: var(--accent);
+  color: var(--on-accent, white);
+  border-color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.dropbox-browse-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dropbox-sync {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+}
+
+.dropbox-sync > label {
+  font-weight: 600;
+}
+
+.dropbox-sync > p {
+  grid-column: 1 / -1;
+  line-height: 1.5;
+}
+
+.dropbox-settings__connection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.dropbox-picker {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-raised);
+}
+
+.dropbox-picker__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.dropbox-picker__breadcrumbs,
+.dropbox-picker__breadcrumbs > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.dropbox-picker__breadcrumbs button,
+.dropbox-picker .dropbox-picker__close {
+  min-height: 30px;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  background: transparent;
+}
+
+.dropbox-picker__breadcrumbs button:disabled {
+  color: var(--text);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.dropbox-picker .dropbox-picker__hint {
+  padding: 0.8rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.dropbox-picker__current {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-block: 1px solid var(--line);
+  background: color-mix(in srgb, var(--text) 3%, var(--panel-raised));
+}
+
+.dropbox-picker__current > span:first-of-type {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+
+.dropbox-picker__current small {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.dropbox-picker input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.dropbox-picker__folders {
+  max-height: 280px;
+  overflow: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dropbox-picker__folder {
+  display: grid;
+  grid-template-columns: 16px 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.2rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+}
+
+.dropbox-picker__folder--selected {
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-raised));
+}
+
+.dropbox-picker__folder-icon {
+  display: flex;
+  color: var(--text-muted);
+}
+
+.dropbox-picker .dropbox-picker__open {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  padding: 0.4rem 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.dropbox-picker__open > span:first-child {
+  overflow: hidden;
+  flex: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dropbox-picker__added {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+.dropbox-picker .dropbox-picker__empty,
+.dropbox-picker__error {
+  padding: 1rem;
+}
+
+.dropbox-picker__selection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--text) 2%, var(--panel-raised));
+  font-size: 0.82rem;
+}
+
+.dropbox-picker__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dropbox-picker__chips li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-raised);
+}
+
+.dropbox-picker__chips span {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropbox-picker .dropbox-picker__chips button {
+  min-height: 24px;
+  padding: 0 0.25rem;
+  border: 0;
+  background: transparent;
+}
+
+.dropbox-picker .dropbox-picker__add {
+  align-self: flex-end;
+  min-width: 150px;
+  background: var(--accent);
+  border-color: var(--accent-strong);
+  color: var(--on-accent, white);
+  font-weight: 600;
+}
+
+.dropbox-picker [role="alert"] {
+  color: var(--accent-strong);
+  line-height: 1.5;
+}
+
+.dropbox-picker [role="status"] {
+  color: var(--green);
+}
+
+@media (max-width: 600px) {
+  .dropbox-settings__header {
+    flex-direction: column;
+  }
+
+  .dropbox-settings__connection,
+  .dropbox-sync {
+    gap: 0.75rem;
+  }
+
+  .dropbox-settings .dropbox-browse-button,
+  .dropbox-picker .dropbox-picker__add {
+    width: 100%;
+  }
+}

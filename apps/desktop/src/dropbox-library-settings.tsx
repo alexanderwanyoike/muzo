@@ -1,3 +1,4 @@
+import FolderIcon from "./folder-icon";
 import DropboxFolderPicker from "./dropbox-folder-picker";
 import { useEffect, useRef, useState } from "react";
 import { dropboxSyncStatus, setDropboxSyncInterval } from "./dropbox-api";
@@ -55,7 +56,7 @@ export default function DropboxLibrarySettings({
   }
 
   return (
-    <div>
+    <div className="dropbox-library-controls">
       {browsing ? (
         <DropboxFolderPicker
           key={accountId}
@@ -71,12 +72,14 @@ export default function DropboxLibrarySettings({
           disabled={!accountId}
           onClick={() => setBrowsing(true)}
         >
-          Browse Dropbox folders
+          <FolderIcon /> Browse Dropbox folders
         </button>
       )}
-      <label>
-        Sync Dropbox every
+      <div className="dropbox-sync">
+        <label htmlFor="dropbox-sync-interval">Background sync</label>
         <select
+          id="dropbox-sync-interval"
+          aria-label="Sync Dropbox every"
           value={minutes}
           disabled={savingInterval}
           onChange={(event) => {
@@ -85,16 +88,19 @@ export default function DropboxLibrarySettings({
         >
           {[1, 5, 15, 30, 60].map((value) => (
             <option key={value} value={value}>
-              {value} {value === 1 ? "minute" : "minutes"}
+              Every {value} {value === 1 ? "minute" : "minutes"}
             </option>
           ))}
         </select>
-      </label>
-      <p>
-        Dropbox folders sync in the background. Use Refresh under Indexed
-        sources to sync now.
-      </p>
-      {syncMessage && <p role="status">{syncMessage}</p>}
+        <p>
+          New music appears automatically. You can also refresh a source below.
+        </p>
+        {syncMessage && (
+          <p className="dropbox-sync__status" role="status">
+            {syncMessage}
+          </p>
+        )}
+      </div>
       {error && (
         <p role="alert" className="app__error">
           {error}
