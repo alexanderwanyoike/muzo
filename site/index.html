@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Muzo | A place for your music</title>
+    <meta
+      name="description"
+      content="A desktop music player for local folders and Dropbox. Keep your collection, playlists and album artwork together, with materials and colours that feel like you."
+    />
+    <meta name="theme-color" content="#eef1f2" />
+    <link rel="canonical" href="https://alexanderwanyoike.github.io/muzo/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Muzo | A place for your music" />
+    <meta
+      property="og:description"
+      content="Local folders, Dropbox libraries and a desktop space for listening. Meet Muzo, a desktop preview."
+    />
+    <meta
+      property="og:url"
+      content="https://alexanderwanyoike.github.io/muzo/"
+    />
+    <meta
+      property="og:image"
+      content="https://alexanderwanyoike.github.io/muzo/images/muzo-player.jpg"
+    />
+    <meta property="og:image:width" content="1440" />
+    <meta property="og:image:height" content="900" />
+    <meta
+      property="og:image:alt"
+      content="Muzo's listening view with album artwork, a Sources panel and playback controls"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" sizes="48x48" href="favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header wrap">
+      <a class="brand" href="#main" aria-label="Muzo home"
+        ><img src="favicon.png" alt="" width="40" height="40" /><span
+          >Muzo</span
+        ></a
+      >
+      <nav aria-label="Main navigation">
+        <a href="#listening">Listening</a>
+        <a href="#appearance">Appearance</a>
+        <a href="https://github.com/alexanderwanyoike/muzo"
+          >GitHub <span aria-hidden="true">↗</span></a
+        >
+      </nav>
+    </header>
+    <main id="main">
+      <section class="hero wrap" aria-labelledby="hero-title">
+        <div class="hero-top">
+          <div>
+            <p class="eyebrow">
+              <span class="status-dot" aria-hidden="true"></span> Desktop
+              preview <span class="version">v0.0.1</span>
+            </p>
+            <h1 id="hero-title">
+              A place for<br />your music<span class="blue">.</span>
+            </h1>
+          </div>
+          <div class="hero-note">
+            <p>
+              Your folders. Your finds. The records you come back to. Bring them
+              together in a player made for your desktop.
+            </p>
+            <a class="button" href="#get-started"
+              >Build from source <span aria-hidden="true">↓</span></a
+            >
+            <p class="small-note">
+              An early desktop player, built with Electron.
+            </p>
+          </div>
+        </div>
+        <figure class="player-figure">
+          <div class="window-frame">
+            <img
+              class="player-shot"
+              src="images/muzo-player.jpg"
+              alt="Muzo playing a fictional collection in Brushed aluminium dark, with album artwork, searchable Sources and transport controls"
+              width="1440"
+              height="900"
+              fetchpriority="high"
+            />
+          </div>
+          <figcaption>
+            <span>Brushed aluminium · Dark · Cobalt</span
+            ><span>The actual app, with a demo collection</span>
+          </figcaption>
+        </figure>
+      </section>
+      <section
+        class="listening wrap"
+        id="listening"
+        aria-labelledby="listening-title"
+      >
+        <div class="section-intro">
+          <p class="eyebrow">Made for listening</p>
+          <h2 id="listening-title">Keep your collection<br />close at hand.</h2>
+          <p>
+            A familiar desktop layout, with your sources beside your music and
+            playback always within reach.
+          </p>
+        </div>
+        <div class="feature-list">
+          <article>
+            <span class="feature-number" aria-hidden="true">01</span>
+            <div>
+              <h3>From a folder to a library.</h3>
+              <p>
+                Add local folders or browse Dropbox to choose one or more
+                locations. Subfolders are included, and your libraries stay in
+                sync with their sources.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span class="feature-number" aria-hidden="true">02</span>
+            <div>
+              <h3>Find it. Queue it. Settle in.</h3>
+              <p>
+                Search your sources, resize the sidebar and make playlists for
+                whatever comes next. Previous and next controls follow your
+                playlist queue.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span class="feature-number" aria-hidden="true">03</span>
+            <div>
+              <h3>A familiar cover, every time.</h3>
+              <p>
+                Embedded album art belongs alongside your tracks and in the
+                current sleeve. A persistent local cache keeps previously loaded
+                artwork ready between sessions.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+      <section
+        class="appearance"
+        id="appearance"
+        aria-labelledby="appearance-title"
+      >
+        <div class="wrap">
+          <div class="appearance-heading">
+            <div>
+              <p class="eyebrow">Make yourself at home</p>
+              <h2 id="appearance-title">
+                A different material.<br />The same music.
+              </h2>
+            </div>
+            <p>
+              Six materials, each with a light and dark variant. Ten accent
+              colours, from quiet Slate to cool Cobalt. Your choices stay with
+              you.
+            </p>
+          </div>
+          <ul class="materials" aria-label="Available materials">
+            <li>
+              <span class="material-sample studio" aria-hidden="true"></span
+              ><span>Studio</span>
+            </li>
+            <li>
+              <span class="material-sample aluminium" aria-hidden="true"></span
+              ><span>Brushed aluminium</span>
+            </li>
+            <li>
+              <span class="material-sample paper" aria-hidden="true"></span
+              ><span>Warm paper</span>
+            </li>
+            <li>
+              <span class="material-sample carbon" aria-hidden="true"></span
+              ><span>Carbon fibre</span>
+            </li>
+            <li>
+              <span class="material-sample walnut" aria-hidden="true"></span
+              ><span>Walnut</span>
+            </li>
+            <li>
+              <span class="material-sample porcelain" aria-hidden="true"></span
+              ><span>Porcelain</span>
+            </li>
+          </ul>
+          <div class="appearance-detail">
+            <figure class="settings-figure">
+              <img
+                src="images/muzo-personalization.jpg"
+                alt="Muzo Settings showing six material choices, light and dark appearances and ten accent colours, with Porcelain and Rose selected"
+                width="1280"
+                height="900"
+                loading="lazy"
+              />
+              <figcaption>Porcelain · Light · Rose</figcaption>
+            </figure>
+            <div class="accent-note">
+              <p class="eyebrow">A little colour</p>
+              <h3>Find your<br />own tone.</h3>
+              <ul class="accents" aria-label="Available accent colours">
+                <li
+                  style="--swatch: #35629d"
+                  aria-label="Cobalt"
+                  title="Cobalt"
+                ></li>
+                <li
+                  style="--swatch: #975538"
+                  aria-label="Copper"
+                  title="Copper"
+                ></li>
+                <li
+                  style="--swatch: #456b51"
+                  aria-label="Sage"
+                  title="Sage"
+                ></li>
+                <li
+                  style="--swatch: #70506f"
+                  aria-label="Plum"
+                  title="Plum"
+                ></li>
+                <li
+                  style="--swatch: #906512"
+                  aria-label="Amber"
+                  title="Amber"
+                ></li>
+                <li
+                  style="--swatch: #286e70"
+                  aria-label="Teal"
+                  title="Teal"
+                ></li>
+                <li
+                  style="--swatch: #9c4c6b"
+                  aria-label="Rose"
+                  title="Rose"
+                ></li>
+                <li
+                  style="--swatch: #506176"
+                  aria-label="Slate"
+                  title="Slate"
+                ></li>
+                <li
+                  style="--swatch: #625399"
+                  aria-label="Violet"
+                  title="Violet"
+                ></li>
+                <li style="--swatch: #3c7288" aria-label="Ice" title="Ice"></li>
+              </ul>
+              <p>
+                Choose your material, appearance and accent in Settings. No
+                account needed for personalization.
+              </p>
+              <p class="small-note">
+                Samples above are illustrative. The screenshot shows the current
+                settings.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section
+        class="get-started wrap"
+        id="get-started"
+        aria-labelledby="start-title"
+      >
+        <div>
+          <p class="eyebrow">Try the desktop preview</p>
+          <h2 id="start-title">Bring some music.</h2>
+          <p>
+            Muzo is in early development. Packaged downloads are not published
+            yet, so the current way to try it is from source.
+          </p>
+          <p>
+            You'll need Node 22.12 or newer, Yarn 1.22.22 or newer, and
+            Electron's runtime dependencies for your system.
+          </p>
+          <div class="text-links">
+            <a href="https://github.com/alexanderwanyoike/muzo#requirements"
+              >Setup guide <span aria-hidden="true">↗</span></a
+            ><a href="https://github.com/alexanderwanyoike/muzo/releases"
+              >Release history <span aria-hidden="true">↗</span></a
+            >
+          </div>
+        </div>
+        <div class="source-install">
+          <div class="terminal-label">
+            <span>Build from source</span><span>v0.0.1</span>
+          </div>
+          <pre
+            aria-label="Source installation commands"
+          ><code>git clone --branch v0.0.1 \
+  https://github.com/alexanderwanyoike/muzo.git
+cd muzo
+yarn install
+yarn desktop:dev</code></pre>
+          <p>
+            For Dropbox, connect your own app key in Settings.
+            <a href="https://github.com/alexanderwanyoike/muzo#dropbox-setup"
+              >Dropbox setup</a
+            >
+          </p>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer wrap">
+      <a class="brand" href="#main"
+        ><img src="favicon.png" alt="" width="32" height="32" /><span
+          >Muzo</span
+        ></a
+      >
+      <p>A desktop home for your music.</p>
+      <div>
+        <a href="https://github.com/alexanderwanyoike/muzo/issues">Feedback</a
+        ><a href="https://github.com/alexanderwanyoike/muzo#license">Licence</a>
+      </div>
+    </footer>
+  </body>
+</html>
