@@ -1,3 +1,5 @@
+import { BrowseDropboxFoldersService } from "../application/browse-dropbox-folders-service";
+import { BrowseDropboxFoldersCommand } from "../application/commands/browse-dropbox-folders-command";
 import {
   asClass,
   asFunction,
@@ -100,6 +102,7 @@ export interface ElectronContainerOptions {
 export interface ElectronCradle {
   dbPath: string;
   dropboxAccountService: DropboxAccountService;
+  dropboxFolders: BrowseDropboxFoldersService;
   dropboxLibraries: DropboxLibraryService;
   dropboxSettings: DropboxLibrarySettings;
   dropboxPoller: DropboxLibraryPoller;
@@ -161,6 +164,15 @@ export function createElectronContainer(
   const dropboxTransport =
     options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
+    dropboxFolders: asFunction(
+      ({ dropboxAccountService, libraries, dropboxSettings }: ElectronCradle) =>
+        new BrowseDropboxFoldersService(
+          dropboxAccountService,
+          new DropboxApiClient({ clientId: "" }, dropboxTransport),
+          libraries,
+          dropboxSettings,
+        ),
+    ).singleton(),
     dropboxSettings: asFunction(
       ({ dbPath }: ElectronCradle) => new SqliteDropboxLibrarySettings(dbPath),
     ).singleton(),
@@ -398,6 +410,7 @@ export function createElectronContainer(
         new ClearTrackMetadataOverrideCommand(tracks),
     ).singleton(),
     commandHandlers: asFunction((cradle: ElectronCradle) => [
+      new BrowseDropboxFoldersCommand(cradle.dropboxFolders),
       ...(
         [
           "dropbox_begin",

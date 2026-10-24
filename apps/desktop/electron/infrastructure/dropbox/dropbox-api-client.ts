@@ -1,3 +1,5 @@
+import type { DropboxFolder } from "../../application/interfaces/dropbox-folder-interfaces";
+
 const dropboxTokenUrl = "https://api.dropboxapi.com/oauth2/token";
 const dropboxListFolderUrl = "https://api.dropboxapi.com/2/files/list_folder";
 const dropboxListFolderContinueUrl =
@@ -110,6 +112,41 @@ export class DropboxApiClient {
     }
 
     return entries.map(dropboxEntryFromResponse);
+  }
+
+  async listFolders(
+    accessToken: string,
+    path: string,
+  ): Promise<DropboxFolder[]> {
+    const firstPage = await this.postJson<DropboxListFolderResponse>(
+      accessToken,
+      dropboxListFolderUrl,
+      {
+        path: path === "/" ? "" : path,
+        recursive: false,
+        include_deleted: false,
+      },
+    );
+    const entries = [...firstPage.entries];
+    let { cursor } = firstPage;
+    let hasMore = firstPage.has_more;
+    while (hasMore) {
+      const page = await this.postJson<DropboxListFolderResponse>(
+        accessToken,
+        dropboxListFolderContinueUrl,
+        { cursor },
+      );
+      entries.push(...page.entries);
+      cursor = page.cursor;
+      hasMore = page.has_more;
+    }
+    return entries
+      .filter((entry) => entry[".tag"] === "folder")
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        path: entry.path_display ?? entry.path_lower ?? "",
+      }));
   }
 
   private async postTokenForm(body: string): Promise<DropboxToken> {
