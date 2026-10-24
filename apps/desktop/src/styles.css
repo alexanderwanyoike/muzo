@@ -3,6 +3,7 @@
 @import "./transport.css";
 @import "./library-list.css";
 @import "./sidebar-panels.css";
+@import "./glass-material.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;

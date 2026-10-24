@@ -90,8 +90,8 @@ affect the next queue started, leaving the current listening order intact.
 
 ## Desktop appearance and artwork
 
-Settings includes Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut
-and Porcelain materials, each in light and dark. Ten accents include Cobalt,
+Settings includes Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut,
+Porcelain and Frosted glass materials, each in light and dark. Ten accents include Cobalt,
 Copper, Sage, Plum, Amber, Teal, Rose, Slate, Violet and Ice. Preferences
 are saved locally and applied when Muzo starts. The listening workspace keeps
 its transport and source sidebar in place while Songs, playlists and Settings

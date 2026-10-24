@@ -721,3 +721,20 @@ it("removes unavailable queued entries without interrupting another source", asy
   await act(async () => result.current.next());
   expect(result.current.current?.id).toBe("next-kept");
 });
+
+it("selects duplicate tracks by queue entry while preserving the existing queue", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  const entries = [
+    { entryId: "first-copy", track },
+    { entryId: "second-copy", track },
+  ];
+  await act(async () => result.current.playQueue(entries));
+  expect(result.current.queueEntries).toEqual(entries);
+  await act(async () => result.current.selectQueueEntry("second-copy"));
+  expect(result.current.currentQueueEntryId).toBe("second-copy");
+  expect(result.current.hasPrevious).toBe(true);
+  expect(result.current.queueEntries).toEqual(entries);
+  expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  act(() => result.current.selectQueueEntry("missing"));
+  expect(result.current.currentQueueEntryId).toBe("second-copy");
+});

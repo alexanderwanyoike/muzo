@@ -1,0 +1,113 @@
+[data-theme="glass"] .app-shell,
+[data-theme="glass"].appearance-preview {
+  background: var(--material), var(--panel);
+}
+[data-theme="glass"] .app-sidebar,
+[data-theme="glass"] .settings-view__section,
+[data-theme="glass"] .now-playing-bar,
+[data-theme="glass"] .compact-queue {
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+[data-theme="glass"] .compact-player__header {
+  background: var(--chrome);
+  border-bottom: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+[data-theme="glass"] .compact-player__body {
+  background: var(--panel);
+  padding-top: 12px;
+}
+[data-theme="glass"] .compact-player__sleeve {
+  box-shadow:
+    0 14px 32px #00000030,
+    0 0 0 1px var(--glass-highlight);
+}
+@supports (backdrop-filter: blur(1px)) {
+  [data-theme="glass"] .app-sidebar,
+  [data-theme="glass"].appearance-preview .appearance-preview__sidebar {
+    background: color-mix(in srgb, var(--sidebar) 90%, transparent);
+    backdrop-filter: blur(24px) saturate(110%);
+  }
+  [data-theme="glass"] .settings-view__section {
+    background: color-mix(in srgb, var(--panel-raised) 92%, transparent);
+    backdrop-filter: blur(24px);
+  }
+  [data-theme="glass"] .compact-player__atmosphere {
+    opacity: 1;
+    filter: blur(40px) saturate(115%);
+  }
+  [data-theme="glass"] .compact-player__header {
+    background: color-mix(in srgb, var(--chrome) 90%, transparent);
+    backdrop-filter: blur(24px);
+  }
+  [data-theme="glass"] .compact-player__body {
+    background: color-mix(in srgb, var(--panel) 84%, transparent);
+    backdrop-filter: blur(28px) saturate(110%);
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
+  }
+  [data-theme="glass"] .compact-queue {
+    background: color-mix(in srgb, var(--sidebar) 86%, transparent);
+    backdrop-filter: blur(28px) saturate(110%);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="glass"] .compact-player__atmosphere {
+    display: none;
+  }
+  [data-theme="glass"] .app-sidebar,
+  [data-theme="glass"].appearance-preview .appearance-preview__sidebar,
+  [data-theme="glass"] .compact-queue {
+    background: var(--sidebar);
+    backdrop-filter: none;
+  }
+  [data-theme="glass"] .settings-view__section {
+    background: var(--panel-raised);
+    backdrop-filter: none;
+  }
+  [data-theme="glass"] .compact-player__header {
+    background: var(--chrome);
+    backdrop-filter: none;
+  }
+  [data-theme="glass"] .compact-player__body {
+    background: var(--panel);
+    backdrop-filter: none;
+  }
+}
+
+[data-theme="glass"] .compact-player__header,
+[data-theme="glass"] .compact-player__body,
+[data-theme="glass"] .compact-queue {
+  background-image: linear-gradient(132deg, var(--glass-wash), transparent 42%);
+}
+[data-theme="glass"] .compact-player__body {
+  box-shadow:
+    inset 1px 0 0 var(--glass-highlight),
+    inset 0 1px 0 var(--glass-highlight);
+}
+[data-theme="glass"]
+  .compact-player
+  .now-playing-bar__controls
+  .now-playing-bar__play {
+  background:
+    linear-gradient(145deg, var(--glass-wash), transparent 70%),
+    color-mix(in srgb, var(--accent) 10%, var(--panel-raised));
+  border: 1px solid var(--glass-highlight);
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 4px 12px #00000014;
+}
+[data-theme="glass"] .compact-queue__list button[aria-current] {
+  border-radius: 8px;
+  outline: 1px solid color-mix(in srgb, var(--line) 65%, transparent);
+  outline-offset: -1px;
+  box-shadow:
+    inset 0 1px 0 var(--glass-highlight),
+    0 2px 8px #0000000a;
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-theme="glass"] .compact-player__header,
+  [data-theme="glass"] .compact-player__body,
+  [data-theme="glass"] .compact-queue {
+    background-image: none;
+  }
+}

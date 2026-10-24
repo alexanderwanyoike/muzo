@@ -5,7 +5,7 @@ export const MATERIALS = [
   {
     id: "aluminium",
     name: "Brushed aluminium",
-    detail: "Satin metal and fine horizontal grain",
+    detail: "Fine matte grain and satin highlights",
   },
   {
     id: "paper",
@@ -22,6 +22,11 @@ export const MATERIALS = [
     id: "porcelain",
     name: "Porcelain",
     detail: "Smooth ceramic and gentle highlights",
+  },
+  {
+    id: "glass",
+    name: "Frosted glass",
+    detail: "Soft translucency and blurred colour",
   },
 ] as const;
 export const MODES = ["light", "dark"] as const;
