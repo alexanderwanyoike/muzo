@@ -108,6 +108,7 @@ export default defineConfig(
             "**/electron/preload.cjs",
             "**/electron/build-electron-main.ts",
             "**/src/test-runtime.ts",
+            "**/fixtures/**/*.ts",
           ],
         },
       ],

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { app, nativeImage } from "electron";
 import { readFileSync, writeFileSync } from "node:fs";
 import { ElectronArtworkThumbnails } from "../electron-artwork-thumbnails";
@@ -11,12 +12,9 @@ void app.whenReady().then(() => {
     const uri = thumbnails.create({ format: "image/png", data: readFileSync(picturePath) });
     if (!uri) throw new Error("Fixture cover could not be decoded");
     const pixels = Buffer.alloc(256 * 256 * 4);
-    let seed = 123;
-    for (let index = 0; index < pixels.length; index += 1) {
-      seed ^= seed << 13;
-      seed ^= seed >>> 17;
-      seed ^= seed << 5;
-      pixels[index] = seed & 255;
+    const digestBytes = 32;
+    for (let offset = 0; offset < pixels.length; offset += digestBytes) {
+      pixels.set(createHash("sha256").update(String(offset)).digest(), offset);
     }
     const detailedCover = thumbnails.create({ format: "image/png", data: nativeImage.createFromBitmap(pixels, { width: 256, height: 256 }).toPNG() });
     writeFileSync(resultPath, JSON.stringify({
