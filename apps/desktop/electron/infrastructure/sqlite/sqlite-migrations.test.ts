@@ -93,6 +93,25 @@ describe("Electron SQLite migrations", () => {
     }
   });
 
+  it("adopts versioned Tauri databases without replaying destructive schema changes", async () => {
+    const dbPath = tempDatabasePath();
+    const SQL = await initSqlJs();
+    const old = new SQL.Database();
+    old.run(readFileSync(new URL("./fixtures/legacy-tauri-v5.sql", import.meta.url), "utf8"));
+    old.run("INSERT INTO libraries (id, name, kind, location) VALUES ('legacy', 'Music', 'Filesystem', '/music')");
+    old.run("INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, album, override_title) VALUES ('song', 'legacy', 'Song', 'Artist', 120, '/music/song.mp3', 100, 10, 'Album', 'Edited')");
+    writeDatabase(dbPath, old);
+    await runSqliteMigrations(dbPath);
+    const migrated = await openDatabase(dbPath);
+    try {
+      expect(userVersion(migrated)).toBe(6);
+      expect(migrated.exec("SELECT album, override_title FROM tracks")[0].values).toEqual([["Album", "Edited"]]);
+      expect(countRows(migrated, "libraries")).toBe(1);
+      expect(countRows(migrated, "electron_migrations")).toBe(6);
+    } finally { migrated.close(); }
+    await expect(runSqliteMigrations(dbPath)).resolves.toBeUndefined();
+  });
+
 });
 
 async function openDatabase(dbPath: string): Promise<Database> {
