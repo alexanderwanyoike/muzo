@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, rename, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ArtworkCache, CachedArtwork } from "../../application/interfaces/artwork-cache";
 import { failure, success, type Result } from "../../application/result";
 
 const maximumUriLength = 256 * 1024;
+const maximumRecordBytes = maximumUriLength + 128;
 const pngPrefix = "data:image/png;base64,";
 const pngSignature = Buffer.from("89504e470d0a1a0a", "hex");
 function validUri(uri: string | null): boolean {
@@ -33,7 +34,8 @@ export class NodeArtworkCache implements ArtworkCache {
       try {
         await this.loadIndex();
         const path = join(this.directory, filename);
-        const text = await readFile(path, "utf8");
+        const text = await this.readBounded(path);
+        if (text === null) return await this.discard(filename);
         const value: unknown = JSON.parse(text);
         if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,"))) && "digest" in value && value.digest === hash(JSON.stringify(value.uri)) && validUri(value.uri)) {
           this.touch(filename, Buffer.byteLength(text));
@@ -73,6 +75,24 @@ export class NodeArtworkCache implements ArtworkCache {
         await rm(temporary, { force: true }).catch(() => undefined);
       }
     });
+  }
+
+  private async readBounded(path: string): Promise<string | null> {
+    const file = await open(path, "r");
+    try {
+      const { size } = await file.stat();
+      if (size > maximumRecordBytes) return null;
+      const buffer = Buffer.alloc(size + 1);
+      let offset = 0;
+      while (offset < buffer.length) {
+        const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, offset);
+        if (bytesRead === 0) break;
+        offset += bytesRead;
+      }
+      return offset > size ? null : buffer.subarray(0, offset).toString("utf8");
+    } finally {
+      await file.close();
+    }
   }
 
   private async discard(filename: string): Promise<Result<null>> {
