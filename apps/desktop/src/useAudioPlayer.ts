@@ -182,7 +182,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !current) return;
+    if (!audio || !current || statusRef.current === "loading") return;
     if (audio.paused) {
       setPlaybackError(null);
       setStatus("loading");
