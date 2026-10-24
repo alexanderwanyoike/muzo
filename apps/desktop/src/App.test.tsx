@@ -8,6 +8,8 @@ import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 let mockedInvoke: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
   const runtime = installTestRuntime({
     invoke: vi.fn(),
     openDirectory: vi.fn().mockResolvedValue(null),
@@ -16,6 +18,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   removeTestRuntime();
 });
 
