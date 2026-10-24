@@ -1,3 +1,4 @@
+import SettingsSection from "./settings-section";
 import { ACCENTS, MATERIALS, MODES, type Appearance } from "./appearance";
 import "./appearance-settings.css";
 
@@ -12,14 +13,7 @@ export default function AppearanceSettings({
   error,
 }: Props) {
   return (
-    <section
-      className="settings-view__section appearance-settings"
-      aria-labelledby="appearance-heading"
-    >
-      <header>
-        <h3 id="appearance-heading">Appearance</h3>
-        <p>Choose a material, appearance and accent colour.</p>
-      </header>
+    <SettingsSection title="Appearance" headingId="appearance-heading" description="Choose a material, appearance and accent colour." className="appearance-settings">
       <fieldset>
         <legend>Material</legend>
         <div className="appearance-materials">
@@ -99,6 +93,6 @@ export default function AppearanceSettings({
         </fieldset>
       </div>
       {error && <p role="alert">{error}</p>}
-    </section>
+    </SettingsSection>
   );
 }

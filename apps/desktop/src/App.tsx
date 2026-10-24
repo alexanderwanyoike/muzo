@@ -1,3 +1,4 @@
+import SettingsSection from "./settings-section";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SidebarSplitter from "./sidebar-splitter";
@@ -386,6 +387,7 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
+            <div className="settings-view__content">
             <AppearanceSettings
               appearance={appearance}
               onChange={changeAppearance}
@@ -403,28 +405,11 @@ export default function App() {
                   void handleRefresh(library);
                 }}
               />
-              <section className="settings-view__section">
-                <div>
-                  <h3>Library folders</h3>
-                  <p>
-                    Add folders here. Filesystem libraries sync automatically
-                    while the app is open and reconcile when it starts.
-                  </p>
-                </div>
+              <SettingsSection title="Library folders" headingId="library-folders-heading" description="Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.">
                 <AddLibraryForm onAdded={handleLibraryAdded} />
-              </section>
+              </SettingsSection>
             </section>
-            <section
-              className="settings-view__section"
-              aria-labelledby="indexed-sources-heading"
-            >
-              <div>
-                <h3 id="indexed-sources-heading">Indexed sources</h3>
-                <p>
-                  Manual refresh is a fallback for recovery. Normal listening
-                  does not require it.
-                </p>
-              </div>
+            <SettingsSection title="Indexed sources" headingId="indexed-sources-heading" description="Manual refresh is a fallback for recovery. Normal listening does not require it.">
               <ul className="settings-view__sources">
                 {(libraries ?? []).map((library) => (
                   <li key={library.id}>
@@ -452,7 +437,8 @@ export default function App() {
                   </li>
                 ))}
               </ul>
-            </section>
+            </SettingsSection>
+            </div>
           </div>
         ) : activeView === "playlists" ? null : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
