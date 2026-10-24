@@ -1,8 +1,8 @@
 # Desktop UI smoke test
 
 The local branch `codex/test-all-desktop-work` combines the completed desktop
-stack for manual testing. The feature PRs remain separate: #47 folder selection,
-#48 desktop materials, #49 source removal, then #50 embedded artwork.
+stack for manual testing. Feature PRs target dev and remain separate; their
+descriptions give the prerequisite merge order.
 
 Close any running Muzo development process before switching. From the repository:
 
@@ -69,6 +69,13 @@ Vite preview cannot connect to real Dropbox or local music files.
     to Songs and back; search/selection should survive. Check entry reordering,
     removal, duplicate-track queue playback and unavailable entries after source
     removal. Repeat in light/dark and at 800 by 600.
+
+17. Open Settings with a narrow and wide sidebar at 800x600 and a larger window.
+    Appearance, Dropbox, Library folders and Indexed sources should share their
+    left/right edges, heading alignment and section gaps. Name should end at the
+    same edge as the Location/Browse row. Check connected/disconnected Dropbox,
+    folder selection, long source paths/actions, all materials and both modes.
+    Errors should remain visible in the danger colour and keyboard focus clear.
 
 Automated verification covers typed failures, account mismatches, late scans,
 refresh races, pending audio, watcher close events, range-read budgets and native
