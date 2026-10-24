@@ -10,7 +10,7 @@ afterEach(() => {
 });
 
 it("selects folders across locations and adds all of them with their folder names", async () => {
-  const invoke = vi.fn(
+  const invoke = vi.fn().mockImplementation(
     async (
       command: string,
       args?: { input?: { path?: string; location?: string; name?: string } },
