@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Tech debt
-- Status: In progress
+- Status: Done
 - Blocks: -
 
 # Card 017 - Enforce desktop verification in CI
@@ -17,7 +17,7 @@ stacked completion branches, and for updates to dev and main.
 - [x] Bound Vitest workers and cancel superseded runs for the same PR.
 - [x] Pin GitHub Actions revisions and restrict workflow permissions to reading source.
 - [x] All local verification commands pass (189 tests; Linux zip and deb).
-- [ ] GitHub reports a successful workflow run for this PR.
+- [x] GitHub reports a successful workflow run for this PR: https://github.com/alexanderwanyoike/muzo/actions/runs/40046883589
 
 ## Pattern and verification
 
