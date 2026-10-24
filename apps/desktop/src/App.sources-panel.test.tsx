@@ -95,7 +95,10 @@ it("resets the sidebar width by double-clicking the divider", async () => {
 
 it("cancels a drag and restores the preferred width after a narrow window", async () => {
   vi.stubGlobal("PointerEvent", MouseEvent);
-  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  installTestRuntime({
+    invoke: vi.fn().mockResolvedValue([]),
+    openDirectory: async () => null,
+  });
   render(<App />);
   const divider = await screen.findByRole("separator", { name: "Sources" });
   fireEvent.pointerDown(divider, { button: 0, clientX: 240 });

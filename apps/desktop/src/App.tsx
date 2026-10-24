@@ -1,7 +1,7 @@
-import SidebarSplitter from "./sidebar-splitter";
-import { useSidebarLayout } from "./use-sidebar-layout";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import SidebarSplitter from "./sidebar-splitter";
+import { useSidebarLayout } from "./use-sidebar-layout";
 import TrackArtwork from "./track-artwork";
 import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
