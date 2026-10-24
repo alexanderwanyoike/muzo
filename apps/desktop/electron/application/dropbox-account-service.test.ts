@@ -67,4 +67,16 @@ describe("Dropbox account connection", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it("refreshes expired credentials once for concurrent callers and retains the refresh token", async () => {
+    let stored: StoredDropboxAccount = { accountId: "account-1", clientId: "app-key", accessToken: "expired", refreshToken: "refresh", accessTokenExpiresAtUnixSeconds: 999, connectedAtUnixSeconds: 1 };
+    const refreshAccessToken = vi.fn(async () => ({ accessToken: "fresh", refreshToken: null, expiresIn: 3600, accountId: null }));
+    const service = new DropboxAccountService({ find: async () => stored, save: async (account) => { stored = account; }, disconnect: async () => {} },
+      () => ({ exchangeAuthorizationCode: vi.fn(), refreshAccessToken }), async () => {}, () => 1000);
+    expect(await Promise.all([service.accessToken(), service.accessToken()])).toEqual([{ ok: true, value: "fresh" }, { ok: true, value: "fresh" }]);
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(stored).toMatchObject({ refreshToken: "refresh", accessTokenExpiresAtUnixSeconds: 4600 });
+    expect(await service.accessToken()).toEqual({ ok: true, value: "fresh" });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+  });
+
 });
