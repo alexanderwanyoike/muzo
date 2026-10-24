@@ -9,6 +9,16 @@ const emptyCache = {
 };
 const logger = { error: vi.fn() };
 
+it("continues serving artwork after an unexpected cache failure", async () => {
+  const find = vi.fn().mockRejectedValueOnce(new Error("Cache failed unexpectedly")).mockResolvedValue({ ok: true, value: null });
+  const service = new TrackArtworkService(
+    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision: "1:2" }) },
+    { read: async () => ({ data: new Uint8Array([1]), format: "image/png" }) }, { create: () => "data:image/png;base64,cover" }, { read: vi.fn() }, { accessFor: vi.fn() }, { find, save: emptyCache.save }, logger,
+  );
+  expect(await service.get("local", "track")).toMatchObject({ ok: false });
+  expect(await service.get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover" });
+});
+
 it("shows a persisted Dropbox thumbnail offline without reading credentials or media again", async () => {
   const accessFor = vi.fn().mockResolvedValue({ ok: false, error: { kind: "notConnected", message: "Offline" } });
   const read = vi.fn();
