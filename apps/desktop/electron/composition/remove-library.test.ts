@@ -6,7 +6,7 @@ import { asValue } from "awilix";
 import { expect, it, vi } from "vitest";
 import { createElectronContainer } from "./electron-container";
 
-it("removes one source and its catalogue while preserving files, other sources and playlist entries", async () => {
+it.each(["filesystem", "dropbox"] as const)("removes a %s source while preserving files, other sources and playlist entries", async (kind) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-remove-"));
   const filePath = join(directory, "song.mp3");
   writeFileSync(filePath, "disposable music fixture");
@@ -18,13 +18,16 @@ it("removes one source and its catalogue while preserving files, other sources a
     const libraries = container.resolve("libraries");
     const tracks = container.resolve("tracks");
     const dispatcher = container.resolve("commandDispatcher");
-    await libraries.add({ id: "source", name: "Music", kind: "filesystem", location: directory });
+    const source = { id: "source", name: "Music", kind, location: directory };
+    if (kind === "dropbox") await container.resolve("dropboxSettings").register(source, "owner");
+    else await libraries.add(source);
     await libraries.add({ id: "keep", name: "Other music", kind: "filesystem", location: directory });
     await tracks.upsertScannedTrack({ id: "track", libraryId: "source", title: "Song", artist: "Artist", album: null, trackNumber: null, discNumber: null, genre: null, year: null, durationSeconds: 120, filePath, fileSize: 24, fileMtime: 1 });
     await dispatcher.handleElectronCommand("create_playlist", { input: { name: "Keep this playlist" } });
     await dispatcher.handleElectronCommand("add_track_to_playlist", { input: { playlistId: "playlist", trackId: "track" } });
     await expect(dispatcher.handleElectronCommand("remove_library", { input: { libraryId: "source" } })).resolves.toEqual({ ok: true, value: undefined });
     expect(unwatch).toHaveBeenCalledWith("source");
+    expect(await container.resolve("dropboxSettings").accountFor("source")).toBeNull();
     expect((await libraries.list()).map(item => item.id)).toEqual(["keep"]);
     expect(await tracks.listForLibrary("source")).toEqual([]);
     await tracks.upsertScannedTrack({ id: "late-track", libraryId: "source", title: "Late scan", artist: "Artist", album: null, trackNumber: null, discNumber: null, genre: null, year: null, durationSeconds: 120, filePath, fileSize: 24, fileMtime: 1 });
@@ -35,4 +38,11 @@ it("removes one source and its catalogue while preserving files, other sources a
     expect(playlists[0].entries[0].trackId).toBe("track");
     await expect(dispatcher.handleElectronCommand("remove_library", { input: { libraryId: "source" } })).resolves.toMatchObject({ ok: false, error: { kind: "libraryNotFound" } });
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+
+it("rejects malformed removal input before touching the catalogue", async () => {
+  const container = createElectronContainer();
+  const dispatcher = container.resolve("commandDispatcher");
+  await expect(dispatcher.handleElectronCommand("remove_library", { input: { libraryId: "" } })).resolves.toMatchObject({ ok: false, error: { kind: "invalidInput" } });
 });
