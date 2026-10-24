@@ -77,7 +77,7 @@ export default function LibraryList({
       )}
       <ul className="library-list" aria-label="Sources">
         {visibleLibraries.map((library) => {
-          const count = trackCounts[library.id] ?? 0;
+          const count = trackCounts[library.id];
           const isSelected = selectedLibraryId === library.id;
           const trackContent = isSelected ? TrackListSlot(library.id) : null;
           return (
@@ -112,9 +112,11 @@ export default function LibraryList({
                       {library.location}
                     </span>
                   </span>
-                  <span className="library-list__count">
-                    {count === 1 ? "1 track" : `${count} tracks`}
-                  </span>
+                  {count !== undefined && (
+                    <span className="library-list__count">
+                      {count === 1 ? "1 track" : `${count} tracks`}
+                    </span>
+                  )}
                 </button>
                 {onRemove && (
                   <button
