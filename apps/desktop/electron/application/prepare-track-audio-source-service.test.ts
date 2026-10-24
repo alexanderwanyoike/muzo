@@ -19,10 +19,10 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
         tracks,
         audioSources,
       ).prepare("lib-1", "trk-1"),
-    ).resolves.toEqual({
+    ).resolves.toEqual({ ok: true, value: {
       mimeType: "audio/mpeg",
       url: "http://127.0.0.1:1234/audio/1",
-    });
+    } });
 
     expect(audioSources.register).toHaveBeenCalledWith(
       "/music/song.mp3",
@@ -36,10 +36,10 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
       new FakeAudioSourceRegistry(),
     );
 
-    await expect(service.prepare("lib-1", "missing")).rejects.toEqual({
+    await expect(service.prepare("lib-1", "missing")).resolves.toMatchObject({ ok: false, error: {
       kind: "trackNotFound",
       message: "missing",
-    });
+    } });
   });
 
   it("rejects an unsupported audio file type", async () => {
@@ -48,10 +48,10 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
       new FakeAudioSourceRegistry(),
     );
 
-    await expect(service.prepare("lib-1", "trk-1")).rejects.toEqual({
+    await expect(service.prepare("lib-1", "trk-1")).resolves.toMatchObject({ ok: false, error: {
       kind: "unsupportedFileType",
       message: "/music/song.txt",
-    });
+    } });
   });
 });
 
