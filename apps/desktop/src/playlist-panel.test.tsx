@@ -61,7 +61,7 @@ describe("PlaylistPanel", () => {
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("list_playlists", undefined),
     );
-    expect(screen.getByText("Road Trip")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Road Trip" })).toBeDefined();
     expect(screen.getByText("2 tracks")).toBeDefined();
     expect(screen.getByText("Hotel California")).toBeDefined();
     expect(screen.getByText("Eagles")).toBeDefined();
@@ -131,7 +131,7 @@ describe("PlaylistPanel", () => {
         input: { name: "Late Night" },
       }),
     );
-    expect(screen.getByText("Late Night")).toBeDefined();
+    expect(screen.getByRole("heading", { name: "Late Night" })).toBeDefined();
     expect(screen.getByText("0 tracks")).toBeDefined();
     expect(screen.getByLabelText<HTMLInputElement>("Playlist name").value).toBe(
       "",

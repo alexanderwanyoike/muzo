@@ -1,3 +1,4 @@
+import PlaylistNavigator from "./playlist-navigator";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import TrackArtwork from "./track-artwork";
@@ -45,6 +46,8 @@ export default function PlaylistPanel({
 }: PlaylistPanelProps = {}) {
   const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
+  const [selectedId, selectPlaylist] = useState<string | null>(null);
+  const selected = playlists?.find((playlist) => playlist.id === selectedId) ?? playlists?.[0];
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -190,6 +193,7 @@ export default function PlaylistPanel({
 
   return (
     <div className="playlist-panel">
+      <PlaylistNavigator playlists={playlists} selectedId={selected?.id ?? null} onSelect={selectPlaylist} />
       <section className="playlist-panel__create">
         <form className="playlist-panel__form" onSubmit={handleCreate}>
           <label>
@@ -220,7 +224,7 @@ export default function PlaylistPanel({
         </div>
       ) : (
         <ol className="playlist-panel__list">
-          {playlists.map((playlist) => (
+          {playlists.filter((playlist) => playlist.id === selected?.id).map((playlist) => (
             <li key={playlist.id}>
               <div className="playlist-panel__summary">
                 <h3>{playlist.name}</h3>
