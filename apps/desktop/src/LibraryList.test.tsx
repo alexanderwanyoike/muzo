@@ -31,6 +31,19 @@ it("filters sources by name or folder without changing the selected source", asy
 });
 
 describe("LibraryList", () => {
+  it("clears a source search with Escape and keeps removal working after filtering", async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    const source: LibraryDto = { id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" };
+    render(<LibraryList libraries={[source]} trackCounts={NO_COUNTS} selectedLibraryId={null} onSelect={() => {}} onRemove={onRemove} renderTracks={() => null} />);
+    const search = screen.getByRole("searchbox", { name: "Search sources" });
+    await user.type(search, "jazz{Escape}");
+    expect((search as HTMLInputElement).value).toBe("");
+    await user.type(search, "jazz");
+    await user.click(screen.getByRole("button", { name: "Remove Jazz" }));
+    expect(onRemove).toHaveBeenCalledWith(source);
+  });
+
   it("clears an unmatched search and restores selection without selecting or removing anything", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
