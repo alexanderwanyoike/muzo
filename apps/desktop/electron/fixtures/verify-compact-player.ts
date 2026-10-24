@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, Menu } from "electron";
-import { installDesktopMenu } from "../desktop-menu";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { installDesktopMenu } from "../desktop-menu";
 import { installPlayerWindowMode } from "../install-player-window-mode";
 
 const [page, preload, resultPath] = process.argv.slice(-3);
