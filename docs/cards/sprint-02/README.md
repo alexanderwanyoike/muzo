@@ -25,13 +25,13 @@ review: formalising SQLite migrations before more tables pile up.
 | 012 | [Play playlist entries](./012-play-playlist-entries-ui.md) | Feature | Done | - |
 | 013 | [Dropbox token persistence](./013-dropbox-token-persistence.md) | Feature | Done | 014 |
 | 014 | [Dropbox account connection](./014-dropbox-account-connection.md) | Feature | Done | 015 |
+| 015 | [Dropbox libraries, sync and playback](./015-dropbox-libraries-sync-and-playback.md) | Feature | Done | - |
 
 ## Close-out note
 
 The sprint 02 local-library slices are complete and covered by the current
 desktop test suite. Remaining user-facing product work:
 
-- Dropbox account connection, polling, downloads, and playback.
 - Playlist queueing and auto-advance.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
