@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Distribution
-- Status: In progress
+- Status: In review
 
 # Card 039 - Ship native desktop installers
 
@@ -16,7 +16,7 @@ Windows, macOS and Linux AppImage delivery instead of build-from-source CTAs.
 - [x] Build PR artifacts on native runners; verify real extraction/mounting/installation and unchanged packaged main/WASM.
 - [x] Permit draft release creation only for annotated main tags matching both package versions; never replace tags/releases.
 - [x] Prepare 0.0.2 in a separate version-only commit, leaving v0.0.1 unchanged.
-- [ ] Complete ordered gates, real local AppImage verification and two review cycles before feature PR handoff.
+- [x] Complete ordered gates, real local AppImage verification and two review cycles before feature PR handoff.
 
 Depends on PR #63 (merge policy) and #65 (seek focus). This branch starts at dev
 with those pending prerequisites included. The website PR consumes this contract
@@ -25,3 +25,9 @@ No dev/main merge, new tag or public release publication is performed here.
 
 See [distribution guide](../../distribution.md) for the established tool pattern,
 manifest, installer checks, candidate/release distinction and unsigned-build status.
+
+Final local ordered gates pass with 339 desktop tests and six distribution tests.
+The real 0.0.2 AppImage was built and extracted with matching packaged assets.
+Initial review found one P3 duplication smell, fixed by shared identity guards.
+Both final axes have zero findings. See the
+[review record](../../reviews/2026-10-24-desktop-distribution.md).
