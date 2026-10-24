@@ -7,7 +7,7 @@ import type { DropboxScanReport, ScanDropboxLibraryInput } from "./scan-dropbox-
 
 export interface DropboxLibraryAccess {
   status(): Promise<Result<DropboxConnectionStatus>>;
-  accessToken(): Promise<Result<string>>;
+  accessToken(expectedAccountId: string): Promise<Result<string>>;
 }
 
 export class DropboxLibraryService {
@@ -48,7 +48,7 @@ export class DropboxLibraryService {
       if (!status.value.accountId || await this.settings.accountFor(libraryId) !== status.value.accountId) {
         return failure("notConnected", "Connect the Dropbox account that owns this library.");
       }
-      const token = await this.account.accessToken();
+      const token = await this.account.accessToken(status.value.accountId);
       return token.ok ? { ok: true, value: { accessToken: token.value, library } } : token;
     } catch {
       return failure("storage", "Could not load the Dropbox library settings.");

@@ -9,7 +9,7 @@ const authorizationLifetimeSeconds = 600;
 
 export class DropboxAccountService {
   private revision = 0;
-  private refreshing: Promise<Result<string>> | null = null;
+  private refreshing: Promise<Result<{ accountId: string; accessToken: string }>> | null = null;
   private pending: { clientId: string; codeVerifier: string; expiresAt: number } | null = null;
 
   constructor(
@@ -90,17 +90,22 @@ export class DropboxAccountService {
     }
   }
 
-  async accessToken(): Promise<Result<string>> {
+  async accessToken(expectedAccountId?: string): Promise<Result<string>> {
     this.refreshing ??= this.loadAccessToken(this.revision);
     const request = this.refreshing;
     try {
-      return await request;
+      const result = await request;
+      if (!result.ok) return result;
+      if (expectedAccountId && expectedAccountId !== result.value.accountId) {
+        return failure("notConnected", "Connect the Dropbox account that owns this library.");
+      }
+      return { ok: true, value: result.value.accessToken };
     } finally {
       if (this.refreshing === request) this.refreshing = null;
     }
   }
 
-  private async loadAccessToken(revision: number): Promise<Result<string>> {
+  private async loadAccessToken(revision: number): Promise<Result<{ accountId: string; accessToken: string }>> {
     try {
       const account = await this.accounts.find();
       if (!account || !account.clientId || revision !== this.revision) {
@@ -108,7 +113,7 @@ export class DropboxAccountService {
       }
       const refreshMarginSeconds = 60;
       if (account.accessTokenExpiresAtUnixSeconds > this.now() + refreshMarginSeconds) {
-        return { ok: true, value: account.accessToken };
+        return { ok: true, value: { accountId: account.accountId, accessToken: account.accessToken } };
       }
       const token = await this.createClient(account.clientId).refreshAccessToken(account.refreshToken);
       if (revision !== this.revision) return failure("notConnected", "Dropbox was disconnected.");
@@ -120,7 +125,7 @@ export class DropboxAccountService {
         refreshToken: token.refreshToken ?? account.refreshToken,
         accessTokenExpiresAtUnixSeconds: this.now() + token.expiresIn,
       });
-      return { ok: true, value: token.accessToken };
+      return { ok: true, value: { accountId: account.accountId, accessToken: token.accessToken } };
     } catch {
       return failure("authorization", "Could not refresh Dropbox access. Check the network or reconnect in Settings.");
     }
