@@ -188,6 +188,10 @@ export function useAudioPlayer(
   }, [setQueue]);
 
   const removeSource = useCallback((libraryId: string) => {
+    const state = queueRef.current;
+    const currentEntryId = state.entries[state.index]?.entryId;
+    const entries = state.entries.filter(entry => entry.track.libraryId !== libraryId);
+    setQueue(entries, entries.findIndex(entry => entry.entryId === currentEntryId));
     if (currentSourceIdRef.current !== libraryId) return;
     playRequestRef.current += 1;
     currentTrackIdRef.current = null;
@@ -201,7 +205,7 @@ export function useAudioPlayer(
     setDurationSeconds(0);
     setPlaybackError(null);
     setStatus("idle");
-  }, [clearQueue]);
+  }, [clearQueue, setQueue]);
 
   const play = useCallback(
     (track: TrackDto) => {
