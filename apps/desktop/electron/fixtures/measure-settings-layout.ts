@@ -42,9 +42,15 @@ export async function measureSettingsLayout() {
       ".add-library-form input, .add-library-form button, .dropbox-browse-button, .dropbox-sync select, .dropbox-settings__connection button, .settings-view__source-actions button",
     ),
   ).map((element) => element.getBoundingClientRect().height);
-  const name = viewport.querySelector('input[aria-label="Name"]')?.getBoundingClientRect();
-  const location = viewport.querySelector('input[aria-label="Location"]')?.getBoundingClientRect();
-  const browse = viewport.querySelector(".add-library-form__field button")?.getBoundingClientRect();
+  const name = viewport
+    .querySelector('input[aria-label="Name"]')
+    ?.getBoundingClientRect();
+  const location = viewport
+    .querySelector('input[aria-label="Location"]')
+    ?.getBoundingClientRect();
+  const browse = viewport
+    .querySelector(".add-library-form__field button")
+    ?.getBoundingClientRect();
   return {
     sections,
     controls,

@@ -113,8 +113,14 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
           `${context}, section spacing`,
         ).toBeCloseTo(20, 0);
       }
-      expect(layout.formEdges[0], `${context}, field start`).toBeCloseTo(layout.formEdges[2], 0);
-      expect(layout.formEdges[1], `${context}, field end`).toBeCloseTo(layout.formEdges[3], 0);
+      expect(layout.formEdges[0], `${context}, field start`).toBeCloseTo(
+        layout.formEdges[2],
+        0,
+      );
+      expect(layout.formEdges[1], `${context}, field end`).toBeCloseTo(
+        layout.formEdges[3],
+        0,
+      );
       expect(layout.overflow, context).toBeLessThanOrEqual(1);
       expect(
         Math.max(...layout.controls) - Math.min(...layout.controls),
