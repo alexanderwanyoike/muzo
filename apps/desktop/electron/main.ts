@@ -17,6 +17,8 @@ import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-ar
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
 
+app.setName("Muzo");
+
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
 const container = createElectronContainer({
