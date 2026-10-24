@@ -14,44 +14,59 @@ type PlayerWindow = Pick<
   | "setContentSize"
   | "setBounds"
 >;
+interface WindowSnapshot {
+  bounds: ReturnType<PlayerWindow["getNormalBounds"]>;
+  minimum: number[];
+  maximized: boolean;
+}
 
 export function createPlayerWindowModeController(window: PlayerWindow) {
   let mode: PlayerWindowMode = "library";
-  let library: {
-    bounds: ReturnType<PlayerWindow["getNormalBounds"]>;
-    minimum: number[];
-    maximized: boolean;
-  } | null = null;
+  let library: WindowSnapshot | null = null;
+  const snapshot = (): WindowSnapshot => ({
+    bounds: window.getNormalBounds(),
+    minimum: window.getMinimumSize(),
+    maximized: window.isMaximized(),
+  });
+  function restore(saved: WindowSnapshot) {
+    if (window.isMaximized()) window.unmaximize();
+    window.setMinimumSize(saved.minimum[0], saved.minimum[1]);
+    window.setBounds(saved.bounds);
+    if (saved.maximized) window.maximize();
+  }
   function setMode(next: unknown): Result<void> {
     if (next !== "library" && next !== "compact" && next !== "compact-queue")
       return failure("invalidInput", "Unknown player window mode.");
     if (window.isDestroyed())
       return failure("remote", "The player window is closed.");
     if (next === mode) return success(undefined);
+    let before: WindowSnapshot | null = null;
     try {
+      before = snapshot();
+      const savedLibrary = mode === "library" ? before : library;
       if (next === "library") {
-        if (library) {
-          window.setMinimumSize(library.minimum[0], library.minimum[1]);
-          window.setBounds(library.bounds);
-          if (library.maximized) window.maximize();
-        }
-        library = null;
+        if (savedLibrary) restore(savedLibrary);
       } else {
-        if (mode === "library") {
-          library = {
-            bounds: window.getNormalBounds(),
-            minimum: window.getMinimumSize(),
-            maximized: window.isMaximized(),
-          };
-          if (library.maximized) window.unmaximize();
-        }
+        if (window.isMaximized()) window.unmaximize();
         window.setMinimumSize(next === "compact-queue" ? 640 : 360, 480);
         window.setContentSize(next === "compact-queue" ? 740 : 420, 560);
       }
+      library = next === "library" ? null : savedLibrary;
       mode = next;
       return success(undefined);
     } catch {
-      return failure("remote", "The player window could not be resized.");
+      try {
+        if (before && !window.isDestroyed()) restore(before);
+      } catch {
+        return failure(
+          "remote",
+          "The player window could not be restored. Try again or restart Muzo.",
+        );
+      }
+      return failure(
+        "remote",
+        "The player window could not be resized. Try again.",
+      );
     }
   }
   return { setMode };
