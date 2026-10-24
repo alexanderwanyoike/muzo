@@ -1,3 +1,4 @@
+import { defaultSidebarWidth } from "./sidebar-layout";
 import { useRef, useState, type PointerEvent } from "react";
 
 interface Props {
@@ -34,7 +35,7 @@ export default function SidebarSplitter({ width, minimum, maximum, onPreview, on
     onCommit(active.latestWidth);
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
-  return <div className="sidebar-splitter" role="separator" tabIndex={0} aria-orientation="vertical" aria-labelledby="sources-panel-heading" aria-controls="source-sidebar" aria-valuemin={minimum} aria-valuemax={maximum} aria-valuenow={width} aria-valuetext={`${width} pixels`} title="Resize Sources" data-resizing={dragging || undefined}
+  return <div className="sidebar-splitter" role="separator" tabIndex={0} aria-orientation="vertical" aria-labelledby="sources-panel-heading" aria-controls="source-sidebar" aria-valuemin={minimum} aria-valuemax={maximum} aria-valuenow={width} aria-valuetext={`${width} pixels`} title="Resize Sources; double-click to reset" onDoubleClick={() => onCommit(defaultSidebarWidth)} data-resizing={dragging || undefined}
     onPointerDown={(event) => {
       if (event.button !== 0 || drag.current) return;
       event.preventDefault();
