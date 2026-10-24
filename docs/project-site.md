@@ -1,16 +1,15 @@
 # Muzo project site
 
-The site is a static HTML/CSS page in `site/`, built with the existing Vite
-version. It follows the static site and official GitHub Pages Actions pattern
-used by sibling projects Vibez and Showbiz. No sibling implementation, assets or
-copy were copied. GitHub documents the workflow at:
-https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+The static HTML/CSS site lives in `site/`. Its quiet, screenshot-led design uses
+the actual listening interface, approved blue waveform icon and local Manrope
+font. The font's SIL Open Font License is retained in `site/public/fonts/OFL.txt`.
+See [screenshots.md](./screenshots.md) for capture provenance. Material swatches
+are illustrative; the desktop captures are real.
 
-The page has no client JavaScript, analytics or remote fonts. The existing Muzo
-window icon and canonical screenshots are served alongside a local Manrope Latin
-font. Its SIL Open Font License is retained in `site/public/fonts/OFL.txt`.
-Screenshot provenance is recorded in [screenshots.md](./screenshots.md).
-The material swatches are illustrative CSS samples; the app captures are real.
+The site follows Showbiz and Jolt's released-download pattern. Visitors choose
+Windows installer, macOS DMG (Apple silicon or Intel), or Linux AppImage. Developer
+checkout instructions belong in the repository README, outside the product's
+installation flow. The site has no client JavaScript, analytics or remote fonts.
 
 ## Local checks and preview
 
@@ -21,37 +20,54 @@ yarn site:build
 yarn site:preview
 ```
 
-Open the preview URL printed by Vite, including its `/muzo/` project base.
-`yarn workspace @muzo/site dev` starts the source preview instead.
-Root formatting, lint, typecheck and test commands include the site workspace.
+Open the URL printed by Vite, including `/muzo/`. Without release metadata, local
+previews show disabled Preparing release controls. They do not fabricate download
+URLs. `yarn workspace @muzo/site dev` also serves this pending state.
 
-The HTML integration tests verify section anchors, source/release availability,
-canonical and sharing metadata, local stylesheet/font/icon references, and the
-current demo captures. Public assets keep stable URLs so Open Graph images do
-not depend on Vite's hashed stylesheet names. The build contains only public
-assets and compiled HTML/CSS, with no test code or tool configuration.
+The root format, lint, strict typecheck and test commands include site tooling.
+Tests exercise the real production build with synthetic release metadata, verify
+complete installer links and checksums, and reject missing metadata, draft or
+prerelease releases, ambiguous filenames, foreign URLs and size/digest mismatches.
+Public screenshots, icon and font keep stable URLs under the project base.
+
+## Published download contract
+
+The private `@muzo/distribution` build-tool workspace is shared with native release
+assembly. Its versioned manifest identifies the exact source commit and the four
+supported installers, including their filenames, sizes and SHA-256 hashes.
+
+The Pages workflow reads the latest published stable GitHub release and downloads
+its `muzo-X.Y.Z-release.json`. The build checks that tag/version match and every
+installer, the manifest and `SHA256SUMS` are present. Installer sizes must match;
+GitHub-provided SHA-256 digests must also match when available. URLs must point to
+that exact release in the Muzo repository. A failed check stops deployment.
+
+Production builds use these environment variables:
+
+- `MUZO_REQUIRE_RELEASE=1`
+- `MUZO_GITHUB_RELEASE_JSON`: GitHub releases API JSON file
+- `MUZO_DISTRIBUTION_MANIFEST`: distribution manifest JSON file
+
+Release metadata is injected through Vite's official `transformIndexHtml` hook:
+https://v5.vite.dev/guide/api-plugin#transformindexhtml
+No network call or release parsing runs in the visitor's browser.
 
 ## Publication
 
-This feature PR prepares the site. It does not merge dev/main or enable public
-hosting. After approval, merge dependencies using merge commits, then promote dev
-to main through a release PR. In repository Settings > Pages, select GitHub Actions
-as the publishing source. Keep the `github-pages` environment limited to main.
-Run Project site on main if Pages was configured after the promotion.
+PRs to dev/main verify source and build behavior. Main pushes, manual runs on main
+and published stable release events can deploy. Deployment always checks out main,
+then rebuilds against the current complete published release. Main/release runs
+share one production concurrency group so Pages deployments cannot race.
 
-The Pages workflow verifies relevant pull requests to dev/main. Deployment is
-limited to main pushes and manual runs explicitly selected on main; PRs and
-feature-branch manual runs cannot publish. The intended URL is:
-https://alexanderwanyoike.github.io/muzo/
+The feature PR does not merge dev/main, enable hosting or publish a release.
+Merge prerequisites using merge commits, then promote dev through a release PR.
+The distribution workflow prepares installers from the new immutable main tag;
+publish the reviewed draft release with all its assets. In Settings > Pages,
+select GitHub Actions and keep the github-pages environment limited to main.
+A published release event rebuilds the site automatically. If Pages is configured
+later, run Project site manually on main.
 
-## Release information
-
-The current page offers source installation from the immutable v0.0.1 tag and a
-link to GitHub release history. There are no published binary assets yet. It does
-not claim an open-source licence: the repository remains UNLICENSED/proprietary.
-
-When publishing packaged downloads, update the availability text, source version
-and links through the release PR, then adjust the matching availability test.
-Use real release asset URLs only after those files exist. Do not move an existing
-release tag to match a later screenshot or website revision. The screenshots show
-the development interface, including the seek-focus correction after v0.0.1.
+Intended address: https://alexanderwanyoike.github.io/muzo/
+The existing v0.0.1 tag stays immutable. Current development captures can contain
+changes after that tag; download versions always come from the published manifest.
+The repository remains UNLICENSED/proprietary. Initial packages are unsigned.

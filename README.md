@@ -12,7 +12,9 @@ Muzo treats your music collection as a set of **libraries** and **playlists**. A
 
 Muzo is a desktop preview. The first tagged version is
 [v0.0.1](https://github.com/alexanderwanyoike/muzo/tree/v0.0.1).
-Run it from source with the quick start below; packaged downloads are not published yet.
+Native Windows installers, macOS DMGs and Linux AppImages are being prepared.
+Published packages will be available from [Releases](https://github.com/alexanderwanyoike/muzo/releases).
+Contributor setup is documented under Development below.
 
 - Local folders and Dropbox libraries, with recursive scanning and background sync.
 - Searchable, resizable Sources and Playlists panels, with source removal controls.
@@ -48,7 +50,7 @@ A React Native / PWA mobile app will live under `apps/mobile` in a future sprint
 - Yarn `>= 1.22.22`
 - Electron runtime dependencies for your OS
 
-## Quick start
+## Development
 
 ```bash
 yarn install                 # install all workspace deps
