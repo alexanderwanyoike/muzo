@@ -166,6 +166,7 @@ function measureCompact() {
   });
   return {
     contrastSamples,
+    bottomCorners: [getComputedStyle(root).borderBottomLeftRadius, getComputedStyle(root).borderBottomRightRadius],
     width: window.innerWidth,
     height: window.innerHeight,
     overflow: document.documentElement.scrollWidth - window.innerWidth,

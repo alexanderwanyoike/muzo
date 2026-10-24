@@ -84,6 +84,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
             muted: string;
             backgrounds: string[];
           }[];
+          bottomCorners: string[];
           width: number;
           height: number;
           overflow: number;
@@ -108,11 +109,9 @@ it("fits compact controls at native minimum sizes and restores the library windo
     expect(result.fallback.queueAlpha).toBe(255);
     expect(result.restored).toEqual(result.original);
     if (process.platform === "linux") {
-      expect(result.restoredShape).toMatch(
-        /Window shape extents:\s+1200x800\+0\+0/,
-      );
+      expect(result.restoredShape).toContain("No window shape defined");
       for (const measurement of result.measurements) {
-        expect(measurement.nativeShape).toContain("Window shape extents:");
+        expect(measurement.nativeShape).toContain("No window shape defined");
       }
     }
     expect(result.minimum).toEqual([800, 600]);
@@ -144,6 +143,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
         }
       }
       const context = `${mode} ${layout.width}x${layout.height} ${queue ? "queue" : "compact"}`;
+      expect(layout.bottomCorners, context).toEqual(["0px", "0px"]);
       expect(layout.overflow, context).toBeLessThanOrEqual(0);
       expect(layout.libraryHidden, context).toBe(true);
       expect(layout.controls.length, context).toBeGreaterThanOrEqual(7);
