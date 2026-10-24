@@ -75,7 +75,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       setPlaybackError(null);
       setStatus("playing");
     };
-    const onPause = () => setStatus("paused");
+    const onPause = () => {
+      if (audio.paused && statusRef.current !== "loading") setStatus("paused");
+    };
     const onWaiting = () => {
       setStatus((previous) =>
         previous === "playing" || previous === "loading" ? "loading" : previous,
@@ -128,6 +130,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       }
       return;
     }
+    statusRef.current = "loading";
     audio.pause();
     const requestId = playRequestRef.current + 1;
     playRequestRef.current = requestId;
