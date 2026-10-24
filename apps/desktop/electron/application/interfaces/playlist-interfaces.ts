@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 export interface PlaylistEntryDto {
   id: string;
   trackId: string;
@@ -15,14 +16,14 @@ export interface PlaylistDto {
 }
 
 export interface PlaylistService {
-  addTrack(playlistId: string, trackId: string): Promise<PlaylistDto>;
-  create(name: string): Promise<PlaylistDto>;
-  list(): Promise<PlaylistDto[]>;
-  removeEntry(playlistId: string, entryId: string): Promise<PlaylistDto>;
+  addTrack(playlistId: string, trackId: string): Promise<Result<PlaylistDto>>;
+  create(name: string): Promise<Result<PlaylistDto>>;
+  list(): Promise<Result<PlaylistDto[]>>;
+  removeEntry(playlistId: string, entryId: string): Promise<Result<PlaylistDto>>;
   reorderEntries(
     playlistId: string,
     orderedEntryIds: string[],
-  ): Promise<PlaylistDto>;
+  ): Promise<Result<PlaylistDto>>;
 }
 
 export interface PlaylistRepository {

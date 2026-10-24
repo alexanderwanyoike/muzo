@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 import type { PlaylistDto } from "../interfaces/playlist-interfaces";
 import type { PlaylistService } from "../interfaces/playlist-interfaces";
 import type { CommandHandler } from "./command-handler";
@@ -7,7 +8,7 @@ export class ListPlaylistsCommand implements CommandHandler {
 
   constructor(private readonly playlistService: PlaylistService) {}
 
-  handle(): Promise<PlaylistDto[]> {
+  handle(): Promise<Result<PlaylistDto[]>> {
     return this.playlistService.list();
   }
 }

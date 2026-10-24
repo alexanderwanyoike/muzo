@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 import type { PlaylistDto } from "../interfaces/playlist-interfaces";
 import type { PlaylistService } from "../interfaces/playlist-interfaces";
 import type { CommandHandler } from "./command-handler";
@@ -8,7 +9,7 @@ export class CreatePlaylistCommand implements CommandHandler {
 
   constructor(private readonly playlistService: PlaylistService) {}
 
-  handle(args: unknown): Promise<PlaylistDto> {
+  handle(args: unknown): Promise<Result<PlaylistDto>> {
     const input = parseInput(args, "create_playlist");
     return this.playlistService.create(
       parseNonEmptyString(input, "name", "create_playlist"),

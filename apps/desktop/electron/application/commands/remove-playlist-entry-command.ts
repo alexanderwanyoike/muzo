@@ -1,3 +1,4 @@
+import type { Result } from "../result";
 import type { PlaylistDto } from "../interfaces/playlist-interfaces";
 import type { PlaylistService } from "../interfaces/playlist-interfaces";
 import type { CommandHandler } from "./command-handler";
@@ -8,7 +9,7 @@ export class RemovePlaylistEntryCommand implements CommandHandler {
 
   constructor(private readonly playlistService: PlaylistService) {}
 
-  handle(args: unknown): Promise<PlaylistDto> {
+  handle(args: unknown): Promise<Result<PlaylistDto>> {
     const input = parseInput(args, "remove_playlist_entry");
     return this.playlistService.removeEntry(
       parseNonEmptyString(input, "playlistId", "remove_playlist_entry"),

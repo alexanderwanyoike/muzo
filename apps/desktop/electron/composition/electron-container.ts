@@ -9,7 +9,8 @@ import {
 import { ulid } from "ulid";
 
 import { AddLibraryCommand } from "../application/commands/add-library-command";
-import type { CommandHandler } from "../application/commands/command-handler";
+import type { IpcCommandHandler } from "../ipc/ipc-command-handler";
+import { LegacyResultCommandAdapter } from "../ipc/legacy-result-command-adapter";
 import { ListLibrariesCommand } from "../application/commands/list-libraries-command";
 import { ListTracksCommand } from "../application/commands/list-tracks-command";
 import {
@@ -106,7 +107,7 @@ export interface ElectronCradle {
   scanLibraryCommand: ScanLibraryCommand;
   editTrackMetadataCommand: EditTrackMetadataCommand;
   clearTrackMetadataOverrideCommand: ClearTrackMetadataOverrideCommand;
-  commandHandlers: CommandHandler[];
+  commandHandlers: IpcCommandHandler[];
   commandDispatcher: CommandDispatcher;
   migrateDatabase: () => Promise<void>;
   reconcileFilesystemLibraries: () => Promise<{
@@ -269,16 +270,16 @@ export function createElectronContainer(
     ).singleton(),
     commandHandlers: asFunction((cradle: ElectronCradle) => [
       cradle.addLibraryCommand,
-      cradle.addTrackToPlaylistCommand,
-      cradle.createPlaylistCommand,
-      cradle.listPlaylistsCommand,
+      new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
+      new LegacyResultCommandAdapter(cradle.createPlaylistCommand),
+      new LegacyResultCommandAdapter(cradle.listPlaylistsCommand),
       cradle.listLibrariesCommand,
       cradle.listTracksCommand,
       cradle.listTrackPlayCountsCommand,
       cradle.prepareTrackAudioSourceCommand,
       cradle.recordTrackPlayCommand,
-      cradle.removePlaylistEntryCommand,
-      cradle.reorderPlaylistEntriesCommand,
+      new LegacyResultCommandAdapter(cradle.removePlaylistEntryCommand),
+      new LegacyResultCommandAdapter(cradle.reorderPlaylistEntriesCommand),
       cradle.scanLibraryCommand,
       cradle.editTrackMetadataCommand,
       cradle.clearTrackMetadataOverrideCommand,

@@ -1,9 +1,9 @@
-import type { CommandHandler } from "../application/commands/command-handler";
+import type { IpcCommandHandler } from "./ipc-command-handler";
 
 export class CommandDispatcher {
-  private readonly commandHandlers: Map<string, CommandHandler>;
+  private readonly commandHandlers: Map<string, IpcCommandHandler>;
 
-  constructor(commandHandlers: CommandHandler[]) {
+  constructor(commandHandlers: IpcCommandHandler[]) {
     this.commandHandlers = new Map(
       commandHandlers.map((handler) => [handler.command, handler]),
     );
