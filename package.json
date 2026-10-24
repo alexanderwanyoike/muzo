@@ -25,7 +25,8 @@
     "test": "yarn workspaces run test",
     "clean": "yarn workspaces run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
+    "desktop:distribute": "yarn workspace @muzo/desktop distribute"
   },
   "devDependencies": {
     "eslint-config-prettier": "10.1.8",
