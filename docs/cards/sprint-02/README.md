@@ -28,6 +28,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 015 | [Dropbox libraries, sync and playback](./015-dropbox-libraries-sync-and-playback.md) | Feature | Done | - |
 | 016 | [Playlist queueing and auto-advance](./016-playlist-playback-queue.md) | Feature | Done | - |
 | 017 | [Desktop verification CI](./017-desktop-verification-ci.md) | Tech debt | Done | - |
+| 018 | [Enforced code style](./018-enforced-code-style.md) | Tech debt | In progress | - |
 
 ## Close-out note
 
