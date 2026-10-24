@@ -1,3 +1,4 @@
+import { Cloud, Folder } from "lucide-react";
 import type { ReactNode } from "react";
 import type { LibraryDto } from "./types";
 
@@ -44,29 +45,22 @@ export default function LibraryList({
                 : "library-list__item"
             }
           >
-            <div className="library-list__row">
-              <button
-                type="button"
-                className="library-list__expand"
-                onClick={() => onSelect(isSelected ? null : library.id)}
-                aria-label={`Show tracks for ${library.name}`}
-              >
-                {isSelected ? "▼" : "▶"}
-              </button>
-
-              <div className="library-list__primary">
+            <button
+              type="button"
+              className="library-list__row"
+              onClick={() => onSelect(isSelected ? null : library.id)}
+              aria-label={`Show tracks for ${library.name}`}
+              aria-pressed={isSelected}
+              title={`${library.name}: ${library.location}`}
+            >
+              {library.kind === "dropbox" ? <Cloud aria-hidden="true" /> : <Folder aria-hidden="true" />}
+              <span className="library-list__primary">
                 <span className="library-list__name">{library.name}</span>
-                <span className="library-list__kind">
-                  {KIND_LABEL[library.kind]}
-                </span>
-              </div>
-              <span className="library-list__location">{library.location}</span>
-              <div className="library-list__actions">
-                <span className="library-list__count">
-                  {count === 1 ? "1 track" : `${count} tracks`}
-                </span>
-              </div>
-            </div>
+                <span className="library-list__kind">{KIND_LABEL[library.kind]}</span>
+                <span className="library-list__location">{library.location}</span>
+              </span>
+              <span className="library-list__count">{count === 1 ? "1 track" : `${count} tracks`}</span>
+            </button>
 
             {trackContent && (
               <div className="library-list__tracks">{trackContent}</div>
