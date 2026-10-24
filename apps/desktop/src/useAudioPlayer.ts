@@ -140,7 +140,10 @@ export function useAudioPlayer(
         if (audio.paused) {
           setPlaybackError(null);
           setStatus("loading");
+          const requestId = playRequestRef.current;
           void Promise.resolve(audio.play()).catch((err: unknown) => {
+            if (requestId !== playRequestRef.current) return;
+            currentTrackIdRef.current = null;
             setStatus("error");
             setPlaybackError(
               formatPlaybackError("The audio engine rejected playback", err),
@@ -231,7 +234,10 @@ export function useAudioPlayer(
     if (audio.paused) {
       setPlaybackError(null);
       setStatus("loading");
+      const requestId = playRequestRef.current;
       void Promise.resolve(audio.play()).catch((err: unknown) => {
+        if (requestId !== playRequestRef.current) return;
+        currentTrackIdRef.current = null;
         setStatus("error");
         setPlaybackError(
           formatPlaybackError("The audio engine rejected playback", err),
