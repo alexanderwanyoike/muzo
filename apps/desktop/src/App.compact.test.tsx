@@ -208,3 +208,21 @@ it("shows the album and a readable playback error in the mini player", async () 
   expect(screen.getByText("North Window")).toBeDefined();
   expect(screen.getByRole("alert").textContent).toContain("Audio is offline");
 });
+
+it("keeps the current view usable when a native mode transition fails", async () => {
+  const { setPlayerWindowMode } = installMusic();
+  setPlayerWindowMode.mockRejectedValueOnce(new Error("Window unavailable"));
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole("button", { name: "Mini player" }));
+  expect(await screen.findByRole("alert")).toBeDefined();
+  expect(screen.queryByRole("region", { name: "Mini player" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Mini player" }));
+  expect(
+    await screen.findByRole("region", { name: "Mini player" }),
+  ).toBeDefined();
+  setPlayerWindowMode.mockRejectedValueOnce(new Error("Window unavailable"));
+  await user.click(screen.getByRole("button", { name: "Return to library" }));
+  expect(await screen.findByRole("alert")).toBeDefined();
+  expect(screen.getByRole("region", { name: "Mini player" })).toBeDefined();
+});
