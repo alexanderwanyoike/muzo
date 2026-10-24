@@ -1,13 +1,17 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createElectronContainer } from "./composition/electron-container";
+import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/electron-safe-storage-dropbox-token-cipher";
 import { runStartupTasks } from "./startup";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
-const container = createElectronContainer();
+const container = createElectronContainer({
+  dropboxCipher: new ElectronSafeStorageDropboxTokenCipher(safeStorage),
+  openExternal: (url) => shell.openExternal(url),
+});
 const commandDispatcher = container.resolve("commandDispatcher");
 const migrateDatabase = container.resolve("migrateDatabase");
 const reconcileFilesystemLibraries = container.resolve(
