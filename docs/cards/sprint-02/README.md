@@ -35,6 +35,9 @@ review: formalising SQLite migrations before more tables pile up.
 | 022 | [Remove library sources](./022-remove-library-sources.md) | Feature | Done | - |
 | 023 | [Embedded album artwork](./023-embedded-album-artwork.md) | Feature | Done | - |
 
+| 024 | [Minimal desktop menus](./024-minimal-desktop-menu.md) | Feature | Done | - |
+| 025 | [Searchable sources](./025-searchable-sources.md) | Feature | Done | - |
+
 ## Close-out note
 
 The sprint 02 local-library slices are complete and covered by the current

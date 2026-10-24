@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In review
+- Status: Done
 - Depends on: 024 (PR #51)
 
 # Card 025 - Searchable source list
@@ -17,7 +17,7 @@ with immediate name/path search and visible removal actions instead of pills.
 - [x] Keep source rows in their own scroll area, with navigation/search/artwork fixed.
 - [x] Preserve source selection and removal; show counts only once loaded.
 - [x] Verify 80 sources at the 800 by 600 minimum and at the normal window size.
-- [ ] Complete ordered checks and two review cycles.
+- [x] Complete ordered checks and two review cycles (279 tests).
 
 ## Established pattern
 
@@ -36,3 +36,5 @@ counts. Each new behavior was observed failing before its implementation.
 Browser fixture uses 80 disposable local/Dropbox sources and real React views.
 At 800 by 600, the list has 108px of visible height and 2560px of content; the
 sidebar's scroll height equals its 518px height and album artwork stays visible.
+
+Review evidence: [two review cycles](../../reviews/2026-10-24-searchable-sources.md).
