@@ -62,6 +62,7 @@ export default function App() {
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(
     null,
   );
+  const [playlistsOpened, setPlaylistsOpened] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("library");
   const [error, setError] = useState<string | null>(null);
 
@@ -260,7 +261,7 @@ export default function App() {
                 ? "app-sidebar__nav-item app-sidebar__nav-item--active"
                 : "app-sidebar__nav-item"
             }
-            onClick={() => setActiveView("playlists")}
+            onClick={() => { setPlaylistsOpened(true); setActiveView("playlists"); }}
           >
             <ListMusic aria-hidden="true" /> Playlists
           </button>
@@ -354,6 +355,21 @@ export default function App() {
             {refreshMessage}
           </p>
         )}
+        {playlistsOpened && (
+          <div className="app-content__playlist-workspace" hidden={activeView !== "playlists"}>
+          <PlaylistPanel
+            active={activeView === "playlists"}
+            navigationTarget={playlistNavigationTarget}
+            refreshKey={sourceRevision}
+            onPlayQueue={playQueue}
+            currentQueueEntryId={currentQueueEntryId}
+            currentTrackId={current?.id ?? null}
+            isPlaying={status === "playing"}
+            onPlayTrack={play}
+            onToggleCurrentTrack={toggle}
+          />
+          </div>
+        )}
         {activeView === "settings" ? (
           <div className="settings-view">
             <AppearanceSettings
@@ -425,16 +441,7 @@ export default function App() {
             </section>
           </div>
         ) : activeView === "playlists" ? (
-          <PlaylistPanel
-            navigationTarget={playlistNavigationTarget}
-            refreshKey={sourceRevision}
-            onPlayQueue={playQueue}
-            currentQueueEntryId={currentQueueEntryId}
-            currentTrackId={current?.id ?? null}
-            isPlaying={status === "playing"}
-            onPlayTrack={play}
-            onToggleCurrentTrack={toggle}
-          />
+          null
         ) : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (

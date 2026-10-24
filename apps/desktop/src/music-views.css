@@ -204,3 +204,6 @@
   min-width: 0;
   font-size: 12px;
 }
+
+.app-content__playlist-workspace { display: flex; flex: 1; min-height: 0; }
+.app-content__playlist-workspace[hidden] { display: none; }

@@ -28,6 +28,7 @@ interface PlaylistError {
 }
 
 interface PlaylistPanelProps {
+  active?: boolean;
   navigationTarget?: HTMLElement | null;
   refreshKey?: number;
   currentQueueEntryId?: string | null;
@@ -39,6 +40,7 @@ interface PlaylistPanelProps {
 }
 
 export default function PlaylistPanel({
+  active = true,
   navigationTarget,
   refreshKey = 0,
   currentTrackId = null,
@@ -59,6 +61,7 @@ export default function PlaylistPanel({
   );
 
   useEffect(() => {
+    if (!active) return undefined;
     let cancelled = false;
     setPlaylists(null);
     setError(null);
@@ -78,7 +81,7 @@ export default function PlaylistPanel({
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [active, refreshKey]);
 
   async function handleCreate(name: string) {
     const result = await playlistRequest(() => createPlaylist({ name }), "Could not create playlist.");
