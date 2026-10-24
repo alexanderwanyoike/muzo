@@ -45,4 +45,6 @@ through its runtime boundary.
 - Start a queue when selecting a playlist entry whose song is already playing directly.
 - Clear the queue when selecting its current song from Songs, while retaining explicit player pause/resume behavior.
 - Exercise both transitions through the assembled app and retain the legacy standalone playlist control behavior.
-- Re-ran the required checks with 216 tests and Linux zip/deb outputs.
+- Re-ran the required checks with 217 tests and Linux zip/deb outputs.
+
+Second-cycle review also found a delayed native pause event during preparation. A regression test now delivers that event asynchronously and verifies the old source cannot resume while the next track loads.
