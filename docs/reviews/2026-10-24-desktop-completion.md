@@ -37,6 +37,11 @@ old combined test/implementation commits. That history was not rewritten to fabr
 TDD evidence. All behavioral corrections in this completion used separate red and
 green commits.
 
+PR #46's initial and second Standards cycles also found no violations or actionable
+smells. The source-retry correction reuses existing responsibilities. Its shared resume
+operation has two concrete callers, and tests, implementation and refactoring are
+separately committed.
+
 **Remaining Standards findings: 0.**
 
 ## Spec
@@ -72,6 +77,16 @@ either cycle: formatter/lint enforcement matches card 018, token payload guards 
 focused regression coverage, and the compatibility correction matches the installed
 Electron requirement. No unwanted product scope was found.
 
+Final retry verification found a related failure path, delivered separately as PR #46:
+a failed next source could leave Play targeting the prior resource. The first review
+found that rejected resumes through both controls also left their source marked valid.
+Separate red/green corrections invalidate matching failures and route retries through
+source preparation. The shared resume handler captures the request identity so a late
+rejection cannot change a newer selection. Eight regression cases cover preparation,
+engine and native media failure, stale playing events, both resume controls and late
+resume rejection. The second reviewer independently repeated the resume and newer-track
+reproductions and confirmed no remaining findings. This PR received both cycles too.
+
 **Remaining Spec findings: 0.**
 
 ## Reviewed snapshots
@@ -86,6 +101,7 @@ Diffs use `git diff <base>...<head>`; commit lists use `git log <base>..<head> -
 | [#43](https://github.com/alexanderwanyoike/muzo/pull/43) | 76c35e04cfed621877617d17820deb390d3738da | b2588aa | b9690304755ea4dd19aa92001df83dd757b217d9 |
 | [#44](https://github.com/alexanderwanyoike/muzo/pull/44) | f7f1ee6fd06339d371ee30f6596e5ed99d57b7c7 | 3077b2e40cb16f2cc54186aaba6ed944b4522530 | 2daf60ec12c73cf69d1ed94e8c39cbac1dfabc8f |
 | [#45](https://github.com/alexanderwanyoike/muzo/pull/45) | 0f9352694112e36c6f7980e5467e917728e58e21 | 3ee886b | 85ab85d49e5624860719f1a875d546c2b63a06c5 |
+| [#46](https://github.com/alexanderwanyoike/muzo/pull/46) | 71da29c5e3249ec90846a77be90029f82ed31c67 | a04524651982e0e88d9e5a3cb2eef88d76413970 | ae0844b55a7c9696f5735dead2fbfd7d6046655e |
 
 The focused #43 confirmation followed its initial second-cycle head 2daf60e. Rebasing
 #44 onto that correction changed its head to 85ab85d without changing its workflow
@@ -100,7 +116,7 @@ The final code passed these commands in order:
 2. `yarn format:check`
 3. `yarn lint`
 4. `yarn typecheck`
-5. `yarn test` with bounded workers: 225 tests across 53 files
+5. `yarn test` with bounded workers: 233 tests across 53 files
 6. `yarn desktop:build`
 7. `yarn desktop:package`
 8. `yarn desktop:make`
@@ -111,7 +127,9 @@ lint suppression comments or explicit any. Linux zip and deb artifacts were prod
 
 The updated #44 workflow passed on GitHub:
 [run 40050417601](https://github.com/alexanderwanyoike/muzo/actions/runs/40050417601).
-Final #45 workflow status is recorded in its PR description after completion.
+The final #45 workflow also passed:
+[run 40051142178](https://github.com/alexanderwanyoike/muzo/actions/runs/40051142178).
+Final #46 workflow status is recorded in its PR description after completion.
 
 Automated integration uses real SQLite, downloaded-byte handling and local HTTP
 range serving with Dropbox/network and OS credential boundaries controlled. Live
@@ -119,7 +137,7 @@ Dropbox consent/keyring behavior still needs the user's account. Interactive bro
 verification was unavailable because the browser bridge could not initialize; no
 live visual verification is claimed.
 
-Merge order: #16, #41, #42, #43, #44, #45. Retarget each dependent PR after its base
-lands. These PRs are open for maintainer action; no merges were performed.
+Merge order: #16, #41, #42, #43, #44, #45, #46. Rebase each dependent branch onto dev
+and retarget its PR after its base lands. These PRs are open for maintainer action; no merges were performed.
 
 Remaining findings by axis: Standards 0; Spec 0.

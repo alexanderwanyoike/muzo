@@ -51,6 +51,7 @@ export async function loadAndPlayTrack(
     await Promise.resolve(audio.play());
   } catch (err) {
     if (requestId !== playRequestRef.current) return;
+    currentTrackIdRef.current = null;
     setStatus("error");
     setPlaybackError(
       formatPlaybackError("The audio engine rejected playback", err),

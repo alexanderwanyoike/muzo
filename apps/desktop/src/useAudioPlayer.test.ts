@@ -487,3 +487,186 @@ it("keeps old audio paused when a delayed pause event arrives during the next tr
   expect(play).toHaveBeenCalledTimes(1);
   expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
 });
+
+it.each(["preparation", "engine"] as const)(
+  "retries the selected queue track after %s failure instead of resuming stale audio",
+  async (failureStage) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    const nextTrack = { ...track, id: "next-track", title: "Next" };
+    await act(async () =>
+      result.current.playQueue([
+        { entryId: "first", track },
+        { entryId: "next", track: nextTrack },
+      ]),
+    );
+    const audio = MockAudio.instances[0];
+    act(() => audio.emit("playing"));
+    if (failureStage === "preparation") {
+      apiMocks.prepareTrackAudioSource.mockRejectedValueOnce(
+        new Error("download failed"),
+      );
+    } else {
+      apiMocks.prepareTrackAudioSource.mockResolvedValueOnce({
+        url: "source-next",
+        mimeType: "audio/mpeg",
+      });
+      MockAudio.nextPlayError = new Error("source failed");
+    }
+    await act(async () => result.current.next());
+    expect(result.current.status).toBe("error");
+    const play = vi.spyOn(audio, "play");
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    act(() => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(3);
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenLastCalledWith({
+      libraryId: nextTrack.libraryId,
+      trackId: nextTrack.id,
+    });
+    expect(result.current.status).toBe("loading");
+    expect(result.current.currentQueueEntryId).toBe("next");
+    expect(audio.paused).toBe(true);
+    expect(play).not.toHaveBeenCalled();
+    await act(async () =>
+      finish({ url: "source-next-retry", mimeType: "audio/mpeg" }),
+    );
+    expect(audio.src).toBe("source-next-retry");
+    expect(play).toHaveBeenCalledTimes(1);
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+    expect(apiMocks.recordTrackPlay).toHaveBeenLastCalledWith({
+      libraryId: nextTrack.libraryId,
+      trackId: nextTrack.id,
+    });
+  },
+);
+
+it("ignores a stale playing event from the paused source while the next track prepares", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  const nextTrack = { ...track, id: "next-track" };
+  await act(async () =>
+    result.current.playQueue([
+      { entryId: "a", track },
+      { entryId: "b", track: nextTrack },
+    ]),
+  );
+  const audio = MockAudio.instances[0];
+  act(() => audio.emit("playing"));
+  let finish: (source: { url: string; mimeType: string }) => void = () => {};
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  act(() => result.current.next());
+  const play = vi.spyOn(audio, "play");
+  act(() => audio.emit("playing"));
+  expect(result.current.status).toBe("loading");
+  act(() => result.current.toggle());
+  expect(play).not.toHaveBeenCalled();
+  expect(audio.paused).toBe(true);
+  await act(async () => finish({ url: "source-next", mimeType: "audio/mpeg" }));
+  act(() => audio.emit("playing"));
+  expect(result.current.status).toBe("playing");
+});
+
+it("prepares a fresh source after a media error while preserving the queue", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  await act(async () =>
+    result.current.playQueue([
+      { entryId: "a", track },
+      { entryId: "b", track: { ...track, id: "next" } },
+    ]),
+  );
+  const audio = MockAudio.instances[0];
+  act(() => {
+    audio.emit("playing");
+    audio.pause();
+    audio.emit("error");
+  });
+  expect(result.current.status).toBe("error");
+  let finish: (source: { url: string; mimeType: string }) => void = () => {};
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const play = vi.spyOn(audio, "play");
+  act(() => result.current.toggle());
+  expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  expect(result.current.status).toBe("loading");
+  expect(result.current.currentQueueEntryId).toBe("a");
+  expect(result.current.hasNext).toBe(true);
+  expect(play).not.toHaveBeenCalled();
+  await act(async () =>
+    finish({ url: "source-retry", mimeType: "audio/mpeg" }),
+  );
+  expect(audio.src).toBe("source-retry");
+  expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+});
+
+it.each(["toggle", "select-current"] as const)(
+  "prepares a fresh source after a rejected %s resume",
+  async (resumeControl) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => result.current.play(track));
+    const audio = MockAudio.instances[0];
+    act(() => audio.emit("playing"));
+    act(() => result.current.toggle());
+    MockAudio.nextPlayError = new Error("resume rejected");
+    await act(async () => {
+      if (resumeControl === "toggle") result.current.toggle();
+      else result.current.play(track);
+    });
+    expect(result.current.status).toBe("error");
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const play = vi.spyOn(audio, "play");
+    act(() => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+    expect(result.current.status).toBe("loading");
+    expect(play).not.toHaveBeenCalled();
+    await act(async () =>
+      finish({ url: "fresh-source", mimeType: "audio/mpeg" }),
+    );
+    expect(audio.src).toBe("fresh-source");
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each(["toggle", "select-current"] as const)(
+  "ignores a late rejected %s resume after another track starts",
+  async (resumeControl) => {
+    const { result } = renderHook(() => useAudioPlayer());
+    await act(async () => result.current.play(track));
+    const audio = MockAudio.instances[0];
+    act(() => audio.emit("playing"));
+    act(() => result.current.toggle());
+    let rejectResume: (error: Error) => void = () => {};
+    const pendingResume = new Promise<void>((_resolve, reject) => {
+      rejectResume = reject;
+    });
+    vi.spyOn(audio, "play").mockImplementationOnce(() => pendingResume);
+    act(() => {
+      if (resumeControl === "toggle") result.current.toggle();
+      else result.current.play(track);
+    });
+    const nextTrack = { ...track, id: "next-track" };
+    await act(async () => result.current.play(nextTrack));
+    act(() => audio.emit("playing"));
+    await act(async () => rejectResume(new Error("old resume failed")));
+    expect(result.current.current?.id).toBe(nextTrack.id);
+    expect(result.current.status).toBe("playing");
+    expect(result.current.playbackError).toBeNull();
+    act(() => result.current.toggle());
+    await act(async () => result.current.toggle());
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  },
+);
