@@ -15,7 +15,7 @@ needed, without reserving empty space in either Sources or Playlists.
 - [x] Source names still truncate, and counts/removal controls remain inside the row.
 - [x] Shared playlist list styling receives the same gutter correction.
 - [x] Search, selection and removal behavior remain unchanged.
-- [ ] Complete ordered checks and two review cycles; open a feature PR to dev.
+- [x] Complete ordered checks and two review cycles; open a feature PR to dev.
 
 The existing native Electron Settings fixture measures actual source row edges
 at desktop/minimum viewport sizes across light/dark materials and connected/
@@ -23,3 +23,8 @@ disconnected states. It failed with the intended 15px gap before the CSS fix
 and passes after it. Existing LibraryList interaction tests also pass.
 The pattern uses standard native CSS overflow behavior, not a custom scroller:
 https://developer.mozilla.org/en-US/docs/Web/CSS/scrollbar-gutter
+
+All ordered gates passed: frozen Yarn install, formatting, lint, strict types,
+337 tests, desktop build/package and Linux ZIP/DEB make. Both initial reviews and
+final re-reviews returned zero findings for Standards and Spec.
+See [the review record](../../reviews/2026-10-24-full-width-source-rows.md).
