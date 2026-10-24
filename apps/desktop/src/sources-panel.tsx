@@ -1,5 +1,5 @@
-import SidebarPanel from "./sidebar-panel";
 import { FolderTree, Plus } from "lucide-react";
+import SidebarPanel from "./sidebar-panel";
 import LibraryList, { type LibraryListProps } from "./LibraryList";
 import type { LibraryDto } from "./types";
 
@@ -14,9 +14,17 @@ export default function SourcesPanel({
   ...listProps
 }: Props) {
   return (
-    <SidebarPanel title="Sources" headingId="sources-panel-heading" icon={<FolderTree aria-hidden="true" />} count={libraries?.length ?? null} footer={
-      <button type="button" onClick={onAddSource}><Plus aria-hidden="true" /> Add source</button>
-    }>
+    <SidebarPanel
+      title="Sources"
+      headingId="sources-panel-heading"
+      icon={<FolderTree aria-hidden="true" />}
+      count={libraries?.length ?? null}
+      footer={
+        <button type="button" onClick={onAddSource}>
+          <Plus aria-hidden="true" /> Add source
+        </button>
+      }
+    >
       {libraries === null ? (
         <p className="app__placeholder">Loading sources...</p>
       ) : (

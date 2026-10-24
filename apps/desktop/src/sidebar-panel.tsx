@@ -9,13 +9,22 @@ interface Props {
   children: ReactNode;
 }
 
-export default function SidebarPanel({ title, headingId, icon, count, footer, children }: Props) {
+export default function SidebarPanel({
+  title,
+  headingId,
+  icon,
+  count,
+  footer,
+  children,
+}: Props) {
   return (
     <section className="sidebar-panel" aria-labelledby={headingId}>
       <header className="sidebar-panel__header">
         {icon}
         <h2 id={headingId}>{title}</h2>
-        <span className="sidebar-panel__total" aria-live="polite">{count ?? "..."}</span>
+        <span className="sidebar-panel__total" aria-live="polite">
+          {count ?? "..."}
+        </span>
       </header>
       {children}
       <footer className="sidebar-panel__footer">{footer}</footer>

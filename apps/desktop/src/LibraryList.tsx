@@ -1,6 +1,6 @@
-import SidebarSearch from "./sidebar-search";
 import { Cloud, Folder, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import SidebarSearch from "./sidebar-search";
 import type { LibraryDto } from "./types";
 
 export interface LibraryListProps {
@@ -42,7 +42,12 @@ export default function LibraryList({
 
   return (
     <div className="source-browser">
-      <SidebarSearch label="Search sources" clearLabel="Clear source search" value={query} onChange={setQuery} />
+      <SidebarSearch
+        label="Search sources"
+        clearLabel="Clear source search"
+        value={query}
+        onChange={setQuery}
+      />
       <p
         className={
           query

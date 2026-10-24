@@ -71,17 +71,37 @@ describe("PlaylistPanel", () => {
   it("selects one playlist from a searchable sidebar instead of showing every track", async () => {
     mockedInvoke.mockResolvedValueOnce([
       ...playlists,
-      { id: "quiet", name: "Quiet hours", entries: [{ ...playlists[0].entries[0], id: "quiet-entry", trackTitle: "Nightfall" }] },
+      {
+        id: "quiet",
+        name: "Quiet hours",
+        entries: [
+          {
+            ...playlists[0].entries[0],
+            id: "quiet-entry",
+            trackTitle: "Nightfall",
+          },
+        ],
+      },
     ]);
     render(<PlaylistPanel />);
     const navigator = await screen.findByRole("region", { name: "Playlists" });
-    expect(navigator.contains(screen.getByRole("searchbox", { name: "Search playlists" }))).toBe(true);
+    expect(
+      navigator.contains(
+        screen.getByRole("searchbox", { name: "Search playlists" }),
+      ),
+    ).toBe(true);
     expect(await screen.findByText("Hotel California")).toBeDefined();
     expect(screen.queryByText("Nightfall")).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Open playlist Quiet hours" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Open playlist Quiet hours" }),
+    );
     expect(screen.getByText("Nightfall")).toBeDefined();
     expect(screen.queryByText("Hotel California")).toBeNull();
-    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Open playlist Quiet hours" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
   });
 
   it("filters playlist names without changing the selected playlist and clears with Escape", async () => {
@@ -93,32 +113,59 @@ describe("PlaylistPanel", () => {
     await screen.findByRole("button", { name: "Open playlist Road Trip" });
     const search = screen.getByRole("searchbox", { name: "Search playlists" });
     await userEvent.type(search, "  QUIET  ");
-    expect(screen.queryByRole("button", { name: "Open playlist Road Trip" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" })).toBeDefined();
+    expect(
+      screen.queryByRole("button", { name: "Open playlist Road Trip" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Open playlist Quiet hours" }),
+    ).toBeDefined();
     expect(screen.getByText("Hotel California")).toBeDefined();
     await userEvent.clear(search);
     await userEvent.type(search, "missing");
     expect(screen.getByText("No playlists match your search.")).toBeDefined();
     await userEvent.keyboard("{Escape}");
-    expect(screen.getByRole("button", { name: "Open playlist Road Trip" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Open playlist Road Trip" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(document.activeElement).toBe(search);
   });
 
   it("creates and selects a playlist from the panel footer, clearing an active filter", async () => {
-    mockedInvoke.mockResolvedValueOnce(playlists).mockResolvedValueOnce({ id: "quiet", name: "Quiet hours", entries: [] });
+    mockedInvoke
+      .mockResolvedValueOnce(playlists)
+      .mockResolvedValueOnce({ id: "quiet", name: "Quiet hours", entries: [] });
     render(<PlaylistPanel />);
     await screen.findByRole("button", { name: "Open playlist Road Trip" });
-    await userEvent.type(screen.getByRole("searchbox", { name: "Search playlists" }), "Road");
+    await userEvent.type(
+      screen.getByRole("searchbox", { name: "Search playlists" }),
+      "Road",
+    );
     await userEvent.click(screen.getByRole("button", { name: "New playlist" }));
     const name = screen.getByLabelText("Playlist name");
     expect(document.activeElement).toBe(name);
     await userEvent.type(name, "Quiet hours");
-    await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
-    expect(await screen.findByRole("heading", { name: "Quiet hours" })).toBeDefined();
-    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole<HTMLInputElement>("searchbox", { name: "Search playlists" }).value).toBe("");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create playlist" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Quiet hours" }),
+    ).toBeDefined();
+    expect(
+      screen
+        .getByRole("button", { name: "Open playlist Quiet hours" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole<HTMLInputElement>("searchbox", {
+        name: "Search playlists",
+      }).value,
+    ).toBe("");
     expect(screen.queryByLabelText("Playlist name")).toBeNull();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "New playlist" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "New playlist" }),
+    );
   });
 
   it("shows an empty state for playlists without entries", async () => {
