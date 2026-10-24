@@ -2,8 +2,8 @@
 
 Base: 33738ccb1849069027c923158cadbe2055222c18.
 Initial code head: 3ff9c28c58635eaf30384be0fa5d71135f73e431.
-Final code head: 183137d892326af213192a26ba51168e6a0b5171.
-Subsequent changes only record review/check completion.
+Earlier pre-waveform code head: 183137d892326af213192a26ba51168e6a0b5171.
+That stage was followed by the user-requested waveform revision below.
 
 # Initial review
 
@@ -91,3 +91,89 @@ scoped package label; red assertions preceded the focused Muzo launcher-name
 fix. The final fix re-review inspected that correction. Browser checks covered
 16, 32, 64 and 128 pixel icons on light/dark backgrounds. Native Windows/macOS CI
 runs on the PR; target OS shell appearance still needs manual testing.
+
+# Waveform revision review cycles
+
+Updated code head: 05f3ffd9d79fb496dc73d21e45f09ecd47167239.
+The user requested waveform bars in place of the continuous M. The revision also
+prepares Electron once before parallel tests following the first Linux CI failure.
+
+# Waveform initial review
+
+## Standards
+
+No documented-standard violations or actionable baseline smells found in the updated pinned diff from 33738ccb1849069027c923158cadbe2055222c18 to 05f3ffd9d79fb496dc73d21e45f09ecd47167239.
+
+The waveform revision changes the asset family and records its provenance without expanding runtime responsibilities. Native packaging and platform icon configuration retain the previously reviewed small Electron-boundary design, established converter CLI, licence and reproducibility checks.
+
+The test preparation change addresses observed CI failure using Electron's own entry point. The installed Electron 43 loader confirms synchronous installation on first require; running that entry point once before parallel Vitest workers is a focused coordination fix. Both normal and watch scripts share the same Yarn preparation command. Native assertions remain intact, and no custom installer or suppressed failure path is introduced.
+
+The prior test-first asset, runtime and packaging history remains preserved. Tool-enforced concerns are excluded. The parent reports the previous Windows/macOS native decoding/package jobs passed; updated complete gates and CI outcomes remain with the parent.
+
+Findings: 0 hard violations; 0 judgement-call smells.
+
+## Spec
+
+# Spec review: waveform native icon, initial revision cycle
+
+Pinned diff: `33738ccb1849069027c923158cadbe2055222c18...05f3ffd9d79fb496dc73d21e45f09ecd47167239`.
+
+## (a) Missing or partial requirements
+
+No actionable implementation findings. Fresh native-platform verification remains pending and is unchecked in card 026.
+
+## (b) Unasked scope
+
+No actionable findings. Preparing Electron before parallel native tests addresses the observed fresh-install race introduced by exercising two real Electron integrations. The card explicitly requires: "Prepare the binary once before Vitest starts, using Electron's own entry point. Keep the native tests and their assertions intact; watch mode uses the same preparation."
+
+## (c) Apparently implemented requirements done incorrectly
+
+No actionable findings. Independently inspected the PNG and confirmed its blob matches the pinned asset. Nine distinct blue rounded waveform bars form two peaks and a central trough on the black rounded tile, satisfying the revised direction to "replace the continuous M with a waveform style." The existing runtime paths, first/recreated-window handling, development Dock override and Forge/DEB integration continue to use the regenerated sibling assets.
+
+The real native tests, platform-specific configuration and container contracts remain intact. `test` and `test:watch` both run the same `electron:prepare` command before starting Vitest. The installed Electron entry point synchronously ensures its executable exists, so preparation finishes before worker startup without weakening test assertions.
+
+The parent reports Windows/macOS native checks passed for the prior asset. That does not establish the revised containers' final platform results; fresh CI and ordered gates remain with the parent. No repository or browser changes were made by this review.
+
+Findings: Standards 0, Spec 0.
+
+# Waveform fix re-review
+
+## Standards
+
+No documented-standard violations or actionable baseline smells found on the second review of the full pinned diff from 33738ccb1849069027c923158cadbe2055222c18 to 05f3ffd9d79fb496dc73d21e45f09ecd47167239.
+
+The waveform assets retain one master and reproducible native exports, with updated generation provenance and an exact copy of the converter's MIT notice. Runtime icon resolution, development-only macOS Dock behavior and shared initial/reactivated-window paths retain focused Electron-boundary responsibilities. Forge keeps native package icons and the Muzo Linux launcher identity together.
+
+Normal and watch tests both await the same Yarn preparation command before parallel workers. Delegating first-use installation to Electron's existing loader directly addresses the observed race without weakening native coverage or adding a custom installation layer. Existing test-first contract history and focused subsequent fixes remain intact.
+
+Tool-enforced concerns are excluded. The parent reports all 285 tests passed again; final build/package/make completion and updated CI remain with the parent.
+
+Findings: 0 hard violations; 0 judgement-call smells.
+
+## Spec
+
+# Spec review: waveform native icon, second revision cycle
+
+Pinned diff: `33738ccb1849069027c923158cadbe2055222c18...05f3ffd9d79fb496dc73d21e45f09ecd47167239`.
+
+## (a) Missing or partial requirements
+
+No actionable implementation findings. Fresh Windows/macOS CI remains unchecked rather than being inferred from the previous asset's successful run.
+
+## (b) Unasked scope
+
+No actionable findings. Native-binary preparation directly addresses the observed parallel fresh-install test failure while preserving the card's real-platform verification requirement.
+
+## (c) Apparently implemented requirements done incorrectly
+
+No actionable findings after fresh inspection of the complete pinned file set, test commands and native-container assertions. The revised artwork implements "blue waveform bars on a black rounded tile, with transparent corners" and the requested two-peak/central-trough suggestion of an M. Independently inspected `/tmp/muzo-waveform-icon-sizes.png`; the waveform remains recognizable at the supplied 16, 32, 64 and 128 pixel previews on light/dark backgrounds.
+
+The PNG/ICO/ICNS siblings retain the established runtime and packaging integration for Windows, Linux and macOS. Native format contracts still require small Windows sizes and macOS artwork through 1024. The native integration still asserts successful real decoding, 16/32/256 output dimensions and window creation.
+
+Both normal and watch test scripts run Electron's synchronous preparation before starting Vitest, meeting "Prepare the binary once before Vitest starts, using Electron's own entry point." No native assertions were removed. The parent reports all 285 tests, formatting, lint and type checks passed for this revision; remaining ordered gates and platform CI stay with the parent task. Historical review wording will be qualified when the new reports are recorded.
+
+Findings: Standards 0, Spec 0.
+
+All ordered local gates passed again with 285 tests on the waveform revision.
+Native Windows/macOS checks passed on the preceding asset revision; the latest
+asset and Electron preparation receive fresh three-platform CI on the PR.
