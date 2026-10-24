@@ -5,11 +5,13 @@ import type { TrackDto } from "./api";
 
 const apiMocks = vi.hoisted(() => ({
   prepareTrackAudioSource: vi.fn(),
+  recordTrackPlay: vi.fn(),
 }));
 
 vi.mock("./api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./api")>()),
   prepareTrackAudioSource: apiMocks.prepareTrackAudioSource,
+  recordTrackPlay: apiMocks.recordTrackPlay,
 }));
 
 type Listener = (event: unknown) => void;
@@ -64,10 +66,12 @@ beforeEach(() => {
   MockAudio.instances = [];
   MockAudio.nextPlayError = null;
   apiMocks.prepareTrackAudioSource.mockReset();
+  apiMocks.recordTrackPlay.mockReset();
   apiMocks.prepareTrackAudioSource.mockResolvedValue({
     mimeType: "audio/mpeg",
     url: "http://127.0.0.1:49152/audio/trk-1",
   });
+  apiMocks.recordTrackPlay.mockResolvedValue(undefined);
   vi.stubGlobal("Audio", MockAudio);
 });
 
@@ -117,6 +121,33 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("playing");
   });
 
+  it("records one play when a new track starts successfully", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+
+    await act(async () => {
+      result.current.play(track);
+    });
+
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledOnce();
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledWith({
+      libraryId: "lib-1",
+      trackId: "trk-1",
+    });
+  });
+
+  it("notifies after a new track play is recorded", async () => {
+    const onTrackPlayRecorded = vi.fn();
+    const { result } = renderHook(() =>
+      useAudioPlayer({ onTrackPlayRecorded }),
+    );
+
+    await act(async () => {
+      result.current.play(track);
+    });
+
+    expect(onTrackPlayRecorded).toHaveBeenCalledWith(track);
+  });
+
   it("does not reload the current track when play is called again", async () => {
     const { result } = renderHook(() => useAudioPlayer());
 
@@ -134,6 +165,7 @@ describe("useAudioPlayer", () => {
 
     const audio = MockAudio.instances[0];
     expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledOnce();
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledOnce();
     expect(audio.load).toHaveBeenCalledOnce();
     expect(result.current.positionSeconds).toBe(42);
     expect(result.current.status).toBe("playing");
@@ -234,6 +266,7 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("error");
     expect(result.current.playbackError).toContain("NotSupportedError");
     expect(result.current.playbackError).toContain("The element has no supported sources.");
+    expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
   });
 
   it("reports an error when the track audio source cannot be loaded", async () => {
@@ -247,5 +280,6 @@ describe("useAudioPlayer", () => {
     expect(result.current.status).toBe("error");
     expect(result.current.playbackError).toContain("Could not play this track");
     expect(result.current.playbackError).toContain("track file is missing");
+    expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
   });
 });

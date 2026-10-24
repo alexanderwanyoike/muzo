@@ -1,23 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import type { TrackDto } from "./api";
+import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-  convertFileSrc: vi.fn((path: string) => `asset://${path}`),
-}));
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: vi.fn(),
-}));
-
-import { invoke } from "@tauri-apps/api/core";
-
-const mockedInvoke = invoke as unknown as ReturnType<typeof vi.fn>;
+let mockedInvoke: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  mockedInvoke.mockReset();
+  const runtime = installTestRuntime({
+    invoke: vi.fn(),
+    openDirectory: vi.fn().mockResolvedValue(null),
+  });
+  mockedInvoke = runtime.invoke as ReturnType<typeof vi.fn>;
+});
+
+afterEach(() => {
+  removeTestRuntime();
 });
 
 const library = {
@@ -74,12 +73,50 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /add library/i })).toBeDefined();
   });
 
+  it("opens the playlists view from primary navigation", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([]);
+      if (command === "list_playlists") return Promise.resolve([]);
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("No music yet")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Playlists" }));
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("list_playlists", undefined),
+    );
+    expect(screen.getByRole("heading", { name: "Playlists" })).toBeDefined();
+  });
+
   it("loads libraries on mount and renders them", async () => {
     mockedInvoke.mockResolvedValue([library]);
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+  });
+
+  it("does not show manual scan controls in the listening view", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "list_tracks") return Promise.resolve([track]);
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", { name: "Show tracks for My Music" }),
+    );
+
+    expect(screen.queryByRole("button", { name: /scan/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /refresh/i })).toBeNull();
   });
 
   it("does not fetch tracks until a library is expanded", async () => {
@@ -108,7 +145,39 @@ describe("App", () => {
     expect(screen.getByText("Hotel California")).toBeDefined();
   });
 
-  it("refreshes the visible track list after scanning an expanded library", async () => {
+  it("loads play counts for the selected library", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "list_tracks") return Promise.resolve([track]);
+      if (command === "list_track_play_counts") {
+        return Promise.resolve([
+          {
+            trackId: "trk-1",
+            playCount: 2,
+            lastPlayedAtUnixSeconds: 1_719_000_000,
+          },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(
+      screen.getByRole("button", { name: "Show tracks for My Music" }),
+    );
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("list_track_play_counts", {
+        input: { libraryId: "lib-1" },
+      }),
+    );
+    expect(screen.getByText("2 plays")).toBeDefined();
+  });
+
+  it("keeps manual refresh in settings as a fallback action", async () => {
     const user = userEvent.setup();
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
@@ -124,6 +193,7 @@ describe("App", () => {
       screen.getByRole("button", { name: "Show tracks for My Music" }),
     );
     await waitFor(() => expect(screen.getByText(/no tracks yet/i)).toBeDefined());
+    expect(screen.queryByRole("button", { name: /refresh/i })).toBeNull();
 
     mockedInvoke.mockImplementation((command: string) => {
       if (command === "list_libraries") return Promise.resolve([library]);
@@ -132,12 +202,36 @@ describe("App", () => {
       return Promise.resolve([]);
     });
 
-    await user.click(
-      screen.getByRole("button", { name: "Scan selected library" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Refresh My Music" }));
+    await user.click(screen.getByRole("button", { name: "Songs" }));
 
     await waitFor(() =>
       expect(screen.getByText("Hotel California")).toBeDefined(),
     );
+  });
+
+  it("surfaces refresh failures without leaving settings", async () => {
+    const user = userEvent.setup();
+    mockedInvoke.mockImplementation((command: string) => {
+      if (command === "list_libraries") return Promise.resolve([library]);
+      if (command === "scan_library") {
+        return Promise.reject(new Error("Permission denied"));
+      }
+      return Promise.resolve([]);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("My Music")).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("button", { name: "Refresh My Music" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain(
+        "Permission denied",
+      ),
+    );
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
   });
 });

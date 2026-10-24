@@ -16,8 +16,16 @@ architecture: domain -> application -> infrastructure -> commands -> UI.
 | 002 | [Add a filesystem library](./002-add-filesystem-library.md) | Done | 003, 004 |
 | 003 | [List libraries in the UI](./003-list-libraries.md) | Done | - |
 | 004 | [Scan filesystem library recursively](./004-scan-filesystem-library.md) | Done | 005, 006 |
-| 005 | [Sync library on filesystem changes](./005-sync-library-on-change.md) | Pending | - |
-| 006 | [Play tracks from a library](./006-play-tracks.md) | Pending | - |
+| 005 | [Sync library on filesystem changes](./005-sync-library-on-change.md) | Superseded by sprint 02 card 006 | - |
+| 006 | [Play tracks from a library](./006-play-tracks.md) | Done | - |
+
+## Close-out note
+
+Sprint 01 is functionally complete for local playback. Card 005 was folded into
+sprint 02 card 006 when automatic startup reconciliation and the `notify` based
+watcher were implemented. The post-migration sync UX polish is now complete:
+manual refresh is a Settings-only recovery fallback, not part of normal
+listening.
 
 ## Why Dropbox is in sprint 02, not sprint 01
 

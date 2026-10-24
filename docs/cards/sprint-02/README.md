@@ -9,15 +9,29 @@ review: formalising SQLite migrations before more tables pile up.
 
 ## Cards
 
-| #   | Card | Type | Blocks |
-| --- | --- | --- | --- |
-| 001 | [Formal SQLite migrations](./001-formal-sqlite-migrations.md) | Tech debt | 002, 003, 004 |
-| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | 003 |
-| 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | - |
-| 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | - |
-| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) (planned) | Feature | - |
-| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | 007 |
-| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | - |
+| #   | Card | Type | Status | Blocks |
+| --- | --- | --- | --- | --- |
+| 001 | [Formal SQLite migrations](./001-formal-sqlite-migrations.md) | Tech debt | Done | 002, 003, 004 |
+| 002 | [Dropbox OAuth and API client](./002-dropbox-oauth-and-api-client.md) | Feature | Done | 003 |
+| 003 | [Dropbox library adapter](./003-dropbox-library-adapter.md) | Feature | Done | - |
+| 004 | [Playlists core model](./004-playlists-core-model.md) | Feature | Done | - |
+| 005 | [Play history and play counts](./005-play-history-and-play-counts.md) | Feature | Done | - |
+| 006 | [Automatic filesystem library sync](./006-automatic-filesystem-library-sync.md) | Fix | Done | 007 |
+| 007 | [ID3 metadata and library editing](./007-id3-metadata-and-library-editing.md) | Feature | Done | - |
+| 008 | [Playlist UI foundation](./008-playlist-ui-foundation.md) | Feature | Done | - |
+| 009 | [Add tracks to playlists from the song list](./009-add-tracks-to-playlists-ui.md) | Feature | Done | - |
+| 010 | [Remove playlist entries](./010-remove-playlist-entries-ui.md) | Feature | Done | - |
+| 011 | [Reorder playlist entries](./011-reorder-playlist-entries-ui.md) | Feature | Done | - |
+| 012 | [Play playlist entries](./012-play-playlist-entries-ui.md) | Feature | Done | - |
+| 013 | [Dropbox token persistence](./013-dropbox-token-persistence.md) | Feature | Done | 014 |
+
+## Close-out note
+
+The sprint 02 local-library slices are complete and covered by the current
+desktop test suite. Remaining user-facing product work:
+
+- Dropbox account connection, polling, downloads, and playback.
+- Playlist queueing and auto-advance.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop

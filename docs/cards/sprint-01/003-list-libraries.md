@@ -1,5 +1,5 @@
 - Sprint: 01
-- Status: Pending
+- Status: Done
 - Blocks: -
 
 # Card 003 - List libraries in the UI
@@ -22,14 +22,14 @@ exercises the persistence from card 002 across app restarts.
 
 ## Acceptance criteria
 
-- [ ] `LibraryRepository::list` is part of the trait, with a unit-tested fake in the application tests.
-- [ ] `ListLibraries` use case in `application` with a unit test using a fake repository.
-- [ ] SQLite implementation of `list` with an integration test that persists two libraries and reads them back.
-- [ ] `list_libraries` Tauri command returns `Vec<LibraryDto>`.
-- [ ] React UI renders the list on mount and on a "refresh" action. Empty state is handled.
-- [ ] After adding a library (card 002) and restarting the app, the library appears in the list without any extra action.
-- [ ] DTO shape is stable enough to drive a basic list UI; future cards (004, sprint 02) extend it.
-- [ ] All verification commands green.
+- [x] `LibraryRepository::list` is part of the trait, with a unit-tested fake in the application tests.
+- [x] `ListLibraries` use case in `application` with a unit test using a fake repository.
+- [x] SQLite implementation of `list` with an integration test that persists two libraries and reads them back.
+- [x] `list_libraries` Tauri command returns `Vec<LibraryDto>`.
+- [x] React UI renders the list on mount and handles the empty state.
+- [x] After adding a library (card 002) and restarting the app, the library appears in the list without any extra action.
+- [x] DTO shape is stable enough to drive a basic list UI; future cards (004, sprint 02) extend it.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 

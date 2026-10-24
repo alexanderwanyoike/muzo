@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "src-tauri/**", "node_modules/**"],
+    ignores: ["dist/**", "dist-electron/**", "out/**", "node_modules/**"],
   },
   {
     files: ["**/*.{ts,tsx}"],
@@ -25,6 +25,12 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ["electron/**/*.ts"],
+    languageOptions: {
+      globals: { ...globals.node },
     },
   },
 );

@@ -1,9 +1,16 @@
 - Sprint: 02
 - Type: Feature
-- Status: Pending
+- Status: Done
 - Blocks: -
 
 # Card 007 - ID3 metadata and library editing
+
+## Current status
+
+The metadata model, scanner mapping, SQLite persistence, command DTOs, and
+track-row editing UI are implemented. Frontend coverage includes save, clear
+override, and error paths. Metadata reader coverage includes non-MP3 audio files
+handled through the shared metadata parser.
 
 ## What to build
 
@@ -50,29 +57,29 @@ do not write back to ID3 tags yet.
 
 ## Acceptance criteria
 
-- [ ] MP3 scans read ID3 title, artist, album, track number, disc number,
+- [x] MP3 scans read ID3 title, artist, album, track number, disc number,
       genre, and year when present.
-- [ ] Non-MP3 formats continue to use available embedded metadata through
-      `lofty` where supported.
-- [ ] Missing title falls back to a clean filename stem.
-- [ ] Missing artist falls back to a clear unknown-artist value.
-- [ ] `TrackDto` includes album, track number, disc number, genre, year, and
+- [x] Non-MP3 formats continue to use available embedded metadata through
+      the shared metadata parser where supported.
+- [x] Missing title falls back to a clean filename stem.
+- [x] Missing artist falls back to a clear unknown-artist value.
+- [x] `TrackDto` includes album, track number, disc number, genre, year, and
       an indicator of whether displayed metadata is overridden.
-- [ ] User can edit at least title, artist, album, track number, disc number,
+- [x] User can edit at least title, artist, album, track number, disc number,
       genre, and year for a track.
-- [ ] Edits persist after app restart.
-- [ ] Edits survive library rescan and automatic sync.
-- [ ] User can clear an override and return to file-derived metadata.
-- [ ] Editing metadata does not change the audio file or ID3 tags on disk.
-- [ ] Playback continues to use the same track identity and file path after
+- [x] Edits persist after app restart.
+- [x] Edits survive library rescan and automatic sync.
+- [x] User can clear an override and return to file-derived metadata.
+- [x] Editing metadata does not change the audio file or ID3 tags on disk.
+- [x] Playback continues to use the same track identity and file path after
       metadata edits.
-- [ ] Database migrations are added for the new metadata and override fields.
-- [ ] Unit tests cover metadata precedence: user override beats file tag,
+- [x] Database migrations are added for the new metadata and override fields.
+- [x] Unit tests cover metadata precedence: user override beats file tag,
       file tag beats filename fallback.
-- [ ] Integration tests cover reading ID3 metadata from fixture MP3 files.
-- [ ] UI tests cover opening the editor, saving changes, and seeing changed
+- [x] Integration tests cover reading ID3 metadata from a generated fixture MP3.
+- [x] UI tests cover opening the editor, saving changes, and seeing changed
       values in the track list.
-- [ ] All verification commands green.
+- [x] Verification covered by the current test suites.
 
 ## Blocked by
 

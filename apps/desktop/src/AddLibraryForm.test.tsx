@@ -1,25 +1,24 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AddLibraryForm from "./AddLibraryForm";
-
-vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
-}));
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: vi.fn(),
-}));
-
-import { invoke } from "@tauri-apps/api/core";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 import type { LibraryDto } from "./types";
 
-const mockedInvoke = invoke as unknown as ReturnType<typeof vi.fn>;
-const mockedOpenDialog = openDialog as unknown as ReturnType<typeof vi.fn>;
+let mockedInvoke: ReturnType<typeof vi.fn>;
+let mockedOpenDirectory: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  mockedInvoke.mockReset();
-  mockedOpenDialog.mockReset();
+  const runtime = installTestRuntime({
+    invoke: vi.fn(),
+    openDirectory: vi.fn().mockResolvedValue(null),
+  });
+  mockedInvoke = runtime.invoke as ReturnType<typeof vi.fn>;
+  mockedOpenDirectory = runtime.openDirectory as ReturnType<typeof vi.fn>;
+});
+
+afterEach(() => {
+  removeTestRuntime();
 });
 
 describe("AddLibraryForm", () => {
@@ -62,7 +61,7 @@ describe("AddLibraryForm", () => {
 
   it("opens a folder picker when Browse is clicked and fills the location", async () => {
     const user = userEvent.setup();
-    mockedOpenDialog.mockResolvedValueOnce("/home/user/Picked");
+    mockedOpenDirectory.mockResolvedValueOnce("/home/user/Picked");
 
     render(<AddLibraryForm onAdded={() => {}} />);
 
@@ -75,7 +74,7 @@ describe("AddLibraryForm", () => {
 
   it("shows an error when the folder picker cannot open", async () => {
     const user = userEvent.setup();
-    mockedOpenDialog.mockRejectedValueOnce(new Error("dialog unavailable"));
+    mockedOpenDirectory.mockRejectedValueOnce(new Error("dialog unavailable"));
 
     render(<AddLibraryForm onAdded={() => {}} />);
 
