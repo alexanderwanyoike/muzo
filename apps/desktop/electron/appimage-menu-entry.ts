@@ -1,4 +1,5 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { failure, success, type Result } from "./application/result";
 
@@ -18,9 +19,44 @@ function executable(value: string): string {
   return `"${desktopString(quoted).replaceAll("%", "%%")}"`;
 }
 
+const managedKey = "X-Muzo-AppImage-Integration=true";
+export type AppImageMenuState = "missing" | "managed" | "external";
+
+export async function appImageMenuState(
+  dataDirectory: string,
+): Promise<Result<AppImageMenuState>> {
+  try {
+    const directory = join(dataDirectory, "applications");
+    let files: string[];
+    try {
+      files = await readdir(directory);
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT")
+        return success("missing");
+      throw error;
+    }
+    let managed = false;
+    for (const name of files.filter((file) => file.endsWith(".desktop"))) {
+      const entry = await readFile(join(directory, name), "utf8");
+      if (name === "muzo.desktop" && entry.split("\n").includes(managedKey)) {
+        managed = true;
+      } else if (name === "muzo.desktop" || /^StartupWMClass=muzo$/im.test(entry)) {
+        return success("external");
+      }
+    }
+    return success(managed ? "managed" : "missing");
+  } catch {
+    return failure("storage", "Could not read your application menu entries.");
+  }
+}
+
 export async function registerAppImageMenuEntry(
   options: AppImageMenuEntryOptions,
-): Promise<Result<"registered">> {
+): Promise<Result<"registered" | "existing">> {
+  const state = await appImageMenuState(options.dataDirectory);
+  if (!state.ok) return state;
+  if (state.value === "external") return success("existing");
+  const temporary = join(options.dataDirectory, "applications", `.muzo-${randomUUID()}.tmp`);
   try {
     const directory = join(options.dataDirectory, "applications");
     const icon = join(options.dataDirectory, "muzo/appimage.png");
@@ -28,7 +64,7 @@ export async function registerAppImageMenuEntry(
     await mkdir(join(options.dataDirectory, "muzo"), { recursive: true });
     await copyFile(options.iconPath, icon);
     await writeFile(
-      join(directory, "muzo.desktop"),
+      temporary,
       [
         "[Desktop Entry]",
         "Type=Application",
@@ -39,12 +75,20 @@ export async function registerAppImageMenuEntry(
         "Terminal=false",
         "StartupWMClass=muzo",
         "Categories=AudioVideo;Audio;Player;",
+        managedKey,
         "",
       ].join("\n"),
       { mode: 0o644 },
     );
+    if (state.value === "managed") {
+      await rename(temporary, join(directory, "muzo.desktop"));
+    } else {
+      await writeFile(join(directory, "muzo.desktop"), await readFile(temporary), { flag: "wx", mode: 0o644 });
+    }
     return success("registered");
   } catch {
     return failure("storage", "Could not add Muzo to your application menu.");
+  } finally {
+    await rm(temporary, { force: true }).catch(() => undefined);
   }
 }
