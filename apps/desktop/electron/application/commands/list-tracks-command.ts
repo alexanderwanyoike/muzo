@@ -1,4 +1,4 @@
-import type { TrackDto } from "../../../src/api";
+import type { TrackRecord } from "../interfaces/track-record";
 import type { TrackReader } from "../interfaces/repository-interfaces";
 import type { CommandHandler } from "./command-handler";
 
@@ -7,7 +7,7 @@ export class ListTracksCommand implements CommandHandler {
 
   constructor(private readonly tracks: TrackReader) {}
 
-  handle(args: unknown): Promise<TrackDto[]> {
+  handle(args: unknown): Promise<TrackRecord[]> {
     const { libraryId } = parseListTracksArgs(args);
     return this.tracks.listForLibrary(libraryId);
   }

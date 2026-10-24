@@ -1,3 +1,4 @@
+import type { TrackRecord } from "../electron/application/interfaces/track-record";
 import { invokeCommand } from "./runtime-bridge";
 import type {
   AddLibraryInputDto,
@@ -32,20 +33,7 @@ export async function scanLibrary(libraryId: string): Promise<ScanReport> {
   });
 }
 
-export interface TrackDto {
-  id: string;
-  libraryId: string;
-  title: string;
-  artist: string;
-  album: string | null;
-  trackNumber: number | null;
-  discNumber: number | null;
-  genre: string | null;
-  year: number | null;
-  metadataOverridden: boolean;
-  durationSeconds: number;
-  filePath: string;
-}
+export type TrackDto = TrackRecord;
 
 export async function listTracks(libraryId: string): Promise<TrackDto[]> {
   return invokeCommand<TrackDto[]>("list_tracks", { libraryId });

@@ -1,17 +1,8 @@
-export type LibraryKindDto = "filesystem" | "dropbox";
+import type { AddLibraryInput, LibraryKind, LibraryRecord } from "../electron/application/interfaces/library-record";
 
-export interface LibraryDto {
-  id: string;
-  name: string;
-  kind: LibraryKindDto;
-  location: string;
-}
-
-export interface AddLibraryInputDto {
-  name: string;
-  kind: LibraryKindDto;
-  location: string;
-}
+export type LibraryKindDto = LibraryKind;
+export type LibraryDto = LibraryRecord;
+export type AddLibraryInputDto = AddLibraryInput;
 
 export type AddLibraryErrorDto =
   | { kind: "emptyName" }

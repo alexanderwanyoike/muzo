@@ -1,4 +1,4 @@
-import type { LibraryDto } from "../../src/types";
+import type { LibraryRecord } from "./interfaces/library-record";
 import type { Logger } from "./interfaces/logger-interfaces";
 import type { LibraryRepository } from "./interfaces/repository-interfaces";
 import type { FilesystemLibraryWatcher } from "./interfaces/watch-interfaces";
@@ -16,7 +16,7 @@ export interface WatchFilesystemLibrariesReport {
 
 export interface AddedLibraryWatcher {
   watchLibrary(
-    library: LibraryDto,
+    library: LibraryRecord,
   ): Promise<WatchFilesystemLibraryFailure | null>;
 }
 
@@ -47,7 +47,7 @@ export class WatchFilesystemLibrariesService {
   }
 
   async watchLibrary(
-    library: LibraryDto,
+    library: LibraryRecord,
   ): Promise<WatchFilesystemLibraryFailure | null> {
     if (library.kind !== "filesystem") {
       return null;

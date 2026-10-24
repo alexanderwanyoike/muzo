@@ -1,10 +1,10 @@
-import type { TrackDto } from "../../../src/api";
-import type { LibraryDto } from "../../../src/types";
+import type { TrackRecord } from "./track-record";
+import type { LibraryRecord } from "./library-record";
 
 export interface LibraryRepository {
-  add(library: LibraryDto): Promise<void>;
-  findById(libraryId: string): Promise<LibraryDto | null>;
-  list(): Promise<LibraryDto[]>;
+  add(library: LibraryRecord): Promise<void>;
+  findById(libraryId: string): Promise<LibraryRecord | null>;
+  list(): Promise<LibraryRecord[]>;
 }
 
 export interface ScannedTrack {
@@ -34,7 +34,7 @@ export interface TrackMetadataOverride {
 }
 
 export interface TrackReader {
-  listForLibrary(libraryId: string): Promise<TrackDto[]>;
+  listForLibrary(libraryId: string): Promise<TrackRecord[]>;
 }
 
 export interface ScannedTrackRepository extends TrackReader {

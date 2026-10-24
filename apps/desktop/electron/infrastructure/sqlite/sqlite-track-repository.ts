@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
-import type { TrackDto } from "../../../src/api";
+import type { TrackRecord } from "../../application/interfaces/track-record";
 import type {
   ScannedTrack,
   TrackMetadataOverride,
@@ -44,7 +44,7 @@ export class SqliteTrackRepository implements TrackRepository {
     }
   }
 
-  async listForLibrary(libraryId: string): Promise<TrackDto[]> {
+  async listForLibrary(libraryId: string): Promise<TrackRecord[]> {
     if (!existsSync(this.dbPath)) {
       return [];
     }
@@ -66,7 +66,7 @@ export class SqliteTrackRepository implements TrackRepository {
       `);
       try {
         statement.bind([libraryId]);
-        const tracks: TrackDto[] = [];
+        const tracks: TrackRecord[] = [];
         while (statement.step()) {
           tracks.push(trackFromRow(statement.getAsObject()));
         }
@@ -188,7 +188,7 @@ function tableExists(
   }
 }
 
-function trackFromRow(row: Record<string, unknown>): TrackDto {
+function trackFromRow(row: Record<string, unknown>): TrackRecord {
   return {
     id: stringColumn(row, "id"),
     libraryId: stringColumn(row, "library_id"),

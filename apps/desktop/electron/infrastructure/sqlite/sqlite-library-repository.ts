@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 
-import type { LibraryDto, LibraryKindDto } from "../../../src/types";
+import type { LibraryRecord, LibraryKind } from "../../application/interfaces/library-record";
 import type { LibraryRepository } from "../../application/interfaces/repository-interfaces";
 import { locateSqlWasm } from "./sql-wasm-path";
 
@@ -12,7 +12,7 @@ let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 export class SqliteLibraryRepository implements LibraryRepository {
   constructor(private readonly dbPath: string) {}
 
-  async add(library: LibraryDto): Promise<void> {
+  async add(library: LibraryRecord): Promise<void> {
     const SQL = await loadSqlModule();
     const database = this.openDatabase(SQL);
     try {
@@ -31,7 +31,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
     }
   }
 
-  async findById(libraryId: string): Promise<LibraryDto | null> {
+  async findById(libraryId: string): Promise<LibraryRecord | null> {
     if (!existsSync(this.dbPath)) {
       return null;
     }
@@ -56,7 +56,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
     }
   }
 
-  async list(): Promise<LibraryDto[]> {
+  async list(): Promise<LibraryRecord[]> {
     if (!existsSync(this.dbPath)) {
       return [];
     }
@@ -68,7 +68,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
         "SELECT id, name, kind, location FROM libraries ORDER BY rowid",
       );
       try {
-        const libraries: LibraryDto[] = [];
+        const libraries: LibraryRecord[] = [];
         while (statement.step()) {
           libraries.push(libraryFromRow(statement.getAsObject()));
         }
@@ -93,7 +93,7 @@ export class SqliteLibraryRepository implements LibraryRepository {
   }
 }
 
-function libraryFromRow(row: Record<string, unknown>): LibraryDto {
+function libraryFromRow(row: Record<string, unknown>): LibraryRecord {
   return {
     id: stringColumn(row, "id"),
     name: stringColumn(row, "name"),
@@ -117,7 +117,7 @@ function stringColumn(row: Record<string, unknown>, column: string): string {
   return value;
 }
 
-function libraryKindFromDatabase(kind: string): LibraryKindDto {
+function libraryKindFromDatabase(kind: string): LibraryKind {
   switch (kind) {
     case "Filesystem":
       return "filesystem";
@@ -128,7 +128,7 @@ function libraryKindFromDatabase(kind: string): LibraryKindDto {
   }
 }
 
-function libraryKindToDatabase(kind: LibraryKindDto): string {
+function libraryKindToDatabase(kind: LibraryKind): string {
   switch (kind) {
     case "filesystem":
       return "Filesystem";

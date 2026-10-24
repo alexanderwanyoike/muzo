@@ -1,4 +1,4 @@
-import type { AddLibraryInputDto, LibraryDto } from "../../../src/types";
+import type { AddLibraryInput, LibraryRecord } from "../interfaces/library-record";
 import type { LibraryRepository } from "../interfaces/repository-interfaces";
 import type { AddedLibraryWatcher } from "../watch-filesystem-libraries-service";
 import type { LibraryScanner } from "../scan-library-service";
@@ -16,7 +16,7 @@ export class AddLibraryCommand implements CommandHandler {
     private readonly logger: Logger,
   ) {}
 
-  async handle(args: unknown): Promise<LibraryDto> {
+  async handle(args: unknown): Promise<LibraryRecord> {
     const input = parseAddLibraryArgs(args);
 
     if (input.name.trim().length === 0) {
@@ -27,7 +27,7 @@ export class AddLibraryCommand implements CommandHandler {
       throw { kind: "emptyLocation" };
     }
 
-    const library: LibraryDto = {
+    const library: LibraryRecord = {
       id: this.generateLibraryId(),
       name: input.name,
       kind: input.kind,
@@ -45,7 +45,7 @@ export class AddLibraryCommand implements CommandHandler {
   }
 }
 
-function parseAddLibraryArgs(args: unknown): AddLibraryInputDto {
+function parseAddLibraryArgs(args: unknown): AddLibraryInput {
   if (!args || typeof args !== "object" || !("input" in args)) {
     throw { kind: "repository", message: "missing add_library input" };
   }
@@ -53,5 +53,5 @@ function parseAddLibraryArgs(args: unknown): AddLibraryInputDto {
   if (!input || typeof input !== "object") {
     throw { kind: "repository", message: "invalid add_library input" };
   }
-  return input as AddLibraryInputDto;
+  return input as AddLibraryInput;
 }
