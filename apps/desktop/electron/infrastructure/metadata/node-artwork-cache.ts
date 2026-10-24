@@ -37,6 +37,8 @@ function hash(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+const activeWrites = new Set<string>();
+const temporaryFilename = /^(?:(\d+)-)?[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/;
 const cacheFilename = /^[a-f0-9]{64}\.json$/;
 interface Limits {
   maximumBytes?: number;
@@ -102,7 +104,8 @@ export class NodeArtworkCache implements ArtworkCache {
         failure("invalidInput", "Artwork thumbnail is invalid or too large."),
       );
     return this.exclusive(async () => {
-      const temporary = join(this.directory, `${randomUUID()}.tmp`);
+      const temporary = join(this.directory, `${process.pid}-${randomUUID()}.tmp`);
+      activeWrites.add(temporary);
       try {
         await this.loadIndex();
         const text = JSON.stringify({ uri, digest: hash(JSON.stringify(uri)) });
@@ -116,6 +119,7 @@ export class NodeArtworkCache implements ArtworkCache {
         return failure("storage", "Artwork cache could not be saved.");
       } finally {
         await rm(temporary, { force: true }).catch(() => undefined);
+        activeWrites.delete(temporary);
       }
     });
   }
@@ -159,7 +163,12 @@ export class NodeArtworkCache implements ArtworkCache {
     const files = await readdir(this.directory, { withFileTypes: true });
     const entries: { name: string; bytes: number; modified: number }[] = [];
     for (const file of files) {
-      if (!file.isFile() || !cacheFilename.test(file.name)) continue;
+      if (!file.isFile()) continue;
+      if (temporaryFilename.test(file.name)) {
+        await this.removeAbandonedWrite(file.name);
+        continue;
+      }
+      if (!cacheFilename.test(file.name)) continue;
       const info = await stat(join(this.directory, file.name));
       entries.push({
         name: file.name,
@@ -170,6 +179,21 @@ export class NodeArtworkCache implements ArtworkCache {
     entries.sort((a, b) => a.modified - b.modified);
     this.entries = new Map(entries.map((entry) => [entry.name, entry.bytes]));
     await this.trim();
+  }
+
+  private async removeAbandonedWrite(filename: string): Promise<void> {
+    const path = join(this.directory, filename);
+    if (activeWrites.has(path)) return;
+    const owner = Number(temporaryFilename.exec(filename)?.[1] ?? 0);
+    if (owner > 0 && owner !== process.pid) {
+      try {
+        process.kill(owner, 0);
+        return;
+      } catch (error) {
+        if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ESRCH") return;
+      }
+    }
+    await rm(path, { force: true });
   }
 
   private touch(filename: string, bytes: number): void {
