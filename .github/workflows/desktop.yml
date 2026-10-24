@@ -42,3 +42,35 @@ jobs:
       - run: yarn desktop:build
       - run: yarn desktop:package
       - run: yarn desktop:make
+
+  native-icons:
+    name: Native icons (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      VITEST_MAX_FORKS: 2
+      VITEST_MIN_FORKS: 1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - name: Prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - run: yarn workspace @muzo/desktop icons:generate
+      - name: Check reproducible icon exports
+        run: git diff --exit-code -- apps/desktop/assets/icons
+      - name: Verify icon containers, configuration and native decoding
+        run: yarn workspace @muzo/desktop test electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts
+      - run: yarn desktop:package
