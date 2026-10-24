@@ -25,15 +25,38 @@ it("confirms removing a source from Settings and updates Sources immediately", a
   const user = userEvent.setup();
   render(<App />);
   await user.click(screen.getByRole("button", { name: "Settings" }));
-  await user.click(await screen.findByRole("button", { name: "Remove Music" }));
+  const sources = within(screen.getByRole("region", { name: "Indexed sources" }));
+  await user.click(await sources.findByRole("button", { name: "Remove Music" }));
   const dialog = screen.getByRole("dialog", { name: "Remove Music?" });
   expect(dialog.textContent).toContain("music files stay where they are");
   expect(invoke).not.toHaveBeenCalledWith("remove_library", expect.anything());
   await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
   expect(screen.queryByRole("dialog")).toBeNull();
-  await user.click(screen.getByRole("button", { name: "Remove Music" }));
+  await user.click(sources.getByRole("button", { name: "Remove Music" }));
   await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
   await waitFor(() => expect(screen.queryByRole("button", { name: "Show tracks for Music" })).toBeNull());
   expect(invoke).toHaveBeenCalledWith("remove_library", { input: { libraryId: "source" } });
   expect(screen.getByRole("heading", { name: "Settings" })).toBeDefined();
+});
+
+
+it("offers removal beside a sidebar source and keeps it when removal fails", async () => {
+  let attempts = 0;
+  invoke.mockImplementation(async (command: string) => {
+    if (command === "list_libraries") return [library];
+    if (command === "remove_library") {
+      attempts += 1;
+      return attempts === 1 ? { ok: false, error: { kind: "repository", message: "Disk is busy. Try again." } } : { ok: true, value: undefined };
+    }
+    return [];
+  });
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(await screen.findByRole("button", { name: "Remove Music" }));
+  await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  expect(screen.getByRole("alert").textContent).toContain("Disk is busy");
+  expect(screen.getByRole("button", { name: "Show tracks for Music" })).toBeDefined();
+  await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Remove source" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(screen.queryByRole("button", { name: "Show tracks for Music" })).toBeNull();
 });
