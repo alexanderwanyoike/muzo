@@ -83,7 +83,7 @@ describe("Muzo project site", () => {
   it("uses the current canonical screenshots with descriptive alternative text and dimensions", () => {
     for (const [name, width, height] of [
       ["muzo-player.jpg", 1440, 900],
-      ["muzo-personalization.jpg", 1280, 900],
+      ["muzo-personalization.jpg", 1280, 1000],
     ] as const) {
       const image = document.querySelector<HTMLImageElement>(
         `img[src="images/${name}"]`,

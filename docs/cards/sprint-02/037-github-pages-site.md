@@ -11,7 +11,7 @@ reviewable static site and deployment workflow, using the README's current captu
 
 - [x] Create a restrained, responsive, screenshot-led Muzo landing page with the existing blue waveform identity.
 - [x] Explain actual local/Dropbox libraries, playlists, cached artwork and personalization without future-feature claims.
-- [x] Use six material samples and explain light/dark variants and ten accents.
+- [x] Use seven material samples and explain light/dark variants and ten accents.
 - [x] Offer native Windows installers, macOS Apple silicon/Intel DMGs and Linux AppImage through verified published releases, with no source-build installation flow.
 - [x] Self-host screenshots, the existing icon and Manrope font with its licence.
 - [x] Verify assets, navigation, metadata and installation availability through meaningful red-first tests.
@@ -29,9 +29,10 @@ Merge order: #63, #65 (seek focus), #64 (captures), then this site PR. No dev/ma
 configuration is performed in this feature PR. Enable Pages with GitHub Actions
 and promote through a release PR when the site is approved.
 
-All ordered local gates pass with 338 desktop tests and five site checks.
+The original site passed 338 desktop tests and five site checks. Current
+integrated verification includes the native player/distribution and 12 site tests.
 The built site has no horizontal overflow at 320, 390, 768 and 1440 pixels.
-Both review cycles report zero findings on both axes. See the
+The original review cycles reported zero findings on both axes. See the
 [review record](../../reviews/2026-10-24-github-pages-site.md).
 
 The user rejected the initial source-installation fallback and requested the

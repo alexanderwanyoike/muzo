@@ -250,7 +250,7 @@ h3 {
 }
 .materials {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
   gap: 16px;
   padding: 0;
   margin-block: 18px 56px;
@@ -294,6 +294,12 @@ h3 {
 }
 .porcelain {
   background: linear-gradient(125deg, #fff, #d8e2e2);
+}
+.glass {
+  background:
+    linear-gradient(135deg, #ffffffb3, transparent 52%),
+    linear-gradient(25deg, #8fa8bb, #dce7ed 70%);
+  box-shadow: inset 0 1px #ffffffbf;
 }
 .appearance-detail {
   display: grid;
