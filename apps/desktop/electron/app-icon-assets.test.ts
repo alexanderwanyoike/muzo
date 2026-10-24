@@ -4,7 +4,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
-const icons = join(dirname(fileURLToPath(import.meta.url)), "..", "assets", "icons");
+const icons = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "assets",
+  "icons",
+);
 
 it("ships a transparent high-resolution PNG and native Windows and macOS icon sizes", () => {
   const png = readFileSync(join(icons, "muzo.png"));
@@ -31,12 +36,14 @@ it("ships a transparent high-resolution PNG and native Windows and macOS icon si
   expect(icns.subarray(0, 4).toString()).toBe("icns");
   expect(icns.readUInt32BE(4)).toBe(icns.length);
   const types = [];
-  for (let offset = 8; offset < icns.length;) {
+  for (let offset = 8; offset < icns.length; ) {
     types.push(icns.subarray(offset, offset + 4).toString());
     const length = icns.readUInt32BE(offset + 4);
     expect(length).toBeGreaterThan(8);
     offset += length;
     expect(offset).toBeLessThanOrEqual(icns.length);
   }
-  expect(types).toEqual(expect.arrayContaining(["ic07", "ic08", "ic09", "ic10"]));
+  expect(types).toEqual(
+    expect.arrayContaining(["ic07", "ic08", "ic09", "ic10"]),
+  );
 });

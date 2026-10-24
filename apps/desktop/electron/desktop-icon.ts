@@ -11,7 +11,13 @@ export function configureDesktopIcon(
   electronDir: string,
   platform: NodeJS.Platform,
 ): string {
-  const path = join(electronDir, "..", "assets", "icons", platform === "win32" ? "muzo.ico" : "muzo.png");
+  const path = join(
+    electronDir,
+    "..",
+    "assets",
+    "icons",
+    platform === "win32" ? "muzo.ico" : "muzo.png",
+  );
   if (platform === "darwin" && !app.isPackaged) {
     app.dock?.setIcon(path);
   }
