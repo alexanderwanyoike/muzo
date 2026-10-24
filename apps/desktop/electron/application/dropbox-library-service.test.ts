@@ -22,3 +22,19 @@ it("registers and syncs a Dropbox library using main-process credentials", async
   expect(scan).toHaveBeenCalledTimes(1);
   expect(await service.add({ name: "Bad", location: "../../music" })).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
 });
+
+it("shares an in-flight library sync between background polling and manual refresh", async () => {
+  const library: LibraryDto = { id: "cloud", kind: "dropbox", name: "Cloud", location: "/Music" };
+  let finish: (report: { tracksScanned: number }) => void = () => {};
+  const report = new Promise<{ tracksScanned: number }>((resolve) => { finish = resolve; });
+  const scan = vi.fn(() => report);
+  const service = new DropboxLibraryService({ add: async () => {}, list: async () => [library], findById: async () => library },
+    { status: async () => ({ ok: true, value: { connected: true, accountId: "account" } }), accessToken: async () => ({ ok: true, value: "token" }) },
+    { bind: async () => {}, accountFor: async () => "account", intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
+  const first = service.sync("cloud");
+  const second = service.sync("cloud");
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  expect(scan).toHaveBeenCalledTimes(1);
+  finish({ tracksScanned: 2 });
+  expect(await Promise.all([first, second])).toEqual([{ ok: true, value: { tracksScanned: 2 } }, { ok: true, value: { tracksScanned: 2 } }]);
+});
