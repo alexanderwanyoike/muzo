@@ -5,7 +5,7 @@ export const MATERIALS = [
   {
     id: "aluminium",
     name: "Brushed aluminium",
-    detail: "Satin metal and fine horizontal grain",
+    detail: "Fine matte grain and satin highlights",
   },
   {
     id: "paper",
