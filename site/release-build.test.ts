@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import publishedReleaseFixture from "./fixtures/published-release";
 import { JSDOM } from "jsdom";
 import { expect, it } from "vitest";
+import publishedReleaseFixture from "./fixtures/published-release";
 
 it("builds native download links only for a complete published release matching its manifest", async () => {
   const directory = await mkdtemp(join(tmpdir(), "muzo-download-build-"));
@@ -62,6 +62,32 @@ it("builds native download links only for a complete published release matching 
     } finally {
       dom.window.close();
     }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 20_000);
+
+it("refuses a production build when published release metadata is absent", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-missing-release-"));
+  try {
+    await expect(
+      promisify(execFile)(
+        "yarn",
+        ["site:build", "--outDir", join(directory, "dist")],
+        {
+          cwd: dirname(dirname(fileURLToPath(import.meta.url))),
+          timeout: 15_000,
+          env: {
+            ...process.env,
+            MUZO_REQUIRE_RELEASE: "1",
+            MUZO_GITHUB_RELEASE_JSON: undefined,
+            MUZO_DISTRIBUTION_MANIFEST: undefined,
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "A published release and distribution manifest are required",
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
