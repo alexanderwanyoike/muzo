@@ -21,6 +21,9 @@ export interface AudioPlayer extends AudioPlayerState {
   playQueue: (entries: PlaybackQueueItem[], startIndex?: number) => void;
   currentQueueEntryId: string | null;
   hasNext: boolean;
+  hasPrevious: boolean;
+  next: () => void;
+  previous: () => void;
   play: (track: TrackDto) => void;
   toggle: () => void;
   seek: (seconds: number) => void;
@@ -164,18 +167,24 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     startTrack(snapshot[startIndex].track);
   }, [setQueue, startTrack]);
 
-  useEffect(() => {
-    advanceRef.current = () => {
-      const state = queueRef.current;
-      const index = state.index + 1;
-      const next = state.entries[index];
-      if (!next) return false;
-      setQueue(state.entries, index);
-      currentTrackIdRef.current = null;
-      startTrack(next.track);
-      return true;
-    };
+
+  const moveQueue = useCallback((direction: number): boolean => {
+    const state = queueRef.current;
+    const index = state.index + direction;
+    const entry = state.entries[index];
+    if (!entry) return false;
+    setQueue(state.entries, index);
+    currentTrackIdRef.current = null;
+    startTrack(entry.track);
+    return true;
   }, [setQueue, startTrack]);
+
+  useEffect(() => {
+    advanceRef.current = () => moveQueue(1);
+  }, [moveQueue]);
+
+  const next = useCallback(() => { moveQueue(1); }, [moveQueue]);
+  const previous = useCallback(() => { moveQueue(-1); }, [moveQueue]);
 
   const toggle = useCallback(() => {
     const audio = audioRef.current;
@@ -211,6 +220,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     () => ({
       currentQueueEntryId: queue.entries[queue.index]?.entryId ?? null,
       hasNext: queue.index + 1 < queue.entries.length,
+      hasPrevious: queue.index > 0,
+      next,
+      previous,
       playQueue,
       current,
       status,
@@ -225,6 +237,8 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     }),
     [
       queue,
+      next,
+      previous,
       playQueue,
       current,
       status,
