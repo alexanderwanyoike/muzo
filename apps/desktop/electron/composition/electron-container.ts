@@ -67,9 +67,22 @@ import type { DropboxTokenCipher } from "../application/interfaces/dropbox-accou
 import { DropboxApiClient, FetchDropboxHttpTransport, type DropboxHttpTransport } from "../infrastructure/dropbox/dropbox-api-client";
 import { SqliteDropboxAccountRepository } from "../infrastructure/sqlite/sqlite-dropbox-account-repository";
 
+import { dirname, join } from "node:path";
+import { DropboxLibraryService } from "../application/dropbox-library-service";
+import { DropboxTrackAudioSourceService } from "../application/dropbox-track-audio-source-service";
+import { ScanDropboxLibraryService } from "../application/scan-dropbox-library-service";
+import { DropboxLibraryCommand } from "../application/commands/dropbox-library-command";
+import { DropboxLibraryCatalogAdapter } from "../infrastructure/dropbox/dropbox-library-catalog";
+import { DropboxLibraryPoller } from "../infrastructure/dropbox/dropbox-library-poller";
+import { DropboxAudioDownloader } from "../infrastructure/dropbox/dropbox-audio-downloader";
+import { SqliteDropboxLibrarySettings } from "../infrastructure/sqlite/sqlite-dropbox-library-settings";
+import type { DropboxLibrarySettings } from "../application/interfaces/dropbox-library-settings";
+
 export interface ElectronContainerOptions {
   dbPath?: string;
   dropboxCipher?: DropboxTokenCipher;
+  dropboxDownloadDirectory?: string;
+  dropboxDownloadRequest?: typeof fetch;
   dropboxTransport?: DropboxHttpTransport;
   openExternal?: (url: string) => Promise<void>;
   currentUnixSeconds?: () => number;
@@ -83,6 +96,10 @@ export interface ElectronContainerOptions {
 export interface ElectronCradle {
   dbPath: string;
   dropboxAccountService: DropboxAccountService;
+  dropboxLibraries: DropboxLibraryService;
+  dropboxSettings: DropboxLibrarySettings;
+  dropboxPoller: DropboxLibraryPoller;
+  dropboxAudioSources: DropboxTrackAudioSourceService;
   currentUnixSeconds: () => number;
   generateLibraryId: () => string;
   generatePlaylistEntryId: () => string;
@@ -137,14 +154,28 @@ export function createElectronContainer(
     injectionMode: InjectionMode.PROXY,
   });
 
+  const dropboxTransport = options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
+    dropboxSettings: asFunction(({ dbPath }: ElectronCradle) => new SqliteDropboxLibrarySettings(dbPath)).singleton(),
+    dropboxLibraries: asFunction(({ libraries, tracks, dropboxAccountService, dropboxSettings, generateLibraryId, generateTrackId }: ElectronCradle) =>
+      new DropboxLibraryService(libraries, dropboxAccountService, dropboxSettings,
+        new ScanDropboxLibraryService(libraries, tracks,
+          new DropboxLibraryCatalogAdapter(new DropboxApiClient({ clientId: "" }, dropboxTransport)), generateTrackId), generateLibraryId),
+    ).singleton(),
+    dropboxPoller: asFunction(({ dropboxLibraries, dropboxSettings, currentUnixSeconds }: ElectronCradle) =>
+      new DropboxLibraryPoller(dropboxLibraries, dropboxSettings, currentUnixSeconds),
+    ).singleton(),
+    dropboxAudioSources: asFunction(({ dropboxLibraries, tracks, audioSources, dbPath }: ElectronCradle) =>
+      new DropboxTrackAudioSourceService(dropboxLibraries, tracks,
+        new DropboxAudioDownloader(options.dropboxDownloadDirectory ?? join(dirname(dbPath), "dropbox-audio"), options.dropboxDownloadRequest), audioSources),
+    ).singleton(),
     dropboxAccountService: asFunction(({ dbPath, currentUnixSeconds }: ElectronCradle) =>
       new DropboxAccountService(
         new SqliteDropboxAccountRepository(dbPath, options.dropboxCipher ?? {
           protect: () => { throw new Error("Secure storage is unavailable"); },
           unprotect: () => { throw new Error("Secure storage is unavailable"); },
         }),
-        (clientId) => new DropboxApiClient({ clientId }, options.dropboxTransport ?? new FetchDropboxHttpTransport()),
+        (clientId) => new DropboxApiClient({ clientId }, dropboxTransport),
         options.openExternal ?? (async () => { throw new Error("System browser is unavailable"); }),
         currentUnixSeconds,
       ),
@@ -255,8 +286,8 @@ export function createElectronContainer(
         new ListTrackPlayCountsCommand(playHistory),
     ).singleton(),
     prepareTrackAudioSourceCommand: asFunction(
-      ({ prepareTrackAudioSourceService }: ElectronCradle) =>
-        new PrepareTrackAudioSourceCommand(prepareTrackAudioSourceService),
+      ({ prepareTrackAudioSourceService, libraries, dropboxAudioSources }: ElectronCradle) =>
+        new PrepareTrackAudioSourceCommand(prepareTrackAudioSourceService, libraries, dropboxAudioSources),
     ).singleton(),
     recordTrackPlayCommand: asFunction(
       ({
@@ -292,6 +323,8 @@ export function createElectronContainer(
     commandHandlers: asFunction((cradle: ElectronCradle) => [
       ...(["dropbox_begin", "dropbox_complete", "dropbox_status", "dropbox_disconnect"] as const)
         .map((command) => new DropboxAccountCommand(command, cradle.dropboxAccountService)),
+      ...(["dropbox_add_library", "dropbox_sync_library", "dropbox_sync_status", "dropbox_set_sync_interval"] as const)
+        .map((command) => new DropboxLibraryCommand(command, cradle.dropboxLibraries, cradle.dropboxPoller)),
       new LegacyResultCommandAdapter(cradle.addLibraryCommand),
       new LegacyResultCommandAdapter(cradle.addTrackToPlaylistCommand),
       new LegacyResultCommandAdapter(cradle.createPlaylistCommand),

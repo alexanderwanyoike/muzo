@@ -2,10 +2,16 @@ import type { PrepareTrackAudioSourceService, PreparedTrackAudioSource } from ".
 import type { Result } from "../result";
 import type { CommandHandler } from "./command-handler";
 import { parseInput, parseNonEmptyString } from "./command-arguments";
+import type { LibraryRepository } from "../interfaces/repository-interfaces";
+import type { DropboxTrackAudioSourceService } from "../dropbox-track-audio-source-service";
 
 export class PrepareTrackAudioSourceCommand implements CommandHandler {
   readonly command = "prepare_track_audio_source";
-  constructor(private readonly service: PrepareTrackAudioSourceService) {}
+  constructor(
+    private readonly service: PrepareTrackAudioSourceService,
+    private readonly libraries?: LibraryRepository,
+    private readonly dropboxSources?: DropboxTrackAudioSourceService,
+  ) {}
   async handle(args: unknown): Promise<Result<PreparedTrackAudioSource>> {
     const input = parseInput(args, this.command);
     if (!input.ok) return input;
@@ -13,6 +19,9 @@ export class PrepareTrackAudioSourceCommand implements CommandHandler {
     if (!libraryId.ok) return libraryId;
     const trackId = parseNonEmptyString(input.value, "trackId", this.command);
     if (!trackId.ok) return trackId;
+    if (this.dropboxSources && (await this.libraries?.findById(libraryId.value))?.kind === "dropbox") {
+      return this.dropboxSources.prepare(libraryId.value, trackId.value);
+    }
     return this.service.prepare(libraryId.value, trackId.value);
   }
 }
