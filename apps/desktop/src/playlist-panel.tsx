@@ -1,5 +1,8 @@
+import { createPortal } from "react-dom";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import PlaylistNavigator from "./playlist-navigator";
+import playlistRequest from "./playlist-request";
 import TrackArtwork from "./track-artwork";
 import {
   createPlaylist,
@@ -20,11 +23,9 @@ import {
   trackFromEntry,
 } from "./playlist-playback";
 
-interface PlaylistError {
-  message?: string;
-}
-
 interface PlaylistPanelProps {
+  active?: boolean;
+  navigationTarget?: HTMLElement | null;
   refreshKey?: number;
   currentQueueEntryId?: string | null;
   currentTrackId?: string | null;
@@ -35,6 +36,8 @@ interface PlaylistPanelProps {
 }
 
 export default function PlaylistPanel({
+  active = true,
+  navigationTarget,
   refreshKey = 0,
   currentTrackId = null,
   currentQueueEntryId = null,
@@ -43,58 +46,58 @@ export default function PlaylistPanel({
   onPlayQueue,
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
+  const revision = useRef(0);
+  const [loadRevision, refreshCollection] = useState(0);
   const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
-  const [name, setName] = useState("");
+  const [selectedId, selectPlaylist] = useState<string | null>(null);
+  const selected =
+    playlists?.find((playlist) => playlist.id === selectedId) ?? playlists?.[0];
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [removingEntryId, setRemovingEntryId] = useState<string | null>(null);
   const [reorderingEntryId, setReorderingEntryId] = useState<string | null>(
     null,
   );
 
   useEffect(() => {
+    if (!active) return undefined;
     let cancelled = false;
-    setPlaylists(null);
+    const startedAt = revision.current;
     setError(null);
-    listPlaylists()
-      .then((result) => {
-        if (!cancelled) {
-          setPlaylists(result);
+    playlistRequest(listPlaylists, "Could not load playlists.").then(
+      (result) => {
+        if (cancelled) return;
+        if (revision.current !== startedAt) {
+          refreshCollection((previous) => previous + 1);
+          return;
         }
-      })
-      .catch((err: PlaylistError) => {
-        if (!cancelled) {
-          setError(err.message ?? "Could not load playlists.");
+        if (result.ok) setPlaylists(result.value);
+        else {
+          setError(result.error.message);
           setPlaylists([]);
         }
-      });
+      },
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, [active, refreshKey, loadRevision]);
 
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      setError("Enter a playlist name.");
-      return;
-    }
-
-    setCreating(true);
-    setError(null);
-    try {
-      const playlist = await createPlaylist({ name: trimmedName });
-      setPlaylists((prev) => [...(prev ?? []), playlist]);
-      setName("");
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not create playlist.");
-    } finally {
-      setCreating(false);
-    }
+  async function handleCreate(name: string) {
+    const result = await playlistRequest(
+      () => createPlaylist({ name }),
+      "Could not create playlist.",
+    );
+    if (!result.ok) return result;
+    revision.current += 1;
+    const playlist = result.value;
+    setPlaylists((prev) => [
+      ...(prev ?? []).filter((candidate) => candidate.id !== playlist.id),
+      playlist,
+    ]);
+    selectPlaylist(playlist.id);
+    return { ok: true as const, value: undefined };
   }
 
   async function handleRemoveEntry(
@@ -103,22 +106,19 @@ export default function PlaylistPanel({
   ) {
     setRemovingEntryId(entry.id);
     setError(null);
-    try {
-      const updated = await removePlaylistEntry({
-        playlistId: playlist.id,
-        entryId: entry.id,
-      });
+    const result = await playlistRequest(
+      () => removePlaylistEntry({ playlistId: playlist.id, entryId: entry.id }),
+      "Could not remove playlist entry.",
+    );
+    if (result.ok) {
+      revision.current += 1;
       setPlaylists((prev) =>
         (prev ?? []).map((candidate) =>
-          candidate.id === updated.id ? updated : candidate,
+          candidate.id === result.value.id ? result.value : candidate,
         ),
       );
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not remove playlist entry.");
-    } finally {
-      setRemovingEntryId(null);
-    }
+    } else setError(result.error.message);
+    setRemovingEntryId(null);
   }
 
   async function handleMoveEntry(
@@ -145,22 +145,23 @@ export default function PlaylistPanel({
 
     setReorderingEntryId(entry.id);
     setError(null);
-    try {
-      const updated = await reorderPlaylistEntries({
-        playlistId: playlist.id,
-        orderedEntryIds: reorderedEntries.map((candidate) => candidate.id),
-      });
+    const result = await playlistRequest(
+      () =>
+        reorderPlaylistEntries({
+          playlistId: playlist.id,
+          orderedEntryIds: reorderedEntries.map((candidate) => candidate.id),
+        }),
+      "Could not reorder playlist entries.",
+    );
+    if (result.ok) {
+      revision.current += 1;
       setPlaylists((prev) =>
         (prev ?? []).map((candidate) =>
-          candidate.id === updated.id ? updated : candidate,
+          candidate.id === result.value.id ? result.value : candidate,
         ),
       );
-    } catch (err) {
-      const e = err as PlaylistError;
-      setError(e.message ?? "Could not reorder playlist entries.");
-    } finally {
-      setReorderingEntryId(null);
-    }
+    } else setError(result.error.message);
+    setReorderingEntryId(null);
   }
 
   function handlePlayEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
@@ -188,28 +189,22 @@ export default function PlaylistPanel({
     else onPlayTrack(entries[0].track);
   }
 
+  const navigator = (
+    <PlaylistNavigator
+      playlists={playlists}
+      selectedId={selected?.id ?? null}
+      onSelect={selectPlaylist}
+      onCreate={handleCreate}
+    />
+  );
   return (
     <div className="playlist-panel">
-      <section className="playlist-panel__create">
-        <form className="playlist-panel__form" onSubmit={handleCreate}>
-          <label>
-            Playlist name
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="New playlist"
-            />
-          </label>
-          <button type="submit" disabled={creating}>
-            {creating ? "Creating..." : "Create playlist"}
-          </button>
-        </form>
-        {error && (
-          <p role="alert" className="playlist-panel__error">
-            {error}
-          </p>
-        )}
-      </section>
+      {navigationTarget ? createPortal(navigator, navigationTarget) : navigator}
+      {error && (
+        <p role="alert" className="playlist-panel__error">
+          {error}
+        </p>
+      )}
 
       {playlists === null ? (
         <p className="app__placeholder">Loading playlists...</p>
@@ -220,113 +215,117 @@ export default function PlaylistPanel({
         </div>
       ) : (
         <ol className="playlist-panel__list">
-          {playlists.map((playlist) => (
-            <li key={playlist.id}>
-              <div className="playlist-panel__summary">
-                <h3>{playlist.name}</h3>
-                <p>{formatTrackCount(playlist.entries.length)}</p>
-                <button
-                  type="button"
-                  disabled={!playableEntries(playlist).length}
-                  aria-label={`Play ${playlist.name}`}
-                  onClick={() => handlePlayPlaylist(playlist)}
-                >
-                  Play playlist
-                </button>
-              </div>
-              {playlist.entries.length === 0 ? (
-                <p className="playlist-panel__empty-entries">
-                  No tracks in this playlist.
-                </p>
-              ) : (
-                <ol className="playlist-panel__entries">
-                  {playlist.entries.map((entry, index) => (
-                    <li key={entry.id}>
-                      {entry.trackLibraryId && (
-                        <TrackArtwork
-                          track={{
-                            id: entry.trackId,
-                            libraryId: entry.trackLibraryId,
-                            title: entryLabel(entry),
-                            album: null,
-                          }}
-                        />
-                      )}
-                      <div className="playlist-panel__entry-meta">
-                        <span data-testid="playlist-entry-label">
-                          {entryLabel(entry)}
-                        </span>
-                        {!entry.trackLibraryId && (
-                          <small>Unavailable source</small>
+          {playlists
+            .filter((playlist) => playlist.id === selected?.id)
+            .map((playlist) => (
+              <li key={playlist.id}>
+                <div className="playlist-panel__summary">
+                  <h3>{playlist.name}</h3>
+                  <p>{formatTrackCount(playlist.entries.length)}</p>
+                  <button
+                    type="button"
+                    disabled={!playableEntries(playlist).length}
+                    aria-label={`Play ${playlist.name}`}
+                    onClick={() => handlePlayPlaylist(playlist)}
+                  >
+                    Play playlist
+                  </button>
+                </div>
+                {playlist.entries.length === 0 ? (
+                  <p className="playlist-panel__empty-entries">
+                    No tracks in this playlist.
+                  </p>
+                ) : (
+                  <ol className="playlist-panel__entries">
+                    {playlist.entries.map((entry, index) => (
+                      <li key={entry.id}>
+                        {entry.trackLibraryId && (
+                          <TrackArtwork
+                            track={{
+                              id: entry.trackId,
+                              libraryId: entry.trackLibraryId,
+                              title: entryLabel(entry),
+                              album: null,
+                            }}
+                          />
                         )}
-                        {entry.trackArtist && (
-                          <small>{entry.trackArtist}</small>
-                        )}
-                      </div>
-                      <div className="playlist-panel__entry-actions">
-                        <button
-                          type="button"
-                          className="playlist-panel__entry-play"
-                          disabled={!trackFromEntry(entry)}
-                          onClick={() => handlePlayEntry(playlist, entry)}
-                          aria-label={playButtonLabel(
-                            entry,
-                            playlist,
-                            currentTrackId,
-                            isPlaying,
-                            activeEntryId,
+                        <div className="playlist-panel__entry-meta">
+                          <span data-testid="playlist-entry-label">
+                            {entryLabel(entry)}
+                          </span>
+                          {!entry.trackLibraryId && (
+                            <small>Unavailable source</small>
                           )}
-                        >
-                          {isCurrentEntry(
-                            entry,
-                            currentTrackId,
-                            activeEntryId,
-                          ) && isPlaying ? (
-                            <Pause aria-hidden="true" />
-                          ) : (
-                            <Play aria-hidden="true" />
+                          {entry.trackArtist && (
+                            <small>{entry.trackArtist}</small>
                           )}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            index === 0 || reorderingEntryId === entry.id
-                          }
-                          onClick={() => handleMoveEntry(playlist, entry, "up")}
-                          aria-label={`Move ${entryLabel(entry)} up in ${playlist.name}`}
-                        >
-                          <ChevronUp aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={
-                            index === playlist.entries.length - 1 ||
-                            reorderingEntryId === entry.id
-                          }
-                          onClick={() =>
-                            handleMoveEntry(playlist, entry, "down")
-                          }
-                          aria-label={`Move ${entryLabel(entry)} down in ${playlist.name}`}
-                        >
-                          <ChevronDown aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={removingEntryId === entry.id}
-                          onClick={() => handleRemoveEntry(playlist, entry)}
-                          aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
-                        >
-                          {removingEntryId === entry.id
-                            ? "Removing..."
-                            : "Remove"}
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </li>
-          ))}
+                        </div>
+                        <div className="playlist-panel__entry-actions">
+                          <button
+                            type="button"
+                            className="playlist-panel__entry-play"
+                            disabled={!trackFromEntry(entry)}
+                            onClick={() => handlePlayEntry(playlist, entry)}
+                            aria-label={playButtonLabel(
+                              entry,
+                              playlist,
+                              currentTrackId,
+                              isPlaying,
+                              activeEntryId,
+                            )}
+                          >
+                            {isCurrentEntry(
+                              entry,
+                              currentTrackId,
+                              activeEntryId,
+                            ) && isPlaying ? (
+                              <Pause aria-hidden="true" />
+                            ) : (
+                              <Play aria-hidden="true" />
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              index === 0 || reorderingEntryId === entry.id
+                            }
+                            onClick={() =>
+                              handleMoveEntry(playlist, entry, "up")
+                            }
+                            aria-label={`Move ${entryLabel(entry)} up in ${playlist.name}`}
+                          >
+                            <ChevronUp aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              index === playlist.entries.length - 1 ||
+                              reorderingEntryId === entry.id
+                            }
+                            onClick={() =>
+                              handleMoveEntry(playlist, entry, "down")
+                            }
+                            aria-label={`Move ${entryLabel(entry)} down in ${playlist.name}`}
+                          >
+                            <ChevronDown aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={removingEntryId === entry.id}
+                            onClick={() => handleRemoveEntry(playlist, entry)}
+                            aria-label={`Remove ${entryLabel(entry)} from ${playlist.name}`}
+                          >
+                            {removingEntryId === entry.id
+                              ? "Removing..."
+                              : "Remove"}
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </li>
+            ))}
         </ol>
       )}
     </div>

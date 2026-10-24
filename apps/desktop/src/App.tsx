@@ -31,6 +31,8 @@ interface ListError {
 
 export default function App() {
   const sidebar = useSidebarLayout();
+  const [playlistNavigationTarget, setPlaylistNavigationTarget] =
+    useState<HTMLDivElement | null>(null);
   const sourceSetup = useRef<HTMLElement>(null);
   const [sourceSettingsRequest, requestSourceSettings] = useState(0);
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function App() {
   const [selectedLibraryId, setSelectedLibraryId] = useState<string | null>(
     null,
   );
+  const [playlistsOpened, setPlaylistsOpened] = useState(false);
   const [activeView, setActiveView] = useState<ActiveView>("library");
   const [error, setError] = useState<string | null>(null);
 
@@ -259,7 +262,10 @@ export default function App() {
                 ? "app-sidebar__nav-item app-sidebar__nav-item--active"
                 : "app-sidebar__nav-item"
             }
-            onClick={() => setActiveView("playlists")}
+            onClick={() => {
+              setPlaylistsOpened(true);
+              setActiveView("playlists");
+            }}
           >
             <ListMusic aria-hidden="true" /> Playlists
           </button>
@@ -276,16 +282,26 @@ export default function App() {
           </button>
         </nav>
 
-        <SourcesPanel
-          libraries={libraries}
-          trackCounts={trackCounts}
-          selectedLibraryId={selectedLibraryId}
-          onSelect={handleSelect}
-          onRemove={setRemovingLibrary}
-          onAddSource={() => {
-            setActiveView("settings");
-            requestSourceSettings((request) => request + 1);
-          }}
+        <div
+          className="app-sidebar__panel-slot"
+          hidden={activeView === "playlists"}
+        >
+          <SourcesPanel
+            libraries={libraries}
+            trackCounts={trackCounts}
+            selectedLibraryId={selectedLibraryId}
+            onSelect={handleSelect}
+            onRemove={setRemovingLibrary}
+            onAddSource={() => {
+              setActiveView("settings");
+              requestSourceSettings((request) => request + 1);
+            }}
+          />
+        </div>
+        <div
+          className="app-sidebar__panel-slot"
+          hidden={activeView !== "playlists"}
+          ref={setPlaylistNavigationTarget}
         />
         {current && (
           <figure
@@ -306,6 +322,7 @@ export default function App() {
           </p>
         )}
         <SidebarSplitter
+          panel={activeView === "playlists" ? "Playlists" : "Sources"}
           width={sidebar.width}
           minimum={sidebar.minimum}
           maximum={sidebar.maximum}
@@ -348,6 +365,24 @@ export default function App() {
           <p role="status" className="app__info">
             {refreshMessage}
           </p>
+        )}
+        {playlistsOpened && (
+          <div
+            className="app-content__playlist-workspace"
+            hidden={activeView !== "playlists"}
+          >
+            <PlaylistPanel
+              active={activeView === "playlists"}
+              navigationTarget={playlistNavigationTarget}
+              refreshKey={sourceRevision}
+              onPlayQueue={playQueue}
+              currentQueueEntryId={currentQueueEntryId}
+              currentTrackId={current?.id ?? null}
+              isPlaying={status === "playing"}
+              onPlayTrack={play}
+              onToggleCurrentTrack={toggle}
+            />
+          </div>
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
@@ -419,17 +454,7 @@ export default function App() {
               </ul>
             </section>
           </div>
-        ) : activeView === "playlists" ? (
-          <PlaylistPanel
-            refreshKey={sourceRevision}
-            onPlayQueue={playQueue}
-            currentQueueEntryId={currentQueueEntryId}
-            currentTrackId={current?.id ?? null}
-            isPlaying={status === "playing"}
-            onPlayTrack={play}
-            onToggleCurrentTrack={toggle}
-          />
-        ) : libraries === null ? (
+        ) : activeView === "playlists" ? null : libraries === null ? (
           <p className="app__placeholder">Loading libraries...</p>
         ) : selectedLibrary ? (
           <div className="app-content__tracks">

@@ -146,3 +146,6 @@
   font-size: 11px;
   line-height: 1.7;
 }
+.library-list__item > .library-list__row {
+  width: 100%;
+}

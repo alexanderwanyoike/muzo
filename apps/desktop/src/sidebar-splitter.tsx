@@ -2,6 +2,7 @@ import { useRef, useState, type PointerEvent } from "react";
 import { defaultSidebarWidth } from "./sidebar-layout";
 
 interface Props {
+  panel?: "Sources" | "Playlists";
   width: number;
   minimum: number;
   maximum: number;
@@ -18,6 +19,7 @@ interface Drag {
 
 const keyboardStep = 8;
 export default function SidebarSplitter({
+  panel = "Sources",
   width,
   minimum,
   maximum,
@@ -52,13 +54,13 @@ export default function SidebarSplitter({
       role="separator"
       tabIndex={0}
       aria-orientation="vertical"
-      aria-labelledby="sources-panel-heading"
+      aria-labelledby={`${panel.toLowerCase()}-panel-heading`}
       aria-controls="source-sidebar"
       aria-valuemin={minimum}
       aria-valuemax={maximum}
       aria-valuenow={width}
       aria-valuetext={`${width} pixels`}
-      title="Resize Sources; double-click to reset"
+      title={`Resize ${panel}; double-click to reset`}
       onDoubleClick={() => onCommit(defaultSidebarWidth)}
       data-resizing={dragging || undefined}
       onPointerDown={(event) => {

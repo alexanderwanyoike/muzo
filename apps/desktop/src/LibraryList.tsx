@@ -1,5 +1,6 @@
-import { Cloud, Folder, Search, X } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { Cloud, Folder, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import SidebarSearch from "./sidebar-search";
 import type { LibraryDto } from "./types";
 
 export interface LibraryListProps {
@@ -25,11 +26,6 @@ export default function LibraryList({
   renderTracks: TrackListSlot,
 }: LibraryListProps) {
   const [query, setQuery] = useState("");
-  const searchInput = useRef<HTMLInputElement>(null);
-  const clearSearch = () => {
-    setQuery("");
-    searchInput.current?.focus();
-  };
   const search = query.trim().toLowerCase();
   const visibleLibraries = libraries.filter((library) =>
     [library.name, library.location].some((value) =>
@@ -46,29 +42,12 @@ export default function LibraryList({
 
   return (
     <div className="source-browser">
-      <div className="source-browser__search">
-        <Search aria-hidden="true" />
-        <input
-          ref={searchInput}
-          type="search"
-          aria-label="Search sources"
-          placeholder="Search sources"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") clearSearch();
-          }}
-        />
-        {query && (
-          <button
-            type="button"
-            aria-label="Clear source search"
-            onClick={clearSearch}
-          >
-            <X aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      <SidebarSearch
+        label="Search sources"
+        clearLabel="Clear source search"
+        value={query}
+        onChange={setQuery}
+      />
       <p
         className={
           query
