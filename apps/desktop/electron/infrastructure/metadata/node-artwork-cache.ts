@@ -4,6 +4,13 @@ import { join } from "node:path";
 import type { ArtworkCache, CachedArtwork } from "../../application/interfaces/artwork-cache";
 import { failure, success, type Result } from "../../application/result";
 
+const maximumUriLength = 256 * 1024;
+const pngPrefix = "data:image/png;base64,";
+const pngSignature = Buffer.from("89504e470d0a1a0a", "hex");
+function validUri(uri: string | null): boolean {
+  return uri === null || (uri.length <= maximumUriLength && uri.startsWith(pngPrefix) && Buffer.from(uri.slice(pngPrefix.length), "base64").subarray(0, pngSignature.length).equals(pngSignature));
+}
+
 const maximumBytes = 128 * 1024 * 1024;
 const maximumEntries = 4096;
 function hash(value: string): string {
@@ -28,7 +35,7 @@ export class NodeArtworkCache implements ArtworkCache {
         const path = join(this.directory, filename);
         const text = await readFile(path, "utf8");
         const value: unknown = JSON.parse(text);
-        if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,"))) && "digest" in value && value.digest === hash(JSON.stringify(value.uri))) {
+        if (value && typeof value === "object" && "uri" in value && (value.uri === null || (typeof value.uri === "string" && value.uri.startsWith("data:image/png;base64,"))) && "digest" in value && value.digest === hash(JSON.stringify(value.uri)) && validUri(value.uri)) {
           this.touch(filename, Buffer.byteLength(text));
           const now = new Date();
           await utimes(path, now, now);
@@ -48,6 +55,7 @@ export class NodeArtworkCache implements ArtworkCache {
   }
 
   save(key: string, uri: string | null): Promise<Result<void>> {
+    if (!validUri(uri)) return Promise.resolve(failure("invalidInput", "Artwork thumbnail is invalid or too large."));
     return this.exclusive(async () => {
       const temporary = join(this.directory, `${randomUUID()}.tmp`);
       try {
