@@ -77,13 +77,14 @@ Vite preview cannot connect to real Dropbox or local music files.
     folder selection, long source paths/actions, all materials and both modes.
     Errors should remain visible in the danger colour and keyboard focus clear.
 
-Automated verification covers typed failures, account mismatches, late scans,
-refresh races, pending audio, watcher close events, range-read budgets and native
-thumbnail bounds. Live Dropbox behavior still depends on the account, connection
-and file metadata used during manual testing.
-
 18. Check Carbon fibre, Walnut and Porcelain in light/dark, plus Teal, Rose, Slate,
     Violet and Ice accents. Restart to confirm persistence. All ten swatches should
     fit or wrap cleanly with a wide sidebar at the minimum size. In Cinnamon,
     restart the packaged player and check the waveform has distinct bars at the
     panel's 24/32px icon size.
+
+
+Automated verification covers typed failures, account mismatches, late scans,
+refresh races, pending audio, watcher close events, range-read budgets and native
+thumbnail bounds. Live Dropbox behavior still depends on the account, connection
+and file metadata used during manual testing.
