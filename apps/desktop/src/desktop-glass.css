@@ -10,19 +10,35 @@
     background: transparent;
   }
   :root[data-theme="glass"][data-desktop-glass="true"] .app-content {
-    background: color-mix(in srgb, var(--panel) var(--desktop-glass-opacity), transparent);
+    background: color-mix(
+      in srgb,
+      var(--panel) var(--desktop-glass-opacity),
+      transparent
+    );
   }
   :root[data-theme="glass"][data-desktop-glass="true"] .app-sidebar,
   :root[data-theme="glass"][data-desktop-glass="true"] .compact-queue {
-    background: color-mix(in srgb, var(--sidebar) var(--desktop-glass-opacity), transparent);
+    background: color-mix(
+      in srgb,
+      var(--sidebar) var(--desktop-glass-opacity),
+      transparent
+    );
   }
   :root[data-theme="glass"][data-desktop-glass="true"] .now-playing-bar,
   :root[data-theme="glass"][data-desktop-glass="true"] .compact-player__header {
-    background: color-mix(in srgb, var(--chrome) var(--desktop-glass-opacity), transparent);
+    background: color-mix(
+      in srgb,
+      var(--chrome) var(--desktop-glass-opacity),
+      transparent
+    );
   }
   :root[data-theme="glass"][data-desktop-glass="true"] .compact-player__body,
   :root[data-theme="glass"][data-desktop-glass="true"] .compact-player__empty {
-    background: color-mix(in srgb, var(--panel) var(--desktop-glass-opacity), transparent);
+    background: color-mix(
+      in srgb,
+      var(--panel) var(--desktop-glass-opacity),
+      transparent
+    );
   }
   :root[data-theme="glass"][data-desktop-glass="true"] .sidebar-panel {
     background: transparent;
@@ -31,10 +47,13 @@
   :root[data-theme="glass"][data-desktop-glass="true"] .sidebar-panel__footer {
     background: color-mix(in srgb, var(--chrome) 40%, transparent);
   }
-  :root[data-theme="glass"][data-desktop-glass="true"] .compact-player__atmosphere {
+  :root[data-theme="glass"][data-desktop-glass="true"]
+    .compact-player__atmosphere {
     display: none;
   }
-  :root[data-theme="glass"][data-desktop-glass="true"] .compact-player .now-playing-bar {
+  :root[data-theme="glass"][data-desktop-glass="true"]
+    .compact-player
+    .now-playing-bar {
     background: transparent;
     backdrop-filter: none;
   }

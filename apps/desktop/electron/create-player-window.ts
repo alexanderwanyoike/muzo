@@ -1,6 +1,10 @@
 import { BrowserWindow } from "electron";
 
-export function createPlayerWindow(icon: string, preload: string, platform: NodeJS.Platform = process.platform) {
+export function createPlayerWindow(
+  icon: string,
+  preload: string,
+  platform: NodeJS.Platform = process.platform,
+) {
   return new BrowserWindow({
     title: "Muzo",
     transparent: platform === "linux",

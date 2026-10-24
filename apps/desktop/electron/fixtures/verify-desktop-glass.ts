@@ -1,4 +1,12 @@
-import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeTheme, screen } from "electron";
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  screen,
+} from "electron";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { release } from "node:os";
@@ -11,38 +19,91 @@ import { installPlayerWindowMode } from "../install-player-window-mode";
 import { installDesktopMenu } from "../desktop-menu";
 
 const [page, preload, resultPath, icon] = process.argv.slice(-4);
-if (!page || !preload || !resultPath || !icon) throw new Error("Desktop glass fixture paths required");
-if (process.platform === "linux") app.commandLine.appendSwitch("ozone-platform", "x11");
+if (!page || !preload || !resultPath || !icon)
+  throw new Error("Desktop glass fixture paths required");
+if (process.platform === "linux")
+  app.commandLine.appendSwitch("ozone-platform", "x11");
 let compositor: ChildProcess | null = null;
 let window: BrowserWindow | null = null;
 let backdrop: BrowserWindow | null = null;
 let artwork: string | null = null;
-const track = { id: "first", libraryId: "music", title: "First light", artist: "Linden", album: "North Window", trackNumber: 1, discNumber: 1, genre: null, year: null, metadataOverridden: false, durationSeconds: 240, filePath: "/Music/demo.flac" };
+const track = {
+  id: "first",
+  libraryId: "music",
+  title: "First light",
+  artist: "Linden",
+  album: "North Window",
+  trackNumber: 1,
+  discNumber: 1,
+  genre: null,
+  year: null,
+  metadataOverridden: false,
+  durationSeconds: 240,
+  filePath: "/Music/demo.flac",
+};
 ipcMain.handle("muzo:invoke", (_event, command: string, args: unknown) => {
-  if (command === "fixture_set_artwork" && args && typeof args === "object" && "uri" in args && typeof args.uri === "string") artwork = args.uri;
+  if (
+    command === "fixture_set_artwork" &&
+    args &&
+    typeof args === "object" &&
+    "uri" in args &&
+    typeof args.uri === "string"
+  )
+    artwork = args.uri;
   let value: unknown = [];
-  if (command === "list_libraries") value = [{ id: "music", name: "Evening listening", kind: "filesystem", location: "/Music" }];
+  if (command === "list_libraries")
+    value = [
+      {
+        id: "music",
+        name: "Evening listening",
+        kind: "filesystem",
+        location: "/Music",
+      },
+    ];
   if (command === "list_tracks") value = [track];
   if (command === "get_track_artwork") value = { ok: true, value: artwork };
-  if (command === "prepare_track_audio_source") value = { url: "fixture-audio", mimeType: "audio/flac" };
+  if (command === "prepare_track_audio_source")
+    value = { url: "fixture-audio", mimeType: "audio/flac" };
   return { ok: true, value };
 });
-installPlayerWindowMode(ipcMain, (event) => BrowserWindow.fromWebContents(event.sender), supportsWindowsAcrylic({platform:process.platform,release:release()}));
-installDesktopGlass(ipcMain, (event) => BrowserWindow.fromWebContents(event.sender), () => ({ platform: process.platform, release: release(), reducedTransparency: false }));
+installPlayerWindowMode(
+  ipcMain,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  supportsWindowsAcrylic({ platform: process.platform, release: release() }),
+);
+installDesktopGlass(
+  ipcMain,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  () => ({
+    platform: process.platform,
+    release: release(),
+    reducedTransparency: false,
+  }),
+);
 
 async function until(expression: string) {
   if (!window) throw new Error("Player unavailable");
-  await window.webContents.executeJavaScript(`new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>{if(${expression})resolve();else if(Date.now()>deadline)reject(new Error('Glass fixture timeout: '+${JSON.stringify(expression)}));else setTimeout(check,20)};check()})`);
+  await window.webContents.executeJavaScript(
+    `new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>{if(${expression})resolve();else if(Date.now()>deadline)reject(new Error('Glass fixture timeout: '+${JSON.stringify(expression)}));else setTimeout(check,20)};check()})`,
+  );
 }
 async function click(label: string) {
-  await until(`!![...document.querySelectorAll('button,input')].find(element=>element.getAttribute('aria-label')===${JSON.stringify(label)} || element.textContent?.trim()===${JSON.stringify(label)} || (element.tagName==='INPUT' && [...element.labels].some(label=>label.textContent.trim()===${JSON.stringify(label)})))`);
-  await window?.webContents.executeJavaScript(`[...document.querySelectorAll('button,input')].find(element=>element.getAttribute('aria-label')===${JSON.stringify(label)} || element.textContent?.trim()===${JSON.stringify(label)} || (element.tagName==='INPUT' && [...element.labels].some(label=>label.textContent.trim()===${JSON.stringify(label)}))).click()`);
+  await until(
+    `!![...document.querySelectorAll('button,input')].find(element=>element.getAttribute('aria-label')===${JSON.stringify(label)} || element.textContent?.trim()===${JSON.stringify(label)} || (element.tagName==='INPUT' && [...element.labels].some(label=>label.textContent.trim()===${JSON.stringify(label)})))`,
+  );
+  await window?.webContents.executeJavaScript(
+    `[...document.querySelectorAll('button,input')].find(element=>element.getAttribute('aria-label')===${JSON.stringify(label)} || element.textContent?.trim()===${JSON.stringify(label)} || (element.tagName==='INPUT' && [...element.labels].some(label=>label.textContent.trim()===${JSON.stringify(label)}))).click()`,
+  );
 }
 async function settle() {
-  await window?.webContents.executeJavaScript("document.fonts.ready.then(()=>Promise.all(document.getAnimations().map(animation=>animation.finished))).then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");
+  await window?.webContents.executeJavaScript(
+    "document.fonts.ready.then(()=>Promise.all(document.getAnimations().map(animation=>animation.finished))).then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))",
+  );
 }
 async function point() {
-  return window?.webContents.executeJavaScript(`(()=>{const element=document.querySelector('.compact-player__body') ?? document.querySelector('.app-content__tracks');const r=element.getBoundingClientRect();const style=getComputedStyle(element);return {x:Math.round(r.right-15),y:Math.round(r.bottom-15),text:style.getPropertyValue('--text').trim(),muted:style.getPropertyValue('--text-muted').trim()}})()`) as Promise<{x:number;y:number;text:string;muted:string}>;
+  return window?.webContents.executeJavaScript(
+    `(()=>{const element=document.querySelector('.compact-player__body') ?? document.querySelector('.app-content__tracks');const r=element.getBoundingClientRect();const style=getComputedStyle(element);return {x:Math.round(r.right-15),y:Math.round(r.bottom-15),text:style.getPropertyValue('--text').trim(),muted:style.getPropertyValue('--text-muted').trim()}})()`,
+  ) as Promise<{ x: number; y: number; text: string; muted: string }>;
 }
 async function sample() {
   if (!window) throw new Error("Player unavailable");
@@ -52,12 +113,25 @@ async function sample() {
   const bitmap = image.toBitmap();
   const offset = (location.y * image.getSize().width + location.x) * 4;
   const alpha = bitmap[offset + 3];
-  return { alpha, colour: [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]].map((channel) => alpha ? Math.min(255, Math.round(channel * 255 / alpha)) : 0), text: location.text, muted: location.muted };
+  return {
+    alpha,
+    colour: [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]].map(
+      (channel) =>
+        alpha ? Math.min(255, Math.round((channel * 255) / alpha)) : 0,
+    ),
+    text: location.text,
+    muted: location.muted,
+  };
 }
 async function desktop() {
   const display = screen.getPrimaryDisplay();
-  const sources = await desktopCapturer.getSources({ types: ["screen"], thumbnailSize: display.size });
-  const source = sources.find(({display_id: id}) => id === String(display.id));
+  const sources = await desktopCapturer.getSources({
+    types: ["screen"],
+    thumbnailSize: display.size,
+  });
+  const source = sources.find(
+    ({ display_id: id }) => id === String(display.id),
+  );
   if (!source) throw new Error("Native desktop image unavailable");
   return source.thumbnail;
 }
@@ -65,23 +139,44 @@ async function capture(name: string) {
   const directory = process.env.MUZO_GLASS_CAPTURE_DIR;
   if (!directory || !window) return;
   mkdirSync(directory, { recursive: true });
-  const image = process.platform === "linux" ? await desktop() : await window.webContents.capturePage();
+  const image =
+    process.platform === "linux"
+      ? await desktop()
+      : await window.webContents.capturePage();
   writeFileSync(join(directory, `${name}.png`), image.toPNG());
 }
 void app.whenReady().then(async () => {
   try {
     if (process.platform === "linux") {
-      compositor = spawn("metacity", ["--composite", "--sm-disable"], { stdio: "ignore" });
+      compositor = spawn("metacity", ["--composite", "--sm-disable"], {
+        stdio: "ignore",
+      });
       const deadline = Date.now() + 5000;
       let ready = false;
       while (!ready) {
-        const probe = await promisify(execFile)("xprop", ["-root", "_NET_SUPPORTING_WM_CHECK"]);
+        const probe = await promisify(execFile)("xprop", [
+          "-root",
+          "_NET_SUPPORTING_WM_CHECK",
+        ]);
         ready = probe.stdout.includes("window id #");
-        if (Date.now() > deadline) throw new Error("Native compositor unavailable");
-        if (!ready) await new Promise((resolve) => { setTimeout(resolve, 20); });
+        if (Date.now() > deadline)
+          throw new Error("Native compositor unavailable");
+        if (!ready)
+          await new Promise((resolve) => {
+            setTimeout(resolve, 20);
+          });
       }
-      backdrop = new BrowserWindow({x: 0, y: 0, width: 1600, height: 1100, frame: false, backgroundColor: "#6689b0"});
-      await backdrop.loadURL(`data:text/html,${encodeURIComponent('<body style="margin:0;background:#6689b0;height:100vh;color:white;font:22px sans-serif"><div style="padding:20px">Desktop behind Muzo</div></body>')}`);
+      backdrop = new BrowserWindow({
+        x: 0,
+        y: 0,
+        width: 1600,
+        height: 1100,
+        frame: false,
+        backgroundColor: "#6689b0",
+      });
+      await backdrop.loadURL(
+        `data:text/html,${encodeURIComponent('<body style="margin:0;background:#6689b0;height:100vh;color:white;font:22px sans-serif"><div style="padding:20px">Desktop behind Muzo</div></body>')}`,
+      );
     }
     installDesktopMenu(Menu, process.platform);
     window = createPlayerWindow(icon, preload);
@@ -100,15 +195,17 @@ void app.whenReady().then(async () => {
       await click(mode === "light" ? "Light" : "Dark");
       await until("document.documentElement.dataset.desktopGlass === 'true'");
       await click("Songs");
-      samples.push({mode, view: "library", ...await sample()});
+      samples.push({ mode, view: "library", ...(await sample()) });
       await capture(`glass-${mode}-library`);
       await click("Mini player");
       await until("!!document.querySelector('.compact-player')");
-      await until("!!document.querySelector('.compact-player__sleeve img')?.complete");
-      samples.push({mode, view: "mini", ...await sample()});
+      await until(
+        "!!document.querySelector('.compact-player__sleeve img')?.complete",
+      );
+      samples.push({ mode, view: "mini", ...(await sample()) });
       await capture(`glass-${mode}-mini`);
       window.setContentSize(460, 580);
-      samples.push({mode, view: "resized", ...await sample()});
+      samples.push({ mode, view: "resized", ...(await sample()) });
       await click("Return to library");
       await until("!document.querySelector('.compact-player')");
     }
@@ -120,19 +217,45 @@ void app.whenReady().then(async () => {
       const bounds = window.getContentBounds();
       const surface = await sample();
       const before = await desktop();
-      await backdrop.webContents.executeJavaScript("document.body.style.background='#b6a690'");
-      await new Promise((resolve) => { setTimeout(resolve, 150); });
+      await backdrop.webContents.executeJavaScript(
+        "document.body.style.background='#b6a690'",
+      );
+      await new Promise((resolve) => {
+        setTimeout(resolve, 150);
+      });
       const after = await desktop();
-      const offset = ((bounds.y+location.y)*after.getSize().width+bounds.x+location.x)*4;
+      const offset =
+        ((bounds.y + location.y) * after.getSize().width +
+          bounds.x +
+          location.x) *
+        4;
       const first = before.toBitmap();
       const backdropColour = [102, 137, 176];
-      desktopCompositingError = [0,1,2].reduce((sum,channel)=>sum+Math.abs(first[offset+2-channel]-Math.round(surface.colour[channel]*surface.alpha/255+backdropColour[channel]*(1-surface.alpha/255))),0);
+      desktopCompositingError = [0, 1, 2].reduce(
+        (sum, channel) =>
+          sum +
+          Math.abs(
+            first[offset + 2 - channel] -
+              Math.round(
+                (surface.colour[channel] * surface.alpha) / 255 +
+                  backdropColour[channel] * (1 - surface.alpha / 255),
+              ),
+          ),
+        0,
+      );
       const second = after.toBitmap();
-      backdropDifference = [0,1,2].reduce((sum,channel)=>sum+Math.abs(first[offset+channel]-second[offset+channel]),0);
+      backdropDifference = [0, 1, 2].reduce(
+        (sum, channel) =>
+          sum + Math.abs(first[offset + channel] - second[offset + channel]),
+        0,
+      );
       await capture("glass-dark-library-warm-desktop");
     }
     window.webContents.debugger.attach("1.3");
-    await window.webContents.debugger.sendCommand("Emulation.setEmulatedMedia", {features:[{name:"prefers-reduced-transparency",value:"reduce"}]});
+    await window.webContents.debugger.sendCommand(
+      "Emulation.setEmulatedMedia",
+      { features: [{ name: "prefers-reduced-transparency", value: "reduce" }] },
+    );
     const reducedAlpha = (await sample()).alpha;
     window.webContents.debugger.detach();
     await click("Settings");
@@ -153,18 +276,32 @@ void app.whenReady().then(async () => {
         }
         await until("!!document.querySelector('.now-playing-bar')");
         await settle();
-        overlayChecks.push(await window.webContents.executeJavaScript(`(()=>{
+        overlayChecks.push(
+          await window.webContents.executeJavaScript(`(()=>{
           const overlay=navigator.windowControlsOverlay;
           const area=overlay?.getTitlebarAreaRect();
           const selector=document.querySelector('.compact-player')?'.compact-player button,.compact-player input':'.app-shell .now-playing-bar button,.app-shell .now-playing-bar input';
           const collisions=[...document.querySelectorAll(selector)].filter(element=>{const r=element.getBoundingClientRect();return r.width>0 && r.height>0 && r.top<(area?.height??0) && r.right>(area?.right??innerWidth)}).map(element=>element.getAttribute('aria-label')??element.tagName);
           return {visible:overlay?.visible??false,collisions};
-        })()`));
+        })()`),
+        );
       }
     }
-    writeFileSync(resultPath,JSON.stringify({samples,restoredAlpha,reducedAlpha,restoredSize,originalSize,backdropDifference,desktopCompositingError,overlayChecks}));
-  } catch(error) {
-    writeFileSync(resultPath,JSON.stringify({failure:String(error)}));
+    writeFileSync(
+      resultPath,
+      JSON.stringify({
+        samples,
+        restoredAlpha,
+        reducedAlpha,
+        restoredSize,
+        originalSize,
+        backdropDifference,
+        desktopCompositingError,
+        overlayChecks,
+      }),
+    );
+  } catch (error) {
+    writeFileSync(resultPath, JSON.stringify({ failure: String(error) }));
   } finally {
     window?.destroy();
     backdrop?.destroy();

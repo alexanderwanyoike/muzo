@@ -11,7 +11,10 @@ export function installDesktopGlass(
 ) {
   ipc.handle("muzo:desktop-glass", (event, enabled: unknown) => {
     if (event.senderFrame !== event.sender.mainFrame)
-      return failure("authorization", "Only the player window can change desktop glass.");
+      return failure(
+        "authorization",
+        "Only the player window can change desktop glass.",
+      );
     if (typeof enabled !== "boolean")
       return failure("invalidInput", "Unknown desktop glass setting.");
     const window = findWindow(event);

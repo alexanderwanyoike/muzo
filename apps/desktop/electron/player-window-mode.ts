@@ -45,8 +45,9 @@ export function createPlayerWindowModeController(
   let library: WindowSnapshot | null = null;
   let shapeApplied = false;
   const supportsShape =
-    !nativeCorners && (platform === "win32" ||
-    (platform === "linux" && process.env.XDG_SESSION_TYPE !== "wayland"));
+    !nativeCorners &&
+    (platform === "win32" ||
+      (platform === "linux" && process.env.XDG_SESSION_TYPE !== "wayland"));
   function shape(rounded: boolean): Result<void> {
     if (!supportsShape || window.isDestroyed()) return success(undefined);
     try {

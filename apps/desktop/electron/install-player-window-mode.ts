@@ -25,7 +25,12 @@ export function installPlayerWindowMode(
     if (!window) return failure("remote", "The player window is unavailable.");
     let controller = controllers.get(window);
     if (!controller) {
-      controller = createPlayerWindowModeController(window, undefined, undefined, nativeCorners);
+      controller = createPlayerWindowModeController(
+        window,
+        undefined,
+        undefined,
+        nativeCorners,
+      );
       controllers.set(window, controller);
     }
     return controller.setMode(mode);

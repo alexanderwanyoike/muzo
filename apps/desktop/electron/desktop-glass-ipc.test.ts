@@ -23,14 +23,20 @@ it("allows only the owning player main frame to change desktop glass through the
     release: "6.8.0",
     reducedTransparency: false,
   }));
-  expect(handle).toHaveBeenCalledWith("muzo:desktop-glass", expect.any(Function));
+  expect(handle).toHaveBeenCalledWith(
+    "muzo:desktop-glass",
+    expect.any(Function),
+  );
   const command = handle.mock.calls[0][1] as (
     event: unknown,
     enabled: unknown,
   ) => Result<boolean>;
   const exposeInMainWorld = vi.fn();
   runInNewContext(
-    readFileSync(fileURLToPath(new URL("./preload.cjs", import.meta.url)), "utf8"),
+    readFileSync(
+      fileURLToPath(new URL("./preload.cjs", import.meta.url)),
+      "utf8",
+    ),
     {
       require: () => ({
         contextBridge: { exposeInMainWorld },
@@ -48,7 +54,10 @@ it("allows only the owning player main frame to change desktop glass through the
   };
   expect(await bridge.setDesktopGlass(true)).toEqual({ ok: true, value: true });
   expect(window.setBackgroundColor).toHaveBeenLastCalledWith("#00000000");
-  expect(await bridge.setDesktopGlass(false)).toEqual({ ok: true, value: false });
+  expect(await bridge.setDesktopGlass(false)).toEqual({
+    ok: true,
+    value: false,
+  });
   expect(window.setBackgroundColor).toHaveBeenLastCalledWith("#ffffff");
   expect(await bridge.setDesktopGlass("transparent")).toMatchObject({
     ok: false,

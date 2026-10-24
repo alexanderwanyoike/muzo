@@ -1,5 +1,7 @@
 :root {
-  --window-controls-width: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px));
+  --window-controls-width: calc(
+    100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px)
+  );
 }
 .app-shell > .now-playing-bar {
   padding-inline-end: calc(24px + var(--window-controls-width));

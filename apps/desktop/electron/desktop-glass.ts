@@ -3,10 +3,7 @@ import { failure, success, type Result } from "./application/result";
 
 type GlassWindow = Pick<
   BrowserWindow,
-  | "isDestroyed"
-  | "setBackgroundColor"
-  | "setVibrancy"
-  | "setBackgroundMaterial"
+  "isDestroyed" | "setBackgroundColor" | "setVibrancy" | "setBackgroundMaterial"
 >;
 export interface DesktopGlassEnvironment {
   platform: NodeJS.Platform;
@@ -16,8 +13,13 @@ export interface DesktopGlassEnvironment {
 
 const WINDOWS_ACRYLIC_MINIMUM_BUILD = 22621;
 
-export function supportsWindowsAcrylic(environment: Pick<DesktopGlassEnvironment, "platform" | "release">) {
-  return environment.platform === "win32" && Number(environment.release.split(".")[2]) >= WINDOWS_ACRYLIC_MINIMUM_BUILD;
+export function supportsWindowsAcrylic(
+  environment: Pick<DesktopGlassEnvironment, "platform" | "release">,
+) {
+  return (
+    environment.platform === "win32" &&
+    Number(environment.release.split(".")[2]) >= WINDOWS_ACRYLIC_MINIMUM_BUILD
+  );
 }
 
 export function setDesktopGlass(
