@@ -6,6 +6,7 @@ import type { TrackDto } from "./api";
 import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
 let mockedInvoke: ReturnType<typeof vi.fn>;
+let mockedArtwork: ReturnType<typeof vi.fn>;
 
 const sampleTracks: TrackDto[] = [
   {
@@ -52,11 +53,12 @@ const samplePlaylists = [
 ];
 
 beforeEach(() => {
-  const runtime = installTestRuntime({
-    invoke: vi.fn(),
+  mockedInvoke = vi.fn();
+  mockedArtwork = vi.fn().mockResolvedValue({ ok: true, value: null });
+  installTestRuntime({
+    invoke: vi.fn((command: string, args?: unknown) => (command === "get_track_artwork" ? mockedArtwork : mockedInvoke)(command, args)),
     openDirectory: vi.fn().mockResolvedValue(null),
   });
-  mockedInvoke = runtime.invoke as ReturnType<typeof vi.fn>;
 });
 
 afterEach(() => {
