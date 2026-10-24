@@ -4,6 +4,7 @@ import type { Result } from "../shared/result";
 export interface RuntimeBridge {
   invoke<T>(command: string, args?: unknown): Promise<T>;
   openDirectory(): Promise<string | null>;
+  setDesktopGlass?(enabled: boolean): Promise<Result<boolean>>;
   setPlayerWindowMode?(mode: PlayerWindowMode): Promise<Result<void>>;
 }
 

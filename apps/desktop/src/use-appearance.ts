@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDesktopGlass } from "./use-desktop-glass";
 import {
   applyAppearance,
   DEFAULT_APPEARANCE,
@@ -23,5 +24,6 @@ export function useAppearance() {
     const saved = saveAppearance(next);
     setError(saved.ok ? null : saved.error.message);
   }
-  return { appearance, changeAppearance, error };
+  const desktopGlassError = useDesktopGlass(appearance.theme === "glass");
+  return { appearance, changeAppearance, error: error ?? desktopGlassError };
 }
