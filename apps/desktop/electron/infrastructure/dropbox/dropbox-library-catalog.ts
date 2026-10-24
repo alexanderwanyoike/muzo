@@ -22,7 +22,7 @@ export class DropboxLibraryCatalogAdapter implements DropboxLibraryCatalog {
   ): Promise<DropboxSourceFile[]> {
     const entries = await this.dropboxFileLister.listFolderRecursive(
       accessToken,
-      root,
+      root === "/" ? "" : root,
     );
 
     return entries

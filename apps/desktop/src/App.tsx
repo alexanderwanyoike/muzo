@@ -7,6 +7,7 @@ import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { listLibraries, listTrackPlayCounts, listTracks, scanLibrary } from "./api";
+import { syncDropboxLibrary } from "./dropbox-api";
 import type { LibraryDto } from "./types";
 
 type ActiveView = "library" | "playlists" | "settings";
@@ -98,7 +99,12 @@ export default function App() {
     setRefreshingLibraryId(library.id);
     setRefreshMessage(null);
     try {
-      const report = await scanLibrary(library.id);
+      const remoteReport = library.kind === "dropbox" ? await syncDropboxLibrary(library.id) : null;
+      if (remoteReport && !remoteReport.ok) {
+        setRefreshMessage(remoteReport.error.message);
+        return;
+      }
+      const report = remoteReport?.ok ? remoteReport.value : await scanLibrary(library.id);
       const tracks = await listTracks(library.id);
       setTrackCounts((prev) => ({ ...prev, [library.id]: tracks.length }));
       setTrackRefreshVersions((prev) => ({
@@ -239,7 +245,10 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
-            <DropboxSettings />
+            <DropboxSettings onLibraryAdded={(library) => {
+              handleLibraryAdded(library);
+              void handleRefresh(library);
+            }} />
             <section className="settings-view__section">
               <div>
                 <h3>Library folders</h3>
@@ -293,6 +302,7 @@ export default function App() {
           <div className="app-content__tracks">
             <TrackList
               libraryId={selectedLibrary.id}
+              refreshIntervalMs={selectedLibrary.kind === "dropbox" ? 5000 : undefined}
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}

@@ -17,6 +17,7 @@ interface TrackListProps {
   onPlayTrack: (track: TrackDto) => void;
   onToggleCurrentTrack: () => void;
   refreshKey?: number;
+  refreshIntervalMs?: number;
   onTracksLoaded?: (libraryId: string, trackCount: number) => void;
   playCounts?: Record<string, number>;
 }
@@ -28,6 +29,7 @@ export default function TrackList({
   onPlayTrack,
   onToggleCurrentTrack,
   refreshKey = 0,
+  refreshIntervalMs = 5000,
   onTracksLoaded,
   playCounts = {},
 }: TrackListProps) {
@@ -65,12 +67,12 @@ export default function TrackList({
         }
       });
     void load();
-    const timer = setInterval(() => { void load(); }, 5000);
+    const timer = refreshIntervalMs ? setInterval(() => { void load(); }, refreshIntervalMs) : null;
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
-  }, [libraryId, onTracksLoaded, refreshKey]);
+  }, [libraryId, onTracksLoaded, refreshKey, refreshIntervalMs]);
 
   async function reloadTracks() {
     const result = await listTracks(libraryId);

@@ -43,6 +43,25 @@ yarn install                 # install all workspace deps
 yarn desktop:dev             # run the desktop app in dev mode
 ```
 
+## Dropbox setup
+
+Create a scoped app in the [Dropbox App Console](https://www.dropbox.com/developers/apps)
+with Full Dropbox access and the `files.metadata.read` and `files.content.read`
+permissions. In Muzo Settings, enter its public app key, choose Connect Dropbox,
+approve access in your system browser, then paste the displayed authorization code.
+No client secret or redirect URI is needed. Enable your OS keyring for encrypted
+credential storage. Muzo refuses Linux basic_text storage.
+
+Add a Dropbox folder such as `/Music`, or `/` for the account root. It syncs on
+startup and at the interval set in Settings. Refresh under Indexed sources runs a
+sync immediately. Each library stays bound to the account that created it.
+
+Dropbox tracks download when selected, then use the normal playback controls.
+Downloads require an internet connection, and retained audio is capped at 1 GiB.
+Disconnect removes local account credentials. Access can also be revoked through
+Dropbox's connected-app settings. Live Dropbox access requires your own app key
+and consent; automated tests exercise the API boundary with fixtures.
+
 ## Common scripts
 
 | Script | Description |

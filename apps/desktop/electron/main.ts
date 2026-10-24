@@ -69,6 +69,7 @@ app.whenReady().then(async () => {
     watchFilesystemLibraries,
     logger,
   });
+  container.resolve("dropboxPoller").start();
   void createWindow();
 
   app.on("activate", () => {
@@ -77,6 +78,8 @@ app.whenReady().then(async () => {
     }
   });
 });
+
+app.on("before-quit", () => container.resolve("dropboxPoller").stop());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

@@ -53,6 +53,11 @@ describe("PrepareTrackAudioSourceApplicationService", () => {
       message: "/music/song.txt",
     } });
   });
+  it("plays Opus tracks accepted by the library scanner", async () => {
+    const service = new PrepareTrackAudioSourceApplicationService(new FakeTrackReader([track({ id: "opus", filePath: "/Music/song.opus" })]), new FakeAudioSourceRegistry());
+    expect(await service.prepare("lib-1", "opus")).toMatchObject({ ok: true, value: { mimeType: "audio/ogg" } });
+  });
+
 });
 
 class FakeTrackReader implements TrackReader {

@@ -8,6 +8,8 @@ import type { DropboxAuthorizationClient } from "./interfaces/dropbox-authorizat
 const authorizationLifetimeSeconds = 600;
 
 export class DropboxAccountService {
+  private revision = 0;
+  private refreshing: Promise<Result<{ accountId: string; accessToken: string }>> | null = null;
   private pending: { clientId: string; codeVerifier: string; expiresAt: number } | null = null;
 
   constructor(
@@ -52,6 +54,8 @@ export class DropboxAccountService {
         return failure("authorization", "Dropbox did not grant offline access. Connect again.");
       }
       this.pending = null;
+      this.revision += 1;
+      this.refreshing = null;
       await this.accounts.save({
         clientId: pending.clientId, accountId: token.accountId,
         accessToken: token.accessToken, refreshToken: token.refreshToken,
@@ -75,12 +79,55 @@ export class DropboxAccountService {
   }
 
   async disconnect(): Promise<Result<DropboxConnectionStatus>> {
+    this.revision += 1;
+    this.refreshing = null;
     this.pending = null;
     try {
       await this.accounts.disconnect();
       return { ok: true, value: { connected: false, accountId: null } };
     } catch {
       return failure("storage", "Could not disconnect Dropbox. Try again.");
+    }
+  }
+
+  async accessToken(expectedAccountId?: string): Promise<Result<string>> {
+    this.refreshing ??= this.loadAccessToken(this.revision);
+    const request = this.refreshing;
+    try {
+      const result = await request;
+      if (!result.ok) return result;
+      if (expectedAccountId && expectedAccountId !== result.value.accountId) {
+        return failure("notConnected", "Connect the Dropbox account that owns this library.");
+      }
+      return { ok: true, value: result.value.accessToken };
+    } finally {
+      if (this.refreshing === request) this.refreshing = null;
+    }
+  }
+
+  private async loadAccessToken(revision: number): Promise<Result<{ accountId: string; accessToken: string }>> {
+    try {
+      const account = await this.accounts.find();
+      if (!account || !account.clientId || revision !== this.revision) {
+        return failure("notConnected", "Connect Dropbox in Settings first.");
+      }
+      const refreshMarginSeconds = 60;
+      if (account.accessTokenExpiresAtUnixSeconds > this.now() + refreshMarginSeconds) {
+        return { ok: true, value: { accountId: account.accountId, accessToken: account.accessToken } };
+      }
+      const token = await this.createClient(account.clientId).refreshAccessToken(account.refreshToken);
+      if (revision !== this.revision) return failure("notConnected", "Dropbox was disconnected.");
+      if (!token.accessToken || !Number.isFinite(token.expiresIn) || token.expiresIn <= 0) {
+        return failure("authorization", "Dropbox credentials could not be refreshed. Connect again in Settings.");
+      }
+      await this.accounts.save({
+        ...account, accessToken: token.accessToken,
+        refreshToken: token.refreshToken ?? account.refreshToken,
+        accessTokenExpiresAtUnixSeconds: this.now() + token.expiresIn,
+      });
+      return { ok: true, value: { accountId: account.accountId, accessToken: token.accessToken } };
+    } catch {
+      return failure("authorization", "Could not refresh Dropbox access. Check the network or reconnect in Settings.");
     }
   }
 }

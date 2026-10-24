@@ -537,6 +537,9 @@ describe("TrackList", () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
       expect(screen.getByText("Take It Easy")).toBeDefined();
       view.unmount();
+      const count = mockedInvoke.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(mockedInvoke).toHaveBeenCalledTimes(count);
     } finally { vi.useRealTimers(); }
   });
 

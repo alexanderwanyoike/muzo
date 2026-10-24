@@ -67,4 +67,39 @@ describe("Dropbox account connection", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it("refreshes expired credentials once for concurrent callers and retains the refresh token", async () => {
+    let stored: StoredDropboxAccount = { accountId: "account-1", clientId: "app-key", accessToken: "expired", refreshToken: "refresh", accessTokenExpiresAtUnixSeconds: 999, connectedAtUnixSeconds: 1 };
+    const refreshAccessToken = vi.fn(async () => ({ accessToken: "fresh", refreshToken: null, expiresIn: 3600, accountId: null }));
+    const service = new DropboxAccountService({ find: async () => stored, save: async (account) => { stored = account; }, disconnect: async () => {} },
+      () => ({ exchangeAuthorizationCode: vi.fn(), refreshAccessToken }), async () => {}, () => 1000);
+    expect(await Promise.all([service.accessToken(), service.accessToken()])).toEqual([{ ok: true, value: "fresh" }, { ok: true, value: "fresh" }]);
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+    expect(stored).toMatchObject({ refreshToken: "refresh", accessTokenExpiresAtUnixSeconds: 4600 });
+    expect(await service.accessToken()).toEqual({ ok: true, value: "fresh" });
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not overwrite a newly connected account when an old token refresh finishes", async () => {
+    let stored: StoredDropboxAccount = { accountId: "old-account", clientId: "old-key", accessToken: "expired", refreshToken: "old-refresh", accessTokenExpiresAtUnixSeconds: 1, connectedAtUnixSeconds: 1 };
+    let finish: (token: { accessToken: string; refreshToken: null; accountId: null; expiresIn: number }) => void = () => {};
+    const refreshing = new Promise<{ accessToken: string; refreshToken: null; accountId: null; expiresIn: number }>((resolve) => { finish = resolve; });
+    const service = new DropboxAccountService({ find: async () => stored, save: async (account) => { stored = account; }, disconnect: async () => {} },
+      () => ({ exchangeAuthorizationCode: async () => ({ accountId: "new-account", accessToken: "new-token", refreshToken: "new-refresh", expiresIn: 3600 }), refreshAccessToken: () => refreshing }), async () => {}, () => 1000);
+    const old = service.accessToken();
+    await service.begin("new-key");
+    await service.complete("new-code");
+    finish({ accessToken: "old-token", refreshToken: null, accountId: null, expiresIn: 3600 });
+    expect(await old).toMatchObject({ ok: false });
+    expect(stored.accountId).toBe("new-account");
+  });
+
+});
+
+it("never returns another account's token, including concurrent callers", async () => {
+  const stored: StoredDropboxAccount = { accountId: "account-B", clientId: "app-key", accessToken: "token-B", refreshToken: "refresh-B", accessTokenExpiresAtUnixSeconds: 9999, connectedAtUnixSeconds: 1 };
+  const service = new DropboxAccountService({ find: async () => stored, save: async () => {}, disconnect: async () => {} },
+    () => ({ exchangeAuthorizationCode: vi.fn(), refreshAccessToken: vi.fn() }), async () => {}, () => 1000);
+  const [wrongOwner, actualOwner] = await Promise.all([service.accessToken("account-A"), service.accessToken("account-B")]);
+  expect(wrongOwner).toMatchObject({ ok: false, error: { kind: "notConnected" } });
+  expect(actualOwner).toEqual({ ok: true, value: "token-B" });
 });

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
+import type { LibraryDto } from "./types";
+import DropboxLibrarySettings from "./dropbox-library-settings";
 import {
   beginDropboxConnection, completeDropboxConnection, disconnectDropbox, dropboxStatus,
 } from "./dropbox-api";
 
-export default function DropboxSettings() {
+export default function DropboxSettings({ onLibraryAdded = () => {} }: { onLibraryAdded?: (library: LibraryDto) => void }) {
   const [connection, setConnection] = useState<DropboxConnectionStatus | null>(null);
   const [clientId, setClientId] = useState("");
   const [code, setCode] = useState("");
@@ -61,6 +63,7 @@ export default function DropboxSettings() {
       {connection?.connected ? (
         <div>
           <p role="status">Connected to Dropbox.</p>
+          <DropboxLibrarySettings onAdded={onLibraryAdded} />
           <button type="button" disabled={busy} onClick={() => void disconnect()}>Disconnect Dropbox</button>
         </div>
       ) : (

@@ -38,7 +38,7 @@ export class PrepareTrackAudioSourceApplicationService
   }
 }
 
-function mimeTypeForPath(filePath: string): string | null {
+export function mimeTypeForPath(filePath: string): string | null {
   const extension = filePath.split(".").at(-1)?.toLowerCase();
   switch (extension) {
     case "mp3":
@@ -48,6 +48,7 @@ function mimeTypeForPath(filePath: string): string | null {
     case "wav":
       return "audio/wav";
     case "ogg":
+    case "opus":
       return "audio/ogg";
     case "aac":
     case "m4a":

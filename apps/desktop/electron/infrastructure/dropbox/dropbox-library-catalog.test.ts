@@ -58,6 +58,13 @@ describe("DropboxLibraryCatalogAdapter", () => {
       ],
     );
   });
+  it("scans the Dropbox root using the API's empty path", async () => {
+    let requestedPath: string | null = null;
+    const adapter = new DropboxLibraryCatalogAdapter({ listFolderRecursive: async (_token, path) => { requestedPath = path; return []; } });
+    await adapter.listAudioFiles("token", "/");
+    expect(requestedPath).toBe("");
+  });
+
 });
 
 class FakeDropboxFileLister implements DropboxFileLister {

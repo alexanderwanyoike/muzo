@@ -1,4 +1,6 @@
-import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
+import type { DropboxConnectionStatus, DropboxSyncStatus } from "../shared/dropbox-contracts";
+import type { LibraryDto } from "./types";
+import type { ScanReport } from "./api";
 import { failure, type Result } from "../shared/result";
 import { invokeCommand } from "./runtime-bridge";
 
@@ -14,3 +16,7 @@ export const dropboxStatus = () => dropboxCommand<DropboxConnectionStatus>("drop
 export const disconnectDropbox = () => dropboxCommand<DropboxConnectionStatus>("dropbox_disconnect");
 export const beginDropboxConnection = (clientId: string) => dropboxCommand<{ pending: true }>("dropbox_begin", { clientId });
 export const completeDropboxConnection = (code: string) => dropboxCommand<DropboxConnectionStatus>("dropbox_complete", { code });
+export const addDropboxLibrary = (input: { name: string; location: string }) => dropboxCommand<LibraryDto>("dropbox_add_library", input);
+export const syncDropboxLibrary = (libraryId: string) => dropboxCommand<ScanReport>("dropbox_sync_library", { libraryId });
+export const dropboxSyncStatus = () => dropboxCommand<DropboxSyncStatus>("dropbox_sync_status");
+export const setDropboxSyncInterval = (minutes: number) => dropboxCommand<{ intervalMinutes: number }>("dropbox_set_sync_interval", { minutes });

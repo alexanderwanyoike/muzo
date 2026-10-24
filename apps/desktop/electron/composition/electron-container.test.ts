@@ -2,7 +2,7 @@
 
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
@@ -232,6 +232,37 @@ describe("Electron container", () => {
     expect(await commands.handleElectronCommand("dropbox_status")).toEqual({ ok: true, value: { connected: true, accountId: "dbid:1" } });
     expect(await commands.handleElectronCommand("dropbox_begin", { input: { clientId: 42 } })).toMatchObject({ ok: false, error: { kind: "invalidInput" } });
     expect(await commands.handleElectronCommand("dropbox_disconnect")).toEqual({ ok: true, value: { connected: false, accountId: null } });
+  });
+
+  it("adds, syncs, and plays a Dropbox library through the real SQLite and local audio adapters", async () => {
+    const root = tempDirectory();
+    const downloadRequest = async () => new Response(new Uint8Array([1, 2, 3, 4]));
+    const container = createElectronContainer({
+      dbPath: join(root, "muzo.sqlite"), dropboxDownloadDirectory: join(root, "audio"), dropboxDownloadRequest: downloadRequest,
+      generateLibraryId: () => "cloud-1", generateTrackId: () => "song-1",
+      dropboxCipher: { protect: (value) => value, unprotect: (value) => value }, openExternal: async () => {},
+      dropboxTransport: { send: async (request) => ({ status: 200, body: JSON.stringify(request.url.endsWith("/token")
+        ? { access_token: "token", refresh_token: "refresh", account_id: "account-1", expires_in: 3600 }
+        : { entries: [{ ".tag": "file", name: "Song.mp3", id: "remote-1", path_display: "/Music/Song.mp3", size: 4, server_modified: "2026-10-24T00:00:00Z" }], cursor: "cursor", has_more: false }) }) },
+    });
+    try {
+      await container.resolve("migrateDatabase")();
+      const command = container.resolve("commandDispatcher");
+      await command.handleElectronCommand("dropbox_begin", { input: { clientId: "app-key" } });
+      await command.handleElectronCommand("dropbox_complete", { input: { code: "code" } });
+      expect(await command.handleElectronCommand("dropbox_add_library", { input: { name: "Cloud", location: "/Music" } })).toEqual({ ok: true, value: { id: "cloud-1", name: "Cloud", location: "/Music", kind: "dropbox" } });
+      expect(await command.handleElectronCommand("dropbox_sync_library", { input: { libraryId: "cloud-1" } })).toEqual({ ok: true, value: { tracksScanned: 1 } });
+      const source = await command.handleElectronCommand("prepare_track_audio_source", { input: { libraryId: "cloud-1", trackId: "song-1" } }) as { url: string; mimeType: string };
+      expect(source.mimeType).toBe("audio/mpeg");
+      expect(Buffer.from(await (await fetch(source.url)).arrayBuffer())).toEqual(Buffer.from([1, 2, 3, 4]));
+      expect(await command.handleElectronCommand("dropbox_set_sync_interval", { input: { minutes: 15 } })).toEqual({ ok: true, value: { intervalMinutes: 15 } });
+      expect(await command.handleElectronCommand("dropbox_sync_status")).toMatchObject({ ok: true, value: { intervalMinutes: 15 } });
+      await command.handleElectronCommand("dropbox_disconnect");
+      expect(await command.handleElectronCommand("dropbox_sync_library", { input: { libraryId: "cloud-1" } })).toMatchObject({ ok: false, error: { kind: "notConnected" } });
+    } finally {
+      if (container.hasRegistration("dropboxPoller")) container.resolve("dropboxPoller").stop();
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
 });
