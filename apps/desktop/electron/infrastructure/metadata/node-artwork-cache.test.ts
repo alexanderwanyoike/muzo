@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 // @vitest-environment node
 import {
   mkdtempSync,
@@ -148,4 +149,20 @@ it("serializes concurrent cache writes and reports an unavailable cache director
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+
+it.each(["legacy", "current-process", "exited-process"])("removes an abandoned %s temporary thumbnail before enforcing the cache budget", async (kind) => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-abandoned-"));
+  const absentProcessId = 2147483647;
+  const prefix = kind === "legacy" ? "" : `${kind === "current-process" ? process.pid : absentProcessId}-`;
+  try {
+    writeFileSync(join(directory, `${prefix}${randomUUID()}.tmp`), "x".repeat(1024));
+    const cache = new NodeArtworkCache(directory, { maximumBytes: 100, maximumEntries: 1 });
+    expect(await cache.save("song", null)).toEqual({ ok: true, value: undefined });
+    const files = readdirSync(directory);
+    expect(files).toHaveLength(1);
+    expect(files.every((file) => file.endsWith(".json"))).toBe(true);
+    expect(files.reduce((sum, file) => sum + statSync(join(directory, file)).size, 0)).toBeLessThanOrEqual(100);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });
