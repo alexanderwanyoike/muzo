@@ -6,7 +6,7 @@ import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
-import LibraryList from "./LibraryList";
+import SourcesPanel from "./sources-panel";
 import TrackList from "./TrackList";
 import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
@@ -28,6 +28,11 @@ interface ListError {
 }
 
 export default function App() {
+  const sourceSetup = useRef<HTMLElement>(null);
+  const [sourceSettingsRequest, requestSourceSettings] = useState(0);
+  useEffect(() => {
+    if (sourceSettingsRequest > 0) sourceSetup.current?.focus();
+  }, [sourceSettingsRequest]);
   const removedLibraryIds = useRef(new Set<string>());
   const {
     appearance,
@@ -265,21 +270,17 @@ export default function App() {
           </button>
         </nav>
 
-        <section className="app-sidebar__section">
-          <h2>Sources</h2>
-          {libraries === null ? (
-            <p className="app__placeholder">Loading...</p>
-          ) : (
-            <LibraryList
-              libraries={libraries}
-              trackCounts={trackCounts}
-              selectedLibraryId={selectedLibraryId}
-              onSelect={handleSelect}
-              onRemove={setRemovingLibrary}
-              renderTracks={() => null}
-            />
-          )}
-        </section>
+        <SourcesPanel
+          libraries={libraries}
+          trackCounts={trackCounts}
+          selectedLibraryId={selectedLibraryId}
+          onSelect={handleSelect}
+          onRemove={setRemovingLibrary}
+          onAddSource={() => {
+            setActiveView("settings");
+            requestSourceSettings((request) => request + 1);
+          }}
+        />
         {current && (
           <figure
             className="app-sidebar__sleeve"
@@ -336,6 +337,7 @@ export default function App() {
               onChange={changeAppearance}
               error={appearanceError}
             />
+            <section className="settings-view__source-setup" aria-label="Add sources" tabIndex={-1} ref={sourceSetup}>
             <DropboxSettings
               onLibraryAdded={(library) => {
                 rememberLibrary(library);
@@ -353,6 +355,7 @@ export default function App() {
               <AddLibraryForm onAdded={handleLibraryAdded} />
             </section>
 
+            </section>
             <section
               className="settings-view__section"
               aria-labelledby="indexed-sources-heading"
