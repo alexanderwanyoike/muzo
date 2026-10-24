@@ -140,6 +140,7 @@ export default function App() {
         library.kind === "dropbox"
           ? await syncDropboxLibrary(library.id)
           : null;
+      if (removedLibraryIds.current.has(library.id)) return;
       if (remoteReport && !remoteReport.ok) {
         setRefreshMessage(remoteReport.error.message);
         return;
