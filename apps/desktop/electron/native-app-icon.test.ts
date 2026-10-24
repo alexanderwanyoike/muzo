@@ -47,6 +47,7 @@ it("decodes the platform icon at taskbar sizes and creates a native window", asy
       },
     );
     expect(JSON.parse(readFileSync(resultPath, "utf8"))).toEqual({
+      identity: { name: "Muzo", profile: "Muzo", session: "Muzo" },
       decoded: true,
       sizes: [16, 32, 256].map((size) => ({ width: size, height: size })),
       windowCreated: true,
