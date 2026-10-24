@@ -6,20 +6,29 @@ import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
 class TestAudio extends EventTarget {
   static instances: TestAudio[] = [];
+
   src = "";
+
   currentTime = 0;
+
   duration = 240;
+
   volume = 1;
+
   paused = true;
+
   constructor() {
     super();
     TestAudio.instances.push(this);
   }
+
   load() {}
+
   async play() {
     this.paused = false;
     this.dispatchEvent(new Event("playing"));
   }
+
   pause() {
     this.paused = true;
     this.dispatchEvent(new Event("pause"));
@@ -127,6 +136,9 @@ it("switches to the mini player and back without restarting playback or losing t
     await screen.findByRole("region", { name: "Mini player" }),
   ).toBeDefined();
   expect(setPlayerWindowMode).toHaveBeenCalledWith("compact");
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Return to library" }),
+  );
   expect(
     screen.getByRole("slider", { name: "Seek" }).getAttribute("value"),
   ).toBe("74");
@@ -140,6 +152,9 @@ it("switches to the mini player and back without restarting playback or losing t
   await user.click(screen.getByRole("button", { name: "Return to library" }));
   expect(setPlayerWindowMode).toHaveBeenLastCalledWith("library");
   expect(screen.getByRole("heading", { name: "Music" })).toBeDefined();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Mini player" }),
+  );
   expect(audio.currentTime).toBe(74);
   expect(audio.paused).toBe(false);
 });
