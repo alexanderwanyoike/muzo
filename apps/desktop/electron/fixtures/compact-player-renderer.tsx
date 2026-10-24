@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "../../src/App";
 import { invokeCommand } from "../../src/runtime-bridge";
-import { applyAppearance } from "../../src/appearance";
+import { applyAppearance, saveAppearance } from "../../src/appearance";
 import "@fontsource-variable/manrope";
 import "../../src/themes.css";
 import "../../src/styles.css";
@@ -32,6 +32,12 @@ class FixtureAudio extends EventTarget {
   }
 }
 Object.defineProperty(window, "Audio", { value: FixtureAudio });
+const saved = saveAppearance({
+  theme: "aluminium",
+  mode: "dark",
+  accent: "cobalt",
+});
+if (!saved.ok) throw new Error(saved.error.message);
 applyAppearance({ theme: "aluminium", mode: "dark", accent: "cobalt" });
 async function renderFixture() {
   const cover = new Image();

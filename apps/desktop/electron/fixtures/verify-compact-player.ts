@@ -156,7 +156,7 @@ void app.whenReady().then(async () => {
         await until("!!document.querySelector('button[aria-label=Pause]')");
       }
       await window.webContents.executeJavaScript(
-        `document.documentElement.dataset.mode=${JSON.stringify(mode)}`,
+        `document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
       );
       await click("Mini player");
       await until("!!document.querySelector('.compact-player')");
