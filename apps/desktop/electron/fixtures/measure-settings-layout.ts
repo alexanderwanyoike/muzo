@@ -76,5 +76,16 @@ export async function measureSettingsLayout() {
     controls,
     formEdges: [name?.left, name?.right, location?.left, browse?.right],
     overflow: viewport.scrollWidth - viewport.clientWidth,
+    sourceRows: Array.from(
+      document.querySelectorAll<HTMLElement>(".library-list__source"),
+    ).map((row) => {
+      const panel = row.closest(".sidebar-panel");
+      if (!panel) throw new Error("Source panel missing");
+      return {
+        rowRight: row.getBoundingClientRect().right,
+        panelRight: panel.getBoundingClientRect().right - 1,
+        overflow: row.scrollWidth - row.clientWidth,
+      };
+    }),
   };
 }
