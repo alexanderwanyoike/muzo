@@ -59,3 +59,14 @@ it("binds token retrieval to the library owner when the connected account change
   expect(accessToken).toHaveBeenCalledWith("account-A");
   expect(scan).not.toHaveBeenCalled();
 });
+
+it("leaves no orphan library when saving its account binding fails", async () => {
+  const libraries: LibraryDto[] = [];
+  const fail = async () => { throw new Error("disk full"); };
+  const settings = { bind: fail, register: fail, accountFor: async () => null, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} };
+  const service = new DropboxLibraryService({ add: async (library) => { libraries.push(library); }, list: async () => libraries, findById: async () => null },
+    { status: async () => ({ ok: true, value: { connected: true, accountId: "account" } }), accessToken: async () => ({ ok: true, value: "token" }) },
+    settings, { scan: vi.fn() }, () => "id");
+  expect(await service.add({ name: "Cloud", location: "/Music" })).toMatchObject({ ok: false, error: { kind: "storage" } });
+  expect(libraries).toEqual([]);
+});
