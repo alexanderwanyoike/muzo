@@ -13,7 +13,7 @@ above Volume. The control is icon only.
 - [x] Place the icon-only toggle at the top-right of the playback bar, above volume.
 - [x] Preserve tooltip, accessible name, pending state, playback continuity and focus return.
 - [x] Check native positioning at normal/minimum widths in light and dark materials.
-- [ ] Complete ordered gates and both review cycles.
+- [x] Complete ordered gates and both review cycles.
 
 ## Verification
 
