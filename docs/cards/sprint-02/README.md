@@ -34,10 +34,8 @@ review: formalising SQLite migrations before more tables pile up.
 | 021 | [Desktop materials and appearance](./021-desktop-appearance-themes.md) | Feature | Done | - |
 | 022 | [Remove library sources](./022-remove-library-sources.md) | Feature | Done | - |
 | 023 | [Embedded album artwork](./023-embedded-album-artwork.md) | Feature | Done | - |
-
 | 024 | [Minimal desktop menus](./024-minimal-desktop-menu.md) | Feature | Done | - |
 | 025 | [Searchable sources](./025-searchable-sources.md) | Feature | Done | - |
-
 | 026 | [Native app icons](./026-native-app-icons.md) | Feature | Done | - |
 
 ## Close-out note
