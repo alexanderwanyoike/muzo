@@ -1,3 +1,4 @@
+import type { LibraryRemovalOutcome } from "../interfaces/library-removal";
 import type { RemoveLibraryService } from "../remove-library-service";
 import { failure, type Result } from "../result";
 import type { CommandHandler } from "./command-handler";
@@ -7,7 +8,7 @@ export class RemoveLibraryCommand implements CommandHandler {
 
   constructor(private readonly libraries: RemoveLibraryService) {}
 
-  async handle(args: unknown): Promise<Result<void>> {
+  async handle(args: unknown): Promise<Result<LibraryRemovalOutcome>> {
     const input =
       args && typeof args === "object" && "input" in args ? args.input : null;
     if (

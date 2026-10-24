@@ -191,7 +191,7 @@ export default function App() {
     [],
   );
 
-  function handleSourceRemoved(libraryId: string) {
+  function handleSourceRemoved(libraryId: string, warning: string | null) {
     removedLibraryIds.current.add(libraryId);
     removeSource(libraryId);
     setLibraries((items) =>
@@ -203,7 +203,7 @@ export default function App() {
         Object.entries(counts).filter(([id]) => id !== libraryId),
       ),
     );
-    setRefreshMessage(null);
+    setRefreshMessage(warning);
   }
 
   const selectedLibrary =

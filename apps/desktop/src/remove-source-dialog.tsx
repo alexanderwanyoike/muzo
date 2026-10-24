@@ -5,7 +5,7 @@ import "./remove-source-dialog.css";
 
 interface Props {
   library: LibraryDto;
-  onRemoved: (libraryId: string) => void;
+  onRemoved: (libraryId: string, warning: string | null) => void;
   onClose: () => void;
 }
 export default function RemoveSourceDialog({
@@ -26,7 +26,7 @@ export default function RemoveSourceDialog({
     setError(null);
     const result = await removeLibrary(library.id);
     if (result.ok || result.error.kind === "libraryNotFound") {
-      onRemoved(library.id);
+      onRemoved(library.id, result.ok ? result.value.warning : null);
       dialog.current?.close();
     } else {
       setError(result.error.message);
