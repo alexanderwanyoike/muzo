@@ -109,17 +109,25 @@ function measureCompact() {
     context.fillRect(0, 0, 1, 1);
     const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
     const opacity = alpha / 255;
-    const backgrounds = [0, 255].map(
-      (backdrop) =>
-        `#${[red, green, blue]
-          .map((channel) =>
-            Math.round(channel * opacity + backdrop * (1 - opacity))
-              .toString(16)
-              .padStart(2, "0"),
-          )
-          .join("")}`,
-    );
     const style = getComputedStyle(surface);
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle =
+      style.getPropertyValue("--glass-wash").trim() || "transparent";
+    context.fillRect(0, 0, 1, 1);
+    const wash = context.getImageData(0, 0, 1, 1).data;
+    const backgrounds = [0, 255].flatMap((backdrop) =>
+      [0, wash[3] / 255].map(
+        (glint) =>
+          `#${[red, green, blue]
+            .map((channel, index) => {
+              const base = channel * opacity + backdrop * (1 - opacity);
+              return Math.round(base * (1 - glint) + wash[index] * glint)
+                .toString(16)
+                .padStart(2, "0");
+            })
+            .join("")}`,
+      ),
+    );
     return {
       backgrounds,
       text: style.getPropertyValue("--text").trim(),
