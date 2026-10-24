@@ -68,7 +68,7 @@ it("starts a playlist queue when its first song is already playing directly", as
   await user.click(await screen.findByRole("button", { name: "Play First" }));
   await waitFor(() => expect(TestAudio.current.paused).toBe(false));
   await user.click(screen.getByRole("button", { name: "Playlists" }));
-  await user.click(await screen.findByRole("button", { name: /First from Evening/ }));
+  await user.click(await screen.findByRole("button", { name: /^(Play|Pause) First from Evening$/ }));
   expect(screen.getByRole("button", { name: "Next track" }).hasAttribute("disabled")).toBe(false);
   await act(async () => { TestAudio.current.dispatchEvent(new Event("ended")); });
   await waitFor(() => expect(TestAudio.current.src).toBe("source-second"));
