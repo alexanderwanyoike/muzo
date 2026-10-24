@@ -11,7 +11,7 @@ it("registers and syncs a Dropbox library using main-process credentials", async
     add: async (library) => { libraries.push(library); }, list: async () => libraries,
     findById: async (id) => libraries.find((library) => library.id === id) ?? null,
   }, { status: async () => ({ ok: true, value: { connected: true, accountId: "account-1" } }), accessToken: async () => ({ ok: true, value: "main-process-token" }) },
-  { bind: async (id, accountId) => { bindings.set(id, accountId); }, accountFor: async (id) => bindings.get(id) ?? null,
+  { register: async (library, accountId) => { libraries.push(library); bindings.set(library.id, accountId); }, accountFor: async (id) => bindings.get(id) ?? null,
     intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "lib-1");
 
   expect(await service.add({ name: "Cloud Music", location: "/Music/" })).toEqual({ ok: true, value: { id: "lib-1", name: "Cloud Music", kind: "dropbox", location: "/Music" } });
@@ -30,7 +30,7 @@ it("shares an in-flight library sync between background polling and manual refre
   const scan = vi.fn(async () => ({ ok: true as const, value: await report }));
   const service = new DropboxLibraryService({ add: async () => {}, list: async () => [library], findById: async () => library },
     { status: async () => ({ ok: true, value: { connected: true, accountId: "account" } }), accessToken: async () => ({ ok: true, value: "token" }) },
-    { bind: async () => {}, accountFor: async () => "account", intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
+    { register: async () => {}, accountFor: async () => "account", intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
   const first = service.sync("cloud");
   const second = service.sync("cloud");
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -50,7 +50,7 @@ it("binds token retrieval to the library owner when the connected account change
   const scan = vi.fn(async () => ({ ok: true as const, value: { tracksScanned: 0 } }));
   const service = new DropboxLibraryService({ add: async () => {}, list: async () => [library], findById: async () => library },
     { status: async () => ({ ok: true, value: { connected: true, accountId: connectedAccount } }), accessToken },
-    { bind: async () => {}, accountFor: () => owner, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
+    { register: async () => {}, accountFor: () => owner, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} }, { scan }, () => "id");
   const syncing = service.sync("cloud");
   await new Promise<void>((resolve) => setImmediate(resolve));
   connectedAccount = "account-B";
@@ -63,7 +63,7 @@ it("binds token retrieval to the library owner when the connected account change
 it("leaves no orphan library when saving its account binding fails", async () => {
   const libraries: LibraryDto[] = [];
   const fail = async () => { throw new Error("disk full"); };
-  const settings = { bind: fail, register: fail, accountFor: async () => null, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} };
+  const settings = { register: fail, accountFor: async () => null, intervalMinutes: async () => 5, setIntervalMinutes: async () => {} };
   const service = new DropboxLibraryService({ add: async (library) => { libraries.push(library); }, list: async () => libraries, findById: async () => null },
     { status: async () => ({ ok: true, value: { connected: true, accountId: "account" } }), accessToken: async () => ({ ok: true, value: "token" }) },
     settings, { scan: vi.fn() }, () => "id");

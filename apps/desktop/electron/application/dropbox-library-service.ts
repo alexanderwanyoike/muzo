@@ -31,8 +31,7 @@ export class DropboxLibraryService {
     if (!status.value.accountId) return failure("notConnected", "Connect Dropbox in Settings first.");
     try {
       const library: LibraryRecord = { id: this.generateId(), name, kind: "dropbox", location };
-      await this.libraries.add(library);
-      await this.settings.bind(library.id, status.value.accountId);
+      await this.settings.register(library, status.value.accountId);
       return { ok: true, value: library };
     } catch {
       return failure("storage", "Could not save the Dropbox library.");

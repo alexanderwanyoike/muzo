@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import initSqlJs, { type Database } from "sql.js";
+import type { LibraryRecord } from "../../application/interfaces/library-record";
 import type { DropboxLibrarySettings } from "../../application/interfaces/dropbox-library-settings";
 import { locateSqlWasm } from "./sql-wasm-path";
 
@@ -8,9 +9,12 @@ const sqlModule = initSqlJs({ locateFile: locateSqlWasm });
 export class SqliteDropboxLibrarySettings implements DropboxLibrarySettings {
   constructor(private readonly dbPath: string) {}
 
-  async bind(libraryId: string, accountId: string): Promise<void> {
+  async register(library: LibraryRecord, accountId: string): Promise<void> {
     await this.withDatabase((db) => {
-      db.run("INSERT INTO dropbox_library_accounts (library_id, account_id) VALUES (?, ?)", [libraryId, accountId]);
+      db.run("BEGIN TRANSACTION");
+      db.run("INSERT INTO libraries (id, name, kind, location) VALUES (?, ?, 'Dropbox', ?)", [library.id, library.name, library.location]);
+      db.run("INSERT INTO dropbox_library_accounts (library_id, account_id) VALUES (?, ?)", [library.id, accountId]);
+      db.run("COMMIT");
     }, true);
   }
 
