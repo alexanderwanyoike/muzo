@@ -1,3 +1,4 @@
+import { failure, success, type Result } from "./result";
 import { posix } from "node:path";
 
 import type {
@@ -27,13 +28,14 @@ export class ScanDropboxLibraryService {
     private readonly generateTrackId: () => string,
   ) {}
 
-  async scan(input: ScanDropboxLibraryInput): Promise<DropboxScanReport> {
+  async scan(input: ScanDropboxLibraryInput): Promise<Result<DropboxScanReport>> {
+    try {
     const library = await this.libraries.findById(input.libraryId);
     if (!library) {
-      throw { kind: "libraryNotFound", libraryId: input.libraryId };
+      return failure("libraryNotFound", "The library no longer exists.", { libraryId: input.libraryId });
     }
     if (library.kind !== "dropbox") {
-      throw { kind: "notDropboxLibrary", libraryId: input.libraryId };
+      return failure("notDropboxLibrary", "Select a Dropbox library.", { libraryId: input.libraryId });
     }
 
     const files = await this.dropboxCatalog.listAudioFiles(
@@ -52,7 +54,8 @@ export class ScanDropboxLibraryService {
       }
     }
 
-    return { tracksScanned: files.length };
+    return success({ tracksScanned: files.length });
+    } catch { return failure("remote", "Could not read the Dropbox library catalog."); }
   }
 
   private trackFromFile(libraryId: string, file: DropboxSourceFile): ScannedTrack {
