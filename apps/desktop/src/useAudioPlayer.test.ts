@@ -327,4 +327,17 @@ describe("useAudioPlayer", () => {
     expect(MockAudio.instances[0].src).toBe("next-source");
   });
 
+  it("cancels pending playback and releases audio when the player unmounts", async () => {
+    let finish: (source: { url: string; mimeType: string }) => void = () => {};
+    apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    const { result, unmount } = renderHook(() => useAudioPlayer());
+    act(() => { result.current.play(track); });
+    const audio = MockAudio.instances[0];
+    unmount();
+    await act(async () => { finish({ url: "late-source", mimeType: "audio/mpeg" }); });
+    expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
+    expect(audio.paused).toBe(true);
+    expect(audio.src).toBe("");
+  });
+
 });
