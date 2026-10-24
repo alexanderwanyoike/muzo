@@ -6,7 +6,7 @@ import { DropboxAccountService } from "./dropbox-account-service";
 describe("Dropbox account connection", () => {
   it("connects through PKCE and persists offline credentials without returning secrets", async () => {
     let stored: StoredDropboxAccount | null = null;
-    const openExternal = vi.fn(async () => {});
+    const openExternal = vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined);
     const exchangeAuthorizationCode = vi.fn(async () => ({
       accessToken: "secret-access", refreshToken: "secret-refresh",
       expiresIn: 3600, accountId: "account-1",
