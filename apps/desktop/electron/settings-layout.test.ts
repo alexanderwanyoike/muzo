@@ -19,7 +19,16 @@ interface Measurement {
   layout: {
     selectedTheme: string;
     selectedMode: string;
-    colours: { panel: string; raised: string; sidebar: string; chrome: string; text: string; muted: string; onAccent: string; accents: {id: string; colour: string}[] };
+    colours: {
+      panel: string;
+      raised: string;
+      sidebar: string;
+      chrome: string;
+      text: string;
+      muted: string;
+      onAccent: string;
+      accents: { id: string; colour: string }[];
+    };
     sections: {
       name: string;
       left: number;
@@ -91,12 +100,30 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
       const context = `${width}px, ${theme}/${mode}, Dropbox ${connected ? "connected" : "disconnected"}`;
       expect(layout.selectedTheme, context).toBe(theme);
       expect(layout.selectedMode, context).toBe(mode);
-      expect(new Set(layout.colours.accents.map(({colour}) => colour)).size, `${context}, distinct accents`).toBe(ACCENTS.length);
-      for (const background of [layout.colours.panel, layout.colours.raised, layout.colours.sidebar, layout.colours.chrome]) {
-        expect(contrastRatio(layout.colours.text, background), `${context}, text contrast`).toBeGreaterThanOrEqual(4.5);
-        expect(contrastRatio(layout.colours.muted, background), `${context}, muted contrast`).toBeGreaterThanOrEqual(4.5);
+      expect(
+        new Set(layout.colours.accents.map(({ colour }) => colour)).size,
+        `${context}, distinct accents`,
+      ).toBe(ACCENTS.length);
+      for (const background of [
+        layout.colours.panel,
+        layout.colours.raised,
+        layout.colours.sidebar,
+        layout.colours.chrome,
+      ]) {
+        expect(
+          contrastRatio(layout.colours.text, background),
+          `${context}, text contrast`,
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          contrastRatio(layout.colours.muted, background),
+          `${context}, muted contrast`,
+        ).toBeGreaterThanOrEqual(4.5);
       }
-      for (const accent of layout.colours.accents) expect(contrastRatio(layout.colours.onAccent, accent.colour), `${context}, ${accent.id} label contrast`).toBeGreaterThanOrEqual(4.5);
+      for (const accent of layout.colours.accents)
+        expect(
+          contrastRatio(layout.colours.onAccent, accent.colour),
+          `${context}, ${accent.id} label contrast`,
+        ).toBeGreaterThanOrEqual(4.5);
       expect(
         layout.sections.map(({ name }) => name),
         context,
@@ -141,8 +168,12 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
       ).toBeLessThanOrEqual(1);
     }
     for (const mode of MODES) {
-      const panels = measurements.filter((measurement) => measurement.mode === mode).map((measurement) => measurement.layout.colours.panel);
-      expect(new Set(panels).size, `${mode}, distinct materials`).toBe(MATERIALS.length);
+      const panels = measurements
+        .filter((measurement) => measurement.mode === mode)
+        .map((measurement) => measurement.layout.colours.panel);
+      expect(new Set(panels).size, `${mode}, distinct materials`).toBe(
+        MATERIALS.length,
+      );
     }
   } finally {
     rmSync(directory, { recursive: true, force: true });

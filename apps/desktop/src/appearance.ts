@@ -12,9 +12,17 @@ export const MATERIALS = [
     name: "Warm paper",
     detail: "Soft neutrals with a little warmth",
   },
-  { id: "carbon", name: "Carbon fibre", detail: "Fine weave and cool graphite" },
+  {
+    id: "carbon",
+    name: "Carbon fibre",
+    detail: "Fine weave and cool graphite",
+  },
   { id: "walnut", name: "Walnut", detail: "Soft wood grain and warm tones" },
-  { id: "porcelain", name: "Porcelain", detail: "Smooth ceramic and gentle highlights" },
+  {
+    id: "porcelain",
+    name: "Porcelain",
+    detail: "Smooth ceramic and gentle highlights",
+  },
 ] as const;
 export const MODES = ["light", "dark"] as const;
 export const ACCENTS = [

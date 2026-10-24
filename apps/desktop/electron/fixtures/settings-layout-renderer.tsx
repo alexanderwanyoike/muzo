@@ -14,7 +14,9 @@ import "../../src/styles.css";
 const parameters = new URLSearchParams(window.location.search);
 const connected = parameters.get("connected") !== "false";
 const appearance: Appearance = {
-  theme: MATERIALS.find(({ id }) => id === parameters.get("theme"))?.id ?? "aluminium",
+  theme:
+    MATERIALS.find(({ id }) => id === parameters.get("theme"))?.id ??
+    "aluminium",
   mode: parameters.get("mode") === "dark" ? "dark" : "light",
   accent: "cobalt",
 };

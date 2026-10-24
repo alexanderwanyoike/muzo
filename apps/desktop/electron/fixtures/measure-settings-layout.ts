@@ -52,11 +52,21 @@ export async function measureSettingsLayout() {
     .querySelector(".add-library-form__field button")
     ?.getBoundingClientRect();
   const root = getComputedStyle(document.documentElement);
-  const colour = (name: string) => root.getPropertyValue(name).trim();
+  const colour = (token: string) => root.getPropertyValue(token).trim();
   const colours = {
-    panel: colour("--panel"), raised: colour("--panel-raised"), sidebar: colour("--sidebar"), chrome: colour("--chrome"),
-    text: colour("--text"), muted: colour("--text-muted"), onAccent: colour("--on-accent"),
-    accents: Array.from(document.querySelectorAll(".appearance-accents label")).map((label) => ({ id: label.getAttribute("data-accent"), colour: getComputedStyle(label).getPropertyValue("--accent").trim() })),
+    panel: colour("--panel"),
+    raised: colour("--panel-raised"),
+    sidebar: colour("--sidebar"),
+    chrome: colour("--chrome"),
+    text: colour("--text"),
+    muted: colour("--text-muted"),
+    onAccent: colour("--on-accent"),
+    accents: Array.from(
+      document.querySelectorAll(".appearance-accents label"),
+    ).map((label) => ({
+      id: label.getAttribute("data-accent"),
+      colour: getComputedStyle(label).getPropertyValue("--accent").trim(),
+    })),
   };
   return {
     selectedTheme: document.documentElement.dataset.theme,
