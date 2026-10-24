@@ -29,7 +29,7 @@ export default function TrackList({
   onPlayTrack,
   onToggleCurrentTrack,
   refreshKey = 0,
-  refreshIntervalMs,
+  refreshIntervalMs = 5000,
   onTracksLoaded,
   playCounts = {},
 }: TrackListProps) {
