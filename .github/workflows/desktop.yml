@@ -1,0 +1,43 @@
+name: Desktop verification
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VITEST_MAX_FORKS: 2
+      VITEST_MIN_FORKS: 1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - name: Prepare Yarn and Linux packaging tools
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends fakeroot dpkg
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn typecheck
+      - run: yarn test
+      - run: yarn desktop:build
+      - run: yarn desktop:package
+      - run: yarn desktop:make
