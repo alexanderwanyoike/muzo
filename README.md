@@ -6,7 +6,7 @@ Build a library, make a playlist and settle into an album. Muzo keeps your
 collection in sync, remembers your artwork and gives you a workspace you can
 make your own.
 
-![Muzo playing music with album artwork, a playback queue and searchable sources](./site/public/images/muzo-player.jpg)
+![Muzo playing music with album artwork, a track list and searchable sources](./site/public/images/muzo-player.jpg)
 
 *The desktop player, shown with fictional tracks and original demo artwork.*
 
