@@ -250,3 +250,69 @@
     width: min(100%, 210px);
   }
 }
+
+.compact-player {
+  position: relative;
+  overflow: hidden;
+}
+.compact-player__atmosphere {
+  position: absolute;
+  inset: -15%;
+  opacity: 0.12;
+  filter: blur(60px);
+  pointer-events: none;
+}
+.compact-player__atmosphere .track-artwork {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.compact-player__atmosphere svg {
+  display: none;
+}
+.compact-player__header,
+.compact-player__workspace,
+.compact-player__error {
+  position: relative;
+}
+.compact-player__metadata {
+  text-align: center;
+  width: 100%;
+  margin-bottom: 20px;
+}
+.compact-player__metadata h1 {
+  font-size: 18px;
+  line-height: 1.4;
+  margin: 0;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compact-player__metadata p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compact-player__metadata .compact-player__album {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.compact-player .now-playing-bar__track {
+  display: none;
+}
+.compact-player__playback-error {
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 16px 0 0;
+}
+@media (max-height: 520px) {
+  .compact-player__metadata {
+    margin-bottom: 14px;
+  }
+  .compact-player__metadata h1 {
+    font-size: 16px;
+  }
+}

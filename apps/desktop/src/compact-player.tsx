@@ -34,6 +34,15 @@ export default function CompactPlayer({
       className={`compact-player${queueOpen ? " compact-player--queue" : ""}`}
       aria-label="Mini player"
     >
+      {player.current && (
+        <div className="compact-player__atmosphere" aria-hidden="true">
+          <TrackArtwork
+            track={player.current}
+            eager
+            refreshKey={artworkRefreshKey}
+          />
+        </div>
+      )}
       <header className="compact-player__header">
         <span>Muzo</span>
         <div className="compact-player__window-actions">
@@ -79,6 +88,13 @@ export default function CompactPlayer({
               </div>
             )}
           </figure>
+          <div className="compact-player__metadata">
+            <h1>{player.current?.title ?? "Not playing"}</h1>
+            <p>{player.current?.artist ?? "Choose a track in your library"}</p>
+            {player.current?.album && (
+              <p className="compact-player__album">{player.current.album}</p>
+            )}
+          </div>
           <NowPlayingBar
             current={player.current}
             status={player.status}
@@ -95,6 +111,11 @@ export default function CompactPlayer({
             onSeek={player.seek}
             onSetVolume={player.setVolume}
           />
+          {player.playbackError && (
+            <p role="alert" className="compact-player__playback-error">
+              {player.playbackError}
+            </p>
+          )}
         </div>
       </div>
       {error && (
