@@ -1,0 +1,40 @@
+{
+  "appId": "com.muzo.desktop",
+  "productName": "Muzo",
+  "directories": {
+    "output": "out/distribution",
+    "buildResources": "assets/icons"
+  },
+  "publish": null,
+  "linux": {
+    "target": ["AppImage"],
+    "executableName": "muzo",
+    "icon": "assets/icons/muzo.png",
+    "category": "AudioVideo",
+    "maintainer": "Muzo",
+    "artifactName": "Muzo-${version}-linux-x64.AppImage",
+    "syncDesktopName": true
+  },
+  "win": {
+    "target": ["nsis"],
+    "executableName": "muzo",
+    "icon": "assets/icons/muzo.ico",
+    "signAndEditExecutable": false,
+    "artifactName": "Muzo-${version}-windows-${arch}-setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": ["dmg"],
+    "icon": "assets/icons/muzo.icns",
+    "identity": null,
+    "category": "public.app-category.music",
+    "artifactName": "Muzo-${version}-macos-${arch}.${ext}"
+  },
+  "dmg": {
+    "sign": false
+  }
+}

@@ -52,6 +52,12 @@ export interface ReleaseManifest {
   artifacts: ReleaseArtifact[];
 }
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+export function isStableReleaseVersion(value: unknown): value is string {
+  return typeof value === "string" && stableVersion.test(value);
+}
+export function isReleaseSourceCommit(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
+}
 
 function record(input: unknown): input is Record<string, unknown> {
   return typeof input === "object" && input !== null;
@@ -81,11 +87,9 @@ export function validateReleaseManifest(
   if (
     !record(input) ||
     input.schemaVersion !== 1 ||
-    typeof input.version !== "string" ||
-    !stableVersion.test(input.version) ||
+    !isStableReleaseVersion(input.version) ||
     input.tag !== `v${input.version}` ||
-    typeof input.sourceCommit !== "string" ||
-    !/^[0-9a-f]{40}$/.test(input.sourceCommit) ||
+    !isReleaseSourceCommit(input.sourceCommit) ||
     !Array.isArray(input.artifacts)
   ) {
     return distributionFailure(

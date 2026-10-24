@@ -1,6 +1,6 @@
 {
   "name": "@muzo/desktop",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Muzo desktop music player",
   "private": true,
   "type": "module",
@@ -19,7 +19,8 @@
     "test:watch": "yarn electron:prepare && vitest",
     "clean": "rm -rf dist dist-electron out node_modules",
     "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc && electron --no-sandbox export-window-icon.cjs",
-    "electron:prepare": "node -e \"require('electron')\""
+    "electron:prepare": "node -e \"require('electron')\"",
+    "distribute": "yarn build && tsx electron/distribution/make-distribution.ts"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "5.3.0",
@@ -39,6 +40,7 @@
     "@electron-forge/cli": "7.11.2",
     "@electron-forge/maker-deb": "7.11.2",
     "@electron-forge/maker-zip": "7.11.2",
+    "@muzo/distribution": "0.0.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
@@ -49,7 +51,8 @@
     "@types/sql.js": "^1.4.11",
     "@vitejs/plugin-react": "^4.3.3",
     "concurrently": "^10.0.3",
-    "electron": "^43.0.0",
+    "electron": "43.0.0",
+    "electron-builder": "26.18.0",
     "esbuild": "0.28.1",
     "eslint": "^9.14.0",
     "eslint-config-airbnb-extended": "3.3.0",
@@ -61,5 +64,7 @@
     "vite": "^5.4.10",
     "vitest": "^2.1.4",
     "wait-on": "^9.0.10"
-  }
+  },
+  "author": "Muzo",
+  "desktopName": "muzo.desktop"
 }
