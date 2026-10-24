@@ -33,6 +33,7 @@ export default function App() {
     changeAppearance,
     error: appearanceError,
   } = useAppearance();
+  const [sourceRevision, setSourceRevision] = useState(0);
   const [removingLibrary, setRemovingLibrary] = useState<LibraryDto | null>(
     null,
   );
@@ -194,6 +195,7 @@ export default function App() {
 
   function handleSourceRemoved(libraryId: string, warning: string | null) {
     removedLibraryIds.current.add(libraryId);
+    setSourceRevision(revision => revision + 1);
     removeSource(libraryId);
     setLibraries((items) =>
       (items ?? []).filter((library) => library.id !== libraryId),
@@ -379,6 +381,7 @@ export default function App() {
           </div>
         ) : activeView === "playlists" ? (
           <PlaylistPanel
+            refreshKey={sourceRevision}
             onPlayQueue={playQueue}
             currentQueueEntryId={currentQueueEntryId}
             currentTrackId={current?.id ?? null}

@@ -24,6 +24,7 @@ interface PlaylistError {
 }
 
 interface PlaylistPanelProps {
+  refreshKey?: number;
   currentQueueEntryId?: string | null;
   currentTrackId?: string | null;
   isPlaying?: boolean;
@@ -33,6 +34,7 @@ interface PlaylistPanelProps {
 }
 
 export default function PlaylistPanel({
+  refreshKey = 0,
   currentTrackId = null,
   currentQueueEntryId = null,
   isPlaying = false,
@@ -52,6 +54,7 @@ export default function PlaylistPanel({
 
   useEffect(() => {
     let cancelled = false;
+    setPlaylists(null);
     setError(null);
     listPlaylists()
       .then((result) => {
@@ -69,7 +72,7 @@ export default function PlaylistPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshKey]);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -242,6 +245,7 @@ export default function PlaylistPanel({
                         <span data-testid="playlist-entry-label">
                           {entryLabel(entry)}
                         </span>
+                        {!entry.trackLibraryId && <small>Unavailable source</small>}
                         {entry.trackArtist && (
                           <small>{entry.trackArtist}</small>
                         )}
