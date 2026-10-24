@@ -1,6 +1,6 @@
 import type { Menu, MenuItemConstructorOptions } from "electron";
 
-const hiddenShortcuts: MenuItemConstructorOptions[] = [
+const hiddenShortcuts = ([
   { role: "undo", accelerator: "Cmd+Z" },
   { role: "redo", accelerator: "Shift+Cmd+Z" },
   { role: "cut", accelerator: "Cmd+X" },
@@ -8,7 +8,7 @@ const hiddenShortcuts: MenuItemConstructorOptions[] = [
   { role: "paste", accelerator: "Cmd+V" },
   { role: "selectAll", accelerator: "Cmd+A" },
   { role: "close", accelerator: "Cmd+W" },
-].map((item) => ({
+] satisfies MenuItemConstructorOptions[]).map((item) => ({
   ...item,
   visible: false,
   acceleratorWorksWhenHidden: true,
