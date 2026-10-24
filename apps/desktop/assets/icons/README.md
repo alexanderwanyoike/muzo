@@ -2,8 +2,10 @@
 
 The flat blue and black waveform mark is shared by all desktop platforms.
 Nine separate bars form two peaks and a central trough, suggesting an M.
-`muzo.png` is the transparent high-resolution master and Linux window/launcher
-icon. `muzo.ico` contains Windows executable sizes, including BMP entries at
+`muzo.png` is the transparent high-resolution master and launcher icon.
+Linux windows use `muzo-window.png`, a 48px pixel-aligned rendition for crisp
+24/32px panels. Its nine bars retain full pixel gaps when reduced, rather than
+merging together while scaling the 1254px master. `muzo.ico` contains Windows executable sizes, including BMP entries at
 16, 24, 32 and 48 pixels and PNG entries at larger sizes. `muzo.icns` contains
 macOS sizes through 1024 pixels. The icon is independent of the selected theme.
 
@@ -12,6 +14,11 @@ Regenerate native containers from the committed master:
 ```sh
 yarn workspace @muzo/desktop icons:generate
 ```
+
+The command also exports the small window variant through Electron nativeImage
+from the two-colour pixel geometry in `electron/export-window-icon.cjs`. It keeps
+the approved waveform silhouette and does not modify the generated master. On a
+headless Linux machine, prefix the command with `xvfb-run -a`.
 
 Exports use the public API/CLI of [png2icons 2.0.1](https://github.com/idesis-gmbh/png2icons),
 with its Windows-executable format and bicubic scaling. The MIT licence is

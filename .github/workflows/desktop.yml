@@ -33,8 +33,12 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb libgtk-3-0t64 libasound2t64 libgbm1
+          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb x11-utils libgtk-3-0t64 libasound2t64 libgbm1
       - run: yarn install --frozen-lockfile
+      - name: Check reproducible icon exports
+        run: |
+          xvfb-run -a yarn workspace @muzo/desktop icons:generate
+          git diff --exit-code -- apps/desktop/assets/icons
       - run: yarn format:check
       - run: yarn lint
       - run: yarn typecheck
