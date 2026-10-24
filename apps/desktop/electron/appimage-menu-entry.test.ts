@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -63,3 +63,23 @@ it.skipIf(process.platform !== "linux")(
     }
   },
 );
+
+
+it("preserves a launcher already installed by another package or integration tool", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-existing-menu-"));
+  try {
+    await mkdir(join(directory, "applications"));
+    const launcher = join(directory, "applications/appimagekit-muzo.desktop");
+    const entry = "[Desktop Entry]\nType=Application\nName=Muzo\nExec=/installed/muzo\nStartupWMClass=muzo\n";
+    await writeFile(launcher, entry);
+    expect(await registerAppImageMenuEntry({
+      appImagePath: "/portable/Muzo.AppImage",
+      dataDirectory: directory,
+      iconPath: join(import.meta.dirname, "../assets/icons/muzo.png"),
+    })).toEqual({ ok: true, value: "existing" });
+    expect(await readFile(launcher, "utf8")).toBe(entry);
+    await expect(readFile(join(directory, "applications/muzo.desktop"))).rejects.toMatchObject({ code: "ENOENT" });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
