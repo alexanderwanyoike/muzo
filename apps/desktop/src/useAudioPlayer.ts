@@ -12,7 +12,15 @@ export interface AudioPlayerState {
   playbackError: string | null;
 }
 
+export interface PlaybackQueueItem {
+  entryId: string;
+  track: TrackDto;
+}
+
 export interface AudioPlayer extends AudioPlayerState {
+  playQueue: (entries: PlaybackQueueItem[], startIndex?: number) => void;
+  currentQueueEntryId: string | null;
+  hasNext: boolean;
   play: (track: TrackDto) => void;
   toggle: () => void;
   seek: (seconds: number) => void;
@@ -38,6 +46,14 @@ interface AudioElementLike {
 
 export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer {
   const { onTrackPlayRecorded } = options;
+  const queueRef = useRef<{ entries: PlaybackQueueItem[]; index: number }>({ entries: [], index: -1 });
+  const [queue, setQueueState] = useState(queueRef.current);
+  const advanceRef = useRef<() => boolean>(() => false);
+  const setQueue = useCallback((entries: PlaybackQueueItem[], index: number) => {
+    const state = { entries, index };
+    queueRef.current = state;
+    setQueueState(state);
+  }, []);
   const audioRef = useRef<AudioElementLike | null>(null);
   const playRequestRef = useRef(0);
   const currentTrackIdRef = useRef<string | null>(null);
@@ -59,7 +75,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
 
     const onTimeUpdate = () => setPositionSeconds(audio.currentTime);
     const onDurationChange = () => setDurationSeconds(audio.duration || 0);
-    const onEnded = () => setStatus("paused");
+    const onEnded = () => {
+      if (!advanceRef.current()) setStatus("paused");
+    };
     const onPlaying = () => {
       setPlaybackError(null);
       setStatus("playing");
@@ -98,7 +116,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     };
   }, []);
 
-  const play = useCallback((track: TrackDto) => {
+  const startTrack = useCallback((track: TrackDto) => {
     const audio = audioRef.current;
     if (!audio) return;
     if (currentTrackIdRef.current === track.id) {
@@ -133,6 +151,32 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     );
   }, [onTrackPlayRecorded]);
 
+  const play = useCallback((track: TrackDto) => {
+    setQueue([], -1);
+    startTrack(track);
+  }, [setQueue, startTrack]);
+
+  const playQueue = useCallback((entries: PlaybackQueueItem[], startIndex = 0) => {
+    if (!Number.isInteger(startIndex) || !entries[startIndex]) return;
+    const snapshot = [...entries];
+    setQueue(snapshot, startIndex);
+    currentTrackIdRef.current = null;
+    startTrack(snapshot[startIndex].track);
+  }, [setQueue, startTrack]);
+
+  useEffect(() => {
+    advanceRef.current = () => {
+      const state = queueRef.current;
+      const index = state.index + 1;
+      const next = state.entries[index];
+      if (!next) return false;
+      setQueue(state.entries, index);
+      currentTrackIdRef.current = null;
+      startTrack(next.track);
+      return true;
+    };
+  }, [setQueue, startTrack]);
+
   const toggle = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !current) return;
@@ -165,6 +209,9 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
 
   return useMemo(
     () => ({
+      currentQueueEntryId: queue.entries[queue.index]?.entryId ?? null,
+      hasNext: queue.index + 1 < queue.entries.length,
+      playQueue,
       current,
       status,
       positionSeconds,
@@ -177,6 +224,8 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       setVolume,
     }),
     [
+      queue,
+      playQueue,
       current,
       status,
       positionSeconds,
