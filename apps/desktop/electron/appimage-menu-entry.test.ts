@@ -87,7 +87,7 @@ describe.skipIf(process.platform !== "linux")(
           "applications/appimagekit-muzo.desktop",
         );
         const entry =
-          "[Desktop Entry]\nType=Application\nName=Muzo\nExec=/installed/muzo\nStartupWMClass=muzo\n";
+          "[Desktop Entry]\nType=Application\nName=Muzo\nExec=/usr/bin/true\nStartupWMClass = muzo\n";
         await writeFile(launcher, entry);
         expect(
           await registerAppImageMenuEntry({
