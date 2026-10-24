@@ -14,6 +14,7 @@ import {
   type UmzugStorage,
 } from "umzug";
 import { locateSqlWasm } from "./sql-wasm-path";
+import { legacyMigrationNames } from "./legacy-sqlite-migration-adoption";
 
 let sqlModulePromise: Promise<SqlJsStatic> | null = null;
 
@@ -30,6 +31,10 @@ export async function runSqliteMigrations(dbPath: string): Promise<void> {
     : new SQL.Database();
 
   try {
+    const storage = new SqliteMigrationStorage(database);
+    for (const name of legacyMigrationNames(database, SQL, migrationsDir)) {
+      await storage.logMigration({ name, context: { database } });
+    }
     const migrator = createMigrator(database);
     await migrator.up();
 
