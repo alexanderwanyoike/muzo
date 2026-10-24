@@ -48,6 +48,7 @@ export function mimeTypeForPath(filePath: string): string | null {
     case "wav":
       return "audio/wav";
     case "ogg":
+    case "opus":
       return "audio/ogg";
     case "aac":
     case "m4a":
