@@ -48,7 +48,14 @@ async function appImageMenuState(
     }
     let managed: string | undefined;
     for (const name of files.filter((file) => file.endsWith(".desktop"))) {
-      const entry = await readFile(join(directory, name), "utf8");
+      let entry: string;
+      try {
+        entry = await readFile(join(directory, name), "utf8");
+      } catch {
+        if (name === "muzo.desktop" || name === "Muzo.cinnamon-generated.desktop")
+          return failure("storage", "Could not read Muzo's existing menu shortcut.");
+        continue;
+      }
       const cinnamonTemporary =
         name === "Muzo.cinnamon-generated.desktop" &&
         /^Name=Muzo$/m.test(entry) &&
