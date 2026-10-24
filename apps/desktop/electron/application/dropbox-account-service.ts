@@ -54,6 +54,8 @@ export class DropboxAccountService {
         return failure("authorization", "Dropbox did not grant offline access. Connect again.");
       }
       this.pending = null;
+      this.revision += 1;
+      this.refreshing = null;
       await this.accounts.save({
         clientId: pending.clientId, accountId: token.accountId,
         accessToken: token.accessToken, refreshToken: token.refreshToken,
