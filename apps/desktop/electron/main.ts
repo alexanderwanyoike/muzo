@@ -111,7 +111,8 @@ app.whenReady().then(async () => {
     await dialog.showMessageBox({
       type: "warning",
       message: menuRegistration.error.message,
-      detail: "Muzo is running, but its menu shortcut could not be saved. Check that your application menu folder is writable, then reopen the AppImage to retry.",
+      detail:
+        "Muzo is running, but its menu shortcut could not be saved. Check that your application menu folder is writable, then reopen the AppImage to retry.",
       buttons: ["Continue"],
     });
   }

@@ -109,9 +109,9 @@ for (const repair of [false, true]) {
     );
   } finally {
     if (player.pid) {
-      const closed = new Promise<void>((done) =>
-        player.once("close", () => done()),
-      );
+      const closed = new Promise<void>((done) => {
+        player.once("close", () => done());
+      });
       signalGroup(player.pid, "SIGTERM");
       await Promise.race([closed, delay(2_000)]);
       signalGroup(player.pid, "SIGKILL");

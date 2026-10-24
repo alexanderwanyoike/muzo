@@ -76,7 +76,11 @@ export async function registerAppImageMenuEntry(
 ): Promise<Result<"registered" | "existing">> {
   if (
     ![options.appImagePath, options.dataDirectory, options.iconPath].every(
-      (path) => isAbsolute(path) && !/[\x00-\x1f\x7f]/.test(path),
+      (path) =>
+        isAbsolute(path) &&
+        ![...path].some(
+          (character) => character < " " || character === "\u007f",
+        ),
     ) ||
     options.appImagePath.includes("=")
   ) {
