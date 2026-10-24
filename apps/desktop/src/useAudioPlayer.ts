@@ -33,6 +33,7 @@ export interface AudioPlayer extends AudioPlayerState {
   play: (track: TrackDto) => void;
   toggle: () => void;
   clearQueue: () => void;
+  removeSource: (libraryId: string) => void;
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
 }
@@ -61,6 +62,7 @@ export function useAudioPlayer(
   );
   const audioRef = useRef<AudioElementLike | null>(null);
   const playRequestRef = useRef(0);
+  const currentSourceIdRef = useRef<string | null>(null);
   const currentTrackIdRef = useRef<string | null>(null);
   const statusRef = useRef<PlayerStatus>("idle");
   const [current, setCurrent] = useState<TrackDto | null>(null);
@@ -78,18 +80,19 @@ export function useAudioPlayer(
     const { audio, cleanup } = createAudioElement();
     audioRef.current = audio;
 
-    const onTimeUpdate = () => setPositionSeconds(audio.currentTime);
-    const onDurationChange = () => setDurationSeconds(audio.duration || 0);
+    const onTimeUpdate = () => { if (currentTrackIdRef.current) setPositionSeconds(audio.currentTime); };
+    const onDurationChange = () => { if (currentTrackIdRef.current) setDurationSeconds(audio.duration || 0); };
     const onEnded = () => {
+      if (!currentTrackIdRef.current) return;
       if (!advanceRef.current()) setStatus("paused");
     };
     const onPlaying = () => {
-      if (audio.paused) return;
+      if (audio.paused || !currentTrackIdRef.current) return;
       setPlaybackError(null);
       setStatus("playing");
     };
     const onPause = () => {
-      if (audio.paused && statusRef.current !== "loading") setStatus("paused");
+      if (currentTrackIdRef.current && audio.paused && statusRef.current !== "loading") setStatus("paused");
     };
     const onWaiting = () => {
       setStatus((previous) =>
@@ -97,6 +100,7 @@ export function useAudioPlayer(
       );
     };
     const onError = () => {
+      if (!currentTrackIdRef.current) return;
       currentTrackIdRef.current = null;
       setStatus("error");
       setPlaybackError(
@@ -159,6 +163,7 @@ export function useAudioPlayer(
       const requestId = playRequestRef.current + 1;
       playRequestRef.current = requestId;
       currentTrackIdRef.current = track.id;
+      currentSourceIdRef.current = track.libraryId;
       setCurrent(track);
       setPositionSeconds(0);
       setDurationSeconds(track.durationSeconds || 0);
@@ -181,6 +186,22 @@ export function useAudioPlayer(
   const clearQueue = useCallback(() => {
     setQueue([], -1);
   }, [setQueue]);
+
+  const removeSource = useCallback((libraryId: string) => {
+    if (currentSourceIdRef.current !== libraryId) return;
+    playRequestRef.current += 1;
+    currentTrackIdRef.current = null;
+    currentSourceIdRef.current = null;
+    statusRef.current = "idle";
+    const audio = audioRef.current;
+    if (audio) { audio.pause(); audio.src = ""; audio.load(); }
+    clearQueue();
+    setCurrent(null);
+    setPositionSeconds(0);
+    setDurationSeconds(0);
+    setPlaybackError(null);
+    setStatus("idle");
+  }, [clearQueue]);
 
   const play = useCallback(
     (track: TrackDto) => {
@@ -264,6 +285,7 @@ export function useAudioPlayer(
       previous,
       playQueue,
       clearQueue,
+      removeSource,
       current,
       status,
       positionSeconds,
@@ -281,6 +303,7 @@ export function useAudioPlayer(
       previous,
       playQueue,
       clearQueue,
+      removeSource,
       current,
       status,
       positionSeconds,
