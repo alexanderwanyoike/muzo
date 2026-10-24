@@ -23,6 +23,11 @@ export const ACCENTS = [
   { id: "sage", name: "Sage" },
   { id: "plum", name: "Plum" },
   { id: "amber", name: "Amber" },
+  { id: "teal", name: "Teal" },
+  { id: "rose", name: "Rose" },
+  { id: "slate", name: "Slate" },
+  { id: "violet", name: "Violet" },
+  { id: "ice", name: "Ice" },
 ] as const;
 export interface Appearance {
   theme: (typeof MATERIALS)[number]["id"];
