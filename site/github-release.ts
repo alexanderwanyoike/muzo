@@ -34,7 +34,8 @@ function asset(value: unknown): value is PublishedAsset {
     typeof value.browser_download_url === "string" &&
     (value.digest === undefined ||
       value.digest === null ||
-      typeof value.digest === "string")
+      (typeof value.digest === "string" &&
+        /^sha256:[0-9a-f]{64}$/.test(value.digest)))
   );
 }
 function invalid(message: string): DistributionResult<never> {
