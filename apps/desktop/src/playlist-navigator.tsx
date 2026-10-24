@@ -1,4 +1,5 @@
-import { ListMusic, Search } from "lucide-react";
+import { useRef, useState } from "react";
+import { ListMusic, Search, X } from "lucide-react";
 import type { PlaylistDto } from "./api";
 
 interface Props {
@@ -8,6 +9,11 @@ interface Props {
 }
 
 export default function PlaylistNavigator({ playlists, selectedId, onSelect }: Props) {
+  const [query, setQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
+  const search = query.trim().toLowerCase();
+  const visible = playlists?.filter((playlist) => playlist.name.toLowerCase().includes(search));
+  function clearSearch() { setQuery(""); searchInput.current?.focus(); }
   return (
     <section className="sources-panel" aria-labelledby="playlists-panel-heading">
       <header className="sources-panel__header">
@@ -18,10 +24,13 @@ export default function PlaylistNavigator({ playlists, selectedId, onSelect }: P
       <div className="source-browser">
         <div className="source-browser__search">
           <Search aria-hidden="true" />
-          <input type="search" aria-label="Search playlists" placeholder="Search playlists" />
+          <input ref={searchInput} type="search" aria-label="Search playlists" placeholder="Search playlists" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") clearSearch(); }} />
+          {query && <button type="button" aria-label="Clear playlist search" onClick={clearSearch}><X aria-hidden="true" /></button>}
         </div>
+        {query && <p className="source-browser__count" aria-live="polite">{visible?.length ?? 0} of {playlists?.length ?? 0} playlists</p>}
+        {visible?.length === 0 && search && <p className="library-list__empty">No playlists match your search.</p>}
         <ul className="library-list" aria-label="Playlists">
-          {playlists?.map((playlist) => (
+          {visible?.map((playlist) => (
             <li key={playlist.id} className={selectedId === playlist.id ? "library-list__item library-list__item--selected" : "library-list__item"}>
               <button type="button" className="library-list__row" aria-label={`Open playlist ${playlist.name}`} aria-pressed={selectedId === playlist.id} onClick={() => onSelect(playlist.id)} title={playlist.name}>
                 <ListMusic aria-hidden="true" />
