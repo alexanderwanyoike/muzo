@@ -34,3 +34,10 @@ Do not fade the whole window, including text and artwork, with window opacity.
 
 Depends on #67/#68/#73/#72 (compact player, satin aluminium, Glass and corners)
 and #70 (MIT). It is branched from dev with those reviewed prerequisites.
+
+Windows uses Electron's native window-controls overlay because its acrylic
+client backdrop requires a hidden native frame in Electron 43. Native window
+buttons remain, playback controls reserve their area and the header is draggable.
+Windows acrylic windows keep compositor-owned rounded corners to preserve DWM
+backdrops. macOS and Linux retain their existing native frames.
+The real compositing test requires Metacity in an isolated Xvfb session on CI.
