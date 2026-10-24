@@ -76,7 +76,7 @@ export class TrackArtworkService {
           this.inFlight.delete(key);
         });
       this.inFlight.set(key, pending);
-      this.reading = pending.then(() => undefined);
+      this.reading = pending.then(() => undefined, () => undefined);
       return await pending;
     } catch {
       return failure("repository", "Album artwork could not be read.");
