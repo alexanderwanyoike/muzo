@@ -1,0 +1,50 @@
+- Sprint: 02
+- Type: Feature
+- Status: Done
+- Depends on: 021 (PR #48)
+
+# Card 022 - Remove sources from Muzo
+
+Make removal visible beside each sidebar source and in Indexed sources in Settings.
+Use a native modal confirmation with Cancel initially focused, the source path,
+and clear consequences. Remove only Muzo's catalogue data, never music files or
+Dropbox contents. Preserve playlist entries as unavailable references.
+
+## Acceptance criteria
+
+- [x] Visible removal controls in the sidebar and Settings, with confirmation/cancel.
+- [x] Atomically remove the library, tracks, play counts, overrides and Dropbox binding.
+- [x] Preserve all source files, other libraries and playlist entries.
+- [x] Commit removal before stopping filesystem watching; deactivate callbacks during close.
+- [x] Prevent an in-flight scan from recreating removed catalogue tracks.
+- [x] Stop/invalidate pending playback from the removed source.
+- [x] Preserve playback from other sources and filter removed entries from its queue.
+- [x] Update Sources and Settings immediately and discard stale refresh results.
+- [x] Report typed storage failures while retaining the source and its watcher.
+- [x] Report watcher cleanup failure as a visible warning after successful removal.
+- [x] Full repository checks, visual verification and two review cycles pass (261 tests).
+
+## Established patterns
+
+Use SQLite's explicit transaction pattern to publish catalogue changes together:
+https://www.sqlite.org/lang_transaction.html (SQLite is public domain).
+Use the existing MIT-licensed Chokidar adapter's asynchronous close operation and
+cancel its debounce before closing: https://github.com/paulmillr/chokidar#methods--events
+No external implementation is copied and no new dependency is needed.
+The inner removal/watch-stopping ports keep framework and storage responsibilities
+outside the application service. Typed Result commands remain distinct from legacy
+throwing command compatibility.
+
+## Verification
+
+Real SQLite/IPC tests cover filesystem and Dropbox sources, ownership cleanup,
+file preservation, retained playlist references and late scans. UI tests cover
+confirmation/cancel, sidebar removal, retry after failure and refresh completion
+races. Player tests cover pending audio invalidation and unaffected queue playback;
+watcher tests cover closing, debounce cancellation and later registration.
+Review fixes cover events during watcher close, storage failure preserving sync,
+cleanup warning display, typed Dropbox failure invalidation and visible playlist
+availability after removal.
+Visual tests use a disposable in-memory fixture, never the user's real catalogue.
+
+Review evidence: [two review cycles](../../reviews/2026-10-24-remove-library-sources.md).

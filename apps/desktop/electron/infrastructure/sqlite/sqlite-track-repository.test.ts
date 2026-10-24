@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import initSqlJs from "sql.js";
 import { describe, expect, it } from "vitest";
 
+import { SqliteLibraryRepository } from "./sqlite-library-repository";
 import { SqliteTrackRepository } from "./sqlite-track-repository";
 import { runSqliteMigrations } from "./sqlite-migrations";
 
@@ -124,6 +125,12 @@ describe("Electron track repository", () => {
   it("upserts scanned tracks without overwriting metadata overrides", async () => {
     const dbPath = tempDatabasePath();
     await runSqliteMigrations(dbPath);
+    await new SqliteLibraryRepository(dbPath).add({
+      id: "lib-1",
+      name: "Music",
+      kind: "filesystem",
+      location: "/music",
+    });
     const repository = new SqliteTrackRepository(dbPath);
 
     await repository.upsertScannedTrack({
@@ -180,6 +187,12 @@ describe("Electron track repository", () => {
   it("deletes tracks by library and path", async () => {
     const dbPath = tempDatabasePath();
     await runSqliteMigrations(dbPath);
+    await new SqliteLibraryRepository(dbPath).add({
+      id: "lib-1",
+      name: "Music",
+      kind: "filesystem",
+      location: "/music",
+    });
     const repository = new SqliteTrackRepository(dbPath);
     await repository.upsertScannedTrack({
       id: "trk-1",
@@ -205,6 +218,12 @@ describe("Electron track repository", () => {
   it("updates metadata overrides displayed for a track", async () => {
     const dbPath = tempDatabasePath();
     await runSqliteMigrations(dbPath);
+    await new SqliteLibraryRepository(dbPath).add({
+      id: "lib-1",
+      name: "Music",
+      kind: "filesystem",
+      location: "/music",
+    });
     const repository = new SqliteTrackRepository(dbPath);
     await repository.upsertScannedTrack({
       id: "trk-1",
@@ -253,6 +272,12 @@ describe("Electron track repository", () => {
   it("clears metadata overrides so file metadata is displayed again", async () => {
     const dbPath = tempDatabasePath();
     await runSqliteMigrations(dbPath);
+    await new SqliteLibraryRepository(dbPath).add({
+      id: "lib-1",
+      name: "Music",
+      kind: "filesystem",
+      location: "/music",
+    });
     const repository = new SqliteTrackRepository(dbPath);
     await repository.upsertScannedTrack({
       id: "trk-1",

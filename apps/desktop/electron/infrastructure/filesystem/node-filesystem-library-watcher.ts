@@ -1,4 +1,5 @@
 import { watch, type FSWatcher } from "chokidar";
+import type { LibraryWatchStopper } from "../../application/interfaces/library-removal";
 
 import type {
   FilesystemLibraryChangeHandler,
@@ -8,11 +9,14 @@ import type {
 const filesystemWatchDebounceMilliseconds = 500;
 
 interface WatchRegistration {
+  active: boolean;
   watcher: FSWatcher;
   debounce: ReturnType<typeof setTimeout> | null;
 }
 
-export class NodeFilesystemLibraryWatcher implements FilesystemLibraryWatcher {
+export class NodeFilesystemLibraryWatcher
+  implements FilesystemLibraryWatcher, LibraryWatchStopper
+{
   private readonly registrations = new Map<string, WatchRegistration>();
 
   async watch(
@@ -25,6 +29,7 @@ export class NodeFilesystemLibraryWatcher implements FilesystemLibraryWatcher {
     }
 
     const registration: WatchRegistration = {
+      active: true,
       watcher: watch(root, {
         ignoreInitial: true,
         persistent: false,
@@ -39,11 +44,30 @@ export class NodeFilesystemLibraryWatcher implements FilesystemLibraryWatcher {
     this.registrations.set(libraryId, registration);
   }
 
+  async unwatch(libraryId: string): Promise<void> {
+    const registration = this.registrations.get(libraryId);
+    if (!registration) return;
+    if (registration.debounce) clearTimeout(registration.debounce);
+    registration.active = false;
+    try {
+      await registration.watcher.close();
+      this.registrations.delete(libraryId);
+    } catch (error) {
+      registration.active = true;
+      throw error;
+    }
+  }
+
   private scheduleChange(
     libraryId: string,
     registration: WatchRegistration,
     onChange: FilesystemLibraryChangeHandler,
   ): void {
+    if (
+      !registration.active ||
+      this.registrations.get(libraryId) !== registration
+    )
+      return;
     if (registration.debounce) {
       clearTimeout(registration.debounce);
     }

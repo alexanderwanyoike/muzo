@@ -1,5 +1,6 @@
 import { Music2, ListMusic, Settings2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
@@ -26,11 +27,16 @@ interface ListError {
 }
 
 export default function App() {
+  const removedLibraryIds = useRef(new Set<string>());
   const {
     appearance,
     changeAppearance,
     error: appearanceError,
   } = useAppearance();
+  const [sourceRevision, setSourceRevision] = useState(0);
+  const [removingLibrary, setRemovingLibrary] = useState<LibraryDto | null>(
+    null,
+  );
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [trackPlayCounts, setTrackPlayCounts] = useState<
@@ -78,6 +84,7 @@ export default function App() {
     previous,
     toggle,
     clearQueue,
+    removeSource,
     seek,
     setVolume,
   } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
@@ -134,6 +141,7 @@ export default function App() {
         library.kind === "dropbox"
           ? await syncDropboxLibrary(library.id)
           : null;
+      if (removedLibraryIds.current.has(library.id)) return;
       if (remoteReport && !remoteReport.ok) {
         setRefreshMessage(remoteReport.error.message);
         return;
@@ -142,6 +150,7 @@ export default function App() {
         ? remoteReport.value
         : await scanLibrary(library.id);
       const tracks = await listTracks(library.id);
+      if (removedLibraryIds.current.has(library.id)) return;
       setTrackCounts((prev) => ({ ...prev, [library.id]: tracks.length }));
       setTrackRefreshVersions((prev) => ({
         ...prev,
@@ -154,7 +163,8 @@ export default function App() {
       );
     } catch (err) {
       const e = err as ListError;
-      setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
+      if (!removedLibraryIds.current.has(library.id))
+        setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
     } finally {
       setRefreshingLibraryId(null);
     }
@@ -182,6 +192,22 @@ export default function App() {
     },
     [],
   );
+
+  function handleSourceRemoved(libraryId: string, warning: string | null) {
+    removedLibraryIds.current.add(libraryId);
+    setSourceRevision((revision) => revision + 1);
+    removeSource(libraryId);
+    setLibraries((items) =>
+      (items ?? []).filter((library) => library.id !== libraryId),
+    );
+    setSelectedLibraryId((id) => (id === libraryId ? null : id));
+    setTrackCounts((counts) =>
+      Object.fromEntries(
+        Object.entries(counts).filter(([id]) => id !== libraryId),
+      ),
+    );
+    setRefreshMessage(warning);
+  }
 
   const selectedLibrary =
     libraries?.find((library) => library.id === selectedLibraryId) ?? null;
@@ -248,6 +274,7 @@ export default function App() {
               trackCounts={trackCounts}
               selectedLibraryId={selectedLibraryId}
               onSelect={handleSelect}
+              onRemove={setRemovingLibrary}
               renderTracks={() => null}
             />
           )}
@@ -312,9 +339,12 @@ export default function App() {
               <AddLibraryForm onAdded={handleLibraryAdded} />
             </section>
 
-            <section className="settings-view__section">
+            <section
+              className="settings-view__section"
+              aria-labelledby="indexed-sources-heading"
+            >
               <div>
-                <h3>Indexed sources</h3>
+                <h3 id="indexed-sources-heading">Indexed sources</h3>
                 <p>
                   Manual refresh is a fallback for recovery. Normal listening
                   does not require it.
@@ -327,15 +357,23 @@ export default function App() {
                       <span>{library.name}</span>
                       <code>{library.location}</code>
                     </div>
-                    <button
-                      type="button"
-                      disabled={refreshingLibraryId === library.id}
-                      onClick={() => handleRefresh(library)}
-                    >
-                      {refreshingLibraryId === library.id
-                        ? "Refreshing..."
-                        : `Refresh ${library.name}`}
-                    </button>
+                    <div className="settings-view__source-actions">
+                      <button
+                        type="button"
+                        disabled={refreshingLibraryId === library.id}
+                        onClick={() => handleRefresh(library)}
+                      >
+                        {refreshingLibraryId === library.id
+                          ? "Refreshing..."
+                          : `Refresh ${library.name}`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRemovingLibrary(library)}
+                      >
+                        Remove {library.name}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -343,6 +381,7 @@ export default function App() {
           </div>
         ) : activeView === "playlists" ? (
           <PlaylistPanel
+            refreshKey={sourceRevision}
             onPlayQueue={playQueue}
             currentQueueEntryId={currentQueueEntryId}
             currentTrackId={current?.id ?? null}
@@ -386,6 +425,13 @@ export default function App() {
         )}
       </section>
 
+      {removingLibrary && (
+        <RemoveSourceDialog
+          library={removingLibrary}
+          onRemoved={handleSourceRemoved}
+          onClose={() => setRemovingLibrary(null)}
+        />
+      )}
       <NowPlayingBar
         hasNext={hasNext}
         hasPrevious={hasPrevious}
