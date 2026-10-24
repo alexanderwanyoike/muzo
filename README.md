@@ -4,14 +4,24 @@ A desktop music player built with [Electron](https://www.electronjs.org/), React
 
 Muzo treats your music collection as a set of **libraries** and **playlists**. A library is a source of truth for tracks - either a folder on your local filesystem or a Dropbox location. Libraries are scanned recursively and kept in sync with their source as files are added, changed, or removed.
 
+![Muzo playing a fictional collection in Frosted glass dark with a Cobalt accent](./site/public/images/muzo-player.jpg)
+
+*The current desktop interface, shown with fictional tracks and original demo artwork.*
+
 ## Status
 
-Pre-alpha, but no longer just scaffolded. The local desktop player slice is
-usable: filesystem libraries can be added, scanned, kept in sync, browsed, and
-played with metadata editing and play counts. Dropbox account connection, library
-sync and playback, and playlist queues with auto-advance are also implemented. Sprint card status is tracked in
-[`docs/cards/`](./docs/cards). The desktop shell and backend now run on Electron
-and TypeScript.
+Muzo is a desktop preview. The first tagged version is
+[v0.0.1](https://github.com/alexanderwanyoike/muzo/tree/v0.0.1).
+Run it from source with the quick start below; packaged downloads are not published yet.
+
+- Local folders and Dropbox libraries, with recursive scanning and background sync.
+- Searchable, resizable Sources and Playlists panels, with source removal controls.
+- Playlist playback queues, metadata editing and play counts.
+- Embedded album artwork with a persistent local cache.
+- Seven materials, light and dark appearances, and ten accent colours.
+
+The screenshot reflects the current development UI. See
+[`docs/cards/`](./docs/cards) for completed work and remaining cards.
 
 ## Repository layout
 
