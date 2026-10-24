@@ -31,13 +31,18 @@ review: formalising SQLite migrations before more tables pile up.
 | 018 | [Enforced code style](./018-enforced-code-style.md) | Tech debt | Done | - |
 | 019 | [Playback source retry](./019-playback-source-retry.md) | Fix | Done | - |
 | 020 | [Visual Dropbox folder picker](./020-dropbox-folder-picker.md) | Feature | Done | - |
+| 021 | [Desktop materials and appearance](./021-desktop-appearance-themes.md) | Feature | Done | - |
+| 022 | [Remove library sources](./022-remove-library-sources.md) | Feature | Done | - |
+| 023 | [Embedded album artwork](./023-embedded-album-artwork.md) | Feature | Done | - |
 
 ## Close-out note
 
 The sprint 02 local-library slices are complete and covered by the current
 desktop test suite. Dropbox account connection, polling, downloads, and playback are implemented.
 Playlist queueing and auto-advance are implemented and verified. The completed
-work is delivered through dependent PRs; merging remains a maintainer action.
+work was integrated into dev after explicit approval. The desktop UI follow-up
+cards 020 through 023 are delivered in dependent PRs #47 through #50 and should
+merge in that order after manual testing.
 
 The Dropbox sync model is decided: **polling on a configurable interval plus
 a manual "refresh now" action**. Webhooks were rejected because a desktop

@@ -75,6 +75,33 @@ Repeated tracks remain separate entries; unavailable entries are skipped when th
 queue starts. Selecting a song directly replaces the queue. Edits to a playlist
 affect the next queue started, leaving the current listening order intact.
 
+## Desktop appearance and artwork
+
+Settings includes Studio, Brushed aluminium and Warm paper materials, each in
+light and dark, plus Cobalt, Copper, Sage, Plum and Amber accents. Preferences
+are saved locally and applied when Muzo starts. The listening workspace keeps
+its transport and source sidebar in place while Songs, playlists and Settings
+scroll inside the window.
+
+Embedded album covers appear in Songs, playlists, the transport and the larger
+current-track sleeve. Local MP3/FLAC covers are covered by real parser tests.
+Dropbox artwork uses private, bounded range reads of metadata without downloading
+the whole song. Missing or unsupported embedded art uses a disc placeholder.
+Directory images and online cover searches are not included. Refresh a source
+in Settings after changing its embedded covers.
+
+Sources have removal controls beside their sidebar entries and in Settings.
+Confirmation explains that source files and Dropbox contents stay in place.
+Removing a source clears its Muzo tracks, metadata overrides and play counts;
+playlist entries remain visibly unavailable. Storage failures leave the source
+and watcher in place. If catalogue removal succeeds but watcher cleanup fails,
+Muzo reports a restart warning.
+
+On Linux, the native artwork test also needs Xvfb and Electron's GTK/audio
+runtime libraries. Desktop verification CI installs those dependencies.
+The [desktop smoke-test guide](./docs/testing/desktop-ui-smoke-test.md) covers
+manual testing of the integrated feature stack.
+
 ## Common scripts
 
 | Script | Description |

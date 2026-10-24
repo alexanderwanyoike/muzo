@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  nativeImage,
   safeStorage,
   shell,
 } from "electron";
@@ -11,11 +12,13 @@ import { fileURLToPath } from "node:url";
 
 import { createElectronContainer } from "./composition/electron-container";
 import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/electron-safe-storage-dropbox-token-cipher";
+import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
 import { runStartupTasks } from "./startup";
 
 const electronDir = dirname(fileURLToPath(import.meta.url));
 const devUrl = process.env.MUZO_ELECTRON_DEV_URL ?? "http://localhost:1420";
 const container = createElectronContainer({
+  artworkThumbnails: new ElectronArtworkThumbnails(nativeImage),
   dropboxCipher: new ElectronSafeStorageDropboxTokenCipher(safeStorage),
   openExternal: (url) => shell.openExternal(url),
 });

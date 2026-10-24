@@ -1,5 +1,6 @@
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import TrackArtwork from "./track-artwork";
 import {
   createPlaylist,
   listPlaylists,
@@ -241,7 +242,17 @@ export default function PlaylistPanel({
                 <ol className="playlist-panel__entries">
                   {playlist.entries.map((entry, index) => (
                     <li key={entry.id}>
-                      <div>
+                      {entry.trackLibraryId && (
+                        <TrackArtwork
+                          track={{
+                            id: entry.trackId,
+                            libraryId: entry.trackLibraryId,
+                            title: entryLabel(entry),
+                            album: null,
+                          }}
+                        />
+                      )}
+                      <div className="playlist-panel__entry-meta">
                         <span data-testid="playlist-entry-label">
                           {entryLabel(entry)}
                         </span>

@@ -8,6 +8,13 @@ import {
 } from "awilix";
 import { ulid } from "ulid";
 import { dirname, join } from "node:path";
+import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
+import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
+import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
+import { TrackArtworkCommand } from "../application/commands/track-artwork-command";
+import { TrackArtworkService } from "../application/track-artwork-service";
+import { SqliteTrackArtworkSources } from "../infrastructure/sqlite/sqlite-track-artwork-sources";
+import { MusicMetadataArtworkReader } from "../infrastructure/metadata/music-metadata-artwork-reader";
 import type { LibraryWatchStopper } from "../application/interfaces/library-removal";
 import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
 import { RemoveLibraryService } from "../application/remove-library-service";
@@ -89,6 +96,7 @@ import { SqliteDropboxLibrarySettings } from "../infrastructure/sqlite/sqlite-dr
 import type { DropboxLibrarySettings } from "../application/interfaces/dropbox-library-settings";
 
 export interface ElectronContainerOptions {
+  artworkThumbnails?: ArtworkThumbnails;
   dbPath?: string;
   dropboxCipher?: DropboxTokenCipher;
   dropboxDownloadDirectory?: string;
@@ -107,6 +115,7 @@ export interface ElectronCradle {
   dbPath: string;
   dropboxAccountService: DropboxAccountService;
   dropboxFolders: BrowseDropboxFoldersService;
+  trackArtwork: TrackArtworkService;
   dropboxLibraries: DropboxLibraryService;
   dropboxSettings: DropboxLibrarySettings;
   dropboxPoller: DropboxLibraryPoller;
@@ -168,6 +177,19 @@ export function createElectronContainer(
   const dropboxTransport =
     options.dropboxTransport ?? new FetchDropboxHttpTransport();
   container.register({
+    trackArtwork: asFunction(
+      ({ dbPath, dropboxLibraries }: ElectronCradle) =>
+        new TrackArtworkService(
+          new SqliteTrackArtworkSources(dbPath),
+          new MusicMetadataArtworkReader(),
+          options.artworkThumbnails ?? { create: () => null },
+          new DropboxMetadataArtworkReader(
+            new DropboxApiClient({ clientId: "" }, dropboxTransport),
+            new HttpMetadataArtworkReader(),
+          ),
+          dropboxLibraries,
+        ),
+    ).singleton(),
     dropboxFolders: asFunction(
       ({ dropboxAccountService, libraries, dropboxSettings }: ElectronCradle) =>
         new BrowseDropboxFoldersService(
@@ -441,6 +463,7 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
+      new TrackArtworkCommand(cradle.trackArtwork),
       new RemoveLibraryCommand(
         new RemoveLibraryService(
           new SqliteLibraryRemover(cradle.dbPath),

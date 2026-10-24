@@ -1,5 +1,6 @@
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import TrackArtwork from "./track-artwork";
 import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
@@ -279,6 +280,19 @@ export default function App() {
             />
           )}
         </section>
+        {current && (
+          <figure
+            className="app-sidebar__sleeve"
+            aria-label="Current album artwork"
+          >
+            <TrackArtwork
+              track={current}
+              eager
+              refreshKey={trackRefreshVersions[current.libraryId] ?? 0}
+              className="track-artwork--large"
+            />
+          </figure>
+        )}
       </aside>
 
       <section className="app-content">
@@ -433,6 +447,9 @@ export default function App() {
         />
       )}
       <NowPlayingBar
+        artworkRefreshKey={
+          current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0
+        }
         hasNext={hasNext}
         hasPrevious={hasPrevious}
         onNext={next}

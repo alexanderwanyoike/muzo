@@ -7,10 +7,12 @@ import {
   Volume2,
   LoaderCircle,
 } from "lucide-react";
+import TrackArtwork from "./track-artwork";
 import { formatDuration } from "./formatDuration";
 import type { TrackDto } from "./api";
 
 interface NowPlayingBarProps {
+  artworkRefreshKey?: number;
   current: TrackDto | null;
   status: "idle" | "loading" | "playing" | "paused" | "error";
   positionSeconds: number;
@@ -27,6 +29,7 @@ interface NowPlayingBarProps {
 }
 
 export default function NowPlayingBar({
+  artworkRefreshKey = 0,
   current,
   status,
   positionSeconds,
@@ -87,8 +90,16 @@ export default function NowPlayingBar({
         </button>
       </div>
       <div className="now-playing-bar__display">
-        <div className="now-playing-bar__art" aria-hidden="true">
-          <Disc3 />
+        <div className="now-playing-bar__art">
+          {current ? (
+            <TrackArtwork
+              track={current}
+              eager
+              refreshKey={artworkRefreshKey}
+            />
+          ) : (
+            <Disc3 aria-hidden="true" />
+          )}
         </div>
         <div className="now-playing-bar__track">
           <div className="now-playing-bar__title">{title}</div>
