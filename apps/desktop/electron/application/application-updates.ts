@@ -18,8 +18,10 @@ function newerStableVersion(next: string, current: string): Result<boolean> {
 
 export function createApplicationUpdates({ installedVersion, backend }: Options) {
   let status: UpdateStatus = { state: "idle" };
+  let disposed = false;
   const listeners = new Set<(next: UpdateStatus) => void>();
   function publish(next: UpdateStatus) {
+    if (disposed) return;
     status = next;
     for (const listener of listeners) listener({ ...status });
   }
@@ -44,8 +46,15 @@ export function createApplicationUpdates({ installedVersion, backend }: Options)
     pendingCheck = operation.finally(() => { pendingCheck = null; });
     return pendingCheck;
   }
+  const unsubscribe = backend.subscribe((event) => {
+    if (event.kind === "progress" && status.state === "downloading" && Number.isFinite(event.percent))
+      publish({ ...status, progress: Math.min(100, Math.max(0, event.percent)) });
+    if (event.kind === "installFailed" && status.state === "installing")
+      publish({ state: "failed", message: "The update could not be installed. Try again or download the latest release manually." });
+  });
   return {
     getStatus: (): UpdateStatus => ({ ...status }),
+    dispose() { disposed = true; unsubscribe(); listeners.clear(); },
     subscribe(listener: (next: UpdateStatus) => void) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
