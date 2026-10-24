@@ -1,5 +1,7 @@
 import type { BrowserWindow } from "electron";
 import { roundedWindowShape } from "./rounded-window-shape";
+import { ConsoleLogger } from "./infrastructure/logging/console-logger";
+import type { Logger } from "./application/interfaces/logger-interfaces";
 import { failure, success, type Result } from "./application/result";
 import type { PlayerWindowMode } from "../shared/player-window-mode";
 
@@ -36,6 +38,7 @@ interface WindowSnapshot {
 export function createPlayerWindowModeController(
   window: PlayerWindow,
   platform: NodeJS.Platform = process.platform,
+  logger: Logger = new ConsoleLogger(),
 ) {
   let mode: PlayerWindowMode = "library";
   let library: WindowSnapshot | null = null;
@@ -58,7 +61,10 @@ export function createPlayerWindowModeController(
   function resize() {
     if (mode === "library") return;
     const updated = shape(true);
-    if (!updated.ok) shape(false);
+    if (!updated.ok) {
+      const cleared = shape(false);
+      if (!cleared.ok) logger.error(cleared.error.message);
+    }
   }
   window.on("resize", resize);
   window.on("closed", () => window.removeListener("resize", resize));
@@ -94,8 +100,8 @@ export function createPlayerWindowModeController(
       const shaped = shape(next !== "library");
       if (!shaped.ok) {
         if (before) restore(before);
-        shape(mode !== "library");
-        return shaped;
+        const rolledBack = shape(mode !== "library");
+        return rolledBack.ok ? shaped : rolledBack;
       }
       library = next === "library" ? null : savedLibrary;
       mode = next;
@@ -104,7 +110,8 @@ export function createPlayerWindowModeController(
       try {
         if (before && !window.isDestroyed()) {
           restore(before);
-          shape(mode !== "library");
+          const rolledBack = shape(mode !== "library");
+          if (!rolledBack.ok) return rolledBack;
         }
       } catch {
         return failure(
