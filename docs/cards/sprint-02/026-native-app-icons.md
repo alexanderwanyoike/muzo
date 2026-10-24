@@ -19,7 +19,7 @@ simple blue M/audio-wave mark on a black rounded tile, with transparent corners.
 - [x] Provide reproducible Yarn exports and preserve converter licensing/provenance.
 - [x] Decode the real platform image and create a native window in integration tests.
 - [x] Add Windows/macOS native icon tests and packaging to CI.
-- [ ] Complete ordered checks and two review cycles.
+- [x] Complete ordered checks and two review cycles (285 tests).
 - [ ] Verify native platform CI.
 
 ## Established pattern
@@ -48,3 +48,5 @@ runs the real Electron decoder at 16, 32 and 256 pixels and creates a window,
 using an isolated profile and Xvfb only on Linux. Windows/macOS CI also regenerates
 the containers to detect drift and packages their native applications.
 Manual OS-shell appearance still needs user testing on the target desktop.
+
+Review evidence: [two cycles and final correction](../../reviews/2026-10-24-native-app-icons.md).

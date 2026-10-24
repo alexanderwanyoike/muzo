@@ -38,6 +38,8 @@ review: formalising SQLite migrations before more tables pile up.
 | 024 | [Minimal desktop menus](./024-minimal-desktop-menu.md) | Feature | Done | - |
 | 025 | [Searchable sources](./025-searchable-sources.md) | Feature | Done | - |
 
+| 026 | [Native app icons](./026-native-app-icons.md) | Feature | In review | - |
+
 ## Close-out note
 
 The sprint 02 local-library slices are complete and covered by the current
