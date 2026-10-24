@@ -1,6 +1,6 @@
-import TrackArtwork from "./track-artwork";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import TrackArtwork from "./track-artwork";
 import {
   createPlaylist,
   listPlaylists,

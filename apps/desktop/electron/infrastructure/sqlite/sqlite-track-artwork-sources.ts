@@ -9,6 +9,7 @@ import { locateSqlWasm } from "./sql-wasm-path";
 const sqlModule = initSqlJs({ locateFile: locateSqlWasm });
 export class SqliteTrackArtworkSources implements TrackArtworkSources {
   constructor(private readonly dbPath: string) {}
+
   async find(
     libraryId: string,
     trackId: string,

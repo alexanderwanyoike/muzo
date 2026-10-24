@@ -1,4 +1,3 @@
-import TrackArtwork from "./track-artwork";
 import {
   Disc3,
   Pause,
@@ -8,6 +7,7 @@ import {
   Volume2,
   LoaderCircle,
 } from "lucide-react";
+import TrackArtwork from "./track-artwork";
 import { formatDuration } from "./formatDuration";
 import type { TrackDto } from "./api";
 

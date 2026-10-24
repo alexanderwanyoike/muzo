@@ -4,7 +4,9 @@ import type { CommandHandler } from "./command-handler";
 
 export class TrackArtworkCommand implements CommandHandler {
   readonly command = "get_track_artwork";
+
   constructor(private readonly artwork: TrackArtworkService) {}
+
   async handle(args: unknown): Promise<Result<string | null>> {
     const input =
       args && typeof args === "object" && "input" in args ? args.input : null;

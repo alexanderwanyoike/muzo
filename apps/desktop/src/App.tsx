@@ -1,6 +1,6 @@
-import TrackArtwork from "./track-artwork";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import TrackArtwork from "./track-artwork";
 import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";

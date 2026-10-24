@@ -1,13 +1,13 @@
 import { HttpClient } from "@tokenizer/http";
 import { tokenizer, type IRangeRequestClient } from "@tokenizer/range";
 import { parseFromTokenizer, selectCover } from "music-metadata";
-import type { ArtworkPicture } from "../../application/interfaces/track-artwork";
+import type { ArtworkPicture, HttpArtworkReader } from "../../application/interfaces/track-artwork";
 
 const metadataBudgetBytes = 8 * 1024 * 1024;
 const metadataChunkBytes = 16 * 1024;
 const metadataTimeoutMilliseconds = 15_000;
 
-export class HttpMetadataArtworkReader {
+export class HttpMetadataArtworkReader implements HttpArtworkReader {
   async read(url: string): Promise<ArtworkPicture | null> {
     const client = new HttpClient(url);
     let requestedBytes = 0;

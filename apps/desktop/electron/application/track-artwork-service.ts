@@ -12,7 +12,9 @@ const maximumCachedCovers = 128;
 
 export class TrackArtworkService {
   private readonly cache = new Map<string, string | null>();
+
   private readonly inFlight = new Map<string, Promise<Result<string | null>>>();
+
   private reading: Promise<void> = Promise.resolve();
 
   constructor(
@@ -47,7 +49,7 @@ export class TrackArtworkService {
       ]);
       if (this.cache.has(key)) return success(this.cache.get(key) ?? null);
       const existing = this.inFlight.get(key);
-      if (existing) return existing;
+      if (existing) return await existing;
       const pending = this.reading
         .then(() =>
           this.read(source, access?.ok ? access.value.accessToken : null),
@@ -66,7 +68,7 @@ export class TrackArtworkService {
         });
       this.inFlight.set(key, pending);
       this.reading = pending.then(() => undefined);
-      return pending;
+      return await pending;
     } catch {
       return failure("repository", "Album artwork could not be read.");
     }

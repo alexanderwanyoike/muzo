@@ -1,10 +1,3 @@
-import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
-import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
-import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
-import { TrackArtworkCommand } from "../application/commands/track-artwork-command";
-import { TrackArtworkService } from "../application/track-artwork-service";
-import { SqliteTrackArtworkSources } from "../infrastructure/sqlite/sqlite-track-artwork-sources";
-import { MusicMetadataArtworkReader } from "../infrastructure/metadata/music-metadata-artwork-reader";
 import {
   asClass,
   asFunction,
@@ -15,6 +8,13 @@ import {
 } from "awilix";
 import { ulid } from "ulid";
 import { dirname, join } from "node:path";
+import { DropboxMetadataArtworkReader } from "../infrastructure/dropbox/dropbox-artwork-reader";
+import { HttpMetadataArtworkReader } from "../infrastructure/metadata/http-metadata-artwork-reader";
+import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
+import { TrackArtworkCommand } from "../application/commands/track-artwork-command";
+import { TrackArtworkService } from "../application/track-artwork-service";
+import { SqliteTrackArtworkSources } from "../infrastructure/sqlite/sqlite-track-artwork-sources";
+import { MusicMetadataArtworkReader } from "../infrastructure/metadata/music-metadata-artwork-reader";
 import type { LibraryWatchStopper } from "../application/interfaces/library-removal";
 import { RemoveLibraryCommand } from "../application/commands/remove-library-command";
 import { RemoveLibraryService } from "../application/remove-library-service";

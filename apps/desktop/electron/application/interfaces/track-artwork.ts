@@ -24,3 +24,7 @@ export interface ArtworkThumbnails {
 export interface DropboxArtworkReader {
   read(accessToken: string, path: string): Promise<ArtworkPicture | null>;
 }
+
+export interface HttpArtworkReader {
+  read(url: string): Promise<ArtworkPicture | null>;
+}
