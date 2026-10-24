@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import TrackList from "./TrackList";
 import type { TrackDto } from "./api";
@@ -527,4 +527,17 @@ describe("TrackList", () => {
     const row = screen.getByText("Take It Easy").closest("li")!;
     expect(row.className).toContain("track-list__row--current");
   });
+  it("shows filesystem changes while the selected library remains open", async () => {
+    vi.useFakeTimers();
+    try {
+      mockedInvoke.mockResolvedValueOnce([sampleTracks[0]]).mockResolvedValue(sampleTracks);
+      const view = render(<TrackList libraryId="lib-1" currentTrackId={null} isPlaying={false} onPlayTrack={() => {}} onToggleCurrentTrack={() => {}} />);
+      await act(async () => {});
+      expect(screen.queryByText("Take It Easy")).toBeNull();
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(screen.getByText("Take It Easy")).toBeDefined();
+      view.unmount();
+    } finally { vi.useRealTimers(); }
+  });
+
 });
