@@ -6,6 +6,8 @@
   scrollbar-gutter: stable;
 }
 .settings-view__section {
+  width: 100%;
+  min-width: 0;
   max-width: 850px;
   padding: 22px;
   margin: 0 auto 20px;
@@ -43,12 +45,16 @@
 }
 .add-library-form__field input {
   flex: 1;
+  min-width: 0;
 }
 .add-library-form > button {
   justify-self: start;
 }
 .add-library-form__error {
   color: var(--danger);
+}
+.settings-view button {
+  min-height: 31px;
 }
 .settings-view__sources {
   list-style: none;
