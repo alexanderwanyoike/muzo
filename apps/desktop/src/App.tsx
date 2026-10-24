@@ -302,6 +302,7 @@ export default function App() {
           <div className="app-content__tracks">
             <TrackList
               libraryId={selectedLibrary.id}
+              refreshIntervalMs={selectedLibrary.kind === "dropbox" ? 5000 : undefined}
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}
