@@ -174,6 +174,7 @@ describe("PlaylistPanel", () => {
     async (first) => {
       let finishCreate: ((value: PlaylistDto) => void) | undefined;
       let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
+      const created = { id: "quiet", name: "Quiet hours", entries: [] };
       mockedInvoke
         .mockResolvedValueOnce(playlists)
         .mockImplementationOnce(
@@ -187,7 +188,7 @@ describe("PlaylistPanel", () => {
             new Promise<PlaylistDto[]>((resolve) => {
               finishLoad = resolve;
             }),
-        );
+        ).mockResolvedValueOnce([...playlists, created]);
       const view = render(<PlaylistPanel />);
       await screen.findByRole("button", { name: "Open playlist Road Trip" });
       await userEvent.click(
@@ -202,7 +203,6 @@ describe("PlaylistPanel", () => {
       );
       view.rerender(<PlaylistPanel active={false} />);
       view.rerender(<PlaylistPanel active />);
-      const created = { id: "quiet", name: "Quiet hours", entries: [] };
       if (first === "creation") {
         await act(async () => finishCreate?.(created));
         await act(async () => finishLoad?.(playlists));
@@ -221,6 +221,29 @@ describe("PlaylistPanel", () => {
       ).toHaveLength(1);
     },
   );
+
+  it("refreshes source availability after a concurrent playlist creation", async () => {
+    let finishCreate: ((value: PlaylistDto) => void) | undefined;
+    let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
+    const created = { id: "quiet", name: "Quiet hours", entries: [] };
+    const unavailable = playlists.map((playlist) => ({ ...playlist, entries: playlist.entries.map((entry) => ({ ...entry, trackTitle: null, trackLibraryId: null })) }));
+    mockedInvoke.mockResolvedValueOnce(playlists)
+      .mockImplementationOnce(() => new Promise<PlaylistDto>((resolve) => { finishCreate = resolve; }))
+      .mockImplementationOnce(() => new Promise<PlaylistDto[]>((resolve) => { finishLoad = resolve; }))
+      .mockResolvedValueOnce([...unavailable, created]);
+    const view = render(<PlaylistPanel />);
+    await screen.findByRole("button", { name: "Open playlist Road Trip" });
+    await userEvent.click(screen.getByRole("button", { name: "New playlist" }));
+    await userEvent.type(screen.getByLabelText("Playlist name"), "Quiet hours");
+    await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
+    view.rerender(<PlaylistPanel active={false} refreshKey={1} />);
+    view.rerender(<PlaylistPanel active refreshKey={1} />);
+    await act(async () => finishCreate?.(created));
+    await act(async () => finishLoad?.(unavailable));
+    await userEvent.click(screen.getByRole("button", { name: "Open playlist Road Trip" }));
+    expect(await screen.findByRole("button", { name: "Track track-1 is unavailable in Road Trip" })).toHaveProperty("disabled", true);
+    expect(screen.getAllByRole("button", { name: "Open playlist Quiet hours" })).toHaveLength(1);
+  });
 
   it("shows an empty state for playlists without entries", async () => {
     mockedInvoke.mockResolvedValueOnce([
