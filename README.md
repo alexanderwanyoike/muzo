@@ -1,50 +1,51 @@
 # Muzo
 
-A desktop music player built with [Electron](https://www.electronjs.org/), React and TypeScript.
+Your music, from your folders and Dropbox, in one desktop player.
 
-Muzo treats your music collection as a set of **libraries** and **playlists**. A library is a source of truth for tracks - either a folder on your local filesystem or a Dropbox location. Libraries are scanned recursively and kept in sync with their source as files are added, changed, or removed.
+Build a library, make a playlist and settle into an album. Muzo keeps your
+collection in sync, remembers your artwork and gives you a workspace you can
+make your own.
 
-## Status
+![Muzo playing music with album artwork, a track list and searchable sources](./site/public/images/muzo-player.jpg)
 
-Pre-alpha, but no longer just scaffolded. The local desktop player slice is
-usable: filesystem libraries can be added, scanned, kept in sync, browsed, and
-played with metadata editing and play counts. Dropbox account connection, library
-sync and playback, and playlist queues with auto-advance are also implemented. Sprint card status is tracked in
-[`docs/cards/`](./docs/cards). The desktop shell and backend now run on Electron
-and TypeScript.
+*The desktop player, shown with fictional tracks and original demo artwork.*
 
-## Repository layout
+[Download Muzo](https://alexanderwanyoike.github.io/muzo/#downloads) ·
+[Release notes](https://github.com/alexanderwanyoike/muzo/releases) ·
+[Report a problem](https://github.com/alexanderwanyoike/muzo/issues)
 
-```
-muzo/
-├── apps/
-│   └── desktop/         # Electron + React desktop app (@muzo/desktop)
-│       ├── src/         # React frontend
-│       └── electron/    # Electron main process backend
-├── packages/            # Shared TS packages (future)
-├── docs/
-│   ├── cards/           # Sprint cards: docs/cards/<sprint>/<card-title>.md
-│   └── adr/             # Architecture Decision Records
-├── AGENTS.md            # How agents work in this repo
-└── package.json         # Yarn workspace root
-```
+## Make yourself at home
 
-A React Native / PWA mobile app will live under `apps/mobile` in a future sprint. The workspace is structured now so that addition is friction-free.
+- **Bring your music.** Add local folders or browse and select folders from Dropbox.
+- **Keep things organised.** Search your sources, build playlists and see what is coming up in the playback queue.
+- **Keep a little player nearby.** Switch to the rounded mini player with album artwork and an optional queue.
+- **Make it yours.** Choose from seven materials, light or dark appearances and ten accent colours.
+- **Enjoy your album covers.** Embedded artwork is cached locally so it is ready when you return.
 
-## Requirements
+## Download and listen
 
-- Node `>= 22.12`
-- Yarn `>= 1.22.22`
-- Electron runtime dependencies for your OS
+Choose your platform on the [download page](https://alexanderwanyoike.github.io/muzo/#downloads),
+or get the same files from [GitHub Releases](https://github.com/alexanderwanyoike/muzo/releases/latest).
+You do not need to build Muzo yourself.
 
-## Quick start
+| Platform | Package | Open it |
+| --- | --- | --- |
+| Windows | x64 installer (`.exe`) | Run the installer. |
+| macOS | Apple silicon or Intel disk image (`.dmg`) | Open the disk image and drag Muzo into Applications. |
+| Linux | x64 AppImage | Allow the file to run as a program, then open it. |
 
-```bash
-yarn install                 # install all workspace deps
-yarn desktop:dev             # run the desktop app in dev mode
-```
+Muzo is an early desktop preview. Packages are currently unsigned, and macOS
+builds are not notarized, so your operating system may show a security prompt.
+Checksums are included with each release.
 
-## Dropbox setup
+1. Open **Settings** and add a music folder. Subfolders are included automatically.
+2. Choose a source under **Sources**, then play a song or build a playlist.
+3. Explore **Appearance** in Settings to find a material and accent you like.
+
+Removing a source from Muzo leaves your music files in place.
+
+<details>
+<summary>Connecting Dropbox</summary>
 
 Create a scoped app in the [Dropbox App Console](https://www.dropbox.com/developers/apps)
 with Full Dropbox access and the `files.metadata.read` and `files.content.read`
@@ -67,86 +68,58 @@ Disconnect removes local account credentials. Access can also be revoked through
 Dropbox's connected-app settings. Live Dropbox access requires your own app key
 and consent; automated tests exercise the API boundary with fixtures.
 
-## Playlist playback
 
-Use Play playlist to start its available entries, or play an entry to start there.
-Previous and next controls move within the queue. Playback stops at its end.
-Repeated tracks remain separate entries; unavailable entries are skipped when the
-queue starts. Selecting a song directly replaces the queue. Edits to a playlist
-affect the next queue started, leaving the current listening order intact.
+</details>
 
-## Desktop appearance and artwork
+<details>
+<summary>A look at personalisation</summary>
 
-Settings includes Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut
-and Porcelain materials, each in light and dark. Ten accents include Cobalt,
-Copper, Sage, Plum, Amber, Teal, Rose, Slate, Violet and Ice. Preferences
-are saved locally and applied when Muzo starts. The listening workspace keeps
-its transport and source sidebar in place while Songs, playlists and Settings
-scroll inside the window.
+![Muzo Settings showing the satin aluminium material, light appearance and Rose accent](./site/public/images/muzo-personalization.jpg)
 
-Embedded album covers appear in Songs, playlists, the transport and the larger
-current-track sleeve. Local MP3/FLAC covers are covered by real parser tests.
-Dropbox artwork uses private, bounded range reads of metadata without downloading
-the whole song. Missing or unsupported embedded art uses a disc placeholder.
-Directory images and online cover searches are not included. Refresh a source
-in Settings after changing its embedded covers.
+Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut, Porcelain and Frosted
+glass each have light and dark variants. Frosted glass softens the artwork inside
+the app; the desktop window remains opaque. Your choices are saved between sessions.
 
-Sources have removal controls beside their sidebar entries and in Settings.
-Confirmation explains that source files and Dropbox contents stay in place.
-Removing a source clears its Muzo tracks, metadata overrides and play counts;
-playlist entries remain visibly unavailable. Storage failures leave the source
-and watcher in place. If catalogue removal succeeds but watcher cleanup fails,
-Muzo reports a restart warning.
+</details>
 
-On Linux, the native artwork test also needs Xvfb and Electron's GTK/audio
-runtime libraries. Desktop verification CI installs those dependencies.
-The [desktop smoke-test guide](./docs/testing/desktop-ui-smoke-test.md) covers
-manual testing of the integrated feature stack.
+## Feedback and contributions
 
-## Common scripts
+Found something that feels off? [Open an issue](https://github.com/alexanderwanyoike/muzo/issues)
+with your operating system, Muzo version and what happened. Screenshots are welcome.
 
-| Script | Description |
+Muzo is built with Electron, React and TypeScript. To work on it, install
+Node.js 22.12 or newer and Yarn Classic 1.22.22 or newer, then run:
+
+```sh
+yarn install
+yarn desktop:dev
+```
+
+Linux development and native tests need Electron's GTK/audio runtime dependencies
+and Xvfb. CI lists the required system packages.
+
+| Check | Command |
 | --- | --- |
-| `yarn desktop:dev` | Run the Electron desktop app with HMR |
-| `yarn desktop:build` | Build the desktop frontend for Electron |
-| `yarn desktop:package` | Build an unpacked Electron app bundle |
-| `yarn desktop:make` | Build Electron distributable artifacts |
-| `yarn format` | Automatically format maintained code and configuration |
-| `yarn format:check` | Check formatting without writing |
-| `yarn lint` | Run the Airbnb TypeScript and React lint baseline |
-| `yarn typecheck` | Typecheck every workspace |
-| `yarn test` | Run tests in every workspace |
+| Formatting | `yarn format:check` |
+| Lint | `yarn lint` |
+| Types | `yarn typecheck` |
+| Tests | `yarn test` |
+| Desktop build | `yarn desktop:build` |
+| Package and distributables | `yarn desktop:package` and `yarn desktop:make` |
+| Website | `yarn site:verify` and `yarn site:build` |
 
-Formatting is checked in CI before lint, type checking, tests and desktop packaging.
-Run `yarn format` before pushing. Lint rejects explicit any and unsafe operations in
-production TypeScript; test fixtures have narrowly scoped exceptions.
+Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev`
+to `main`. We use merge commits and preserve the red, green and refactor commits.
+See [AGENTS.md](./AGENTS.md) for the engineering conventions.
 
-## Engineering principles
-
-These are house rules. See [`AGENTS.md`](./AGENTS.md) for the full version.
-
-- **TDD is a requirement.** Red, green, refactor. No production code without a failing test first.
-- **Domain-Driven Design.** The domain model is at the centre; framework code points inward at it, never the reverse.
-- **Clean Architecture.** Dependencies point inward: UI -> application -> domain. Domain depends on nothing.
-- **KISS, GRASP, SOLID.** Boring, readable code wins.
-
-## GitOps flow
-
-```
-main        <- stable, tagged releases. Always buildable.
-  ^
-  |
-dev         <- integration branch for the next release.
-  ^
-  |
-feature/*   <- one branch per card. PRs target dev.
-```
-
-- Branch from `dev`.
-- Open PRs against `dev`.
-- `dev` merges into `main` via release PRs.
-- See [`AGENTS.md`](./AGENTS.md) for branch and PR naming.
+- [Desktop smoke tests](./docs/testing/desktop-ui-smoke-test.md)
+- [Native packaging and releases](./docs/distribution.md)
+- [Project site](./docs/project-site.md)
+- [Planned and completed work](./docs/cards)
+- [Architecture decisions](./docs/adr)
+- [Screenshot provenance](./docs/screenshots.md)
 
 ## License
 
-UNLICENSED (proprietary).
+Muzo is [MIT licensed](./LICENSE). Bundled fonts, icons and runtime components
+retain their own licences and notices.

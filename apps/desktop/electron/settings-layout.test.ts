@@ -40,6 +40,7 @@ interface Measurement {
     controls: number[];
     formEdges: number[];
     overflow: number;
+    sourceRows: { rowRight: number; panelRight: number; overflow: number }[];
   };
 }
 
@@ -162,6 +163,16 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
         0,
       );
       expect(layout.overflow, context).toBeLessThanOrEqual(1);
+      expect(layout.sourceRows, context).toHaveLength(1);
+      for (const row of layout.sourceRows) {
+        expect(row.rowRight, `${context}, source spans panel`).toBeCloseTo(
+          row.panelRight,
+          0,
+        );
+        expect(row.overflow, `${context}, source overflow`).toBeLessThanOrEqual(
+          1,
+        );
+      }
       expect(
         Math.max(...layout.controls) - Math.min(...layout.controls),
         `${context}, control heights`,

@@ -1,0 +1,222 @@
+name: Desktop distribution
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - "apps/desktop/**"
+      - "packages/distribution/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/workflows/distribution.yml"
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: distribution-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      tag: ${{ steps.context.outputs.tag }}
+      sourceCommit: ${{ steps.context.outputs.sourceCommit }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require annotated release tags on main
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: yarn
+      - name: Prepare Yarn and native tests
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends xvfb x11-utils libgtk-3-0t64 libasound2t64 libgbm1
+      - run: yarn install --frozen-lockfile
+      - name: Resolve matching release versions and source commit
+        id: context
+        run: yarn release:context --github-output "$GITHUB_OUTPUT"
+      - run: yarn format:check
+      - run: yarn lint
+      - run: yarn typecheck
+      - run: yarn test
+        env:
+          VITEST_MAX_FORKS: 2
+          VITEST_MIN_FORKS: 1
+
+  package:
+    name: Installer (${{ matrix.target }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-22.04
+            suffix: linux-x64.AppImage
+          - target: windows-x64
+            os: windows-latest
+            suffix: windows-x64-setup.exe
+          - target: macos-arm64
+            os: macos-15
+            suffix: macos-arm64.dmg
+            macho: arm64
+          - target: macos-x64
+            os: macos-15
+            suffix: macos-x64.dmg
+            macho: x86_64
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: yarn
+      - name: Prepare Yarn
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - name: Build the native installer
+        run: yarn desktop:distribute --target ${{ matrix.target }}
+      - name: Verify AppImage extraction and packaged application identity
+        if: matrix.target == 'linux-x64'
+        shell: bash
+        env:
+          MUZO_INSTALLER: ${{ github.workspace }}/apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/muzo-appimage"
+          cd "$RUNNER_TEMP/muzo-appimage"
+          chmod +x "$MUZO_INSTALLER"
+          "$MUZO_INSTALLER" --appimage-extract > /dev/null
+          test -x squashfs-root/muzo
+          test -f squashfs-root/muzo.desktop
+          grep -q '^StartupWMClass=muzo$' squashfs-root/muzo.desktop
+          for asset in main.cjs sql-wasm.wasm; do
+            cmp "$GITHUB_WORKSPACE/apps/desktop/out/Muzo-linux-x64/resources/app/dist-electron/$asset" "squashfs-root/resources/app/dist-electron/$asset"
+          done
+          test -f squashfs-root/resources/app/dist/index.html
+          test -f squashfs-root/resources/app/assets/licenses/manrope-OFL.txt
+      - name: Verify DMG payload and architecture without changing bundle identity
+        if: startsWith(matrix.target, 'macos-')
+        shell: bash
+        env:
+          MUZO_INSTALLER: ${{ github.workspace }}/apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+          MUZO_ARCH: ${{ matrix.macho }}
+          MUZO_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          hdiutil verify "$MUZO_INSTALLER"
+          mkdir "$RUNNER_TEMP/muzo-volume"
+          hdiutil attach "$MUZO_INSTALLER" -readonly -nobrowse -mountpoint "$RUNNER_TEMP/muzo-volume" -quiet
+          trap 'hdiutil detach "$RUNNER_TEMP/muzo-volume" -quiet' EXIT
+          installed="$RUNNER_TEMP/muzo-volume/Muzo.app"
+          original="$GITHUB_WORKSPACE/apps/desktop/out/Muzo-darwin-${MUZO_TARGET#macos-}/Muzo.app"
+          cmp "$original/Contents/Info.plist" "$installed/Contents/Info.plist"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$installed/Contents/Info.plist")
+          lipo "$installed/Contents/MacOS/$executable" -verify_arch "$MUZO_ARCH"
+          for asset in main.cjs sql-wasm.wasm; do
+            cmp "$original/Contents/Resources/app/dist-electron/$asset" "$installed/Contents/Resources/app/dist-electron/$asset"
+          done
+          test -f "$installed/Contents/Resources/app/dist/index.html"
+          test -f "$installed/Contents/Resources/app/assets/licenses/manrope-OFL.txt"
+      - name: Verify Windows installer and installed payload
+        if: matrix.target == 'windows-x64'
+        shell: pwsh
+        env:
+          MUZO_INSTALLER: ${{ github.workspace }}/apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP 'muzo-installed'
+          $installer = Start-Process -FilePath $env:MUZO_INSTALLER -ArgumentList '/S', "/D=$installDir" -Wait -PassThru
+          if ($installer.ExitCode -ne 0) { throw "Installer exited $($installer.ExitCode)" }
+          if (!(Test-Path "$installDir/muzo.exe")) { throw 'Installed executable missing' }
+          foreach ($asset in @('main.cjs', 'sql-wasm.wasm')) {
+            $before = (Get-FileHash "$env:GITHUB_WORKSPACE/apps/desktop/out/Muzo-win32-x64/resources/app/dist-electron/$asset").Hash
+            $after = (Get-FileHash "$installDir/resources/app/dist-electron/$asset").Hash
+            if ($before -ne $after) { throw "Installed $asset changed" }
+          }
+          if (!(Test-Path "$installDir/resources/app/dist/index.html")) { throw 'Installed renderer missing' }
+          if (!(Test-Path "$installDir/resources/app/assets/licenses/manrope-OFL.txt")) { throw 'Font licence missing' }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: installer-${{ matrix.target }}
+          path: apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  assemble:
+    needs: [verify, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: yarn
+      - name: Prepare Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+      - run: yarn install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: installer-*
+          path: release-input
+          merge-multiple: true
+      - name: Validate and assemble the complete release
+        run: yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "${{ needs.verify.outputs.version }}" --tag "${{ needs.verify.outputs.tag }}" --source-commit "${{ needs.verify.outputs.sourceCommit }}"
+      - name: Verify standard SHA-256 checksum format
+        working-directory: release-set
+        run: sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: muzo-release-set
+          path: release-set/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [verify, assemble]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: muzo-release-set
+          path: release-set
+      - name: Create a draft release without replacing existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MUZO_RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          gh release create "$MUZO_RELEASE_TAG" release-set/* --verify-tag --draft --title "$MUZO_RELEASE_TAG" --notes "Download the installer for your platform. These preview builds are not signed or notarized. Review the installers and SHA256SUMS before publishing this draft."
