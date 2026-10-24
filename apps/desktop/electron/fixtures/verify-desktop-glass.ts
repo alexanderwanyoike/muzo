@@ -50,7 +50,8 @@ async function sample() {
   const image = await window.webContents.capturePage();
   const bitmap = image.toBitmap();
   const offset = (location.y * image.getSize().width + location.x) * 4;
-  return { alpha: bitmap[offset + 3], colour: [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]], text: location.text, muted: location.muted };
+  const alpha = bitmap[offset + 3];
+  return { alpha, colour: [bitmap[offset + 2], bitmap[offset + 1], bitmap[offset]].map((channel) => alpha ? Math.min(255, Math.round(channel * 255 / alpha)) : 0), text: location.text, muted: location.muted };
 }
 async function desktop() {
   const display = screen.getPrimaryDisplay();
