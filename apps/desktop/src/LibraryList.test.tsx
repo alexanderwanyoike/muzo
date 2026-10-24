@@ -12,7 +12,12 @@ it("filters sources by name or folder without changing the selected source", asy
   render(
     <LibraryList
       libraries={[
-        { id: "one", name: "Jazz", kind: "filesystem", location: "/music/local" },
+        {
+          id: "one",
+          name: "Jazz",
+          kind: "filesystem",
+          location: "/music/local",
+        },
         { id: "two", name: "Archive", kind: "dropbox", location: "/Jazz/live" },
         { id: "three", name: "Piano", kind: "filesystem", location: "/piano" },
       ]}
@@ -22,7 +27,10 @@ it("filters sources by name or folder without changing the selected source", asy
       renderTracks={() => null}
     />,
   );
-  await user.type(screen.getByRole("searchbox", { name: "Search sources" }), "  JAZZ ");
+  await user.type(
+    screen.getByRole("searchbox", { name: "Search sources" }),
+    "  JAZZ ",
+  );
   expect(screen.getAllByRole("listitem")).toHaveLength(2);
   expect(screen.getByText("Jazz")).toBeDefined();
   expect(screen.getByText("Archive")).toBeDefined();
@@ -34,8 +42,22 @@ describe("LibraryList", () => {
   it("clears a source search with Escape and keeps removal working after filtering", async () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
-    const source: LibraryDto = { id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" };
-    render(<LibraryList libraries={[source]} trackCounts={NO_COUNTS} selectedLibraryId={null} onSelect={() => {}} onRemove={onRemove} renderTracks={() => null} />);
+    const source: LibraryDto = {
+      id: "one",
+      name: "Jazz",
+      kind: "dropbox",
+      location: "/jazz",
+    };
+    render(
+      <LibraryList
+        libraries={[source]}
+        trackCounts={NO_COUNTS}
+        selectedLibraryId={null}
+        onSelect={() => {}}
+        onRemove={onRemove}
+        renderTracks={() => null}
+      />,
+    );
     const search = screen.getByRole("searchbox", { name: "Search sources" });
     await user.type(search, "jazz{Escape}");
     expect((search as HTMLInputElement).value).toBe("");
@@ -48,14 +70,31 @@ describe("LibraryList", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
     const onRemove = vi.fn();
-    render(<LibraryList libraries={[{ id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" }]} trackCounts={NO_COUNTS} selectedLibraryId="one" onSelect={onSelect} onRemove={onRemove} renderTracks={() => null} />);
+    render(
+      <LibraryList
+        libraries={[
+          { id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" },
+        ]}
+        trackCounts={NO_COUNTS}
+        selectedLibraryId="one"
+        onSelect={onSelect}
+        onRemove={onRemove}
+        renderTracks={() => null}
+      />,
+    );
     const search = screen.getByRole("searchbox", { name: "Search sources" });
     await user.type(search, "missing");
     expect(screen.getByText("No sources match your search.")).toBeDefined();
     expect(screen.getByText("0 of 1 sources")).toBeDefined();
-    await user.click(screen.getByRole("button", { name: "Clear source search" }));
+    await user.click(
+      screen.getByRole("button", { name: "Clear source search" }),
+    );
     expect(search).toBe(document.activeElement);
-    expect(screen.getByRole("button", { name: "Show tracks for Jazz" }).getAttribute("aria-pressed")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Show tracks for Jazz" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(onSelect).not.toHaveBeenCalled();
     expect(onRemove).not.toHaveBeenCalled();
   });

@@ -1,6 +1,7 @@
 @import "./music-views.css";
 @import "./settings-view.css";
 @import "./transport.css";
+@import "./library-list.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;
@@ -86,14 +87,18 @@ code {
 .app-sidebar {
   grid-area: 2 / 1;
   min-width: 0;
-  overflow: auto;
-  padding: 22px 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 12px;
   background: var(--sidebar);
   border-right: 1px solid var(--line);
   user-select: none;
 }
 .app-sidebar__header {
-  padding: 0 10px 19px;
+  padding: 0 10px 14px;
+  flex-shrink: 0;
 }
 .app-sidebar__header h1 {
   margin: 0;
@@ -111,7 +116,8 @@ code {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  margin-bottom: 26px;
+  margin-bottom: 18px;
+  flex-shrink: 0;
 }
 .app-sidebar__nav-item {
   display: flex;
@@ -138,7 +144,14 @@ code {
 .app-sidebar__nav-item--active svg {
   color: var(--accent);
 }
+.app-sidebar__section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 .app-sidebar__section h2 {
+  flex-shrink: 0;
   margin: 0 10px 10px;
   font-size: 10px;
   font-weight: 750;
@@ -197,8 +210,7 @@ code {
 .app-content__empty-action {
   margin-top: 12px;
 }
-.app__placeholder,
-.library-list__empty {
+.app__placeholder {
   margin: 15px 10px;
   color: var(--text-muted);
   font-size: 11px;
@@ -219,70 +231,6 @@ code {
 }
 .app__info {
   color: var(--green);
-}
-.library-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.library-list__item {
-  margin-bottom: 3px;
-  border-radius: 5px;
-}
-.library-list__item--selected {
-  background: var(--selected);
-}
-.library-list__row {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  gap: 5px 10px;
-  align-items: center;
-  min-width: 0;
-  width: 100%;
-  padding: 8px 10px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  text-align: left;
-}
-.library-list__row svg {
-  color: var(--text-muted);
-  width: 16px;
-  height: 16px;
-}
-.library-list__item--selected svg {
-  color: var(--accent);
-}
-.library-list__primary {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 3px;
-}
-.library-list__name {
-  font-size: 12px;
-  font-weight: 650;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.library-list__kind {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  clip-path: inset(50%);
-  overflow: hidden;
-}
-.library-list__location {
-  display: none;
-}
-.library-list__count {
-  grid-column: 2;
-  color: var(--text-muted);
-  font-size: 10px;
-}
-.library-list__tracks {
-  padding: 6px;
 }
 @media (max-width: 950px) {
   .app-shell {
@@ -315,34 +263,14 @@ code {
       color 100ms ease;
   }
 }
-.library-list__source {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.library-list__source > .library-list__row {
-  flex: 1;
-  min-width: 0;
-}
-.library-list__remove {
-  padding: 5px;
-  margin-right: 4px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: var(--text-muted);
-}
-.library-list__remove svg {
-  width: 13px;
-  height: 13px;
-}
-
-.app-sidebar {
-  display: flex;
-  flex-direction: column;
-}
 .app-sidebar__sleeve {
-  margin: auto 10px 0;
-  padding-top: 20px;
+  margin: 12px auto 0;
+  width: 100%;
+  max-width: 164px;
   flex-shrink: 0;
+}
+@media (max-height: 700px) {
+  .app-sidebar__sleeve {
+    max-width: 96px;
+  }
 }
