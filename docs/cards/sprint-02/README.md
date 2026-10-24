@@ -30,6 +30,7 @@ review: formalising SQLite migrations before more tables pile up.
 | 017 | [Desktop verification CI](./017-desktop-verification-ci.md) | Tech debt | Done | - |
 | 018 | [Enforced code style](./018-enforced-code-style.md) | Tech debt | Done | - |
 | 019 | [Playback source retry](./019-playback-source-retry.md) | Fix | Done | - |
+| 020 | [Visual Dropbox folder picker](./020-dropbox-folder-picker.md) | Feature | In progress | - |
 
 ## Close-out note
 

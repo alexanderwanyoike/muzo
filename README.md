@@ -53,8 +53,12 @@ approve access in your system browser, then paste the displayed authorization co
 No client secret or redirect URI is needed. Enable your OS keyring for encrypted
 credential storage. Muzo refuses Linux basic_text storage.
 
-Add a Dropbox folder such as `/Music`, or `/` for the account root. It syncs on
-startup and at the interval set in Settings. Refresh under Indexed sources runs a
+Choose Browse Dropbox folders, navigate with the breadcrumbs, and select one or
+several folders. Selections stay with you as you browse. Add the selected folders
+to create libraries using their folder names; subfolders are included automatically.
+Already-added folders are marked, and failed additions remain selected for retry.
+Choose Entire Dropbox if you want the account root. Each library syncs on startup
+and at the interval set in Settings. Refresh under Indexed sources runs a
 sync immediately. Each library stays bound to the account that created it.
 
 Dropbox tracks download when selected, then use the normal playback controls.
