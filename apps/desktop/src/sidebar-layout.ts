@@ -29,3 +29,12 @@ export function saveSidebarWidth(width: number): Result<void> {
     return failure("storage", "Sidebar width changed for this session, but could not be saved.");
   }
 }
+
+const minimumContentWidth = 520;
+export function sidebarWidthLimit(viewportWidth: number): number {
+  return Math.max(minimumSidebarWidth, Math.min(maximumSidebarWidth, viewportWidth - minimumContentWidth));
+}
+export function clampSidebarWidth(width: number, viewportWidth: number): number {
+  const requested = Number.isFinite(width) ? Math.round(width) : defaultSidebarWidth;
+  return Math.max(minimumSidebarWidth, Math.min(sidebarWidthLimit(viewportWidth), requested));
+}
