@@ -1,40 +1,41 @@
----
-status: in-progress
----
+- Sprint: 02
+- Type: Licensing
+- Status: Done
 
 # Card 043 - License Muzo under MIT
 
-The project owner requested that Muzo become MIT licensed. Make that policy
-explicit across the repository, all owned workspaces, native app and public site.
+The user explicitly requested changing Muzo from proprietary to MIT.
 
 ## Acceptance criteria
 
-- [x] Root LICENSE uses standard MIT text with copyright 2026 Muzo contributors.
-- [x] Root, desktop, distribution and site package metadata declares MIT.
-- [x] README and current documentation describe the MIT licence consistently.
-- [x] Native payload includes an identical assets/licenses/Muzo-MIT.txt notice.
-- [x] The site footer links to an identical public/LICENSE.txt notice.
-- [x] Third-party licences and notices remain unchanged.
-- [x] Ordered gates and packaged notice comparison pass.
-- [ ] Two review cycles and PR handoff complete.
+- [x] Add the standard MIT licence, copyright 2026 Muzo contributors.
+- [x] Set the root and desktop package metadata to MIT.
+- [x] Replace the current README proprietary claim with the MIT licence link.
+- [x] Include an identical project notice in the packaged native app assets.
+- [x] Preserve all third-party licence terms and historical decision records.
+- [x] Complete verification and both review cycles, then deliver a feature PR to dev.
 
-## Source and verification
+This is the independent project licensing PR, based directly on dev. The root
+licence applies to all owned project code. The pending site PR #66 separately
+synchronizes its website notice, footer and private distribution/site workspace
+metadata to this same licence; it does not block adopting MIT for the project.
 
-The MIT text follows GitHub's Choose a License template, replacing only its
-copyright placeholders: https://choosealicense.com/licenses/mit/
+The standard text was checked against GitHub Choose a License's authoritative
+MIT template, substituting the year and project contributor attribution:
+https://github.com/github/choosealicense.com/blob/gh-pages/_licenses/mit.txt
 
-This is a licence, metadata and documentation change. No runtime logic or test
-behavior changes, so no artificial test-first cycle is added. Compare all three
-licence copies, verify workspace metadata and public/native packaged output,
-and run the existing ordered checks. Immutable ADRs and historical review
-records remain unchanged.
+Documentation, licence text and package metadata introduce no runtime logic, so
+no artificial TDD tests are added. Direct notice comparisons and existing checks
+verify this change. Third-party notices keep their own licences.
 
-Depends on the project site and desktop distribution work in cards 037 and 039.
+## Verification and review
 
-Verification passed: frozen Yarn install, format, lint, typecheck, 369 existing
-tests (351 desktop, 6 distribution, 12 site), desktop build/package/make and site
-build. The Forge app, ZIP, DEB and built site include exact copies of the root
-licence. Manrope OFL, Bootstrap Icons MIT and Electron/Chromium notices remain
-present; committed third-party notice files are unchanged. The root licence
-matches the upstream template byte-for-byte after substituting its two copyright
-placeholders. No runtime behavior changed.
+All ordered checks passed on independent core head
+`d3afb00872953bee605350c03007cb88ca6740b8`: Yarn install, formatting, lint,
+typecheck, 337 existing desktop tests, desktop build, package and make.
+Root and native licence copies match at SHA-256
+`e6d26c00d2f72560e6fb95569c7083c265c573d716267879c15d448dd89c839b`.
+The parent verified the native packaged notice. Both initial Standards/Spec
+reviews and fresh final re-reviews returned zero actionable findings. No fixes
+were required. The evidence is recorded in
+[the licensing review](../../reviews/2026-10-24-mit-project-license.md).
