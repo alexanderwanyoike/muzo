@@ -1,13 +1,34 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
 import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
-afterEach(() => { cleanup(); removeTestRuntime(); localStorage.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  removeTestRuntime();
+  localStorage.clear();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 it("opens and focuses source setup from the panel add action", async () => {
-  installTestRuntime({ invoke: vi.fn().mockImplementation(async (command: string) => command === "dropbox_status" ? { ok: true, value: { connected: false, accountId: null } } : []), openDirectory: async () => null });
+  installTestRuntime({
+    invoke: vi
+      .fn()
+      .mockImplementation(async (command: string) =>
+        command === "dropbox_status"
+          ? { ok: true, value: { connected: false, accountId: null } }
+          : [],
+      ),
+    openDirectory: async () => null,
+  });
   render(<App />);
   await screen.findByRole("region", { name: "Sources" });
   await userEvent.click(screen.getByRole("button", { name: "Add source" }));
@@ -18,7 +39,10 @@ it("opens and focuses source setup from the panel add action", async () => {
 });
 
 it("resizes the sidebar with the keyboard and remembers its width on reopening", async () => {
-  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  installTestRuntime({
+    invoke: vi.fn().mockResolvedValue([]),
+    openDirectory: async () => null,
+  });
   const view = render(<App />);
   const divider = await screen.findByRole("separator", { name: "Sources" });
   expect(divider.getAttribute("aria-valuenow")).toBe("240");
@@ -27,13 +51,19 @@ it("resizes the sidebar with the keyboard and remembers its width on reopening",
   expect(divider.getAttribute("aria-valuenow")).toBe("248");
   view.unmount();
   render(<App />);
-  expect((await screen.findByRole("separator", { name: "Sources" })).getAttribute("aria-valuenow")).toBe("248");
+  expect(
+    (await screen.findByRole("separator", { name: "Sources" })).getAttribute(
+      "aria-valuenow",
+    ),
+  ).toBe("248");
 });
-
 
 it("resizes the sidebar by dragging its divider and commits the final width", async () => {
   vi.stubGlobal("PointerEvent", MouseEvent);
-  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  installTestRuntime({
+    invoke: vi.fn().mockResolvedValue([]),
+    openDirectory: async () => null,
+  });
   const view = render(<App />);
   const divider = await screen.findByRole("separator", { name: "Sources" });
   fireEvent.pointerDown(divider, { button: 0, clientX: 240 });
@@ -42,11 +72,18 @@ it("resizes the sidebar by dragging its divider and commits the final width", as
   fireEvent.pointerUp(divider, { clientX: 320 });
   view.unmount();
   render(<App />);
-  expect((await screen.findByRole("separator", { name: "Sources" })).getAttribute("aria-valuenow")).toBe("320");
+  expect(
+    (await screen.findByRole("separator", { name: "Sources" })).getAttribute(
+      "aria-valuenow",
+    ),
+  ).toBe("320");
 });
 
 it("resets the sidebar width by double-clicking the divider", async () => {
-  installTestRuntime({ invoke: vi.fn().mockResolvedValue([]), openDirectory: async () => null });
+  installTestRuntime({
+    invoke: vi.fn().mockResolvedValue([]),
+    openDirectory: async () => null,
+  });
   render(<App />);
   const divider = await screen.findByRole("separator", { name: "Sources" });
   divider.focus();

@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
-import { clampSidebarWidth, defaultSidebarWidth, loadSidebarWidth, minimumSidebarWidth, saveSidebarWidth, sidebarWidthLimit } from "./sidebar-layout";
+import {
+  clampSidebarWidth,
+  defaultSidebarWidth,
+  loadSidebarWidth,
+  minimumSidebarWidth,
+  saveSidebarWidth,
+  sidebarWidthLimit,
+} from "./sidebar-layout";
 
 export function useSidebarLayout() {
   const [initial] = useState(loadSidebarWidth);
-  const [preferred, setPreferred] = useState(initial.ok ? initial.value : defaultSidebarWidth);
+  const [preferred, setPreferred] = useState(
+    initial.ok ? initial.value : defaultSidebarWidth,
+  );
   const [viewport, setViewport] = useState(window.innerWidth);
-  const [error, setError] = useState<string | null>(initial.ok ? null : initial.error.message);
+  const [error, setError] = useState<string | null>(
+    initial.ok ? null : initial.error.message,
+  );
   useEffect(() => {
     const resize = () => setViewport(window.innerWidth);
     window.addEventListener("resize", resize);
@@ -18,5 +29,12 @@ export function useSidebarLayout() {
     const saved = saveSidebarWidth(next);
     setError(saved.ok ? null : saved.error.message);
   }
-  return { width, minimum: minimumSidebarWidth, maximum: sidebarWidthLimit(viewport), preview: setPreferred, commit, error };
+  return {
+    width,
+    minimum: minimumSidebarWidth,
+    maximum: sidebarWidthLimit(viewport),
+    preview: setPreferred,
+    commit,
+    error,
+  };
 }

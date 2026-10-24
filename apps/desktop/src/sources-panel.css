@@ -1,0 +1,119 @@
+.sources-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel-raised);
+  box-shadow: var(--inset);
+}
+.sources-panel__header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  min-height: 33px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+}
+.sources-panel__header > svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-muted);
+  stroke-width: 1.6;
+}
+.sources-panel__header h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+.sources-panel__total {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.sources-panel__footer {
+  display: flex;
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 3px 5px;
+  border-top: 1px solid var(--line);
+  background: var(--chrome);
+}
+.sources-panel__footer button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  font-size: 11px;
+}
+.sources-panel__footer button:focus-visible {
+  outline-offset: -1px;
+}
+.sources-panel > .library-list__empty,
+.sources-panel > .app__placeholder {
+  flex: 1;
+  overflow: auto;
+}
+.sidebar-splitter {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.sidebar-splitter::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background: var(--line);
+}
+.sidebar-splitter:hover::after,
+.sidebar-splitter:focus-visible::after,
+.sidebar-splitter[data-resizing]::after {
+  width: 3px;
+  background: var(--accent);
+}
+.sidebar-splitter:focus-visible {
+  outline: none;
+}
+.app-sidebar__layout-error {
+  margin: 7px 4px 0;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.settings-view__source-setup {
+  display: grid;
+  gap: 16px;
+  scroll-margin-top: 16px;
+  outline: none;
+}
+@media (max-height: 700px) {
+  .app-sidebar {
+    padding-block: 12px;
+  }
+  .app-sidebar__header {
+    padding-bottom: 10px;
+  }
+  .app-sidebar__nav {
+    margin-bottom: 12px;
+  }
+}

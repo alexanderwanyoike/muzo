@@ -69,7 +69,14 @@ export default function LibraryList({
           </button>
         )}
       </div>
-      <p className="source-browser__count" aria-live="polite">
+      <p
+        className={
+          query
+            ? "source-browser__count source-browser__count--filtered"
+            : "source-browser__count"
+        }
+        aria-live="polite"
+      >
         {visibleLibraries.length} of {libraries.length} sources
       </p>
       {visibleLibraries.length === 0 && (

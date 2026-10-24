@@ -226,7 +226,10 @@ export default function App() {
   );
 
   return (
-    <main className="app-shell app--has-player" style={{ gridTemplateColumns: `${sidebar.width}px minmax(0, 1fr)` }}>
+    <main
+      className="app-shell app--has-player"
+      style={{ gridTemplateColumns: `${sidebar.width}px minmax(0, 1fr)` }}
+    >
       <aside className="app-sidebar" id="source-sidebar">
         <header className="app-sidebar__header">
           <div>
@@ -297,8 +300,18 @@ export default function App() {
             />
           </figure>
         )}
-        {sidebar.error && <p className="app-sidebar__layout-error" aria-live="polite">{sidebar.error}</p>}
-        <SidebarSplitter width={sidebar.width} minimum={sidebar.minimum} maximum={sidebar.maximum} onPreview={sidebar.preview} onCommit={sidebar.commit} />
+        {sidebar.error && (
+          <p className="app-sidebar__layout-error" aria-live="polite">
+            {sidebar.error}
+          </p>
+        )}
+        <SidebarSplitter
+          width={sidebar.width}
+          minimum={sidebar.minimum}
+          maximum={sidebar.maximum}
+          onPreview={sidebar.preview}
+          onCommit={sidebar.commit}
+        />
       </aside>
 
       <section className="app-content">
@@ -342,24 +355,28 @@ export default function App() {
               onChange={changeAppearance}
               error={appearanceError}
             />
-            <section className="settings-view__source-setup" aria-label="Add sources" tabIndex={-1} ref={sourceSetup}>
-            <DropboxSettings
-              onLibraryAdded={(library) => {
-                rememberLibrary(library);
-                void handleRefresh(library);
-              }}
-            />
-            <section className="settings-view__section">
-              <div>
-                <h3>Library folders</h3>
-                <p>
-                  Add folders here. Filesystem libraries sync automatically
-                  while the app is open and reconcile when it starts.
-                </p>
-              </div>
-              <AddLibraryForm onAdded={handleLibraryAdded} />
-            </section>
-
+            <section
+              className="settings-view__source-setup"
+              aria-label="Add sources"
+              tabIndex={-1}
+              ref={sourceSetup}
+            >
+              <DropboxSettings
+                onLibraryAdded={(library) => {
+                  rememberLibrary(library);
+                  void handleRefresh(library);
+                }}
+              />
+              <section className="settings-view__section">
+                <div>
+                  <h3>Library folders</h3>
+                  <p>
+                    Add folders here. Filesystem libraries sync automatically
+                    while the app is open and reconcile when it starts.
+                  </p>
+                </div>
+                <AddLibraryForm onAdded={handleLibraryAdded} />
+              </section>
             </section>
             <section
               className="settings-view__section"
