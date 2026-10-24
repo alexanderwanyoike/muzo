@@ -38,7 +38,8 @@ function hash(value: string): string {
 }
 
 const activeWrites = new Set<string>();
-const temporaryFilename = /^(?:(\d+)-)?[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/;
+const temporaryFilename =
+  /^(?:(\d+)-)?[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/;
 const cacheFilename = /^[a-f0-9]{64}\.json$/;
 interface Limits {
   maximumBytes?: number;
@@ -104,7 +105,10 @@ export class NodeArtworkCache implements ArtworkCache {
         failure("invalidInput", "Artwork thumbnail is invalid or too large."),
       );
     return this.exclusive(async () => {
-      const temporary = join(this.directory, `${process.pid}-${randomUUID()}.tmp`);
+      const temporary = join(
+        this.directory,
+        `${process.pid}-${randomUUID()}.tmp`,
+      );
       activeWrites.add(temporary);
       try {
         await this.loadIndex();
@@ -190,7 +194,13 @@ export class NodeArtworkCache implements ArtworkCache {
         process.kill(owner, 0);
         return;
       } catch (error) {
-        if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ESRCH") return;
+        if (
+          !error ||
+          typeof error !== "object" ||
+          !("code" in error) ||
+          error.code !== "ESRCH"
+        )
+          return;
       }
     }
     await rm(path, { force: true });

@@ -39,12 +39,10 @@ it("continues serving artwork after an unexpected cache failure", async () => {
 });
 
 it("shows a persisted Dropbox thumbnail offline without reading credentials or media again", async () => {
-  const accessFor = vi
-    .fn()
-    .mockResolvedValue({
-      ok: false,
-      error: { kind: "notConnected", message: "Offline" },
-    });
+  const accessFor = vi.fn().mockResolvedValue({
+    ok: false,
+    error: { kind: "notConnected", message: "Offline" },
+  });
   const read = vi.fn();
   const service = new TrackArtworkService(
     {
