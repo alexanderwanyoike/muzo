@@ -17,7 +17,7 @@ describe("Electron SQLite migrations", () => {
 
     const database = await openDatabase(dbPath);
     try {
-      expect(userVersion(database)).toBe(7);
+      expect(userVersion(database)).toBe(8);
       expect(tableColumns(database, "libraries")).toEqual([
         "id",
         "name",
@@ -87,7 +87,7 @@ describe("Electron SQLite migrations", () => {
 
     const migratedDatabase = await openDatabase(dbPath);
     try {
-      expect(userVersion(migratedDatabase)).toBe(7);
+      expect(userVersion(migratedDatabase)).toBe(8);
       expect(countRows(migratedDatabase, "libraries")).toBe(1);
     } finally {
       migratedDatabase.close();
