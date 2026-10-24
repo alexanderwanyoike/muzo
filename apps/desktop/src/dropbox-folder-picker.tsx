@@ -13,6 +13,7 @@ export default function DropboxFolderPicker({
   onClose: () => void;
 }) {
   const [path, setPath] = useState("/");
+  const [reload, setReload] = useState(0);
   const [folders, setFolders] = useState<DropboxFolder[] | null>(null);
   const [addedPaths, setAddedPaths] = useState<string[]>([]);
   const [selected, setSelected] = useState<DropboxFolder[]>([]);
@@ -40,7 +41,7 @@ export default function DropboxFolderPicker({
     return () => {
       cancelled = true;
     };
-  }, [accountId, path]);
+  }, [accountId, path, reload]);
 
   function toggleFolder(folder: DropboxFolder) {
     setSelected((previous) =>
@@ -87,6 +88,7 @@ export default function DropboxFolderPicker({
 
   const loading = folders === null && !loadError;
   const segments = path.split("/").filter(Boolean);
+  const currentFolder = { id: path, name: segments.at(-1) ?? "Dropbox", path };
 
   return (
     <section className="dropbox-picker" aria-label="Dropbox folder browser">
@@ -136,7 +138,36 @@ export default function DropboxFolderPicker({
           Loading folders...
         </p>
       )}
-      {loadError && <p role="alert">{loadError}</p>}
+      {loadError && (
+        <div className="dropbox-picker__error">
+          <p role="alert">{loadError}</p>
+          <button type="button" onClick={() => setReload((value) => value + 1)}>
+            Retry folders
+          </button>
+        </div>
+      )}
+      {folders !== null && (
+        <label className="dropbox-picker__current">
+          <input
+            type="checkbox"
+            aria-label={
+              path === "/" ? "Select entire Dropbox" : "Select current folder"
+            }
+            disabled={busy || addedPaths.includes(path.toLowerCase())}
+            checked={selected.some((item) => item.path === path)}
+            onChange={() => toggleFolder(currentFolder)}
+          />
+          <span>
+            <strong>
+              {path === "/" ? "Entire Dropbox" : currentFolder.name}
+            </strong>
+            <small>Include this folder and all its subfolders</small>
+          </span>
+          {addedPaths.includes(path.toLowerCase()) && (
+            <span className="dropbox-picker__added">Added</span>
+          )}
+        </label>
+      )}
       {folders?.length === 0 && (
         <p className="dropbox-picker__empty">No subfolders here.</p>
       )}
