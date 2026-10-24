@@ -1,5 +1,6 @@
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
@@ -31,6 +32,7 @@ export default function App() {
     changeAppearance,
     error: appearanceError,
   } = useAppearance();
+  const [removingLibrary, setRemovingLibrary] = useState<LibraryDto | null>(null);
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [trackPlayCounts, setTrackPlayCounts] = useState<
@@ -78,6 +80,7 @@ export default function App() {
     previous,
     toggle,
     clearQueue,
+    removeSource,
     seek,
     setVolume,
   } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
@@ -182,6 +185,14 @@ export default function App() {
     },
     [],
   );
+
+  function handleSourceRemoved(libraryId: string) {
+    removeSource(libraryId);
+    setLibraries(items => (items ?? []).filter(library => library.id !== libraryId));
+    setSelectedLibraryId(id => id === libraryId ? null : id);
+    setTrackCounts(counts => Object.fromEntries(Object.entries(counts).filter(([id]) => id !== libraryId)));
+    setRefreshMessage(null);
+  }
 
   const selectedLibrary =
     libraries?.find((library) => library.id === selectedLibraryId) ?? null;
@@ -327,6 +338,7 @@ export default function App() {
                       <span>{library.name}</span>
                       <code>{library.location}</code>
                     </div>
+                    <div className="settings-view__source-actions">
                     <button
                       type="button"
                       disabled={refreshingLibraryId === library.id}
@@ -336,6 +348,8 @@ export default function App() {
                         ? "Refreshing..."
                         : `Refresh ${library.name}`}
                     </button>
+                    <button type="button" onClick={() => setRemovingLibrary(library)}>Remove {library.name}</button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -386,6 +400,7 @@ export default function App() {
         )}
       </section>
 
+      {removingLibrary && <RemoveSourceDialog library={removingLibrary} onRemoved={handleSourceRemoved} onClose={() => setRemovingLibrary(null)} />}
       <NowPlayingBar
         hasNext={hasNext}
         hasPrevious={hasPrevious}
