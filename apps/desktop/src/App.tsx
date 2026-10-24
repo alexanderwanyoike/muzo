@@ -1,3 +1,5 @@
+import SidebarSplitter from "./sidebar-splitter";
+import { useSidebarLayout } from "./use-sidebar-layout";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import TrackArtwork from "./track-artwork";
@@ -28,6 +30,7 @@ interface ListError {
 }
 
 export default function App() {
+  const sidebar = useSidebarLayout();
   const sourceSetup = useRef<HTMLElement>(null);
   const [sourceSettingsRequest, requestSourceSettings] = useState(0);
   useEffect(() => {
@@ -223,8 +226,8 @@ export default function App() {
   );
 
   return (
-    <main className="app-shell app--has-player">
-      <aside className="app-sidebar">
+    <main className="app-shell app--has-player" style={{ gridTemplateColumns: `${sidebar.width}px minmax(0, 1fr)` }}>
+      <aside className="app-sidebar" id="source-sidebar">
         <header className="app-sidebar__header">
           <div>
             <h1>Muzo</h1>
@@ -294,6 +297,8 @@ export default function App() {
             />
           </figure>
         )}
+        {sidebar.error && <p className="app-sidebar__layout-error" aria-live="polite">{sidebar.error}</p>}
+        <SidebarSplitter width={sidebar.width} minimum={sidebar.minimum} maximum={sidebar.maximum} onCommit={sidebar.commit} />
       </aside>
 
       <section className="app-content">
