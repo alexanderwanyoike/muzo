@@ -184,6 +184,9 @@
   margin: 0;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent)
+    transparent;
 }
 .compact-queue__list button {
   display: flex;
@@ -314,5 +317,16 @@
   }
   .compact-player__metadata h1 {
     font-size: 16px;
+  }
+}
+
+.compact-queue__list:hover,
+.compact-queue__list:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 70%, transparent)
+    transparent;
+}
+@media (forced-colors: active) {
+  .compact-queue__list {
+    scrollbar-color: auto;
   }
 }

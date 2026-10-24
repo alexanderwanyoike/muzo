@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { build } from "esbuild";
 import { expect, it } from "vitest";
+import { contrastRatio } from "./fixtures/contrast-ratio";
 
 it("fits compact controls at native minimum sizes and restores the library window through the real preload", async () => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-compact-layout-"));
@@ -48,11 +49,11 @@ it("fits compact controls at native minimum sizes and restores the library windo
       join(electronDir, "preload.cjs"),
       resultPath,
     ];
-    await promisify(execFile)(
+    const execution = await promisify(execFile)(
       process.platform === "linux" ? "xvfb-run" : electron,
       process.platform === "linux" ? ["-a", electron, ...args] : args,
       {
-        timeout: 20000,
+        timeout: 40000,
         env: {
           ...process.env,
           ELECTRON_RUN_AS_NODE: undefined,
@@ -60,11 +61,25 @@ it("fits compact controls at native minimum sizes and restores the library windo
         },
       },
     );
+    if (execution.stderr.includes("Compact fixture timeout"))
+      throw new Error(execution.stderr);
     const result = JSON.parse(readFileSync(resultPath, "utf8")) as {
+      failure?: string;
       measurements: {
+        theme: string;
         mode: string;
         queue: boolean;
+        queueAccess?: {
+          scrollTop: number;
+          lastBottom: number;
+          listBottom: number;
+        };
         layout: {
+          contrastSamples: {
+            text: string;
+            muted: string;
+            backgrounds: string[];
+          }[];
           width: number;
           height: number;
           overflow: number;
@@ -78,14 +93,43 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
+      fallback: { queueAlpha: number };
       original: unknown;
       restored: unknown;
       minimum: number[];
     };
-    expect(result.measurements).toHaveLength(8);
+    expect(result.failure).toBeUndefined();
+    expect(result.measurements).toHaveLength(16);
+    expect(result.fallback.queueAlpha).toBe(255);
     expect(result.restored).toEqual(result.original);
     expect(result.minimum).toEqual([800, 600]);
-    for (const { mode, queue, layout } of result.measurements) {
+    for (const {
+      theme,
+      mode,
+      queue,
+      layout,
+      queueAccess,
+    } of result.measurements) {
+      if (queue) {
+        expect(queueAccess?.scrollTop).toBeGreaterThan(0);
+        expect(queueAccess?.lastBottom).toBeLessThanOrEqual(
+          (queueAccess?.listBottom ?? 0) + 1,
+        );
+      }
+      if (theme === "glass") {
+        for (const sample of layout.contrastSamples) {
+          for (const background of sample.backgrounds) {
+            expect(
+              contrastRatio(sample.text, background),
+              `${mode} glass text`,
+            ).toBeGreaterThanOrEqual(4.5);
+            expect(
+              contrastRatio(sample.muted, background),
+              `${mode} glass muted`,
+            ).toBeGreaterThanOrEqual(4.5);
+          }
+        }
+      }
       const context = `${mode} ${layout.width}x${layout.height} ${queue ? "queue" : "compact"}`;
       expect(layout.overflow, context).toBeLessThanOrEqual(0);
       expect(layout.libraryHidden, context).toBe(true);
@@ -111,4 +155,4 @@ it("fits compact controls at native minimum sizes and restores the library windo
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
-}, 25000);
+}, 45000);

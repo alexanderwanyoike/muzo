@@ -23,6 +23,11 @@ export const MATERIALS = [
     name: "Porcelain",
     detail: "Smooth ceramic and gentle highlights",
   },
+  {
+    id: "glass",
+    name: "Frosted glass",
+    detail: "Soft translucency and blurred colour",
+  },
 ] as const;
 export const MODES = ["light", "dark"] as const;
 export const ACCENTS = [

@@ -95,7 +95,47 @@ function measureCompact() {
         bottom: rect.bottom,
       };
     });
+  const contrastSamples = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      ".compact-player__header,.compact-player__body,.compact-queue",
+    ),
+  ).map((surface) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Colour measurement unavailable");
+    context.fillStyle = getComputedStyle(surface).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+    const opacity = alpha / 255;
+    const style = getComputedStyle(surface);
+    context.clearRect(0, 0, 1, 1);
+    context.fillStyle =
+      style.getPropertyValue("--glass-wash").trim() || "transparent";
+    context.fillRect(0, 0, 1, 1);
+    const wash = context.getImageData(0, 0, 1, 1).data;
+    const backgrounds = [0, 255].flatMap((backdrop) =>
+      [0, wash[3] / 255].map(
+        (glint) =>
+          `#${[red, green, blue]
+            .map((channel, index) => {
+              const base = channel * opacity + backdrop * (1 - opacity);
+              return Math.round(base * (1 - glint) + wash[index] * glint)
+                .toString(16)
+                .padStart(2, "0");
+            })
+            .join("")}`,
+      ),
+    );
+    return {
+      backgrounds,
+      text: style.getPropertyValue("--text").trim(),
+      muted: style.getPropertyValue("--text-muted").trim(),
+    };
+  });
   return {
+    contrastSamples,
     width: window.innerWidth,
     height: window.innerHeight,
     overflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -121,7 +161,7 @@ void app.whenReady().then(async () => {
     await window.loadFile(page);
     async function until(expression: string) {
       await window.webContents.executeJavaScript(
-        `new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>{if(${expression})resolve();else if(Date.now()>deadline)reject(new Error('Compact fixture timeout'));else setTimeout(check,20)};check()})`,
+        `new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>{if(${expression})resolve();else if(Date.now()>deadline)reject(new Error('Compact fixture timeout: '+${JSON.stringify(expression)}));else setTimeout(check,20)};check()})`,
       );
     }
     const click = async (label: string) => {
@@ -149,83 +189,167 @@ void app.whenReady().then(async () => {
     await until("!!document.querySelector('button[aria-label=Pause]')");
     const original = window.getNormalBounds();
     const measurements = [];
-    for (const mode of ["light", "dark"]) {
-      if (mode === "dark") {
+    for (const theme of ["aluminium", "glass"]) {
+      for (const mode of ["light", "dark"]) {
         await click("Playlists");
         await click("Play Evening");
         await until("!!document.querySelector('button[aria-label=Pause]')");
-      }
-      await window.webContents.executeJavaScript(
-        `document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
-      );
-      await click("Mini player");
-      await until("!!document.querySelector('.compact-player')");
-      await until(
-        "!!document.querySelector('.compact-player__sleeve img')?.complete",
-      );
-      for (const [width, height] of [
-        [420, 560],
-        [360, 480],
-      ]) {
-        window.setContentSize(width, height);
         await window.webContents.executeJavaScript(
-          "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+          `document.documentElement.dataset.theme=${JSON.stringify(theme)}; document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
         );
-        if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
-          mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, { recursive: true });
-          writeFileSync(
-            join(
-              process.env.MUZO_COMPACT_CAPTURE_DIR,
-              `compact-${mode}-solo-${width}.png`,
-            ),
-            (await window.webContents.capturePage()).toPNG(),
+        await click("Mini player");
+        await until("!!document.querySelector('.compact-player')");
+        await until(
+          "!!document.querySelector('.compact-player__sleeve img')?.complete",
+        );
+        for (const [width, height] of [
+          [420, 560],
+          [360, 480],
+        ]) {
+          window.setContentSize(width, height);
+          await window.webContents.executeJavaScript(
+            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
           );
-        }
-        const layout: unknown = await window.webContents.executeJavaScript(
-          `(${measureCompact.toString()})()`,
-        );
-        measurements.push({
-          mode,
-          queue: false,
-          layout,
-        });
-      }
-      await click("Show queue");
-      await until("!!document.querySelector('.compact-queue')");
-      for (const [width, height] of [
-        [740, 560],
-        [640, 480],
-      ]) {
-        window.setContentSize(width, height);
-        await window.webContents.executeJavaScript(
-          "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
-        );
-        if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
-          mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, { recursive: true });
-          writeFileSync(
-            join(
-              process.env.MUZO_COMPACT_CAPTURE_DIR,
-              `compact-${mode}-queue-${width}.png`,
-            ),
-            (await window.webContents.capturePage()).toPNG(),
+          if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
+            mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {
+              recursive: true,
+            });
+            writeFileSync(
+              join(
+                process.env.MUZO_COMPACT_CAPTURE_DIR,
+                `compact-${theme}-${mode}-solo-${width}.png`,
+              ),
+              (await window.webContents.capturePage()).toPNG(),
+            );
+          }
+          const layout: unknown = await window.webContents.executeJavaScript(
+            `(${measureCompact.toString()})()`,
           );
+          measurements.push({
+            theme,
+            mode,
+            queue: false,
+            layout,
+          });
         }
-        const layout: unknown = await window.webContents.executeJavaScript(
-          `(${measureCompact.toString()})()`,
-        );
-        measurements.push({
-          mode,
-          queue: true,
-          layout,
-        });
+        await click("Show queue");
+        await until("!!document.querySelector('.compact-queue')");
+        for (const [width, height] of [
+          [740, 560],
+          [640, 480],
+        ]) {
+          window.setContentSize(width, height);
+          await window.webContents.executeJavaScript(
+            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+          );
+          if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
+            await until(
+              "(()=>{const list=document.querySelector('.compact-queue__list');const bounds=list.getBoundingClientRect();return [...list.children].filter(row=>{const r=row.getBoundingClientRect();return r.bottom>bounds.top && r.top<bounds.bottom}).every(row=>row.querySelector('img')?.complete)})()",
+            );
+            mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {
+              recursive: true,
+            });
+            writeFileSync(
+              join(
+                process.env.MUZO_COMPACT_CAPTURE_DIR,
+                `compact-${theme}-${mode}-queue-${width}.png`,
+              ),
+              (await window.webContents.capturePage()).toPNG(),
+            );
+          }
+          const layout: unknown = await window.webContents.executeJavaScript(
+            `(${measureCompact.toString()})()`,
+          );
+          const point = (await window.webContents.executeJavaScript(
+            `(()=>{document.querySelector('.compact-player__header button').focus();const list=document.querySelector('.compact-queue__list');list.scrollTop=0;const r=list.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()`,
+          )) as { x: number; y: number };
+          window.webContents.sendInputEvent({ type: "mouseMove", ...point });
+          await window.webContents.executeJavaScript(
+            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
+          );
+          window.webContents.sendInputEvent({
+            type: "mouseWheel",
+            ...point,
+            deltaX: 0,
+            deltaY: -300,
+          });
+          await until(
+            "document.querySelector('.compact-queue__list').scrollTop > 0",
+          );
+          await window.webContents.executeJavaScript(
+            "document.querySelector('.compact-queue__list button').focus()",
+          );
+          for (let index = 1; index < 12; index += 1) {
+            window.webContents.sendInputEvent({
+              type: "keyDown",
+              keyCode: "Tab",
+            });
+            window.webContents.sendInputEvent({
+              type: "keyUp",
+              keyCode: "Tab",
+            });
+          }
+          await until(
+            "document.activeElement === document.querySelector('.compact-queue__list li:last-child button')",
+          );
+          const queueAccess: unknown =
+            await window.webContents.executeJavaScript(
+              `(()=>{const list=document.querySelector('.compact-queue__list');const last=list.lastElementChild.getBoundingClientRect();return {scrollTop:list.scrollTop,lastBottom:last.bottom,listBottom:list.getBoundingClientRect().bottom}})()`,
+            );
+          window.webContents.sendInputEvent({
+            type: "keyDown",
+            keyCode: "Enter",
+          });
+          window.webContents.sendInputEvent({ type: "char", keyCode: "\r" });
+          window.webContents.sendInputEvent({
+            type: "keyUp",
+            keyCode: "Enter",
+          });
+          await until(
+            "document.querySelector('.compact-queue__list li:last-child button').getAttribute('aria-current') === 'true'",
+          );
+          measurements.push({ theme, mode, queue: true, layout, queueAccess });
+        }
+        await click("Return to library");
+        await until("!document.querySelector('.compact-player')");
       }
-      await click("Return to library");
-      await until("!document.querySelector('.compact-player')");
     }
+    await window.webContents.executeJavaScript(
+      'document.documentElement.dataset.theme="glass"',
+    );
+    await click("Mini player");
+    await click("Show queue");
+    await until("!!document.querySelector('.compact-queue')");
+    const fallback: unknown = await window.webContents
+      .executeJavaScript(`(() => {
+      const removed = [];
+      for (const sheet of document.styleSheets) {
+        for (let index = sheet.cssRules.length - 1; index >= 0; index -= 1) {
+          const rule = sheet.cssRules[index];
+          if (rule instanceof CSSSupportsRule && rule.conditionText.includes('backdrop-filter')) {
+            removed.push({sheet,index,text:rule.cssText});
+            sheet.deleteRule(index);
+          }
+        }
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        context.fillStyle = getComputedStyle(document.querySelector('.compact-queue')).backgroundColor;
+        context.fillRect(0,0,1,1);
+        return {queueAlpha:context.getImageData(0,0,1,1).data[3]};
+      } finally {
+        for (const item of removed.reverse()) item.sheet.insertRule(item.text,item.index);
+      }
+    })()`);
+    await click("Return to library");
+    await until("!document.querySelector('.compact-player')");
     writeFileSync(
       resultPath,
       JSON.stringify({
         measurements,
+        fallback,
         original,
         restored: window.getNormalBounds(),
         minimum: window.getMinimumSize(),
@@ -233,6 +357,7 @@ void app.whenReady().then(async () => {
     );
     window.destroy();
   } catch (error) {
+    writeFileSync(resultPath, JSON.stringify({ failure: String(error) }));
     process.stderr.write(String(error));
     process.exitCode = 1;
   } finally {

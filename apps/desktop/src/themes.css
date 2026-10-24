@@ -251,3 +251,32 @@
   --accent: #9dc8dd;
   --accent-strong: #bcdeed;
 }
+
+[data-theme="glass"][data-mode="light"] {
+  --panel: #e7edf2;
+  --panel-raised: #f6f9fc;
+  --sidebar: #dde6ee;
+  --chrome: #e2eaf1;
+  --line: #b5c5d3;
+  --text: #192b3a;
+  --text-muted: #43515f;
+  --glass-highlight: #ffffffa0;
+  --glass-wash: #ffffff99;
+  --material:
+    radial-gradient(ellipse at 12% 0%, #ffffffb0, transparent 65%),
+    linear-gradient(125deg, #a1bfda18, #ffffff10 48%, #8c9ab21a);
+}
+[data-theme="glass"][data-mode="dark"] {
+  --panel: #19232d;
+  --panel-raised: #25323e;
+  --sidebar: #1c2935;
+  --chrome: #22303e;
+  --line: #455a6c;
+  --text: #edf5fb;
+  --text-muted: #b9c9d5;
+  --glass-highlight: #ffffff20;
+  --glass-wash: #ffffff10;
+  --material:
+    radial-gradient(ellipse at 12% 0%, #afcce218, transparent 65%),
+    linear-gradient(125deg, #739fbe0c, #ffffff03 48%, #7794b510);
+}
