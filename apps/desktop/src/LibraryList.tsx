@@ -1,4 +1,4 @@
-import { Cloud, Folder } from "lucide-react";
+import { Cloud, Folder, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { LibraryDto } from "./types";
 
@@ -8,6 +8,7 @@ interface LibraryListProps {
   selectedLibraryId: string | null;
   onSelect: (libraryId: string | null) => void;
   renderTracks: (libraryId: string) => ReactNode;
+  onRemove?: (library: LibraryDto) => void;
 }
 
 const KIND_LABEL: Record<LibraryDto["kind"], string> = {
@@ -20,6 +21,7 @@ export default function LibraryList({
   trackCounts,
   selectedLibraryId,
   onSelect,
+  onRemove,
   renderTracks: TrackListSlot,
 }: LibraryListProps) {
   if (libraries.length === 0) {
@@ -45,6 +47,7 @@ export default function LibraryList({
                 : "library-list__item"
             }
           >
+            <div className="library-list__source">
             <button
               type="button"
               className="library-list__row"
@@ -71,6 +74,8 @@ export default function LibraryList({
                 {count === 1 ? "1 track" : `${count} tracks`}
               </span>
             </button>
+            {onRemove && <button type="button" className="library-list__remove" onClick={() => onRemove(library)} aria-label={`Remove ${library.name}`} title={`Remove ${library.name} from Muzo`}><X aria-hidden="true" /></button>}
+            </div>
 
             {trackContent && (
               <div className="library-list__tracks">{trackContent}</div>

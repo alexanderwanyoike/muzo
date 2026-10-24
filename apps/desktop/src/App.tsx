@@ -259,6 +259,7 @@ export default function App() {
               trackCounts={trackCounts}
               selectedLibraryId={selectedLibraryId}
               onSelect={handleSelect}
+              onRemove={setRemovingLibrary}
               renderTracks={() => null}
             />
           )}
@@ -323,9 +324,9 @@ export default function App() {
               <AddLibraryForm onAdded={handleLibraryAdded} />
             </section>
 
-            <section className="settings-view__section">
+            <section className="settings-view__section" aria-labelledby="indexed-sources-heading">
               <div>
-                <h3>Indexed sources</h3>
+                <h3 id="indexed-sources-heading">Indexed sources</h3>
                 <p>
                   Manual refresh is a fallback for recovery. Normal listening
                   does not require it.

@@ -315,3 +315,7 @@ code {
       color 100ms ease;
   }
 }
+.library-list__source { display: flex; align-items: center; min-width: 0; }
+.library-list__source > .library-list__row { flex: 1; min-width: 0; }
+.library-list__remove { padding: 5px; margin-right: 4px; border: 0; background: transparent; box-shadow: none; color: var(--text-muted); }
+.library-list__remove svg { width: 13px; height: 13px; }
