@@ -14,6 +14,7 @@ export default function DropboxFolderPicker({
 }) {
   const [path, setPath] = useState("/");
   const [folders, setFolders] = useState<DropboxFolder[] | null>(null);
+  const [addedPaths, setAddedPaths] = useState<string[]>([]);
   const [selected, setSelected] = useState<DropboxFolder[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
@@ -26,8 +27,15 @@ export default function DropboxFolderPicker({
     setLoadError(null);
     void listDropboxFolders(accountId, path).then((result) => {
       if (cancelled) return;
-      if (result.ok) setFolders(result.value.folders);
-      else setLoadError(result.error.message);
+      if (result.ok) {
+        setFolders(result.value.folders);
+        setAddedPaths((previous) => [
+          ...new Set([
+            ...previous,
+            ...result.value.addedPaths.map((item) => item.toLowerCase()),
+          ]),
+        ]);
+      } else setLoadError(result.error.message);
     });
     return () => {
       cancelled = true;
@@ -47,6 +55,8 @@ export default function DropboxFolderPicker({
     setBusy(true);
     setAddError(null);
     setMessage(null);
+    const failures: string[] = [];
+    let added = 0;
     for (const folder of selected) {
       const result = await addDropboxLibrary({
         name: folder.name,
@@ -54,18 +64,19 @@ export default function DropboxFolderPicker({
         accountId,
       });
       if (!result.ok) {
-        setAddError(result.error.message);
-        setBusy(false);
-        return;
+        failures.push(`${folder.name}: ${result.error.message}`);
+        continue;
       }
       onAdded(result.value);
+      added += 1;
+      setAddedPaths((previous) => [...previous, folder.path.toLowerCase()]);
       setSelected((previous) =>
         previous.filter((item) => item.path !== folder.path),
       );
     }
-    setMessage(
-      `Added ${selected.length} ${selected.length === 1 ? "folder" : "folders"}.`,
-    );
+    if (added)
+      setMessage(`Added ${added} ${added === 1 ? "folder" : "folders"}.`);
+    if (failures.length) setAddError(failures.join(" "));
     setBusy(false);
   }
 
@@ -138,7 +149,7 @@ export default function DropboxFolderPicker({
               type="checkbox"
               aria-label={`Select ${folder.name}`}
               checked={selected.some((item) => item.path === folder.path)}
-              disabled={busy}
+              disabled={busy || addedPaths.includes(folder.path.toLowerCase())}
               onChange={() => toggleFolder(folder)}
             />
             <span className="dropbox-picker__folder-icon" aria-hidden="true">
@@ -159,6 +170,9 @@ export default function DropboxFolderPicker({
               onClick={() => setPath(folder.path)}
             >
               <span>{folder.name}</span>
+              {addedPaths.includes(folder.path.toLowerCase()) && (
+                <span className="dropbox-picker__added">Added</span>
+              )}
               <span aria-hidden="true">›</span>
             </button>
           </li>
