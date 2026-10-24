@@ -47,3 +47,14 @@ then this PR. The integration test connects an account, registers a library, lis
 remote files into real SQLite, downloads audio, and reads it through the real local
 HTTP audio server. Network and OS credential storage are replaced at their boundaries.
 Live Dropbox consent and playback require a scoped app key and an authorized account.
+
+### Review corrections
+
+- Validate the library owner's account identity inside token retrieval, including shared refresh results.
+- Save library rows and account bindings together in one SQLite transaction and export.
+- Keep Dropbox scanning and playback failures typed through the application layer.
+- Preserve automatic refresh for open filesystem libraries as well as Dropbox libraries.
+- Cover account switching, storage failure and unchanged SQLite data with regression tests.
+- Re-ran all seven required checks successfully with 204 tests and Linux zip/deb outputs.
+
+Atomic registration follows the existing SQLite transaction/export pattern. No external code is copied.
