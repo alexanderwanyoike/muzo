@@ -27,11 +27,14 @@ it("assembles a complete verified installer set with matching manifest and check
   const { assembleRelease } = await import("./assemble-release");
   const directory = await mkdtemp(join(tmpdir(), "muzo-release-"));
   try {
-    for (const { id } of RELEASE_TARGETS)
-      await writeFile(
-        join(directory, releaseAssetName(id, "0.0.2")),
-        installer(id),
-      );
+    await Promise.all(
+      RELEASE_TARGETS.map(({ id }) =>
+        writeFile(
+          join(directory, releaseAssetName(id, "0.0.2")),
+          installer(id),
+        ),
+      ),
+    );
     const outputDirectory = join(directory, "release-set");
     const result = await assembleRelease({
       inputDirectory: directory,
@@ -50,14 +53,16 @@ it("assembles a complete verified installer set with matching manifest and check
     expect(manifest.ok).toBe(true);
     if (!manifest.ok) throw new Error(manifest.error.message);
     const sums = await readFile(join(outputDirectory, "SHA256SUMS"), "utf8");
-    for (const artifact of manifest.value.artifacts) {
-      const bytes = await readFile(join(outputDirectory, artifact.name));
-      expect(artifact.size).toBe(bytes.length);
-      expect(artifact.sha256).toBe(
-        createHash("sha256").update(bytes).digest("hex"),
-      );
-      expect(sums).toContain(`${artifact.sha256}  ${artifact.name}\n`);
-    }
+    await Promise.all(
+      manifest.value.artifacts.map(async (artifact) => {
+        const bytes = await readFile(join(outputDirectory, artifact.name));
+        expect(artifact.size).toBe(bytes.length);
+        expect(artifact.sha256).toBe(
+          createHash("sha256").update(bytes).digest("hex"),
+        );
+        expect(sums).toContain(`${artifact.sha256}  ${artifact.name}\n`);
+      }),
+    );
     expect(sums).toContain(
       `${createHash("sha256").update(manifestBytes).digest("hex")}  ${releaseManifestName("0.0.2")}\n`,
     );
