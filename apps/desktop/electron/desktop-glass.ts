@@ -18,9 +18,10 @@ const WINDOWS_ACRYLIC_MINIMUM_BUILD = 22621;
 
 export function setDesktopGlass(
   window: GlassWindow,
-  enabled: boolean,
+  requested: boolean,
   environment: DesktopGlassEnvironment,
 ): Result<boolean> {
+  const enabled = requested && !environment.reducedTransparency;
   const windowsAcrylic =
     Number(environment.release.split(".")[2]) >= WINDOWS_ACRYLIC_MINIMUM_BUILD;
   if (enabled && environment.platform === "win32" && !windowsAcrylic)
