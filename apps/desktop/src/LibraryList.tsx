@@ -2,7 +2,7 @@ import { Cloud, Folder, Search, X } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import type { LibraryDto } from "./types";
 
-interface LibraryListProps {
+export interface LibraryListProps {
   libraries: LibraryDto[];
   trackCounts: Record<string, number>;
   selectedLibraryId: string | null;
