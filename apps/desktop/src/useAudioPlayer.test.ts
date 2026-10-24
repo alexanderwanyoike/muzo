@@ -365,3 +365,27 @@ describe("useAudioPlayer", () => {
   });
 
 });
+
+it("keeps old audio paused when a delayed pause event arrives during the next track's preparation", async () => {
+  const { result } = renderHook(() => useAudioPlayer());
+  const nextTrack = { ...track, id: "trk-2", title: "Next" };
+  await act(async () => result.current.playQueue([{ entryId: "first", track }, { entryId: "next", track: nextTrack }]));
+  const audio = MockAudio.instances[0];
+  act(() => audio.emit("playing"));
+  const play = vi.spyOn(audio, "play");
+  vi.spyOn(audio, "pause").mockImplementation(() => { audio.paused = true; });
+  let finish: (source: { url: string; mimeType: string }) => void = () => {};
+  apiMocks.prepareTrackAudioSource.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+  act(() => result.current.next());
+  expect(result.current.status).toBe("loading");
+  act(() => audio.emit("pause"));
+  act(() => result.current.toggle());
+  expect(result.current.status).toBe("loading");
+  expect(audio.paused).toBe(true);
+  expect(play).not.toHaveBeenCalled();
+  expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(1);
+  await act(async () => finish({ url: "source-next", mimeType: "audio/mpeg" }));
+  expect(audio.src).toBe("source-next");
+  expect(play).toHaveBeenCalledTimes(1);
+  expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+});
