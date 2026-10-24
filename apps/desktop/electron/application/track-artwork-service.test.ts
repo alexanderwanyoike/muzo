@@ -59,6 +59,7 @@ it("reads Dropbox artwork with account-bound credentials without returning them 
   });
   expect(accessFor).toHaveBeenCalledWith("cloud");
   expect(read).toHaveBeenCalledWith("private-token", "/Music/song.flac");
+  source.revision = "1:3";
   accessFor.mockResolvedValueOnce({
     ok: false,
     error: { kind: "notConnected", message: "Connect the owning account." },

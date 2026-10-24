@@ -40,11 +40,6 @@ export class TrackArtworkService {
           "trackNotFound",
           "This track is no longer in the library.",
         );
-      const access =
-        source.kind === "dropbox"
-          ? await this.accounts.accessFor(libraryId)
-          : null;
-      if (access && !access.ok) return access;
       const key = JSON.stringify([
         libraryId,
         trackId,
@@ -59,6 +54,8 @@ export class TrackArtworkService {
           const cached = await this.persisted.find(key);
           if (cached.ok && cached.value) return success(cached.value.uri);
           if (!cached.ok) this.logger.error(cached.error.message);
+          const access = source.kind === "dropbox" ? await this.accounts.accessFor(libraryId) : null;
+          if (access && !access.ok) return access;
           const result = await this.read(source, access?.ok ? access.value.accessToken : null);
           if (result.ok) {
             const saved = await this.persisted.save(key, result.value);
