@@ -84,6 +84,26 @@ describe("PlaylistPanel", () => {
     expect(screen.getByRole("button", { name: "Open playlist Quiet hours" }).getAttribute("aria-pressed")).toBe("true");
   });
 
+  it("filters playlist names without changing the selected playlist and clears with Escape", async () => {
+    mockedInvoke.mockResolvedValueOnce([
+      ...playlists,
+      { id: "quiet", name: "Quiet hours", entries: [] },
+    ]);
+    render(<PlaylistPanel />);
+    await screen.findByRole("button", { name: "Open playlist Road Trip" });
+    const search = screen.getByRole("searchbox", { name: "Search playlists" });
+    await userEvent.type(search, "  QUIET  ");
+    expect(screen.queryByRole("button", { name: "Open playlist Road Trip" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Open playlist Quiet hours" })).toBeDefined();
+    expect(screen.getByText("Hotel California")).toBeDefined();
+    await userEvent.clear(search);
+    await userEvent.type(search, "missing");
+    expect(screen.getByText("No playlists match your search.")).toBeDefined();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Open playlist Road Trip" }).getAttribute("aria-pressed")).toBe("true");
+    expect(document.activeElement).toBe(search);
+  });
+
   it("shows an empty state for playlists without entries", async () => {
     mockedInvoke.mockResolvedValueOnce([
       {
