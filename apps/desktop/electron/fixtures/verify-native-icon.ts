@@ -24,9 +24,10 @@ void app.whenReady().then(async () => {
       await new Promise<void>((resolve) => { setImmediate(resolve); });
       const handle = window.getNativeWindowHandle();
       const id = handle.length >= 8 ? handle.readBigUInt64LE().toString() : String(handle.readUInt32LE());
-      const property = execFileSync("xprop", ["-id", id, "-f", "_NET_WM_ICON", "32c", "_NET_WM_ICON"], { encoding: "utf8", maxBuffer: 40 * 1024 * 1024 });
+      const property = execFileSync("xprop", ["-id", id, "-len", "16777216", "-f", "_NET_WM_ICON", "32c", "_NET_WM_ICON"], { encoding: "utf8", maxBuffer: 40 * 1024 * 1024 });
       const values = property.slice(property.indexOf("=") + 1).match(/\d+/g)?.map(Number) ?? [];
       const [width, height] = values;
+      if (!width || !height || width > 2048 || height > 2048 || values.length < 2 + width * height) throw new Error("Incomplete or oversized window icon property");
       const bitmap = Buffer.alloc(width * height * 4);
       for (let i = 0; i < width * height; i += 1) bitmap.writeUInt32LE(values[i + 2], i * 4);
       const advertised = nativeImage.createFromBitmap(bitmap, { width, height });
