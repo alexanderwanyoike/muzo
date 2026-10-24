@@ -9,7 +9,7 @@
   align-items: center;
   position: relative;
   flex-shrink: 0;
-  margin: 0 4px;
+  margin: 8px 8px 6px;
 }
 .source-browser__search > svg {
   position: absolute;
@@ -41,13 +41,23 @@
   height: 13px;
 }
 .source-browser__count {
-  margin: 7px 10px;
+  margin: 0 9px 7px;
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+.source-browser__count:not(.source-browser__count--filtered) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  margin: 0;
+}
 .library-list {
+  flex: 1;
+  border-top: 1px solid var(--line);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -96,7 +106,7 @@
 }
 .library-list__name {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;

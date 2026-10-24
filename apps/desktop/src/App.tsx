@@ -1,12 +1,14 @@
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import SidebarSplitter from "./sidebar-splitter";
+import { useSidebarLayout } from "./use-sidebar-layout";
 import TrackArtwork from "./track-artwork";
 import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
-import LibraryList from "./LibraryList";
+import SourcesPanel from "./sources-panel";
 import TrackList from "./TrackList";
 import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
@@ -28,6 +30,12 @@ interface ListError {
 }
 
 export default function App() {
+  const sidebar = useSidebarLayout();
+  const sourceSetup = useRef<HTMLElement>(null);
+  const [sourceSettingsRequest, requestSourceSettings] = useState(0);
+  useEffect(() => {
+    if (sourceSettingsRequest > 0) sourceSetup.current?.focus();
+  }, [sourceSettingsRequest]);
   const removedLibraryIds = useRef(new Set<string>());
   const {
     appearance,
@@ -218,8 +226,11 @@ export default function App() {
   );
 
   return (
-    <main className="app-shell app--has-player">
-      <aside className="app-sidebar">
+    <main
+      className="app-shell app--has-player"
+      style={{ gridTemplateColumns: `${sidebar.width}px minmax(0, 1fr)` }}
+    >
+      <aside className="app-sidebar" id="source-sidebar">
         <header className="app-sidebar__header">
           <div>
             <h1>Muzo</h1>
@@ -265,21 +276,17 @@ export default function App() {
           </button>
         </nav>
 
-        <section className="app-sidebar__section">
-          <h2>Sources</h2>
-          {libraries === null ? (
-            <p className="app__placeholder">Loading...</p>
-          ) : (
-            <LibraryList
-              libraries={libraries}
-              trackCounts={trackCounts}
-              selectedLibraryId={selectedLibraryId}
-              onSelect={handleSelect}
-              onRemove={setRemovingLibrary}
-              renderTracks={() => null}
-            />
-          )}
-        </section>
+        <SourcesPanel
+          libraries={libraries}
+          trackCounts={trackCounts}
+          selectedLibraryId={selectedLibraryId}
+          onSelect={handleSelect}
+          onRemove={setRemovingLibrary}
+          onAddSource={() => {
+            setActiveView("settings");
+            requestSourceSettings((request) => request + 1);
+          }}
+        />
         {current && (
           <figure
             className="app-sidebar__sleeve"
@@ -293,6 +300,19 @@ export default function App() {
             />
           </figure>
         )}
+        {sidebar.error && (
+          <p className="app-sidebar__layout-error" aria-live="polite">
+            {sidebar.error}
+          </p>
+        )}
+        <SidebarSplitter
+          width={sidebar.width}
+          minimum={sidebar.minimum}
+          maximum={sidebar.maximum}
+          onPreview={sidebar.preview}
+          onCommit={sidebar.commit}
+          onCancel={sidebar.cancel}
+        />
       </aside>
 
       <section className="app-content">
@@ -336,23 +356,29 @@ export default function App() {
               onChange={changeAppearance}
               error={appearanceError}
             />
-            <DropboxSettings
-              onLibraryAdded={(library) => {
-                rememberLibrary(library);
-                void handleRefresh(library);
-              }}
-            />
-            <section className="settings-view__section">
-              <div>
-                <h3>Library folders</h3>
-                <p>
-                  Add folders here. Filesystem libraries sync automatically
-                  while the app is open and reconcile when it starts.
-                </p>
-              </div>
-              <AddLibraryForm onAdded={handleLibraryAdded} />
+            <section
+              className="settings-view__source-setup"
+              aria-label="Add sources"
+              tabIndex={-1}
+              ref={sourceSetup}
+            >
+              <DropboxSettings
+                onLibraryAdded={(library) => {
+                  rememberLibrary(library);
+                  void handleRefresh(library);
+                }}
+              />
+              <section className="settings-view__section">
+                <div>
+                  <h3>Library folders</h3>
+                  <p>
+                    Add folders here. Filesystem libraries sync automatically
+                    while the app is open and reconcile when it starts.
+                  </p>
+                </div>
+                <AddLibraryForm onAdded={handleLibraryAdded} />
+              </section>
             </section>
-
             <section
               className="settings-view__section"
               aria-labelledby="indexed-sources-heading"

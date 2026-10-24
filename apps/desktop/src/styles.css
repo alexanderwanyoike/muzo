@@ -2,6 +2,7 @@
 @import "./settings-view.css";
 @import "./transport.css";
 @import "./library-list.css";
+@import "./sources-panel.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;
@@ -85,13 +86,14 @@ code {
   background: var(--panel);
 }
 .app-sidebar {
+  position: relative;
   grid-area: 2 / 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding: 18px 12px;
+  padding: 18px 8px;
   background: var(--sidebar);
   border-right: 1px solid var(--line);
   user-select: none;
@@ -143,21 +145,6 @@ code {
 }
 .app-sidebar__nav-item--active svg {
   color: var(--accent);
-}
-.app-sidebar__section {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-.app-sidebar__section h2 {
-  flex-shrink: 0;
-  margin: 0 10px 10px;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 .app-content {
   grid-area: 2 / 2;
@@ -272,5 +259,17 @@ code {
 @media (max-height: 700px) {
   .app-sidebar__sleeve {
     max-width: 96px;
+  }
+}
+
+@media (max-height: 700px) {
+  .app-sidebar {
+    padding-block: 12px;
+  }
+  .app-sidebar__header {
+    padding-bottom: 10px;
+  }
+  .app-sidebar__nav {
+    margin-bottom: 12px;
   }
 }
