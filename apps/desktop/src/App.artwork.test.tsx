@@ -28,14 +28,17 @@ it("shows embedded artwork in Songs, the transport and the large listening sleev
     durationSeconds: 120,
     filePath: "/music/song.flac",
   };
+  let cover = "cover";
   const invoke = vi.fn().mockImplementation(async (command: string) => {
     if (command === "list_libraries")
       return [
         { id: "source", name: "Music", kind: "filesystem", location: "/music" },
       ];
     if (command === "list_tracks") return [track];
+    if (command === "scan_library") { cover = "updated"; return { tracksScanned: 1 }; }
+    if (command === "dropbox_status") return { ok: true, value: { connected: false, accountId: null } };
     if (command === "get_track_artwork")
-      return { ok: true, value: "data:image/png;base64,cover" };
+      return { ok: true, value: `data:image/png;base64,${cover}` };
     if (command === "prepare_track_audio_source")
       return { mimeType: "audio/flac", url: "http://127.0.0.1/audio" };
     return [];
@@ -54,4 +57,12 @@ it("shows embedded artwork in Songs, the transport and the large listening sleev
       screen.getAllByRole("img", { name: "Artwork for Evening" }),
     ).toHaveLength(3),
   );
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh Music" }));
+  await waitFor(() => {
+    const persistentCovers = screen.getAllByRole("img", { name: "Artwork for Evening" });
+    expect(persistentCovers).toHaveLength(2);
+    expect(persistentCovers.every(image => image.getAttribute("src") === "data:image/png;base64,updated")).toBe(true);
+  });
+
 });
