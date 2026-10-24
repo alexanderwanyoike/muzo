@@ -112,6 +112,7 @@ export default defineConfig(
             "**/electron/main.ts",
             "**/electron/preload.cjs",
             "**/electron/build-electron-main.ts",
+            "**/electron/distribution/**/*.ts",
             "**/export-window-icon.cjs",
             "**/src/test-runtime.ts",
             "**/fixtures/**/*.ts",

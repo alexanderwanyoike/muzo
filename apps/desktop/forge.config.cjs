@@ -17,6 +17,7 @@ module.exports = {
       /^\/dist-electron\/.*\.map$/,
       /^\/.*\.test\.(ts|tsx)$/,
       /^\/forge.config.cjs$/,
+      /^\/electron-builder.config.json$/,
       /^\/index.html$/,
       /^\/tsconfig.*$/,
       /^\/vite.config\.(ts|js|d\.ts)$/,

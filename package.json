@@ -1,6 +1,6 @@
 {
   "name": "muzo",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "Muzo - a desktop music player built with Electron. Multiple libraries, playlists, recursive folder sync.",
   "license": "UNLICENSED",
@@ -25,7 +25,10 @@
     "test": "yarn workspaces run test",
     "clean": "yarn workspaces run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,cjs,json,css,html,yml,yaml}\"",
+    "desktop:distribute": "yarn workspace @muzo/desktop distribute",
+    "release:context": "yarn workspace @muzo/distribution context",
+    "release:assemble": "yarn workspace @muzo/distribution assemble"
   },
   "devDependencies": {
     "eslint-config-prettier": "10.1.8",
