@@ -36,7 +36,7 @@ describe("ScanDropboxLibraryService", () => {
       () => "trk-1",
     ).scan({ libraryId: "lib-1", accessToken: "access-123" });
 
-    expect(report).toEqual({ tracksScanned: 1 });
+    expect(report).toEqual({ ok: true, value: { tracksScanned: 1 } });
     expect(catalog.calls).toEqual([
       { accessToken: "access-123", root: "/Music" },
     ]);
@@ -73,7 +73,7 @@ describe("ScanDropboxLibraryService", () => {
         catalog,
         () => "trk-1",
       ).scan({ libraryId: "lib-1", accessToken: "access-123" }),
-    ).rejects.toEqual({ kind: "notDropboxLibrary", libraryId: "lib-1" });
+    ).resolves.toMatchObject({ ok: false, error: { kind: "notDropboxLibrary", libraryId: "lib-1" } });
     expect(catalog.calls).toEqual([]);
     expect(tracks.stored).toEqual([]);
   });
@@ -89,7 +89,7 @@ describe("ScanDropboxLibraryService", () => {
         catalog,
         () => "trk-1",
       ).scan({ libraryId: "missing", accessToken: "access-123" }),
-    ).rejects.toEqual({ kind: "libraryNotFound", libraryId: "missing" });
+    ).resolves.toMatchObject({ ok: false, error: { kind: "libraryNotFound", libraryId: "missing" } });
     expect(catalog.calls).toEqual([]);
     expect(tracks.stored).toEqual([]);
   });
