@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Feature
-- Status: In progress
+- Status: Done
 - Blocks: -
 
 # Card 020 - Choose Dropbox folders visually
@@ -21,7 +21,7 @@ without knowing paths. Each chosen folder becomes a library named after the fold
 - [x] Stay in Settings while adding folders and update the source sidebar immediately.
 - [x] Style connection, browsing, sync and disconnect controls consistently and responsively.
 - [x] All repository checks pass (242 tests, Linux zip and deb).
-- [ ] Both review cycles pass.
+- [x] Both review cycles pass, with no remaining findings.
 
 ## Established patterns
 
@@ -47,3 +47,5 @@ confirmed by the user; test fixtures must not alter their Dropbox account.
 Visual verification used the rendered app with a controlled runtime fixture. Navigation,
 cross-folder selection, successful multi-add, source-sidebar updates and the 800px
 minimum desktop width were checked without changing the user's Dropbox contents.
+
+Review evidence: [folder picker review record](../../reviews/2026-10-24-dropbox-folder-picker.md).
