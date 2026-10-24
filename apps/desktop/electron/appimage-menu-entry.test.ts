@@ -237,19 +237,32 @@ describe.skipIf(process.platform !== "linux")(
       } finally {
         await rm(directory, { recursive: true, force: true });
       }
-    
     });
 
-  it("ignores an unrelated broken shortcut while registering Muzo", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "muzo-unrelated-menu-"));
-    try {
-      await mkdir(join(directory, "applications"));
-      await symlink(join(directory, "removed.desktop"), join(directory, "applications/unrelated.desktop"));
-      expect(await registerAppImageMenuEntry({ appImagePath: join(directory, "Muzo.AppImage"), dataDirectory: directory, iconPath: join(import.meta.dirname, "../assets/icons/muzo-window.png") })).toEqual({ ok: true, value: "registered" });
-      expect(await readFile(join(directory, "applications/muzo.desktop"), "utf8")).toContain("Name=Muzo");
-    } finally {
-      await rm(directory, { recursive: true, force: true });
-    }
-  });
+    it("ignores an unrelated broken shortcut while registering Muzo", async () => {
+      const directory = await mkdtemp(join(tmpdir(), "muzo-unrelated-menu-"));
+      try {
+        await mkdir(join(directory, "applications"));
+        await symlink(
+          join(directory, "removed.desktop"),
+          join(directory, "applications/unrelated.desktop"),
+        );
+        expect(
+          await registerAppImageMenuEntry({
+            appImagePath: join(directory, "Muzo.AppImage"),
+            dataDirectory: directory,
+            iconPath: join(
+              import.meta.dirname,
+              "../assets/icons/muzo-window.png",
+            ),
+          }),
+        ).toEqual({ ok: true, value: "registered" });
+        expect(
+          await readFile(join(directory, "applications/muzo.desktop"), "utf8"),
+        ).toContain("Name=Muzo");
+      } finally {
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
   },
 );

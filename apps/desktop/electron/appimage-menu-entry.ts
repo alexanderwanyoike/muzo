@@ -39,7 +39,11 @@ function desktopEntryFields(entry: string): Map<string, string> {
     }
     if (section !== "[Desktop Entry]" || line.startsWith("#")) continue;
     const separator = line.indexOf("=");
-    if (separator > 0) fields.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+    if (separator > 0)
+      fields.set(
+        line.slice(0, separator).trim(),
+        line.slice(separator + 1).trim(),
+      );
   }
   return fields;
 }
@@ -68,8 +72,14 @@ async function appImageMenuState(
       try {
         entry = await readFile(join(directory, name), "utf8");
       } catch {
-        if (name === "muzo.desktop" || name === "Muzo.cinnamon-generated.desktop")
-          return failure("storage", "Could not read Muzo's existing menu shortcut.");
+        if (
+          name === "muzo.desktop" ||
+          name === "Muzo.cinnamon-generated.desktop"
+        )
+          return failure(
+            "storage",
+            "Could not read Muzo's existing menu shortcut.",
+          );
         continue;
       }
       const fields = desktopEntryFields(entry);
@@ -77,7 +87,10 @@ async function appImageMenuState(
         name === "Muzo.cinnamon-generated.desktop" &&
         fields.get("Name") === "Muzo" &&
         /^\/tmp\/\.mount_[^\n]*\/muzo(?:\s|$)/.test(fields.get("Exec") ?? "");
-      if (fields.get("X-Muzo-AppImage-Integration") === "true" || cinnamonTemporary) {
+      if (
+        fields.get("X-Muzo-AppImage-Integration") === "true" ||
+        cinnamonTemporary
+      ) {
         managed = name;
       } else if (
         name === "muzo.desktop" ||
