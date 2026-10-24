@@ -19,6 +19,7 @@ import { configureDesktopIcon } from "./desktop-icon";
 import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
+import { installAppImageMenu } from "./install-appimage-menu";
 
 configureDesktopIdentity(app);
 
@@ -98,6 +99,22 @@ app.whenReady().then(async () => {
   });
   container.resolve("dropboxPoller").start();
   void createWindow(icon);
+  const menuRegistration = await installAppImageMenu({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    homeDirectory: app.getPath("home"),
+    iconPath: icon,
+    environment: process.env,
+  });
+  if (!menuRegistration.ok) {
+    logger.error(menuRegistration.error.message);
+    await dialog.showMessageBox({
+      type: "warning",
+      message: menuRegistration.error.message,
+      detail: "Muzo is running, but its menu shortcut could not be saved. Check that your application menu folder is writable, then reopen the AppImage to retry.",
+      buttons: ["Continue"],
+    });
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
