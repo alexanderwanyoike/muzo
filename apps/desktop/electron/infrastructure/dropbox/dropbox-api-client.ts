@@ -86,46 +86,35 @@ export class DropboxApiClient {
     accessToken: string,
     path: string,
   ): Promise<DropboxEntry[]> {
-    const firstPage = await this.postJson<DropboxListFolderResponse>(
-      accessToken,
-      dropboxListFolderUrl,
-      {
-        path,
-        recursive: true,
-        include_deleted: false,
-      },
+    return (await this.listEntries(accessToken, path, true)).map(
+      dropboxEntryFromResponse,
     );
-
-    const entries = [...firstPage.entries];
-    let { cursor } = firstPage;
-    let hasMore = firstPage.has_more;
-
-    while (hasMore) {
-      const nextPage = await this.postJson<DropboxListFolderResponse>(
-        accessToken,
-        dropboxListFolderContinueUrl,
-        { cursor },
-      );
-      entries.push(...nextPage.entries);
-      cursor = nextPage.cursor;
-      hasMore = nextPage.has_more;
-    }
-
-    return entries.map(dropboxEntryFromResponse);
   }
 
   async listFolders(
     accessToken: string,
     path: string,
   ): Promise<DropboxFolder[]> {
+    return (
+      await this.listEntries(accessToken, path === "/" ? "" : path, false)
+    )
+      .filter((entry) => entry[".tag"] === "folder")
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        path: entry.path_display ?? entry.path_lower ?? "",
+      }));
+  }
+
+  private async listEntries(
+    accessToken: string,
+    path: string,
+    recursive: boolean,
+  ): Promise<DropboxEntryResponse[]> {
     const firstPage = await this.postJson<DropboxListFolderResponse>(
       accessToken,
       dropboxListFolderUrl,
-      {
-        path: path === "/" ? "" : path,
-        recursive: false,
-        include_deleted: false,
-      },
+      { path, recursive, include_deleted: false },
     );
     const entries = [...firstPage.entries];
     let { cursor } = firstPage;
@@ -140,13 +129,7 @@ export class DropboxApiClient {
       cursor = page.cursor;
       hasMore = page.has_more;
     }
-    return entries
-      .filter((entry) => entry[".tag"] === "folder")
-      .map((entry) => ({
-        id: entry.id,
-        name: entry.name,
-        path: entry.path_display ?? entry.path_lower ?? "",
-      }));
+    return entries;
   }
 
   private async postTokenForm(body: string): Promise<DropboxToken> {
