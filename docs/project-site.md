@@ -71,3 +71,10 @@ Intended address: https://alexanderwanyoike.github.io/muzo/
 The existing v0.0.1 tag stays immutable. Current development captures can contain
 changes after that tag; download versions always come from the published manifest.
 The repository remains UNLICENSED/proprietary. Initial packages are unsigned.
+
+## Visual assets
+
+The download section uses the Windows, Apple and Tux symbols from Bootstrap Icons
+(MIT), pinned to source revision e568465481c0c541f63a78f6452d09387711d489.
+Original SVGs, provenance and the licence are kept in `site/public/icons/`.
+Platform names and architecture choices remain text, so the marks are decorative.

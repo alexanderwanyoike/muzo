@@ -270,35 +270,45 @@
             <h2 id="downloads-title">Download Muzo.</h2>
           </div>
           <p data-release-status>
-            Windows, macOS and Linux packages are being prepared. The links
-            below become available when a complete release is published.
+            Choose your platform. The first native release is being prepared.
           </p>
         </div>
         <div class="download-platforms">
           <article
             class="download-platform"
-            aria-labelledby="download-linux-title"
+            aria-labelledby="download-windows-title"
           >
-            <p class="platform-label">01 / Linux</p>
-            <h3 id="download-linux-title">Linux</h3>
-            <p class="download-format">AppImage · x64</p>
-            <div data-release-download="linux-x64">
+            <img
+              class="platform-icon"
+              src="icons/windows.svg"
+              alt=""
+              width="44"
+              height="44"
+            />
+            <h3 id="download-windows-title">Windows</h3>
+            <p class="download-format">64-bit PC · .exe</p>
+            <div data-release-download="windows-x64">
               <span class="download-button" aria-disabled="true"
                 >Preparing release</span
               >
             </div>
             <p class="install-note">
-              Make the AppImage executable, then open it. No source checkout
-              required.
+              Run the installer. Setup will guide you through the rest.
             </p>
           </article>
           <article
             class="download-platform"
             aria-labelledby="download-macos-title"
           >
-            <p class="platform-label">02 / macOS</p>
+            <img
+              class="platform-icon"
+              src="icons/apple.svg"
+              alt=""
+              width="44"
+              height="44"
+            />
             <h3 id="download-macos-title">macOS</h3>
-            <p class="download-format">DMG · Apple silicon &amp; Intel</p>
+            <p class="download-format">.dmg · Apple silicon &amp; Intel</p>
             <div data-release-download="macos-arm64">
               <span class="download-button" aria-disabled="true"
                 >Preparing release · Apple silicon</span
@@ -317,18 +327,24 @@
           </article>
           <article
             class="download-platform"
-            aria-labelledby="download-windows-title"
+            aria-labelledby="download-linux-title"
           >
-            <p class="platform-label">03 / Windows</p>
-            <h3 id="download-windows-title">Windows</h3>
-            <p class="download-format">Installer · x64</p>
-            <div data-release-download="windows-x64">
+            <img
+              class="platform-icon"
+              src="icons/tux.svg"
+              alt=""
+              width="44"
+              height="44"
+            />
+            <h3 id="download-linux-title">Linux</h3>
+            <p class="download-format">AppImage · 64-bit Linux</p>
+            <div data-release-download="linux-x64">
               <span class="download-button" aria-disabled="true"
                 >Preparing release</span
               >
             </div>
             <p class="install-note">
-              Download the installer and follow the setup steps.
+              Make the AppImage executable, then open it.
             </p>
           </article>
         </div>
