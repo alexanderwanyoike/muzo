@@ -16,6 +16,7 @@ function installer(target: string): Buffer {
     bytes.set([0x7f, 0x45, 0x4c, 0x46]);
     bytes.set([0x41, 0x49, 2], 8);
     bytes[4] = 2;
+    bytes[5] = 1;
     bytes.writeUInt16LE(62, 18);
   } else if (target === "windows-x64") {
     bytes.write("MZ");
