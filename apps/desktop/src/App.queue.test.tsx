@@ -208,6 +208,7 @@ it("clears the playlist queue when selecting its current song directly from Song
   await user.click(screen.getByRole("button", { name: "Playlists" }));
   await user.click(await screen.findByRole("button", { name: "Play Evening" }));
   await waitFor(() => expect(TestAudio.current.paused).toBe(false));
+  await user.click(screen.getByRole("button", { name: "Songs" }));
   await user.click(
     await screen.findByRole("button", { name: "Show tracks for Music" }),
   );

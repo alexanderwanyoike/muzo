@@ -94,7 +94,7 @@ describe("App", () => {
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("list_playlists", undefined),
     );
-    expect(screen.getByRole("heading", { name: "Playlists" })).toBeDefined();
+    expect(screen.getAllByRole("heading", { name: "Playlists" })).toHaveLength(2);
   });
 
   it("loads libraries on mount and renders them", async () => {

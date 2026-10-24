@@ -249,12 +249,15 @@ it("marks retained playlist entries unavailable immediately after sidebar remova
   expect(
     await screen.findByRole("button", { name: "Play Song from Evening" }),
   ).toBeDefined();
+  await userEvent.click(screen.getByRole("button", { name: "Songs" }));
   await userEvent.click(screen.getByRole("button", { name: "Remove Music" }));
   await userEvent.click(
     within(screen.getByRole("dialog")).getByRole("button", {
       name: "Remove source",
     }),
   );
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  await userEvent.click(screen.getByRole("button", { name: "Playlists" }));
   expect(await screen.findByText("Unavailable source")).toBeDefined();
   expect(
     screen
