@@ -147,3 +147,24 @@ it.each(["Light", "Dark"])(
     });
   },
 );
+
+it("reveals the desktop only while Frosted glass is selected", async () => {
+  const setDesktopGlass = vi.fn(async (_enabled: boolean) => ({
+    ok: true as const,
+    value: true,
+  }));
+  Object.assign(window.__MUZO_RUNTIME__ ?? {}, { setDesktopGlass });
+  render(<App />);
+  await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await userEvent.click(screen.getByRole("radio", { name: "Frosted glass" }));
+  await waitFor(() => expect(setDesktopGlass).toHaveBeenCalledWith(true));
+  await waitFor(() =>
+    expect(document.documentElement.dataset.desktopGlass).toBe("true"),
+  );
+  setDesktopGlass.mockResolvedValue({ ok: true, value: false });
+  await userEvent.click(screen.getByRole("radio", { name: "Studio" }));
+  await waitFor(() => expect(setDesktopGlass).toHaveBeenLastCalledWith(false));
+  await waitFor(() =>
+    expect(document.documentElement.dataset.desktopGlass).toBeUndefined(),
+  );
+});
