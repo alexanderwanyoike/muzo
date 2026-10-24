@@ -18,6 +18,7 @@ import { ElectronSafeStorageDropboxTokenCipher } from "./infrastructure/dropbox/
 import { ElectronArtworkThumbnails } from "./infrastructure/metadata/electron-artwork-thumbnails";
 import { configureDesktopIdentity } from "./desktop-identity";
 import { configureDesktopIcon } from "./desktop-icon";
+import { createPlayerWindow } from "./create-player-window";
 import { installDesktopGlass } from "./install-desktop-glass";
 import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
@@ -41,19 +42,7 @@ const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
 const logger = container.resolve("logger");
 
 async function createWindow(icon: string) {
-  const window = new BrowserWindow({
-    title: "Muzo",
-    icon,
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: join(electronDir, "preload.cjs"),
-    },
-  });
+  const window = createPlayerWindow(icon, join(electronDir, "preload.cjs"));
 
   if (app.isPackaged) {
     await window.loadFile(join(electronDir, "..", "dist", "index.html"));
