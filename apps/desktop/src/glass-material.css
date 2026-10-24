@@ -33,7 +33,7 @@
     backdrop-filter: blur(24px);
   }
   [data-theme="glass"] .compact-player__atmosphere {
-    opacity: 0.65;
+    opacity: 1;
     filter: blur(40px) saturate(115%);
   }
   [data-theme="glass"] .compact-player__header {
@@ -41,12 +41,12 @@
     backdrop-filter: blur(24px);
   }
   [data-theme="glass"] .compact-player__body {
-    background: color-mix(in srgb, var(--panel) 88%, transparent);
+    background: color-mix(in srgb, var(--panel) 84%, transparent);
     backdrop-filter: blur(28px) saturate(110%);
     box-shadow: inset 0 1px 0 var(--glass-highlight);
   }
   [data-theme="glass"] .compact-queue {
-    background: color-mix(in srgb, var(--sidebar) 90%, transparent);
+    background: color-mix(in srgb, var(--sidebar) 86%, transparent);
     backdrop-filter: blur(28px) saturate(110%);
   }
 }
