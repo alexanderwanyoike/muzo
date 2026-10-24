@@ -57,3 +57,36 @@ it.each(["entries", "bytes"])("evicts the least recently used thumbnail to respe
     expect(sizes.reduce((sum, size) => sum + size, 0)).toBeLessThanOrEqual(limits.maximumBytes);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
+
+it("replaces a truncated record and stores private cache files", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-private-"));
+  const cacheDir = join(directory, "artwork");
+  try {
+    const cache = new NodeArtworkCache(cacheDir);
+    await cache.save("../../untrusted-source", null);
+    const files = readdirSync(cacheDir);
+    expect(files).toHaveLength(1);
+    const file = join(cacheDir, files[0]);
+    if (process.platform !== "win32") {
+      expect(statSync(cacheDir).mode & 0o777).toBe(0o700);
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+    }
+    writeFileSync(file, "{");
+    expect(await cache.find("../../untrusted-source")).toEqual({ ok: true, value: null });
+    expect(await cache.save("../../untrusted-source", null)).toEqual({ ok: true, value: undefined });
+    expect(await cache.find("../../untrusted-source")).toEqual({ ok: true, value: { uri: null } });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+it("serializes concurrent cache writes and reports an unavailable cache directory", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "muzo-cache-concurrent-"));
+  try {
+    const cache = new NodeArtworkCache(join(directory, "valid"));
+    const results = await Promise.all(Array.from({ length: 12 }, (_, i) => cache.save(String(i), null)));
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect(await cache.find("11")).toEqual({ ok: true, value: { uri: null } });
+    const unavailable = join(directory, "file");
+    writeFileSync(unavailable, "not a directory");
+    expect(await new NodeArtworkCache(unavailable).save("song", null)).toMatchObject({ ok: false, error: { kind: "storage" } });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});

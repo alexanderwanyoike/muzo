@@ -115,3 +115,15 @@ it("shares in-flight cover reads and reloads them when the stored file revision 
   await service.get("local", "track");
   expect(read).toHaveBeenCalledTimes(2);
 });
+
+it("keeps artwork available when the persistent cache cannot be read or written", async () => {
+  const errors = { error: vi.fn() };
+  const service = new TrackArtworkService(
+    { find: async () => ({ libraryId: "local", trackId: "track", path: "/song", kind: "filesystem", revision: "1:2" }) },
+    { read: async () => ({ data: new Uint8Array([1]), format: "image/png" }) },
+    { create: () => "data:image/png;base64,cover" }, { read: vi.fn() }, { accessFor: vi.fn() },
+    { find: async () => ({ ok: false, error: { kind: "storage", message: "Read unavailable" } }), save: async () => ({ ok: false, error: { kind: "storage", message: "Write unavailable" } }) }, errors,
+  );
+  expect(await service.get("local", "track")).toEqual({ ok: true, value: "data:image/png;base64,cover" });
+  expect(errors.error).toHaveBeenCalledTimes(2);
+});
