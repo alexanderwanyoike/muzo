@@ -63,6 +63,22 @@ describe("NodeFilesystemLibraryWatcher", () => {
     await filesystemWatcher.watch("source", "/music", onChange);
     expect(watch).toHaveBeenCalledTimes(2);
   });
+  it("ignores events delivered while a watcher is closing", async () => {
+    const watcher = new FakeChokidarWatcher();
+    let finish: (() => void) | undefined;
+    const close = vi.fn(() => new Promise<void>(resolve => { finish = resolve; }));
+    vi.mocked(watch).mockReturnValue(Object.assign(watcher.asFsWatcher(), { close }));
+    const filesystemWatcher = new NodeFilesystemLibraryWatcher();
+    const onChange = vi.fn();
+    await filesystemWatcher.watch("source", "/music", onChange);
+    const closing = filesystemWatcher.unwatch("source");
+    watcher.emit("all");
+    finish?.();
+    await closing;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
 });
 
 class FakeChokidarWatcher {
