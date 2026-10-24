@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Bug fix
-- Status: In progress
+- Status: In review
 
 # Card 038 - Keep the seek bar clean after pointer input
 
@@ -14,7 +14,7 @@ in the new screenshot and requested a fix before refreshing the captures.
 - [x] Reproduce the issue with native input against the actual transport in light and dark appearances.
 - [x] Commit the red regression test separately from the minimal fix.
 - [x] Include the native regression in Linux, Windows and macOS verification.
-- [ ] Complete ordered repository gates and both review cycles; hand off through a feature PR to dev.
+- [x] Complete ordered repository gates and both review cycles; hand off through a feature PR to dev.
 
 The visible wrapper used :focus-within around an invisible range input, which
 made every pointer focus draw an outline. Use :has(input:focus-visible) to project
@@ -31,3 +31,7 @@ Linux runs it inside its own Xvfb display. No user library or Dropbox access is 
 
 Depends on pending merge-policy PR #63. README screenshots and the Pages site are
 separate work and will be refreshed to include this fix before their handoff.
+
+All ordered local gates pass with 338 tests, including native pointer/keyboard
+coverage. Both review cycles have zero findings on both axes. See the
+[review record](../../reviews/2026-10-24-seek-keyboard-focus.md).
