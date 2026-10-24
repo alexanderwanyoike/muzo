@@ -40,7 +40,17 @@ it("filters sources by name or folder without changing the selected source", asy
 
 describe("LibraryList", () => {
   it("does not present an unloaded source count as zero tracks", () => {
-    render(<LibraryList libraries={[{ id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" }]} trackCounts={NO_COUNTS} selectedLibraryId={null} onSelect={() => {}} renderTracks={() => null} />);
+    render(
+      <LibraryList
+        libraries={[
+          { id: "one", name: "Jazz", kind: "dropbox", location: "/jazz" },
+        ]}
+        trackCounts={NO_COUNTS}
+        selectedLibraryId={null}
+        onSelect={() => {}}
+        renderTracks={() => null}
+      />,
+    );
     expect(screen.queryByText("0 tracks")).toBeNull();
   });
 
