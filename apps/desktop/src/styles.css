@@ -36,7 +36,7 @@ button {
   cursor: pointer;
   box-shadow: var(--inset);
 }
-button:hover:not(:disabled) {
+button:where(:hover:not(:disabled)) {
   background: color-mix(in srgb, var(--text) 5%, var(--panel-raised));
 }
 button:disabled {
