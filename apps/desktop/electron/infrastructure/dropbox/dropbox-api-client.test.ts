@@ -288,3 +288,10 @@ it.each([
     );
   },
 );
+
+it("requests a temporary Dropbox content link for range metadata reads", async () => {
+  const transport = new FakeTransport([{ status: 200, body: JSON.stringify({ link: "https://dl.dropboxusercontent.com/apitl/cover" }) }]);
+  const client = new DropboxApiClient({ clientId: "" }, transport);
+  expect(await client.temporaryLink("private-token", "/Music/song.flac")).toBe("https://dl.dropboxusercontent.com/apitl/cover");
+  expect(transport.requests[0]).toMatchObject({ url: "https://api.dropboxapi.com/2/files/get_temporary_link", body: JSON.stringify({ path: "/Music/song.flac" }) });
+});
