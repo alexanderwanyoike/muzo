@@ -105,8 +105,10 @@ chore(repo): init yarn workspaces
 
 ### Merging
 
-- Squash-and-merge feature -> `dev`.
+- Merge feature PRs into `dev` with a merge commit, preserving the atomic test, implementation and refactoring commits.
+- Squash merging and rebase merging are disabled in GitHub. Use merge commits for every PR.
 - Release PRs `dev` -> `main` are merge commits, with a release notes section.
+- Tag the merged release commit on `main` with an annotated `vX.Y.Z` tag. Do not move published tags or rewrite shared history.
 
 ## Toolchain
 
