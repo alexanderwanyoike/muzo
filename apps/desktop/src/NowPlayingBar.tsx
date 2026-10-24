@@ -92,7 +92,11 @@ export default function NowPlayingBar({
       <div className="now-playing-bar__display">
         <div className="now-playing-bar__art">
           {current ? (
-            <TrackArtwork track={current} eager refreshKey={artworkRefreshKey} />
+            <TrackArtwork
+              track={current}
+              eager
+              refreshKey={artworkRefreshKey}
+            />
           ) : (
             <Disc3 aria-hidden="true" />
           )}

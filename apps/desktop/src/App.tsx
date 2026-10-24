@@ -447,7 +447,9 @@ export default function App() {
         />
       )}
       <NowPlayingBar
-        artworkRefreshKey={current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0}
+        artworkRefreshKey={
+          current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0
+        }
         hasNext={hasNext}
         hasPrevious={hasPrevious}
         onNext={next}
