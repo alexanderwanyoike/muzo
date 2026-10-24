@@ -211,3 +211,39 @@ it("leaves no orphan library when saving its account binding fails", async () =>
   ).toMatchObject({ ok: false, error: { kind: "storage" } });
   expect(libraries).toEqual([]);
 });
+
+it("does not add a folder selected from a different connected account", async () => {
+  const libraries: LibraryDto[] = [];
+  const service = new DropboxLibraryService(
+    {
+      add: async () => {},
+      list: async () => libraries,
+      findById: async () => null,
+    },
+    {
+      status: async () => ({
+        ok: true,
+        value: { connected: true, accountId: "account-B" },
+      }),
+      accessToken: async () => ({ ok: true, value: "token" }),
+    },
+    {
+      register: async (library) => {
+        libraries.push(library);
+      },
+      accountFor: async () => "account-B",
+      intervalMinutes: async () => 5,
+      setIntervalMinutes: async () => {},
+    },
+    { scan: vi.fn() },
+    () => "id",
+  );
+  expect(
+    await service.add({
+      name: "Music",
+      location: "/Music",
+      accountId: "account-A",
+    }),
+  ).toMatchObject({ ok: false, error: { kind: "notConnected" } });
+  expect(libraries).toEqual([]);
+});
