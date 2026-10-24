@@ -1,6 +1,6 @@
-import SettingsSection from "./settings-section";
 import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import SettingsSection from "./settings-section";
 import SidebarSplitter from "./sidebar-splitter";
 import { useSidebarLayout } from "./use-sidebar-layout";
 import TrackArtwork from "./track-artwork";
@@ -388,58 +388,66 @@ export default function App() {
         {activeView === "settings" ? (
           <div className="settings-view">
             <div className="settings-view__content">
-            <AppearanceSettings
-              appearance={appearance}
-              onChange={changeAppearance}
-              error={appearanceError}
-            />
-            <section
-              className="settings-view__source-setup"
-              aria-label="Add sources"
-              tabIndex={-1}
-              ref={sourceSetup}
-            >
-              <DropboxSettings
-                onLibraryAdded={(library) => {
-                  rememberLibrary(library);
-                  void handleRefresh(library);
-                }}
+              <AppearanceSettings
+                appearance={appearance}
+                onChange={changeAppearance}
+                error={appearanceError}
               />
-              <SettingsSection title="Library folders" headingId="library-folders-heading" description="Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.">
-                <AddLibraryForm onAdded={handleLibraryAdded} />
+              <section
+                className="settings-view__source-setup"
+                aria-label="Add sources"
+                tabIndex={-1}
+                ref={sourceSetup}
+              >
+                <DropboxSettings
+                  onLibraryAdded={(library) => {
+                    rememberLibrary(library);
+                    void handleRefresh(library);
+                  }}
+                />
+                <SettingsSection
+                  title="Library folders"
+                  headingId="library-folders-heading"
+                  description="Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts."
+                >
+                  <AddLibraryForm onAdded={handleLibraryAdded} />
+                </SettingsSection>
+              </section>
+              <SettingsSection
+                title="Indexed sources"
+                headingId="indexed-sources-heading"
+                description="Manual refresh is a fallback for recovery. Normal listening does not require it."
+              >
+                <ul className="settings-view__sources">
+                  {(libraries ?? []).map((library) => (
+                    <li key={library.id}>
+                      <div className="settings-view__source-main">
+                        <span>{library.name}</span>
+                        <code>{library.location}</code>
+                      </div>
+                      <div className="settings-view__source-actions">
+                        <button
+                          type="button"
+                          aria-label={`Refresh ${library.name}`}
+                          disabled={refreshingLibraryId === library.id}
+                          onClick={() => handleRefresh(library)}
+                        >
+                          {refreshingLibraryId === library.id
+                            ? "Refreshing..."
+                            : "Refresh"}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${library.name}`}
+                          onClick={() => setRemovingLibrary(library)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </SettingsSection>
-            </section>
-            <SettingsSection title="Indexed sources" headingId="indexed-sources-heading" description="Manual refresh is a fallback for recovery. Normal listening does not require it.">
-              <ul className="settings-view__sources">
-                {(libraries ?? []).map((library) => (
-                  <li key={library.id}>
-                    <div className="settings-view__source-main">
-                      <span>{library.name}</span>
-                      <code>{library.location}</code>
-                    </div>
-                    <div className="settings-view__source-actions">
-                      <button
-                        type="button"
-                        aria-label={`Refresh ${library.name}`}
-                        disabled={refreshingLibraryId === library.id}
-                        onClick={() => handleRefresh(library)}
-                      >
-                        {refreshingLibraryId === library.id
-                          ? "Refreshing..."
-                          : "Refresh"}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Remove ${library.name}`}
-                        onClick={() => setRemovingLibrary(library)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </SettingsSection>
             </div>
           </div>
         ) : activeView === "playlists" ? null : libraries === null ? (

@@ -1,6 +1,6 @@
+import { useEffect, useState } from "react";
 import SettingsSection from "./settings-section";
 import "./dropbox-settings.css";
-import { useEffect, useState } from "react";
 import type { DropboxConnectionStatus } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
 import DropboxLibrarySettings from "./dropbox-library-settings";
@@ -71,9 +71,20 @@ export default function DropboxSettings({
   }
 
   return (
-    <SettingsSection title="Dropbox" headingId="dropbox-heading" description="Choose the folders you want in your music collection." className="dropbox-settings" accessory={connection?.connected && (
-      <span className="dropbox-settings__connected" role="status"><span aria-hidden="true" />Connected to Dropbox.</span>
-    )}>
+    <SettingsSection
+      title="Dropbox"
+      headingId="dropbox-heading"
+      description="Choose the folders you want in your music collection."
+      className="dropbox-settings"
+      accessory={
+        connection?.connected && (
+          <span className="dropbox-settings__connected" role="status">
+            <span aria-hidden="true" />
+            Connected to Dropbox.
+          </span>
+        )
+      }
+    >
       {connection?.connected ? (
         <div className="dropbox-settings__body">
           <DropboxLibrarySettings

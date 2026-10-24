@@ -9,11 +9,24 @@ interface Props {
   children: ReactNode;
 }
 
-export default function SettingsSection({ title, headingId, description, className = "", accessory, children }: Props) {
+export default function SettingsSection({
+  title,
+  headingId,
+  description,
+  className = "",
+  accessory,
+  children,
+}: Props) {
   return (
-    <section className={`settings-view__section ${className}`} aria-labelledby={headingId}>
+    <section
+      className={`settings-view__section ${className}`}
+      aria-labelledby={headingId}
+    >
       <header className="settings-section__header">
-        <div><h3 id={headingId}>{title}</h3><p>{description}</p></div>
+        <div>
+          <h3 id={headingId}>{title}</h3>
+          <p>{description}</p>
+        </div>
         {accessory}
       </header>
       <div className="settings-section__body">{children}</div>

@@ -13,7 +13,12 @@ export default function AppearanceSettings({
   error,
 }: Props) {
   return (
-    <SettingsSection title="Appearance" headingId="appearance-heading" description="Choose a material, appearance and accent colour." className="appearance-settings">
+    <SettingsSection
+      title="Appearance"
+      headingId="appearance-heading"
+      description="Choose a material, appearance and accent colour."
+      className="appearance-settings"
+    >
       <fieldset>
         <legend>Material</legend>
         <div className="appearance-materials">
