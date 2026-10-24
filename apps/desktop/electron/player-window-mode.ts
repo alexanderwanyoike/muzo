@@ -42,6 +42,7 @@ export function createPlayerWindowModeController(
 ) {
   let mode: PlayerWindowMode = "library";
   let library: WindowSnapshot | null = null;
+  let shapeApplied = false;
   const supportsShape =
     platform === "win32" ||
     (platform === "linux" && process.env.XDG_SESSION_TYPE !== "wayland");
@@ -49,9 +50,15 @@ export function createPlayerWindowModeController(
     if (!supportsShape || window.isDestroyed()) return success(undefined);
     try {
       const [width, height] = window.getSize();
+      // Electron 43/X11 interprets [] as an empty region instead of resetting it.
+      const rectangle =
+        platform === "linux" ? [{ x: 0, y: 0, width, height }] : [];
       window.setShape(
-        rounded ? roundedWindowShape(width, height, platform !== "linux") : [],
+        rounded
+          ? roundedWindowShape(width, height, platform !== "linux")
+          : rectangle,
       );
+      shapeApplied = rounded || platform === "linux";
       return success(undefined);
     } catch {
       return failure(
@@ -61,8 +68,8 @@ export function createPlayerWindowModeController(
     }
   }
   function resize() {
-    if (mode === "library") return;
-    const updated = shape(true);
+    if (mode === "library" && !shapeApplied) return;
+    const updated = shape(mode !== "library");
     if (!updated.ok) {
       const cleared = shape(false);
       if (!cleared.ok) logger.error(cleared.error.message);
