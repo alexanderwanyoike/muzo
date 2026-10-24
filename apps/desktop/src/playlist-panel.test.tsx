@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PlaylistDto } from "./api";
 import PlaylistPanel from "./playlist-panel";
 import { installTestRuntime, removeTestRuntime } from "./test-runtime";
 
@@ -166,6 +167,26 @@ describe("PlaylistPanel", () => {
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "New playlist" }),
     );
+  });
+
+  it("retains a newly created playlist when an older refresh arrives after returning to Playlists", async () => {
+    let finishCreate: ((value: PlaylistDto) => void) | undefined;
+    let finishLoad: ((value: PlaylistDto[]) => void) | undefined;
+    mockedInvoke.mockResolvedValueOnce(playlists)
+      .mockImplementationOnce(() => new Promise<PlaylistDto>((resolve) => { finishCreate = resolve; }))
+      .mockImplementationOnce(() => new Promise<PlaylistDto[]>((resolve) => { finishLoad = resolve; }));
+    const view = render(<PlaylistPanel />);
+    await screen.findByRole("button", { name: "Open playlist Road Trip" });
+    await userEvent.click(screen.getByRole("button", { name: "New playlist" }));
+    await userEvent.type(screen.getByLabelText("Playlist name"), "Quiet hours");
+    await userEvent.click(screen.getByRole("button", { name: "Create playlist" }));
+    view.rerender(<PlaylistPanel active={false} />);
+    view.rerender(<PlaylistPanel active />);
+    await act(async () => finishCreate?.({ id: "quiet", name: "Quiet hours", entries: [] }));
+    await act(async () => finishLoad?.(playlists));
+    expect(screen.getByRole("heading", { name: "Quiet hours" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Open playlist Road Trip" })).toBeDefined();
+    expect(screen.getAllByRole("button", { name: "Open playlist Quiet hours" })).toHaveLength(1);
   });
 
   it("shows an empty state for playlists without entries", async () => {
