@@ -166,7 +166,10 @@ function measureCompact() {
   });
   return {
     contrastSamples,
-    bottomCorners: [getComputedStyle(root).borderBottomLeftRadius, getComputedStyle(root).borderBottomRightRadius],
+    bottomCorners: [
+      getComputedStyle(root).borderBottomLeftRadius,
+      getComputedStyle(root).borderBottomRightRadius,
+    ],
     width: window.innerWidth,
     height: window.innerHeight,
     overflow: document.documentElement.scrollWidth - window.innerWidth,
@@ -233,16 +236,28 @@ void app.whenReady().then(async () => {
         );
         for (const width of [1200, 800]) {
           window.setContentSize(width, 800);
-          await window.webContents.executeJavaScript("document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))");
-          libraryControls.push(await window.webContents.executeJavaScript(`(() => {
+          await window.webContents.executeJavaScript(
+            "document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))",
+          );
+          libraryControls.push(
+            await window.webContents.executeJavaScript(`(() => {
             const mini = document.querySelector('.app-shell button[aria-label="Mini player"]');
             const volume = document.querySelector('.app-shell input[aria-label="Volume"]');
             const rect = mini.getBoundingClientRect();
             return {width:innerWidth, top:rect.top, right:rect.right, bottom:rect.bottom, buttonWidth:rect.width, volumeTop:volume.getBoundingClientRect().top, text:mini.textContent.trim(), title:mini.title};
-          })()`));
+          })()`),
+          );
           if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
-            mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {recursive:true});
-            writeFileSync(join(process.env.MUZO_COMPACT_CAPTURE_DIR, `library-${theme}-${mode}-${width}.png`), (await window.webContents.capturePage()).toPNG());
+            mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {
+              recursive: true,
+            });
+            writeFileSync(
+              join(
+                process.env.MUZO_COMPACT_CAPTURE_DIR,
+                `library-${theme}-${mode}-${width}.png`,
+              ),
+              (await window.webContents.capturePage()).toPNG(),
+            );
           }
         }
         window.setBounds(original);

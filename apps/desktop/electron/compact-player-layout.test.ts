@@ -98,7 +98,16 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
-      libraryControls: {width:number;top:number;right:number;bottom:number;buttonWidth:number;volumeTop:number;text:string;title:string}[];
+      libraryControls: {
+        width: number;
+        top: number;
+        right: number;
+        bottom: number;
+        buttonWidth: number;
+        volumeTop: number;
+        text: string;
+        title: string;
+      }[];
       fallback: { queueAlpha: number };
       restoredShape: string | null;
       original: unknown;
@@ -115,8 +124,8 @@ it("fits compact controls at native minimum sizes and restores the library windo
       expect(control.top).toBeGreaterThanOrEqual(0);
       expect(control.top).toBeLessThanOrEqual(8);
       expect(control.buttonWidth).toBeGreaterThanOrEqual(24);
-      expect(control.width-control.right).toBeGreaterThanOrEqual(8);
-      expect(control.width-control.right).toBeLessThanOrEqual(16);
+      expect(control.width - control.right).toBeGreaterThanOrEqual(8);
+      expect(control.width - control.right).toBeLessThanOrEqual(16);
       expect(control.bottom).toBeLessThan(control.volumeTop);
     }
     expect(result.restored).toEqual(result.original);

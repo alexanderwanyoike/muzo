@@ -73,7 +73,9 @@ it("restores the previous window after a resize failure and allows a safe retry"
 
 it("keeps compact and queue windows rectangular through resize and library restore", () => {
   const window = windowFixture();
-  window.setShape.mockImplementation(() => { throw new Error("Native shaping should not be needed"); });
+  window.setShape.mockImplementation(() => {
+    throw new Error("Native shaping should not be needed");
+  });
   const controller = createPlayerWindowModeController(window);
   expect(controller.setMode("compact").ok).toBe(true);
   window.setContentSize(360, 480);

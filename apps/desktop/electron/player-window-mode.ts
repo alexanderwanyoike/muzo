@@ -27,9 +27,7 @@ interface WindowSnapshot {
   maximized: boolean;
 }
 
-export function createPlayerWindowModeController(
-  window: PlayerWindow,
-) {
+export function createPlayerWindowModeController(window: PlayerWindow) {
   let mode: PlayerWindowMode = "library";
   let library: WindowSnapshot | null = null;
   const snapshot = (): WindowSnapshot => ({
