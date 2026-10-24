@@ -288,6 +288,7 @@ export default function App() {
             <TrackArtwork
               track={current}
               eager
+              refreshKey={trackRefreshVersions[current.libraryId] ?? 0}
               className="track-artwork--large"
             />
           </figure>
@@ -446,6 +447,7 @@ export default function App() {
         />
       )}
       <NowPlayingBar
+        artworkRefreshKey={current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0}
         hasNext={hasNext}
         hasPrevious={hasPrevious}
         onNext={next}

@@ -12,6 +12,7 @@ import { formatDuration } from "./formatDuration";
 import type { TrackDto } from "./api";
 
 interface NowPlayingBarProps {
+  artworkRefreshKey?: number;
   current: TrackDto | null;
   status: "idle" | "loading" | "playing" | "paused" | "error";
   positionSeconds: number;
@@ -28,6 +29,7 @@ interface NowPlayingBarProps {
 }
 
 export default function NowPlayingBar({
+  artworkRefreshKey = 0,
   current,
   status,
   positionSeconds,
@@ -90,7 +92,7 @@ export default function NowPlayingBar({
       <div className="now-playing-bar__display">
         <div className="now-playing-bar__art">
           {current ? (
-            <TrackArtwork track={current} eager />
+            <TrackArtwork track={current} eager refreshKey={artworkRefreshKey} />
           ) : (
             <Disc3 aria-hidden="true" />
           )}
