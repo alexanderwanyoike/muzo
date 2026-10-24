@@ -1,3 +1,8 @@
+import type { ArtworkThumbnails } from "../application/interfaces/track-artwork";
+import { TrackArtworkCommand } from "../application/commands/track-artwork-command";
+import { TrackArtworkService } from "../application/track-artwork-service";
+import { SqliteTrackArtworkSources } from "../infrastructure/sqlite/sqlite-track-artwork-sources";
+import { MusicMetadataArtworkReader } from "../infrastructure/metadata/music-metadata-artwork-reader";
 import {
   asClass,
   asFunction,
@@ -89,6 +94,7 @@ import { SqliteDropboxLibrarySettings } from "../infrastructure/sqlite/sqlite-dr
 import type { DropboxLibrarySettings } from "../application/interfaces/dropbox-library-settings";
 
 export interface ElectronContainerOptions {
+  artworkThumbnails?: ArtworkThumbnails;
   dbPath?: string;
   dropboxCipher?: DropboxTokenCipher;
   dropboxDownloadDirectory?: string;
@@ -441,6 +447,7 @@ export function createElectronContainer(
             cradle.dropboxPoller,
           ),
       ),
+      new TrackArtworkCommand(new TrackArtworkService(new SqliteTrackArtworkSources(cradle.dbPath), new MusicMetadataArtworkReader(), options.artworkThumbnails ?? { create: () => null })),
       new RemoveLibraryCommand(
         new RemoveLibraryService(
           new SqliteLibraryRemover(cradle.dbPath),
