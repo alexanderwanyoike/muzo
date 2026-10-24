@@ -1,3 +1,4 @@
+import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   createPlaylist,
@@ -263,9 +264,11 @@ export default function PlaylistPanel({
                             entry,
                             currentTrackId,
                             activeEntryId,
-                          ) && isPlaying
-                            ? "||"
-                            : ">"}
+                          ) && isPlaying ? (
+                            <Pause aria-hidden="true" />
+                          ) : (
+                            <Play aria-hidden="true" />
+                          )}
                         </button>
                         <button
                           type="button"
@@ -275,7 +278,7 @@ export default function PlaylistPanel({
                           onClick={() => handleMoveEntry(playlist, entry, "up")}
                           aria-label={`Move ${entryLabel(entry)} up in ${playlist.name}`}
                         >
-                          ^
+                          <ChevronUp aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -288,7 +291,7 @@ export default function PlaylistPanel({
                           }
                           aria-label={`Move ${entryLabel(entry)} down in ${playlist.name}`}
                         >
-                          v
+                          <ChevronDown aria-hidden="true" />
                         </button>
                         <button
                           type="button"

@@ -1,4 +1,7 @@
+import { Music2, ListMusic, Settings2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import AppearanceSettings from "./appearance-settings";
+import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
 import LibraryList from "./LibraryList";
@@ -23,6 +26,11 @@ interface ListError {
 }
 
 export default function App() {
+  const {
+    appearance,
+    changeAppearance,
+    error: appearanceError,
+  } = useAppearance();
   const [libraries, setLibraries] = useState<LibraryDto[] | null>(null);
   const [trackCounts, setTrackCounts] = useState<Record<string, number>>({});
   const [trackPlayCounts, setTrackPlayCounts] = useState<
@@ -204,7 +212,7 @@ export default function App() {
             }
             onClick={() => setActiveView("library")}
           >
-            Songs
+            <Music2 aria-hidden="true" /> Songs
           </button>
           <button
             type="button"
@@ -215,7 +223,7 @@ export default function App() {
             }
             onClick={() => setActiveView("playlists")}
           >
-            Playlists
+            <ListMusic aria-hidden="true" /> Playlists
           </button>
           <button
             type="button"
@@ -226,7 +234,7 @@ export default function App() {
             }
             onClick={() => setActiveView("settings")}
           >
-            Settings
+            <Settings2 aria-hidden="true" /> Settings
           </button>
         </nav>
 
@@ -282,6 +290,11 @@ export default function App() {
         )}
         {activeView === "settings" ? (
           <div className="settings-view">
+            <AppearanceSettings
+              appearance={appearance}
+              onChange={changeAppearance}
+              error={appearanceError}
+            />
             <DropboxSettings
               onLibraryAdded={(library) => {
                 rememberLibrary(library);

@@ -1,3 +1,4 @@
+import { Play, Pause, Pencil, ListPlus } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import {
   addTrackToPlaylist,
@@ -240,7 +241,11 @@ export default function TrackList({
               }}
               aria-label={playButtonLabel}
             >
-              {isCurrent && isPlaying ? "❚❚" : "▶"}
+              {isCurrent && isPlaying ? (
+                <Pause aria-hidden="true" />
+              ) : (
+                <Play aria-hidden="true" />
+              )}
             </button>
             <span className="track-list__index">{index + 1}</span>
             <div className="track-list__meta">
@@ -259,7 +264,7 @@ export default function TrackList({
               onClick={() => startEditing(track)}
               aria-label={`Edit ${track.title}`}
             >
-              Edit
+              <Pencil aria-hidden="true" />
             </button>
             <button
               type="button"
@@ -267,7 +272,7 @@ export default function TrackList({
               onClick={() => startPlaylistAction(track)}
               aria-label={`Add ${track.title} to playlist`}
             >
-              Add
+              <ListPlus aria-hidden="true" />
             </button>
             {isEditing && (
               <form className="track-list__editor" onSubmit={handleSave}>

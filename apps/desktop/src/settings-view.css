@@ -1,0 +1,79 @@
+.settings-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 28px 40px;
+  scrollbar-gutter: stable;
+}
+.settings-view__section {
+  max-width: 850px;
+  padding: 22px;
+  margin: 0 auto 20px;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.settings-view__section h3 {
+  margin: 0 0 5px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.settings-view__section p {
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.settings-view__section > div:first-child:not(.appearance-settings__row) {
+  margin-bottom: 15px;
+}
+.add-library-form {
+  display: grid;
+  gap: 12px;
+}
+.add-library-form__field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.add-library-form__field > span {
+  flex-basis: 100%;
+}
+.add-library-form__field input {
+  flex: 1;
+}
+.add-library-form > button {
+  justify-self: start;
+}
+.add-library-form__error {
+  color: var(--danger);
+}
+.settings-view__sources {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+.settings-view__sources li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.settings-view__source-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-view__source-main span {
+  font-size: 12px;
+  font-weight: 650;
+}
+.settings-view__source-main code {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

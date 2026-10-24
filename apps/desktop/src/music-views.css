@@ -1,0 +1,200 @@
+.track-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 30px;
+}
+.track-list__row {
+  display: grid;
+  grid-template-columns: 25px 24px minmax(0, 1fr) 48px 65px 28px 28px;
+  gap: 10px;
+  min-height: 57px;
+  align-items: center;
+  padding: 5px 24px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.track-list__row:nth-child(even) {
+  background: color-mix(in srgb, var(--text) 2%, transparent);
+}
+.track-list__row:hover {
+  background: var(--hover);
+}
+.track-list__row--current,
+.track-list__row--current:nth-child(even) {
+  background: var(--selected);
+}
+.track-list__play,
+.track-list__edit,
+.track-list__playlist {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px;
+  color: var(--text-muted);
+}
+.track-list__play {
+  color: var(--accent);
+}
+.track-list__play svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+.track-list__meta {
+  min-width: 0;
+}
+.track-list__title,
+.track-list__artist {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.track-list__title {
+  font-size: 12px;
+  font-weight: 650;
+}
+.track-list__artist {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.track-list__duration,
+.track-list__index,
+.track-list__play-count {
+  color: var(--text-muted);
+  text-align: right;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.track-list__error,
+.track-list__placeholder,
+.track-list__empty {
+  padding: 20px;
+  color: var(--text-muted);
+}
+.track-list__editor {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 15px 0;
+}
+.track-list__editor label,
+.track-list__playlist-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.track-list__editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+.track-list__save-error {
+  grid-column: 1 / -1;
+}
+.track-list__playlist-picker {
+  grid-column: 2 / -1;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 0;
+}
+.track-list__status,
+.track-list__playlist-error {
+  grid-column: 1 / -1;
+}
+.playlist-panel {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 24px;
+}
+.playlist-panel__create {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.playlist-panel__form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+.playlist-panel__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.playlist-panel__form button {
+  min-height: 31px;
+}
+.playlist-panel__list,
+.playlist-panel__entries {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.playlist-panel__summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 0 14px;
+}
+.playlist-panel__summary h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.playlist-panel__summary p {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-right: auto;
+}
+.playlist-panel__entries > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 8px;
+  min-height: 55px;
+  border-bottom: 1px solid var(--line);
+}
+.playlist-panel__entries > li:nth-child(even) {
+  background: var(--hover);
+}
+.playlist-panel__entries > li > div:first-child {
+  min-width: 0;
+  font-size: 12px;
+}
+.playlist-panel__entries small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.playlist-panel__entry-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+}
+.playlist-panel__entry-actions button {
+  padding: 5px;
+  font-size: 10px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.playlist-panel__empty,
+.playlist-panel__empty-entries {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 22px 0;
+  line-height: 1.7;
+}

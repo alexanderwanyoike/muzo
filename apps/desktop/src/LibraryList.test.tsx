@@ -115,3 +115,25 @@ describe("LibraryList", () => {
     expect(screen.getByText("Tracks for lib-1")).toBeDefined();
   });
 });
+
+it("selects a source by clicking its name", async () => {
+  const onSelect = vi.fn();
+  render(
+    <LibraryList
+      libraries={[
+        {
+          id: "source",
+          name: "Music folder",
+          kind: "filesystem",
+          location: "/music",
+        },
+      ]}
+      trackCounts={{}}
+      selectedLibraryId={null}
+      onSelect={onSelect}
+      renderTracks={() => null}
+    />,
+  );
+  await userEvent.click(screen.getByText("Music folder"));
+  expect(onSelect).toHaveBeenCalledWith("source");
+});
