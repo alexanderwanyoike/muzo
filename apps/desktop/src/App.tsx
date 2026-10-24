@@ -1,5 +1,5 @@
 import { Music2, ListMusic, Settings2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import RemoveSourceDialog from "./remove-source-dialog";
 import AppearanceSettings from "./appearance-settings";
 import { useAppearance } from "./use-appearance";
@@ -27,6 +27,7 @@ interface ListError {
 }
 
 export default function App() {
+  const removedLibraryIds = useRef(new Set<string>());
   const {
     appearance,
     changeAppearance,
@@ -145,6 +146,7 @@ export default function App() {
         ? remoteReport.value
         : await scanLibrary(library.id);
       const tracks = await listTracks(library.id);
+      if (removedLibraryIds.current.has(library.id)) return;
       setTrackCounts((prev) => ({ ...prev, [library.id]: tracks.length }));
       setTrackRefreshVersions((prev) => ({
         ...prev,
@@ -157,7 +159,7 @@ export default function App() {
       );
     } catch (err) {
       const e = err as ListError;
-      setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
+      if (!removedLibraryIds.current.has(library.id)) setRefreshMessage(e.message ?? `Could not refresh ${library.name}.`);
     } finally {
       setRefreshingLibraryId(null);
     }
@@ -187,6 +189,7 @@ export default function App() {
   );
 
   function handleSourceRemoved(libraryId: string) {
+    removedLibraryIds.current.add(libraryId);
     removeSource(libraryId);
     setLibraries(items => (items ?? []).filter(library => library.id !== libraryId));
     setSelectedLibraryId(id => id === libraryId ? null : id);
