@@ -11,6 +11,7 @@ export interface DropboxLibraryAccess {
 }
 
 export class DropboxLibraryService {
+  private readonly inFlight = new Map<string, Promise<Result<DropboxScanReport>>>();
   constructor(
     private readonly libraries: LibraryRepository,
     private readonly account: DropboxLibraryAccess,
@@ -54,7 +55,15 @@ export class DropboxLibraryService {
     }
   }
 
-  async sync(libraryId: string): Promise<Result<DropboxScanReport>> {
+  sync(libraryId: string): Promise<Result<DropboxScanReport>> {
+    const existing = this.inFlight.get(libraryId);
+    if (existing) return existing;
+    const request = this.syncOnce(libraryId).finally(() => { this.inFlight.delete(libraryId); });
+    this.inFlight.set(libraryId, request);
+    return request;
+  }
+
+  private async syncOnce(libraryId: string): Promise<Result<DropboxScanReport>> {
     const access = await this.accessFor(libraryId);
     if (!access.ok) return access;
     try {
