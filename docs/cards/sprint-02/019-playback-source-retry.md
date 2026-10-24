@@ -1,6 +1,6 @@
 - Sprint: 02
 - Type: Fix
-- Status: In progress
+- Status: Done
 - Blocks: -
 
 # Card 019 - Retry the selected playback source
@@ -18,8 +18,8 @@ start records a play. This follow-up was found during final source-retry verific
 - [x] Failed starts do not record a play; a successful retry records the selected track once.
 - [x] Rejected resumes through either control invalidate only their matching request.
 - [x] Late resume rejection cannot change a newer track's state.
-- [ ] All verification commands and Linux packaging pass.
-- [ ] Initial review and fix re-review are complete.
+- [x] All verification commands and Linux packaging pass (233 tests, zip and deb).
+- [x] Initial review and fix re-review are complete, with no remaining findings.
 
 ## Pattern and scope
 
@@ -39,3 +39,5 @@ and retarget the dependent branch as needed. No merge is authorized by this card
 Initial Spec review found the resume-rejection path still marked its source valid.
 Separate red/green corrections cover both controls and newer-track isolation; a
 subsequent refactor shares the guarded resume operation between its two callers.
+
+Delivered as PR #46. Review evidence: [completion review record](../../reviews/2026-10-24-desktop-completion.md).
