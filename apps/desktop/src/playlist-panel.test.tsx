@@ -455,3 +455,13 @@ function entryLabels(): string[] {
     .getAllByTestId("playlist-entry-label")
     .map((element) => element.textContent ?? "");
 }
+
+it("shows covers for available playlist entries and skips unavailable sources", async () => {
+  vi.stubGlobal("IntersectionObserver", vi.fn((callback: IntersectionObserverCallback) => ({ observe: () => callback([{ isIntersecting: true }] as IntersectionObserverEntry[], { disconnect: vi.fn() } as unknown as IntersectionObserver), disconnect: vi.fn() })));
+  mockedInvoke.mockImplementation(async (command: string) => command === "list_playlists" ? playlists : { ok: true, value: "data:image/png;base64,cover" });
+  render(<PlaylistPanel />);
+  expect(await screen.findByRole("img", { name: "Artwork for Hotel California" })).toBeDefined();
+  expect(mockedInvoke).toHaveBeenCalledWith("get_track_artwork", { input: { libraryId: "lib-1", trackId: "track-1" } });
+  expect(mockedInvoke).not.toHaveBeenCalledWith("get_track_artwork", { input: { libraryId: null, trackId: "track-2" } });
+  vi.unstubAllGlobals();
+});
