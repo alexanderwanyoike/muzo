@@ -134,6 +134,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       }
       return;
     }
+    audio.pause();
     const requestId = playRequestRef.current + 1;
     playRequestRef.current = requestId;
     currentTrackIdRef.current = track.id;
