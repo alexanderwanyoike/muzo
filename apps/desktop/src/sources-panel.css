@@ -106,14 +106,3 @@
   scroll-margin-top: 16px;
   outline: none;
 }
-@media (max-height: 700px) {
-  .app-sidebar {
-    padding-block: 12px;
-  }
-  .app-sidebar__header {
-    padding-bottom: 10px;
-  }
-  .app-sidebar__nav {
-    margin-bottom: 12px;
-  }
-}
