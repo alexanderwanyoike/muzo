@@ -262,3 +262,29 @@ it("rejects unsuccessful Dropbox HTTP responses with an error carrying status de
     body: "invalid credentials",
   });
 });
+
+it.each([
+  { ".tag": "folder", id: "bad", name: "Missing path" },
+  { ".tag": "folder", id: "bad", name: 42, path_display: "/Music" },
+  { ".tag": "folder", id: null, name: "Music", path_display: "/Music" },
+])(
+  "rejects malformed folder metadata instead of showing an unselectable folder",
+  async (entry) => {
+    const client = new DropboxApiClient(
+      { clientId: "key" },
+      new FakeTransport([
+        {
+          status: 200,
+          body: JSON.stringify({
+            entries: [entry],
+            cursor: "last",
+            has_more: false,
+          }),
+        },
+      ]),
+    );
+    await expect(client.listFolders("token", "/")).rejects.toThrow(
+      "Invalid Dropbox folder metadata",
+    );
+  },
+);

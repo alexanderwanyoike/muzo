@@ -32,6 +32,7 @@ export class DropboxLibraryService {
   async add(input: {
     name: string;
     location: string;
+    accountId?: string;
   }): Promise<Result<LibraryRecord>> {
     const name = input.name.trim();
     const location = input.location.trim().replace(/\/+$/, "") || "/";
@@ -48,7 +49,11 @@ export class DropboxLibraryService {
     }
     const status = await this.account.status();
     if (!status.ok) return status;
-    if (!status.value.accountId)
+    if (
+      !status.value.accountId ||
+      (input.accountId !== undefined &&
+        input.accountId !== status.value.accountId)
+    )
       return failure("notConnected", "Connect Dropbox in Settings first.");
     try {
       const library: LibraryRecord = {

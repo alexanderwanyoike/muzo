@@ -157,11 +157,15 @@ export default function App() {
     setActiveView("library");
   }
 
+  function rememberLibrary(library: LibraryDto) {
+    setLibraries((items) => [...(items ?? []), library]);
+    setTrackCounts((counts) => ({ ...counts, [library.id]: 0 }));
+  }
+
   function handleLibraryAdded(library: LibraryDto) {
-    setLibraries((prev) => (prev ? [...prev, library] : [library]));
+    rememberLibrary(library);
     setSelectedLibraryId(library.id);
     setActiveView("library");
-    setTrackCounts((prev) => ({ ...prev, [library.id]: 0 }));
   }
 
   const handleTracksLoaded = useCallback(
@@ -280,7 +284,7 @@ export default function App() {
           <div className="settings-view">
             <DropboxSettings
               onLibraryAdded={(library) => {
-                handleLibraryAdded(library);
+                rememberLibrary(library);
                 void handleRefresh(library);
               }}
             />

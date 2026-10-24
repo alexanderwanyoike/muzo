@@ -9,3 +9,8 @@ export interface DropboxSyncStatus {
   lastError: string | null;
   lastSyncedAtUnixSeconds: number | null;
 }
+
+export type {
+  DropboxFolder,
+  DropboxFolderListing,
+} from "../electron/application/interfaces/dropbox-folder-interfaces";

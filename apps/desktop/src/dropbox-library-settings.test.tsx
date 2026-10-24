@@ -8,14 +8,16 @@ afterEach(() => {
   cleanup();
   removeTestRuntime();
 });
-it("adds a Dropbox folder and changes the background sync interval", async () => {
-  const library = {
-    id: "cloud",
-    name: "Cloud",
-    kind: "dropbox",
-    location: "/Music",
-  };
+it("chooses folders from Dropbox without entering a path or library name", async () => {
   const invoke = vi.fn().mockImplementation(async (command: string) => {
+    if (command === "dropbox_list_folders")
+      return {
+        ok: true,
+        value: {
+          folders: [{ id: "music", name: "Music", path: "/Music" }],
+          addedPaths: [],
+        },
+      };
     if (command === "dropbox_sync_status")
       return {
         ok: true,
@@ -26,26 +28,63 @@ it("adds a Dropbox folder and changes the background sync interval", async () =>
           lastSyncedAtUnixSeconds: null,
         },
       };
-    if (command === "dropbox_set_sync_interval")
-      return { ok: true, value: { intervalMinutes: 15 } };
-    return { ok: true, value: library };
+    return {
+      ok: true,
+      value: {
+        id: "cloud",
+        name: "Music",
+        kind: "dropbox",
+        location: "/Music",
+      },
+    };
   });
   installTestRuntime({ invoke, openDirectory: async () => null });
   const onAdded = vi.fn();
   const user = userEvent.setup();
-  render(<DropboxLibrarySettings onAdded={onAdded} />);
-  await user.type(screen.getByLabelText("Dropbox library name"), "Cloud");
-  await user.type(screen.getByLabelText("Dropbox folder"), "/Music");
-  await user.click(screen.getByRole("button", { name: "Add Dropbox library" }));
-  await waitFor(() => expect(onAdded).toHaveBeenCalledWith(library));
-  expect(invoke).toHaveBeenCalledWith("dropbox_add_library", {
-    input: { name: "Cloud", location: "/Music" },
-  });
-  await user.selectOptions(
-    await screen.findByLabelText("Sync Dropbox every"),
-    "15",
+  render(<DropboxLibrarySettings accountId="account-1" onAdded={onAdded} />);
+  await user.click(
+    screen.getByRole("button", { name: "Browse Dropbox folders" }),
   );
-  expect(invoke).toHaveBeenCalledWith("dropbox_set_sync_interval", {
-    input: { minutes: 15 },
+  await user.click(
+    await screen.findByRole("checkbox", { name: "Select Music" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Add 1 folder" }));
+  await waitFor(() =>
+    expect(onAdded).toHaveBeenCalledWith({
+      id: "cloud",
+      name: "Music",
+      kind: "dropbox",
+      location: "/Music",
+    }),
+  );
+  expect(invoke).toHaveBeenCalledWith("dropbox_list_folders", {
+    input: { accountId: "account-1", path: "/" },
   });
+  expect(invoke).toHaveBeenCalledWith("dropbox_add_library", {
+    input: { name: "Music", location: "/Music", accountId: "account-1" },
+  });
+  expect(screen.queryByLabelText("Dropbox folder")).toBeNull();
+  expect(screen.queryByLabelText("Dropbox library name")).toBeNull();
+});
+
+it("returns keyboard focus to Browse when closing the folder browser", async () => {
+  const invoke = vi.fn().mockResolvedValue({
+    ok: true,
+    value: { folders: [], addedPaths: [], intervalMinutes: 5 },
+  });
+  installTestRuntime({ invoke, openDirectory: async () => null });
+  const user = userEvent.setup();
+  render(<DropboxLibrarySettings accountId="account" onAdded={() => {}} />);
+  await user.click(
+    screen.getByRole("button", { name: "Browse Dropbox folders" }),
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Close folder browser" }),
+  );
+  expect(
+    screen.queryByRole("region", { name: "Dropbox folder browser" }),
+  ).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Browse Dropbox folders" }),
+  );
 });

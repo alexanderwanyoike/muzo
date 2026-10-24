@@ -1,5 +1,6 @@
 import type {
   DropboxConnectionStatus,
+  DropboxFolderListing,
   DropboxSyncStatus,
 } from "../shared/dropbox-contracts";
 import type { LibraryDto } from "./types";
@@ -32,8 +33,11 @@ export const beginDropboxConnection = (clientId: string) =>
   dropboxCommand<{ pending: true }>("dropbox_begin", { clientId });
 export const completeDropboxConnection = (code: string) =>
   dropboxCommand<DropboxConnectionStatus>("dropbox_complete", { code });
-export const addDropboxLibrary = (input: { name: string; location: string }) =>
-  dropboxCommand<LibraryDto>("dropbox_add_library", input);
+export const addDropboxLibrary = (input: {
+  name: string;
+  location: string;
+  accountId?: string;
+}) => dropboxCommand<LibraryDto>("dropbox_add_library", input);
 export const syncDropboxLibrary = (libraryId: string) =>
   dropboxCommand<ScanReport>("dropbox_sync_library", { libraryId });
 export const dropboxSyncStatus = () =>
@@ -41,4 +45,10 @@ export const dropboxSyncStatus = () =>
 export const setDropboxSyncInterval = (minutes: number) =>
   dropboxCommand<{ intervalMinutes: number }>("dropbox_set_sync_interval", {
     minutes,
+  });
+
+export const listDropboxFolders = (accountId: string, path: string) =>
+  dropboxCommand<DropboxFolderListing>("dropbox_list_folders", {
+    accountId,
+    path,
   });
