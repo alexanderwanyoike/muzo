@@ -1,21 +1,9 @@
-.settings-view__section.dropbox-settings {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.4rem;
-}
-
-.dropbox-settings__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
 .dropbox-settings__connected {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   color: var(--green);
-  font-size: 0.8rem;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -26,23 +14,11 @@
   background: currentColor;
 }
 
-.dropbox-settings button:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.dropbox-settings button:focus-visible,
-.dropbox-settings input:focus-visible,
-.dropbox-settings select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
 .dropbox-library-controls,
 .dropbox-settings__body {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 16px;
 }
 
 .dropbox-settings .dropbox-browse-button {
@@ -59,8 +35,8 @@
 }
 
 .dropbox-browse-button svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .dropbox-sync {
@@ -68,9 +44,9 @@
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 0.5rem 1rem;
-  padding-top: 1.2rem;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
-  font-size: 0.86rem;
+  font-size: 11px;
 }
 
 .dropbox-sync > label {
@@ -87,10 +63,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding-top: 1rem;
+  padding-top: 16px;
   border-top: 1px solid var(--line);
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: 11px;
 }
 
 .dropbox-picker {
@@ -135,7 +111,7 @@
 
 .dropbox-picker .dropbox-picker__hint {
   padding: 0.8rem 1rem;
-  font-size: 0.8rem;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -233,7 +209,7 @@
   padding: 1rem;
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--text) 2%, var(--panel-raised));
-  font-size: 0.82rem;
+  font-size: 11px;
 }
 
 .dropbox-picker__chips {
@@ -288,10 +264,6 @@
 }
 
 @media (max-width: 600px) {
-  .dropbox-settings__header {
-    flex-direction: column;
-  }
-
   .dropbox-settings__connection,
   .dropbox-sync {
     gap: 0.75rem;

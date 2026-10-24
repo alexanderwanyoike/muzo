@@ -38,7 +38,3 @@
 .remove-source-dialog p[role="alert"] {
   color: var(--danger);
 }
-.settings-view__source-actions {
-  display: flex;
-  gap: 6px;
-}

@@ -96,7 +96,7 @@ export default function DropboxSettings({
       ) : (
         <div className="add-library-form">
           <label className="add-library-form__field">
-            Dropbox app key
+            <span>Dropbox app key</span>
             <input
               value={clientId}
               onChange={(event) => setClientId(event.target.value)}
@@ -120,7 +120,7 @@ export default function DropboxSettings({
                 code here.
               </p>
               <label className="add-library-form__field">
-                Authorization code
+                <span>Authorization code</span>
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
