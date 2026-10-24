@@ -23,12 +23,12 @@ describe("AddLibraryCommand", () => {
       },
     });
 
-    expect(result).toEqual({
+    expect(result).toEqual({ ok: true, value: ({
       id: "lib-1",
       name: "Local Music",
       kind: "filesystem",
       location: "/music",
-    });
+    }) });
     expect(scanner.scan).toHaveBeenCalledWith("lib-1");
     expect(libraries.add).toHaveBeenCalledWith({
       id: "lib-1",
@@ -56,7 +56,7 @@ describe("AddLibraryCommand", () => {
           location: "/music",
         },
       }),
-    ).rejects.toEqual({ kind: "emptyName" });
+    ).resolves.toMatchObject({ ok: false, error: ({ kind: "emptyName" }) });
 
     expect(libraries.add).not.toHaveBeenCalled();
     expect(watcher.watchLibrary).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe("AddLibraryCommand", () => {
           location: "",
         },
       }),
-    ).rejects.toEqual({ kind: "emptyLocation" });
+    ).resolves.toMatchObject({ ok: false, error: ({ kind: "emptyLocation" }) });
 
     expect(libraries.add).not.toHaveBeenCalled();
     expect(watcher.watchLibrary).not.toHaveBeenCalled();
@@ -96,12 +96,12 @@ describe("AddLibraryCommand", () => {
           location: "/music",
         },
       }),
-    ).resolves.toEqual({
+    ).resolves.toEqual({ ok: true, value: ({
       id: "lib-1",
       name: "Local Music",
       kind: "filesystem",
       location: "/music",
-    });
+    }) });
   });
 });
 

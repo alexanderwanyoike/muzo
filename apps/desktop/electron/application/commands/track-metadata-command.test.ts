@@ -28,7 +28,7 @@ describe("EditTrackMetadataCommand", () => {
           year: 1971,
         },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ ok: true, value: undefined });
 
     expect(tracks.updateMetadataOverride).toHaveBeenCalledWith("lib-1", "trk-1", {
       title: "Edited Title",
@@ -53,7 +53,7 @@ describe("ClearTrackMetadataOverrideCommand", () => {
       new ClearTrackMetadataOverrideCommand(tracks).handle({
         input: { libraryId: "lib-1", trackId: "trk-1" },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ ok: true, value: undefined });
 
     expect(tracks.clearMetadataOverride).toHaveBeenCalledWith("lib-1", "trk-1");
   });

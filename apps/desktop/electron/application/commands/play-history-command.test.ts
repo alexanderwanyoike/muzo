@@ -22,7 +22,7 @@ describe("RecordTrackPlayCommand", () => {
       ).handle({
         input: { libraryId: "lib-1", trackId: "trk-1" },
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ ok: true, value: undefined });
 
     expect(playHistory.recordPlay).toHaveBeenCalledWith({
       id: "play-1",
@@ -51,7 +51,7 @@ describe("ListTrackPlayCountsCommand", () => {
       new ListTrackPlayCountsCommand(playHistory).handle({
         input: { libraryId: "lib-1" },
       }),
-    ).resolves.toEqual(counts);
+    ).resolves.toEqual({ ok: true, value: (counts) });
 
     expect(playHistory.listPlayCounts).toHaveBeenCalledWith("lib-1");
   });
