@@ -47,6 +47,7 @@ export default function PlaylistPanel({
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
   const revision = useRef(0);
+  const [loadRevision, refreshCollection] = useState(0);
   const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [selectedId, selectPlaylist] = useState<string | null>(null);
@@ -65,7 +66,11 @@ export default function PlaylistPanel({
     setError(null);
     playlistRequest(listPlaylists, "Could not load playlists.").then(
       (result) => {
-        if (cancelled || revision.current !== startedAt) return;
+        if (cancelled) return;
+        if (revision.current !== startedAt) {
+          refreshCollection((previous) => previous + 1);
+          return;
+        }
         if (result.ok) setPlaylists(result.value);
         else {
           setError(result.error.message);
@@ -77,7 +82,7 @@ export default function PlaylistPanel({
     return () => {
       cancelled = true;
     };
-  }, [active, refreshKey]);
+  }, [active, refreshKey, loadRevision]);
 
   async function handleCreate(name: string) {
     const result = await playlistRequest(
