@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
 import { createElectronContainer } from "./electron-container";
 
-it("reads embedded artwork through IPC using the stored track identity", async () => {
+it.each(["flac", "mp3"])("reads embedded %s artwork through IPC using the stored track identity", async (extension) => {
   const directory = mkdtempSync(join(tmpdir(), "muzo-artwork-"));
-  const filePath = join(directory, "song.flac");
+  const filePath = join(directory, `song.${extension}`);
   copyFileSync(
     fileURLToPath(
       new URL(
-        "../infrastructure/metadata/fixtures/embedded-cover.flac",
+        `../infrastructure/metadata/fixtures/embedded-cover.${extension}`,
         import.meta.url,
       ),
     ),
