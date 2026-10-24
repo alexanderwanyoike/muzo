@@ -62,3 +62,21 @@ it("keeps an unsupported Windows desktop opaque without calling its material API
   expect(window.setBackgroundMaterial).not.toHaveBeenCalled();
   expect(window.setBackgroundColor).toHaveBeenCalledWith("#ffffff");
 });
+
+it("keeps the native surface opaque when the system reduces transparency", () => {
+  const window = {
+    isDestroyed: () => false,
+    setBackgroundColor: vi.fn(),
+    setVibrancy: vi.fn(),
+    setBackgroundMaterial: vi.fn(),
+  };
+  expect(
+    setDesktopGlass(window, true, {
+      platform: "darwin",
+      release: "25.0.0",
+      reducedTransparency: true,
+    }),
+  ).toEqual({ ok: true, value: false });
+  expect(window.setVibrancy).toHaveBeenCalledWith(null);
+  expect(window.setBackgroundColor).toHaveBeenCalledWith("#ffffff");
+});
