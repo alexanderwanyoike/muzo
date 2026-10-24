@@ -38,3 +38,19 @@ it("bounds downloaded storage and removes partial files after an oversized respo
     expect(readdirSync(root)).toHaveLength(1);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+it("keeps the most recently requested track when an older download completes late", async () => {
+  const root = mkdtempSync(join(tmpdir(), "muzo-cloud-concurrent-"));
+  try {
+    let finishOld: (response: Response) => void = () => {};
+    const delayed = new Promise<Response>((resolve) => { finishOld = resolve; });
+    const request = vi.fn<typeof fetch>().mockReturnValueOnce(delayed).mockResolvedValueOnce(new Response(new Uint8Array([4, 5, 6])));
+    const downloader = new DropboxAudioDownloader(root, request, 4);
+    const old = downloader.download("token", "old", "/old.mp3");
+    const current = await downloader.download("token", "current", "/current.mp3");
+    expect(current.ok).toBe(true);
+    finishOld(new Response(new Uint8Array([1, 2, 3])));
+    expect((await old).ok).toBe(false);
+    if (current.ok) expect(readFileSync(current.value)).toEqual(Buffer.from([4, 5, 6]));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
