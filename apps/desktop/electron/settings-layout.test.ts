@@ -169,7 +169,9 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
           row.panelRight,
           0,
         );
-        expect(row.overflow, `${context}, source overflow`).toBeLessThanOrEqual(1);
+        expect(row.overflow, `${context}, source overflow`).toBeLessThanOrEqual(
+          1,
+        );
       }
       expect(
         Math.max(...layout.controls) - Math.min(...layout.controls),
