@@ -64,6 +64,14 @@ it.each(["flac", "mp3"])(
         value: expect.stringMatching(/^data:image\/png;base64,/),
       });
       expect(thumbnail).toHaveBeenCalledOnce();
+      rmSync(filePath);
+      const reopened = createElectronContainer({
+        dbPath: join(directory, "catalog.sqlite"),
+        artworkThumbnails: { create: vi.fn(() => { throw new Error("Cached artwork should not be decoded again"); }) },
+      });
+      expect(await reopened.resolve("commandDispatcher").handleElectronCommand("get_track_artwork", {
+        input: { libraryId: "source", trackId: "track" },
+      })).toEqual(result);
       await expect(
         command.handleElectronCommand("get_track_artwork", {
           input: { libraryId: "other", trackId: "track" },
