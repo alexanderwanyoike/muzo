@@ -384,3 +384,105 @@ function playlistEntryIdGenerator(): () => string {
     return `entry-${next}`;
   };
 }
+
+it("browses selectable Dropbox folders across pages and marks existing account libraries through IPC", async () => {
+  const root = tempDirectory();
+  const requests: { url: string; body: string }[] = [];
+  const container = createElectronContainer({
+    dbPath: join(root, "muzo.sqlite"),
+    dropboxCipher: { protect: (value) => value, unprotect: (value) => value },
+    openExternal: async () => {},
+    dropboxTransport: {
+      send: async (request) => {
+        requests.push(request);
+        if (request.url.endsWith("/token"))
+          return {
+            status: 200,
+            body: JSON.stringify({
+              access_token: "private-token",
+              refresh_token: "private-refresh",
+              account_id: "account-1",
+              expires_in: 3600,
+            }),
+          };
+        if (request.url.endsWith("/continue"))
+          return {
+            status: 200,
+            body: JSON.stringify({
+              entries: [
+                {
+                  ".tag": "folder",
+                  id: "podcasts",
+                  name: "Podcasts",
+                  path_display: "/Podcasts",
+                },
+              ],
+              cursor: "last",
+              has_more: false,
+            }),
+          };
+        return {
+          status: 200,
+          body: JSON.stringify({
+            entries: [
+              {
+                ".tag": "folder",
+                id: "music",
+                name: "Music",
+                path_display: "/Music",
+              },
+              {
+                ".tag": "file",
+                id: "readme",
+                name: "Readme.txt",
+                path_display: "/Readme.txt",
+              },
+            ],
+            cursor: "next",
+            has_more: true,
+          }),
+        };
+      },
+    },
+  });
+  try {
+    await container.resolve("migrateDatabase")();
+    const commands = container.resolve("commandDispatcher");
+    await commands.handleElectronCommand("dropbox_begin", {
+      input: { clientId: "key" },
+    });
+    await commands.handleElectronCommand("dropbox_complete", {
+      input: { code: "code" },
+    });
+    await commands.handleElectronCommand("dropbox_add_library", {
+      input: { name: "Music", location: "/Music" },
+    });
+    const listing = await commands.handleElectronCommand(
+      "dropbox_list_folders",
+      { input: { accountId: "account-1", path: "/" } },
+    );
+    expect(listing).toEqual({
+      ok: true,
+      value: {
+        folders: [
+          { id: "music", name: "Music", path: "/Music" },
+          { id: "podcasts", name: "Podcasts", path: "/Podcasts" },
+        ],
+        addedPaths: ["/Music"],
+      },
+    });
+    expect(JSON.stringify(listing)).not.toContain("private-token");
+    expect(
+      requests
+        .filter((request) => request.url.endsWith("/list_folder"))
+        .map((request) => JSON.parse(request.body)),
+    ).toEqual([{ path: "", recursive: false, include_deleted: false }]);
+    expect(
+      requests
+        .filter((request) => request.url.endsWith("/continue"))
+        .map((request) => JSON.parse(request.body)),
+    ).toEqual([{ cursor: "next" }]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
