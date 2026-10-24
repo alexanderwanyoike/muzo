@@ -8,13 +8,13 @@ import { describe, expect, it, vi } from "vitest";
 import { registerAppImageMenuEntry } from "./appimage-menu-entry";
 
 describe.skipIf(process.platform !== "linux")("Linux AppImage menu integration", () => {
-it.skipIf(process.platform !== "linux")(
+it.each(['Muzo $ ` " \\ preview.AppImage', "Muzo 100% preview.AppImage"])(
   "makes the portable player discoverable and launchable through the desktop menu",
-  async () => {
+  async (filename) => {
     const directory = await mkdtemp(join(tmpdir(), "muzo-menu-entry-"));
     try {
       const launched = join(directory, "launched.json");
-      const appImagePath = join(directory, "Muzo preview.AppImage");
+      const appImagePath = join(directory, filename);
       await writeFile(
         appImagePath,
         `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(launched)}, JSON.stringify(process.argv.slice(1)));\n`,
@@ -135,6 +135,32 @@ it("registers safely when two AppImage launches overlap", async () => {
     const entry = await readFile(join(directory, "applications/muzo.desktop"), "utf8");
     expect(entry).toContain("StartupWMClass=muzo");
     expect(entry).toContain(options.appImagePath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("keeps one launcher identity when the AppImage is moved or replaced", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-relocated-menu-"));
+  try {
+    const options = { appImagePath: join(directory, "old/Muzo.AppImage"), dataDirectory: directory, iconPath: join(import.meta.dirname, "../assets/icons/muzo-window.png") };
+    expect((await registerAppImageMenuEntry(options)).ok).toBe(true);
+    const nextPath = join(directory, "new/Muzo.AppImage");
+    expect((await registerAppImageMenuEntry({ ...options, appImagePath: nextPath })).ok).toBe(true);
+    const entry = await readFile(join(directory, "applications/muzo.desktop"), "utf8");
+    expect(entry).toContain(nextPath);
+    expect(entry).not.toContain(options.appImagePath);
+    expect(await readdir(join(directory, "applications"))).toEqual(["muzo.desktop"]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it("returns an explicit storage failure without leaving a launcher when its icon cannot be read", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-menu-storage-"));
+  try {
+    expect(await registerAppImageMenuEntry({ appImagePath: join(directory, "Muzo.AppImage"), dataDirectory: directory, iconPath: join(directory, "missing.png") })).toMatchObject({ ok: false, error: { kind: "storage" } });
+    expect(await readdir(join(directory, "applications"))).toEqual([]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
