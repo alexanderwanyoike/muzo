@@ -23,4 +23,6 @@ it("packages native icons on every platform and installs a Linux launcher icon",
     (maker: { name: string }) => maker.name === "@electron-forge/maker-deb",
   );
   expect(deb.config.options.icon).toBe(`${config.packagerConfig.icon}.png`);
+  expect(deb.config.options.productName).toBe("Muzo");
+  expect(deb.config.options.genericName).toBe("Music player");
 });
