@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { Play, Pause, ChevronUp, ChevronDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PlaylistNavigator from "./playlist-navigator";
 import playlistRequest from "./playlist-request";
 import TrackArtwork from "./track-artwork";
@@ -46,6 +46,7 @@ export default function PlaylistPanel({
   onPlayQueue,
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
+  const revision = useRef(0);
   const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [selectedId, selectPlaylist] = useState<string | null>(null);
@@ -60,11 +61,11 @@ export default function PlaylistPanel({
   useEffect(() => {
     if (!active) return undefined;
     let cancelled = false;
-    setPlaylists(null);
+    const startedAt = revision.current;
     setError(null);
     playlistRequest(listPlaylists, "Could not load playlists.").then(
       (result) => {
-        if (cancelled) return;
+        if (cancelled || revision.current !== startedAt) return;
         if (result.ok) setPlaylists(result.value);
         else {
           setError(result.error.message);
@@ -84,6 +85,7 @@ export default function PlaylistPanel({
       "Could not create playlist.",
     );
     if (!result.ok) return result;
+    revision.current += 1;
     const playlist = result.value;
     setPlaylists((prev) => [...(prev ?? []), playlist]);
     selectPlaylist(playlist.id);
@@ -100,13 +102,14 @@ export default function PlaylistPanel({
       () => removePlaylistEntry({ playlistId: playlist.id, entryId: entry.id }),
       "Could not remove playlist entry.",
     );
-    if (result.ok)
+    if (result.ok) {
+      revision.current += 1;
       setPlaylists((prev) =>
         (prev ?? []).map((candidate) =>
           candidate.id === result.value.id ? result.value : candidate,
         ),
       );
-    else setError(result.error.message);
+    } else setError(result.error.message);
     setRemovingEntryId(null);
   }
 
@@ -142,13 +145,14 @@ export default function PlaylistPanel({
         }),
       "Could not reorder playlist entries.",
     );
-    if (result.ok)
+    if (result.ok) {
+      revision.current += 1;
       setPlaylists((prev) =>
         (prev ?? []).map((candidate) =>
           candidate.id === result.value.id ? result.value : candidate,
         ),
       );
-    else setError(result.error.message);
+    } else setError(result.error.message);
     setReorderingEntryId(null);
   }
 
