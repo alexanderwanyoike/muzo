@@ -32,6 +32,7 @@ muzo/
 │       ├── src/         # React frontend
 │       └── electron/    # Electron main process backend
 ├── packages/            # Shared TS packages (future)
+├── site/                # Static project site and its verification workspace
 ├── docs/
 │   ├── cards/           # Sprint cards: docs/cards/<sprint>/<card-title>.md
 │   └── adr/             # Architecture Decision Records
@@ -121,6 +122,9 @@ manual testing of the integrated feature stack.
 | `yarn desktop:build` | Build the desktop frontend for Electron |
 | `yarn desktop:package` | Build an unpacked Electron app bundle |
 | `yarn desktop:make` | Build Electron distributable artifacts |
+| `yarn site:verify` | Verify site content, local assets and navigation |
+| `yarn site:build` | Build the static GitHub Pages site |
+| `yarn site:preview` | Preview the built site locally |
 | `yarn format` | Automatically format maintained code and configuration |
 | `yarn format:check` | Check formatting without writing |
 | `yarn lint` | Run the Airbnb TypeScript and React lint baseline |
@@ -130,6 +134,8 @@ manual testing of the integrated feature stack.
 Formatting is checked in CI before lint, type checking, tests and desktop packaging.
 Run `yarn format` before pushing. Lint rejects explicit any and unsafe operations in
 production TypeScript; test fixtures have narrowly scoped exceptions.
+
+See the [project site guide](./docs/project-site.md) for Pages setup and publication.
 
 ## Engineering principles
 
