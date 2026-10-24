@@ -30,7 +30,26 @@ it("renders bounded raster thumbnails with the real Electron image decoder", asy
     const script = join(directory, "verify.cjs");
     writeFileSync(
       script,
-      `const {app,nativeImage}=require('electron');const fs=require('node:fs');const {ElectronArtworkThumbnails}=require(${JSON.stringify(bundle)});app.whenReady().then(()=>{const thumbnails=new ElectronArtworkThumbnails(nativeImage);const data=fs.readFileSync(${JSON.stringify(png)});const result=thumbnails.create({format:'image/png',data});const image=nativeImage.createFromDataURL(result);const pixels=Buffer.alloc(256*256*4);let seed=123;for(let i=0;i<pixels.length;i++){seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;pixels[i]=seed&255;}const noise=thumbnails.create({format:'image/png',data:nativeImage.createFromBitmap(pixels,{width:256,height:256}).toPNG()});fs.writeFileSync(${JSON.stringify(resultFile)},JSON.stringify({size:image.getSize(),uri:result,noiseSize:noise?nativeImage.createFromDataURL(noise).getSize():null,noiseLength:noise?.length??0,invalid:thumbnails.create({format:'image/png',data:Buffer.from('invalid')}),svg:thumbnails.create({format:'image/svg+xml',data:Buffer.from('<svg/>')})}));app.quit();});`,
+      `const {app,nativeImage}=require('electron');
+const fs=require('node:fs');
+const {ElectronArtworkThumbnails}=require(${JSON.stringify(bundle)});
+app.whenReady().then(()=>{const thumbnails=new ElectronArtworkThumbnails(nativeImage);
+const data=fs.readFileSync(${JSON.stringify(png)});
+const result=thumbnails.create({format:'image/png',data});
+const image=nativeImage.createFromDataURL(result);
+const pixels=Buffer.alloc(256*256*4);
+let seed=123;
+for(let i=0;
+i<pixels.length;
+i++){seed^=seed<<13;
+seed^=seed>>>17;
+seed^=seed<<5;
+pixels[i]=seed&255;
+}const noise=thumbnails.create({format:'image/png',data:nativeImage.createFromBitmap(pixels,{width:256,height:256}).toPNG()});
+fs.writeFileSync(${JSON.stringify(resultFile)},JSON.stringify({size:image.getSize(),uri:result,noiseSize:noise?nativeImage.createFromDataURL(noise).getSize():null,noiseLength:noise?.length??0,invalid:thumbnails.create({format:'image/png',data:Buffer.from('invalid')}),svg:thumbnails.create({format:'image/svg+xml',data:Buffer.from('<svg/>')})}));
+app.quit();
+});
+`,
     );
     const require = createRequire(import.meta.url);
     const electronPath: unknown = require("electron");
@@ -49,6 +68,7 @@ it("renders bounded raster thumbnails with the real Electron image decoder", asy
       },
     );
     const result: unknown = JSON.parse(readFileSync(resultFile, "utf8"));
+    if (result && typeof result === "object" && "noiseLength" in result) expect(result.noiseLength).toBeLessThanOrEqual(256 * 1024);
     expect(result).toMatchObject({
       size: { width: 256, height: 128 },
       noiseSize: { width: 128, height: 128 },
