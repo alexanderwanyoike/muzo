@@ -10,7 +10,7 @@ export function playButtonLabel(
   playlist: PlaylistDto,
   currentTrackId: string | null,
   isPlaying: boolean,
-  currentQueueEntryId: string | null,
+  currentQueueEntryId: string | null | undefined,
 ): string {
   const label = entryLabel(entry);
   if (!trackFromEntry(entry)) {
@@ -50,6 +50,6 @@ export function playableEntries(playlist: PlaylistDto): PlaybackQueueItem[] {
   });
 }
 
-export function isCurrentEntry(entry: PlaylistEntryDto, trackId: string | null, queueEntryId: string | null): boolean {
-  return queueEntryId ? entry.id === queueEntryId : entry.trackId === trackId;
+export function isCurrentEntry(entry: PlaylistEntryDto, trackId: string | null, queueEntryId: string | null | undefined): boolean {
+  return queueEntryId === undefined ? entry.trackId === trackId : entry.id === queueEntryId;
 }

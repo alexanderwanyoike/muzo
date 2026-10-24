@@ -53,6 +53,7 @@ export default function App() {
     next,
     previous,
     toggle,
+    clearQueue,
     seek,
     setVolume,
   } = useAudioPlayer({ onTrackPlayRecorded: handleTrackPlayRecorded });
@@ -314,7 +315,7 @@ export default function App() {
               currentTrackId={current?.id ?? null}
               isPlaying={status === "playing"}
               onPlayTrack={play}
-              onToggleCurrentTrack={toggle}
+              onToggleCurrentTrack={() => { clearQueue(); toggle(); }}
               refreshKey={trackRefreshVersions[selectedLibrary.id] ?? 0}
               onTracksLoaded={handleTracksLoaded}
               playCounts={trackPlayCounts[selectedLibrary.id] ?? {}}

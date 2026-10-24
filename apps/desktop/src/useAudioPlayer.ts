@@ -27,6 +27,7 @@ export interface AudioPlayer extends AudioPlayerState {
   previous: () => void;
   play: (track: TrackDto) => void;
   toggle: () => void;
+  clearQueue: () => void;
   seek: (seconds: number) => void;
   setVolume: (volume: number) => void;
 }
@@ -148,10 +149,12 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
     );
   }, [onTrackPlayRecorded]);
 
+  const clearQueue = useCallback(() => { setQueue([], -1); }, [setQueue]);
+
   const play = useCallback((track: TrackDto) => {
-    setQueue([], -1);
+    clearQueue();
     startTrack(track);
-  }, [setQueue, startTrack]);
+  }, [clearQueue, startTrack]);
 
   const playQueue = useCallback((entries: PlaybackQueueItem[], startIndex = 0) => {
     if (!Number.isInteger(startIndex) || !entries[startIndex]) return;
@@ -218,6 +221,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       next,
       previous,
       playQueue,
+      clearQueue,
       current,
       status,
       positionSeconds,
@@ -234,6 +238,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions = {}): AudioPlayer
       next,
       previous,
       playQueue,
+      clearQueue,
       current,
       status,
       positionSeconds,

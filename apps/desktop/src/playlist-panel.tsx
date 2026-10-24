@@ -33,6 +33,7 @@ export default function PlaylistPanel({
   onPlayQueue,
   onToggleCurrentTrack = () => {},
 }: PlaylistPanelProps = {}) {
+  const activeEntryId = onPlayQueue ? currentQueueEntryId : undefined;
   const [playlists, setPlaylists] = useState<PlaylistDto[] | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export default function PlaylistPanel({
   }
 
   function handlePlayEntry(playlist: PlaylistDto, entry: PlaylistEntryDto) {
-    if (isCurrentEntry(entry, currentTrackId, currentQueueEntryId)) {
+    if (isCurrentEntry(entry, currentTrackId, activeEntryId)) {
       onToggleCurrentTrack();
       return;
     }
@@ -234,10 +235,10 @@ export default function PlaylistPanel({
                             playlist,
                             currentTrackId,
                             isPlaying,
-                            currentQueueEntryId,
+                            activeEntryId,
                           )}
                         >
-                          {isCurrentEntry(entry, currentTrackId, currentQueueEntryId) && isPlaying
+                          {isCurrentEntry(entry, currentTrackId, activeEntryId) && isPlaying
                             ? "||"
                             : ">"}
                         </button>
