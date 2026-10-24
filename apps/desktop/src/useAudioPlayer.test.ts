@@ -282,4 +282,20 @@ describe("useAudioPlayer", () => {
     expect(result.current.playbackError).toContain("track file is missing");
     expect(apiMocks.recordTrackPlay).not.toHaveBeenCalled();
   });
+  it("advances through duplicate playlist entries and stops at the end of the queue", async () => {
+    const { result } = renderHook(() => useAudioPlayer());
+    const queue = [{ entryId: "first", track }, { entryId: "repeat", track }];
+    await act(async () => { result.current.playQueue(queue); });
+    expect(result.current.currentQueueEntryId).toBe("first");
+    expect(result.current.hasNext).toBe(true);
+    await act(async () => { MockAudio.instances[0].emit("ended"); });
+    expect(result.current.currentQueueEntryId).toBe("repeat");
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+    expect(apiMocks.recordTrackPlay).toHaveBeenCalledTimes(2);
+    expect(result.current.hasNext).toBe(false);
+    act(() => { MockAudio.instances[0].emit("ended"); });
+    expect(result.current.status).toBe("paused");
+    expect(apiMocks.prepareTrackAudioSource).toHaveBeenCalledTimes(2);
+  });
+
 });
