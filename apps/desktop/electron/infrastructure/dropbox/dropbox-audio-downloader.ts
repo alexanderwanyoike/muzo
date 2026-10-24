@@ -5,6 +5,8 @@ import { failure, type Result } from "../../../shared/result";
 import type { DropboxAudioDownload } from "../../application/interfaces/dropbox-audio-download";
 
 export class DropboxAudioDownloader implements DropboxAudioDownload {
+  private publishing: Promise<void> = Promise.resolve();
+  private latestTarget: string | null = null;
   constructor(
     private readonly directory: string,
     private readonly request: typeof fetch = fetch,
@@ -14,6 +16,7 @@ export class DropboxAudioDownloader implements DropboxAudioDownload {
   async download(accessToken: string, trackKey: string, remotePath: string): Promise<Result<string>> {
     const name = createHash("sha256").update(trackKey).digest("hex");
     const target = join(this.directory, name);
+    this.latestTarget = target;
     const temporary = `${target}.${randomUUID()}.part`;
     try {
       const response = await this.request("https://content.dropboxapi.com/2/files/download", {
@@ -45,8 +48,12 @@ export class DropboxAudioDownloader implements DropboxAudioDownload {
         await reader.cancel();
         await file.close();
       }
-      await this.makeRoom(target, (await stat(temporary)).size);
-      await rename(temporary, target);
+      const publish = this.publishing.then(async () => {
+        await this.makeRoom(target, (await stat(temporary)).size);
+        await rename(temporary, target);
+      });
+      this.publishing = publish.catch(() => {});
+      await publish;
       return { ok: true, value: target };
     } catch {
       return downloadFailure();
@@ -66,10 +73,11 @@ export class DropboxAudioDownloader implements DropboxAudioDownload {
     let total = files.filter((file) => file.path !== target).reduce((sum, file) => sum + file.size, newBytes);
     for (const file of files.sort((a, b) => a.modified - b.modified)) {
       if (total <= this.storageLimitBytes) break;
-      if (file.path === target) continue;
+      if (file.path === target || file.path === this.latestTarget) continue;
       await rm(file.path);
       total -= file.size;
     }
+    if (total > this.storageLimitBytes) throw new Error("Local audio storage is in use");
   }
 
 }
