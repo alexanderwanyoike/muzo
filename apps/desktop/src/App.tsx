@@ -35,6 +35,16 @@ interface ListError {
 export default function App() {
   const sidebar = useSidebarLayout();
   const playerWindow = usePlayerWindowMode();
+  const miniPlayerButton = useRef<HTMLButtonElement>(null);
+  const previousWindowMode = useRef(playerWindow.mode);
+  useEffect(() => {
+    if (
+      previousWindowMode.current !== "library" &&
+      playerWindow.mode === "library"
+    )
+      miniPlayerButton.current?.focus();
+    previousWindowMode.current = playerWindow.mode;
+  }, [playerWindow.mode]);
   const [playlistNavigationTarget, setPlaylistNavigationTarget] =
     useState<HTMLDivElement | null>(null);
   const sourceSetup = useRef<HTMLElement>(null);
@@ -273,6 +283,7 @@ export default function App() {
             </div>
             <button
               type="button"
+              ref={miniPlayerButton}
               aria-label="Mini player"
               disabled={playerWindow.pending}
               onClick={() => {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Maximize2, ListMusic } from "lucide-react";
 import CompactPlayerQueue from "./compact-player-queue";
 import TrackArtwork from "./track-artwork";
@@ -24,6 +25,10 @@ export default function CompactPlayer({
   queueOpen,
   onToggleQueue,
 }: Props) {
+  const restoreButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    restoreButton.current?.focus();
+  }, []);
   return (
     <section
       className={`compact-player${queueOpen ? " compact-player--queue" : ""}`}
@@ -45,6 +50,7 @@ export default function CompactPlayer({
           </button>
           <button
             type="button"
+            ref={restoreButton}
             aria-label="Return to library"
             title="Return to library"
             disabled={pending}
