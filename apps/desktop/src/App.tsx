@@ -298,7 +298,7 @@ export default function App() {
           </figure>
         )}
         {sidebar.error && <p className="app-sidebar__layout-error" aria-live="polite">{sidebar.error}</p>}
-        <SidebarSplitter width={sidebar.width} minimum={sidebar.minimum} maximum={sidebar.maximum} onCommit={sidebar.commit} />
+        <SidebarSplitter width={sidebar.width} minimum={sidebar.minimum} maximum={sidebar.maximum} onPreview={sidebar.preview} onCommit={sidebar.commit} />
       </aside>
 
       <section className="app-content">
