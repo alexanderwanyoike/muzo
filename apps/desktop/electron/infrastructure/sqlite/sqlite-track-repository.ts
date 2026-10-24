@@ -124,7 +124,8 @@ export class SqliteTrackRepository implements TrackRepository {
           id, library_id, title, artist, album, track_number, disc_number, genre, year,
           duration_seconds, file_path, file_size, file_mtime
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE EXISTS (SELECT 1 FROM libraries WHERE id = ?)
         ON CONFLICT(library_id, file_path) DO UPDATE SET
           title = excluded.title,
           artist = excluded.artist,
@@ -150,6 +151,7 @@ export class SqliteTrackRepository implements TrackRepository {
           track.filePath,
           track.fileSize,
           track.fileMtime,
+          track.libraryId,
         ],
       );
       saveDatabase(database, this.dbPath);
