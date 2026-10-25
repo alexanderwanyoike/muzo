@@ -1,6 +1,6 @@
 {
   "name": "muzo",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "Muzo - a desktop music player built with Electron. Multiple libraries, playlists, recursive folder sync.",
   "license": "MIT",
