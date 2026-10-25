@@ -7,7 +7,8 @@ process, profile, native icon and credential-storage identity stay in place.
 
 The build follows the installer and validated-release-set pattern in sibling
 Showbiz and Jolt: build native artifacts, verify them, assemble one complete set,
-then create a draft for a maintainer to test and publish. No updater is added.
+then create a draft for a maintainer to test and publish. Version 0.0.3 adds explicit
+download and restart updates; see [ADR 0009](adr/0009-explicit-desktop-updates.md).
 
 ## Installer contract
 
@@ -18,7 +19,9 @@ then create a draft for a maintainer to test and publish. No updater is added.
 | macOS Apple silicon | `Muzo-X.Y.Z-macos-arm64.dmg` |
 | macOS Intel | `Muzo-X.Y.Z-macos-x64.dmg` |
 
-Every complete release also contains `muzo-X.Y.Z-release.json` and `SHA256SUMS`.
+Every complete release also contains `muzo-X.Y.Z-release.json`, `SHA256SUMS`,
+`latest-linux.yml` and `latest.yml`. The update YAML files name the Linux and
+Windows installers and include their exact sizes and SHA-512 checksums.
 The private `@muzo/distribution` build-tool workspace owns filenames and manifest
 validation. Its public contract has no Node or application-infrastructure imports,
 so the website can validate the same contract without copying it.
@@ -26,14 +29,14 @@ so the website can validate the same contract without copying it.
 ```json
 {
   "schemaVersion": 1,
-  "tag": "v0.0.2",
-  "version": "0.0.2",
+  "tag": "v0.0.3",
+  "version": "0.0.3",
   "sourceCommit": "<exact 40-character lowercase commit SHA>",
   "artifacts": [
     {
       "platform": "linux",
       "arch": "x64",
-      "name": "Muzo-0.0.2-linux-x64.AppImage",
+      "name": "Muzo-0.0.3-linux-x64.AppImage",
       "size": 123,
       "sha256": "<64-character lowercase SHA-256>"
     }
@@ -45,7 +48,7 @@ The example abbreviates the artifact list; a valid manifest must contain all fou
 supported platform/architecture pairs exactly once, with version-correct names,
 positive file sizes and valid hashes. URLs come from matching published GitHub
 release assets, not from untrusted manifest fields. SHA256SUMS covers the four
-installers and the manifest itself.
+installers, release manifest and both update YAML files.
 
 ## Local packaging
 
@@ -86,15 +89,18 @@ PR/manual artifacts are unpublished release candidates. Their manifest tag names
 the intended release, and sourceCommit identifies that exact candidate checkout.
 Only a real annotated tag whose commit is already on main can create a draft GitHub
 Release. Both root and desktop package versions must match that tag. Existing
-releases are not replaced, and existing v0.0.1 is never moved. Version 0.0.2 is
-prepared for the next release; no new tag is created by this feature PR.
+releases and published tags are never replaced or moved. Version 0.0.3 is
+prepared through a feature PR before promotion to main.
 
 Merge feature PRs into dev with merge commits, then promote dev to main through a
 release PR. After all checks pass, tag the merged main release commit with the
 matching annotated version. Review the resulting four installers and SHA256SUMS,
 then publish the draft. The separate website workflow consumes published releases.
 Preview installers are currently unsigned; macOS builds are not notarized. Present
-that status alongside downloads rather than claiming trusted signing or updates.
+that status alongside downloads. Windows and Linux AppImage builds offer explicit
+download and Restart to install. Unsigned macOS builds open the release page for
+manual installation. Users on v0.0.2 must install v0.0.3 manually once to enable
+future updates.
 Linux users mark the downloaded AppImage executable before opening it.
 
 ## Project licence
@@ -141,3 +147,12 @@ path, and matches the actual X11 window class. The startup guard skips other
 platforms and non-AppImage launches. Normal unit checks also exercise native menu
 launching and desktop argument escaping. Linux CI installs desktop-file-utils and
 Python Gio as verification tools, not bundled runtime requirements.
+
+## Installed updater configuration
+
+Forge's prepackaged payload skips electron-builder's general afterPack hook. The
+distribution command writes a fixed GitHub feed and updater cache configuration
+into `resources/app-update.yml` before native installer creation. The AppImage
+target may regenerate that file using its standard cache identity. Native installer
+checks verify the shipped configuration; release assembly verifies both update
+YAML files against the installers before publication.
