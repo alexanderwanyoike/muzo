@@ -2,21 +2,29 @@ import { failure, success, type Result } from "./result";
 import type { UpdateStatus } from "../../shared/update-status";
 import type { UpdateBackend } from "./interfaces/update-backend";
 
-interface Options { installedVersion: string; backend: UpdateBackend }
+interface Options {
+  installedVersion: string;
+  backend: UpdateBackend;
+}
 
 function newerStableVersion(next: string, current: string): Result<boolean> {
   const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-  if (!stable.test(next) || !stable.test(current)) return failure("remote", "The update did not identify a stable release.");
+  if (!stable.test(next) || !stable.test(current))
+    return failure("remote", "The update did not identify a stable release.");
   const candidate = next.split(".").map(Number);
   const installed = current.split(".").map(Number);
-  if (![...candidate, ...installed].every(Number.isSafeInteger)) return failure("remote", "The update version is invalid.");
+  if (![...candidate, ...installed].every(Number.isSafeInteger))
+    return failure("remote", "The update version is invalid.");
   for (const [index, part] of candidate.entries()) {
     if (part !== installed[index]) return success(part > installed[index]);
   }
   return success(false);
 }
 
-export function createApplicationUpdates({ installedVersion, backend }: Options) {
+export function createApplicationUpdates({
+  installedVersion,
+  backend,
+}: Options) {
   let status: UpdateStatus = { state: "idle" };
   let disposed = false;
   const listeners = new Set<(next: UpdateStatus) => void>();
@@ -32,36 +40,69 @@ export function createApplicationUpdates({ installedVersion, backend }: Options)
   let pendingCheck: Promise<Result<void>> | null = null;
   function check(): Promise<Result<void>> {
     if (pendingCheck) return pendingCheck;
-    if (status.state === "downloading" || status.state === "ready" || status.state === "installing")
-      return Promise.resolve(failure("invalidInput", "Finish the current update before checking again."));
+    if (
+      status.state === "downloading" ||
+      status.state === "ready" ||
+      status.state === "installing"
+    )
+      return Promise.resolve(
+        failure(
+          "invalidInput",
+          "Finish the current update before checking again.",
+        ),
+      );
     const operation = (async (): Promise<Result<void>> => {
       publish({ state: "checking" });
       const result = await backend.check();
       if (!result.ok) return fail(result.error.message);
       const newer = newerStableVersion(result.value.version, installedVersion);
       if (!newer.ok) return fail(newer.error.message);
-      publish(newer.value ? { state: "available", ...result.value } : { state: "current" });
+      publish(
+        newer.value
+          ? { state: "available", ...result.value }
+          : { state: "current" },
+      );
       return success(undefined);
     })();
-    pendingCheck = operation.finally(() => { pendingCheck = null; });
+    pendingCheck = operation.finally(() => {
+      pendingCheck = null;
+    });
     return pendingCheck;
   }
   const unsubscribe = backend.subscribe((event) => {
-    if (event.kind === "progress" && status.state === "downloading" && Number.isFinite(event.percent))
-      publish({ ...status, progress: Math.min(100, Math.max(0, event.percent)) });
+    if (
+      event.kind === "progress" &&
+      status.state === "downloading" &&
+      Number.isFinite(event.percent)
+    )
+      publish({
+        ...status,
+        progress: Math.min(100, Math.max(0, event.percent)),
+      });
     if (event.kind === "installFailed" && status.state === "installing")
-      publish({ state: "failed", message: "The update could not be installed. Try again or download the latest release manually." });
+      publish({
+        state: "failed",
+        message:
+          "The update could not be installed. Try again or download the latest release manually.",
+      });
   });
   return {
     getStatus: (): UpdateStatus => ({ ...status }),
-    dispose() { disposed = true; unsubscribe(); listeners.clear(); },
+    dispose() {
+      disposed = true;
+      unsubscribe();
+      listeners.clear();
+    },
     subscribe(listener: (next: UpdateStatus) => void) {
       listeners.add(listener);
-      return () => { listeners.delete(listener); };
+      return () => {
+        listeners.delete(listener);
+      };
     },
     check,
     async download(): Promise<Result<void>> {
-      if (status.state !== "available") return failure("invalidInput", "No update is available to download.");
+      if (status.state !== "available")
+        return failure("invalidInput", "No update is available to download.");
       const { version, automatic } = status;
       if (!automatic) return backend.openRelease(version);
       publish({ state: "downloading", version, progress: 0 });
@@ -71,7 +112,11 @@ export function createApplicationUpdates({ installedVersion, backend }: Options)
       return success(undefined);
     },
     async install(): Promise<Result<void>> {
-      if (status.state !== "ready") return failure("invalidInput", "Download and verify an update before restarting.");
+      if (status.state !== "ready")
+        return failure(
+          "invalidInput",
+          "Download and verify an update before restarting.",
+        );
       const { version } = status;
       publish({ state: "installing", version });
       const result = await backend.install(version);

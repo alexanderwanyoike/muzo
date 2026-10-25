@@ -70,7 +70,11 @@ export async function assembleRelease(
       ),
     );
     const manifest = `${JSON.stringify(validated.value, null, 2)}\n`;
-    await Promise.all(updates.value.map(({name, bytes}) => writeFile(join(outputDirectory, name), bytes, {flag: "wx"})));
+    await Promise.all(
+      updates.value.map(({ name, bytes }) =>
+        writeFile(join(outputDirectory, name), bytes, { flag: "wx" }),
+      ),
+    );
     const manifestName = releaseManifestName(version);
     await writeFile(join(outputDirectory, manifestName), manifest, {
       flag: "wx",

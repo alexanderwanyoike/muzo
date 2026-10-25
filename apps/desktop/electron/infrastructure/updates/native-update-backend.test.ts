@@ -63,7 +63,7 @@ it("does not download a release that changed after the notice was shown", async 
   expect(client.downloadUpdate).not.toHaveBeenCalled();
 });
 
- it("keeps a verified update pending when restart is cancelled and blocks development installs", async () => {
+it("keeps a verified update pending when restart is cancelled and blocks development installs", async () => {
   const { backend, options } = fixture();
   await backend.download("0.0.3");
   options.confirmRestart.mockResolvedValueOnce(false);
@@ -73,10 +73,11 @@ it("does not download a release that changed after the notice was shown", async 
   expect((await disabled.download("0.0.3")).ok).toBe(false);
   expect((await disabled.check()).ok).toBe(false);
   expect((await disabled.openRelease("0.0.3")).ok).toBe(false);
- });
- it("does not install failed or empty downloads and reports native progress and errors", async () => {
+});
+it("does not install failed or empty downloads and reports native progress and errors", async () => {
   const { backend, client, events } = fixture();
-  const listener = vi.fn(); const unsubscribe = backend.subscribe(listener);
+  const listener = vi.fn();
+  const unsubscribe = backend.subscribe(listener);
   client.downloadUpdate.mockRejectedValueOnce(new Error("checksum mismatch"));
   expect((await backend.download("0.0.3")).ok).toBe(false);
   expect((await backend.install("0.0.3")).ok).toBe(false);
@@ -86,6 +87,8 @@ it("does not download a release that changed after the notice was shown", async 
   expect(listener).toHaveBeenLastCalledWith({ kind: "progress", percent: 50 });
   events.emit("error", new Error("installer failed"));
   expect(listener).toHaveBeenLastCalledWith({ kind: "installFailed" });
-  unsubscribe(); listener.mockClear(); events.emit("download-progress", { percent: 75 });
+  unsubscribe();
+  listener.mockClear();
+  events.emit("download-progress", { percent: 75 });
   expect(listener).not.toHaveBeenCalled();
- });
+});

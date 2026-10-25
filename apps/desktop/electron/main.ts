@@ -39,8 +39,20 @@ const reconcileFilesystemLibraries = container.resolve(
 );
 const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
 const logger = container.resolve("logger");
-const updateRuntime = createInstalledUpdates({ app, dialog, shell, platform: process.platform, arch: process.arch, appImage: process.env.APPIMAGE });
-installApplicationUpdates(ipcMain, updateRuntime.updates, (event) => BrowserWindow.fromWebContents(event.sender), () => BrowserWindow.getAllWindows());
+const updateRuntime = createInstalledUpdates({
+  app,
+  dialog,
+  shell,
+  platform: process.platform,
+  arch: process.arch,
+  appImage: process.env.APPIMAGE,
+});
+installApplicationUpdates(
+  ipcMain,
+  updateRuntime.updates,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  () => BrowserWindow.getAllWindows(),
+);
 
 async function createWindow(icon: string) {
   const window = new BrowserWindow({

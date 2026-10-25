@@ -15,41 +15,83 @@ interface Options {
   arch: string;
   appImage?: string;
 }
-export function createInstalledUpdates({ app, dialog, shell, platform, arch, appImage }: Options) {
-  const automatic = app.isPackaged && arch === "x64" && (platform === "win32" || (platform === "linux" && Boolean(appImage)));
+export function createInstalledUpdates({
+  app,
+  dialog,
+  shell,
+  platform,
+  arch,
+  appImage,
+}: Options) {
+  const automatic =
+    app.isPackaged &&
+    arch === "x64" &&
+    (platform === "win32" || (platform === "linux" && Boolean(appImage)));
   const backend = createNativeUpdateBackend({
     enabled: app.isPackaged,
     automatic,
     createClient: () => {
-      const feed = { provider: "github" as const, owner: "alexanderwanyoike", repo: "muzo", private: false };
-      return platform === "linux" ? new electronUpdater.AppImageUpdater(feed) : new electronUpdater.NsisUpdater(feed);
+      const feed = {
+        provider: "github" as const,
+        owner: "alexanderwanyoike",
+        repo: "muzo",
+        private: false,
+      };
+      return platform === "linux"
+        ? new electronUpdater.AppImageUpdater(feed)
+        : new electronUpdater.NsisUpdater(feed);
     },
     checkRelease: latestMuzoRelease,
     openRelease: (url) => shell.openExternal(url),
     async confirmRestart(version) {
-      const result = await dialog.showMessageBox({ type: "question", message: `Restart Muzo to install v${version}?`, detail: "Playback will stop while Muzo installs the update and reopens.", buttons: ["Later", "Restart to install"], defaultId: 0, cancelId: 0, noLink: true });
+      const result = await dialog.showMessageBox({
+        type: "question",
+        message: `Restart Muzo to install v${version}?`,
+        detail:
+          "Playback will stop while Muzo installs the update and reopens.",
+        buttons: ["Later", "Restart to install"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
       return result.response === 1;
     },
     async installDownloaded(path, client) {
       if (platform === "linux" && appImage) {
         const replaced = await replaceAppImage(appImage, path);
         if (!replaced.ok) return replaced;
-        try { app.relaunch({ execPath: appImage }); app.quit(); }
-        catch { return failure("storage", "The update is installed. Close Muzo and reopen the AppImage to use it."); }
+        try {
+          app.relaunch({ execPath: appImage });
+          app.quit();
+        } catch {
+          return failure(
+            "storage",
+            "The update is installed. Close Muzo and reopen the AppImage to use it.",
+          );
+        }
       } else client.quitAndInstall(true, true);
       return success(undefined);
     },
   });
-  const updates = createApplicationUpdates({ installedVersion: app.getVersion(), backend });
+  const updates = createApplicationUpdates({
+    installedVersion: app.getVersion(),
+    backend,
+  });
   let timer: ReturnType<typeof setInterval> | undefined;
   return {
     updates,
     start() {
       if (!app.isPackaged || timer) return;
       void updates.check();
-      timer = setInterval(() => { void updates.check(); }, CHECK_INTERVAL_MS);
+      timer = setInterval(() => {
+        void updates.check();
+      }, CHECK_INTERVAL_MS);
       timer.unref();
     },
-    stop() { if (timer) clearInterval(timer); timer = undefined; updates.dispose(); },
+    stop() {
+      if (timer) clearInterval(timer);
+      timer = undefined;
+      updates.dispose();
+    },
   };
 }
