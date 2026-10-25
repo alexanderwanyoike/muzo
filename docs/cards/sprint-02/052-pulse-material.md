@@ -10,7 +10,7 @@ The user requested a Spotify-like material. Pulse adds flat, layered charcoal su
 - [x] Preserve the selected accent when changing material and restore preferences across restarts.
 - [x] Use the same material in the full player, Settings and mini player without adding a box behind the compact timeline.
 - [x] Verify text contrast and Settings alignment across all materials, both modes and minimum/desktop widths.
-- [ ] Verify native mini-player controls, queue access and window restoration in both Pulse modes.
+- [x] Verify native mini-player controls, queue access and window restoration in both Pulse modes.
 - [ ] Complete the ordered repository gates and deliver a focused PR to dev.
 
 ## Design and implementation
@@ -22,3 +22,9 @@ Pulse uses charcoal/black raised surfaces with softened panel corners. The light
 ## Verification
 
 The initial persistence tests failed because Pulse was unavailable. They pass after registration. A separate native regression exposed an opaque timeline box in the mini player; scoping the full-player display rule fixes it. Both failing tests were committed separately from implementation. Existing Settings checks cover text contrast, distinct material colours, equal section widths, full-width source entries and overflow at 800 and 1280 pixels.
+
+## Interaction reference
+
+The user requested correcting hover and focus against Spotify itself. The live [Spotify web player](https://open.spotify.com/) was inspected directly: its Home surface changes from #1f1f1f to #2a2a2a on pointer hover, and keyboard focus uses a pale ring. Pulse uses neutral hover and selection fills, muted inactive navigation, a white focus ring in dark mode and a dark ring in light mode. Primary source actions retain their accent styling.
+
+A native regression now uses real mouse movement and Tab input to check inactive, selected, hovered and keyboard-focused navigation in both modes at desktop and minimum widths. It failed before the interaction rules and passes after them. Screenshots were inspected after settling theme transitions.
