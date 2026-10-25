@@ -44,6 +44,13 @@ Checksums are included with each release.
 
 Removing a source from Muzo leaves your music files in place.
 
+Updater-enabled builds check for newer releases automatically. Click the version
+notice at the bottom of the sidebar to download, then choose **Restart to install**
+when you are ready. Playback continues during the download. Windows installers
+and Linux AppImages can update in place; the AppImage keeps its existing filename
+and location. Unsigned macOS builds open the release page for manual installation.
+If you use v0.0.2, install the first updater-enabled release manually once.
+
 <details>
 <summary>Connecting Dropbox</summary>
 
