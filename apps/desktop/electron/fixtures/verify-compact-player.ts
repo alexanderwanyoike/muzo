@@ -200,23 +200,35 @@ void app.whenReady().then(async () => {
         `new Promise((resolve,reject)=>{const deadline=Date.now()+5000;const check=()=>{if(${expression})resolve();else if(Date.now()>deadline)reject(new Error('Compact fixture timeout: '+${JSON.stringify(expression)}));else setTimeout(check,20)};check()})`,
       );
     }
+    async function resize(width: number, height: number) {
+      window.setContentSize(width, height);
+      await until(`innerWidth === ${width} && innerHeight === ${height}`);
+      await window.webContents.executeJavaScript(
+        "document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))",
+      );
+    }
+    async function settleBounds(bounds: Electron.Rectangle) {
+      const deadline = Date.now() + 5000;
+      while (
+        JSON.stringify(window.getNormalBounds()) !== JSON.stringify(bounds)
+      ) {
+        if (Date.now() > deadline)
+          throw new Error("Native window bounds did not settle");
+        await new Promise((resolve) => {
+          setTimeout(resolve, 20);
+        });
+      }
+      const [width, height] = window.getContentSize();
+      await until(`innerWidth === ${width} && innerHeight === ${height}`);
+    }
     const click = async (label: string) => {
       const expression = `[...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === ${JSON.stringify(label)} || button.textContent.trim() === ${JSON.stringify(label)})`;
       await until(
         `!!(${expression}) && !(${expression}).disabled && (${expression}).getBoundingClientRect().width > 0`,
       );
-      if (
-        [
-          "Mini player",
-          "Show queue",
-          "Hide queue",
-          "Return to library",
-        ].includes(label)
-      ) {
-        // Resize replies can precede compositor hit testing; control bounds are measured separately.
-        await window.webContents.executeJavaScript(`(${expression}).click()`);
-        return;
-      }
+      await window.webContents.executeJavaScript(
+        "document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))",
+      );
       const point = (await window.webContents.executeJavaScript(
         `(()=>{const rect=(${expression}).getBoundingClientRect();return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}})()`,
       )) as { x: number; y: number };
@@ -249,10 +261,7 @@ void app.whenReady().then(async () => {
           `document.documentElement.dataset.theme=${JSON.stringify(theme)}; document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
         );
         for (const width of [1200, 800]) {
-          window.setContentSize(width, 800);
-          await window.webContents.executeJavaScript(
-            "document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))",
-          );
+          await resize(width, 800);
           libraryControls.push(
             await window.webContents.executeJavaScript(`(() => {
             const mini = document.querySelector('.app-shell button[aria-label="Mini player"]');
@@ -275,6 +284,7 @@ void app.whenReady().then(async () => {
           }
         }
         window.setBounds(original);
+        await settleBounds(original);
         await click("Mini player");
         await until("!!document.querySelector('.compact-player')");
         await until(
@@ -284,10 +294,7 @@ void app.whenReady().then(async () => {
           [420, 560],
           [360, 480],
         ]) {
-          window.setContentSize(width, height);
-          await window.webContents.executeJavaScript(
-            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
-          );
+          await resize(width, height);
           if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
             mkdirSync(process.env.MUZO_COMPACT_CAPTURE_DIR, {
               recursive: true,
@@ -320,10 +327,7 @@ void app.whenReady().then(async () => {
           [740, 560],
           [640, 480],
         ]) {
-          window.setContentSize(width, height);
-          await window.webContents.executeJavaScript(
-            "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
-          );
+          await resize(width, height);
           if (process.env.MUZO_COMPACT_CAPTURE_DIR) {
             await until(
               "(()=>{const list=document.querySelector('.compact-queue__list');const bounds=list.getBoundingClientRect();return [...list.children].filter(row=>{const r=row.getBoundingClientRect();return r.bottom>bounds.top && r.top<bounds.bottom}).every(row=>row.querySelector('img')?.complete)})()",
@@ -404,6 +408,7 @@ void app.whenReady().then(async () => {
         }
         await click("Return to library");
         await until("!document.querySelector('.compact-player')");
+        await settleBounds(original);
       }
     }
     await window.webContents.executeJavaScript(
@@ -437,6 +442,7 @@ void app.whenReady().then(async () => {
     })()`);
     await click("Return to library");
     await until("!document.querySelector('.compact-player')");
+    await settleBounds(original);
     writeFileSync(
       resultPath,
       JSON.stringify({
