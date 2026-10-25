@@ -2,6 +2,7 @@
 import { expect, it, vi } from "vitest";
 import { success } from "./application/result";
 import { createInstalledUpdates } from "./create-installed-updates";
+
 const native = vi.hoisted(() => ({
   check: vi.fn(),
   download: vi.fn(),
@@ -16,18 +17,26 @@ vi.mock("electron-updater", () => ({
       constructor() {
         native.create();
       }
+
       checkForUpdates = native.check;
+
       downloadUpdate = native.download;
+
       quitAndInstall = native.install;
+
       on = vi.fn();
     },
     NsisUpdater: class {
       constructor() {
         native.create();
       }
+
       checkForUpdates = native.check;
+
       downloadUpdate = native.download;
+
       quitAndInstall = native.install;
+
       on = vi.fn();
     },
   },
