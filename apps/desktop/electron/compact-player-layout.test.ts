@@ -79,6 +79,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
           listBottom: number;
         };
         layout: {
+          timelineBackground: string;
           contrastSamples: {
             text: string;
             muted: string;
@@ -115,9 +116,9 @@ it("fits compact controls at native minimum sizes and restores the library windo
       minimum: number[];
     };
     expect(result.failure).toBeUndefined();
-    expect(result.measurements).toHaveLength(16);
+    expect(result.measurements).toHaveLength(24);
     expect(result.fallback.queueAlpha).toBe(255);
-    expect(result.libraryControls).toHaveLength(8);
+    expect(result.libraryControls).toHaveLength(12);
     for (const control of result.libraryControls) {
       expect(control.text).toBe("");
       expect(control.title).toBe("Mini player");
@@ -143,6 +144,11 @@ it("fits compact controls at native minimum sizes and restores the library windo
       layout,
       queueAccess,
     } of result.measurements) {
+      if (theme === "pulse")
+        expect(
+          layout.timelineBackground,
+          `${mode} Pulse timeline stays unboxed`,
+        ).toBe("rgba(0, 0, 0, 0)");
       if (queue) {
         expect(queueAccess?.scrollTop).toBeGreaterThan(0);
         expect(queueAccess?.lastBottom).toBeLessThanOrEqual(

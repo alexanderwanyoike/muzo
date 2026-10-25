@@ -171,6 +171,9 @@ function measureCompact() {
   });
   return {
     contrastSamples,
+    timelineBackground: getComputedStyle(
+      root.querySelector(".now-playing-bar__display") ?? root,
+    ).backgroundColor,
     bottomCorners: [
       getComputedStyle(root).borderBottomLeftRadius,
       getComputedStyle(root).borderBottomRightRadius,
@@ -257,7 +260,7 @@ void app.whenReady().then(async () => {
     const original = window.getNormalBounds();
     const measurements = [];
     const libraryControls = [];
-    for (const theme of ["aluminium", "glass"]) {
+    for (const theme of ["aluminium", "glass", "pulse"]) {
       for (const mode of ["light", "dark"]) {
         await click("Playlists");
         await click("Play Evening");
