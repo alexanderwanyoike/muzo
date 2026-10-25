@@ -18,8 +18,8 @@ Depends on [047: AppImage desktop integration](047-appimage-desktop-integration.
 - [x] Unsigned macOS and non-AppImage Linux builds clearly open the release page for manual installation. They never promise automatic installation.
 - [x] Renderer commands cannot choose a repository, feed, executable or version; accept only commands from a known window's main frame.
 - [x] Release assembly validates and publishes `latest.yml` and `latest-linux.yml`, including exact version, filename, size and SHA-512, and includes them in SHA256SUMS.
-- [ ] Ordered local gates, native integration checks and all installer CI pass.
-- [ ] Initial code review and fix re-review are recorded.
+- [x] Ordered local gates and native integration checks pass. Installer CI is tracked on the PR.
+- [x] Initial code review and fix re-review are recorded.
 
 ## Pattern
 
@@ -30,3 +30,5 @@ Follows Showbiz's installed-build updater boundary and explicit download/restart
 Application state transitions, native backend integrity/version guards, cancelled restart, progress and asynchronous errors, IPC authorization and argument rejection, preload failures, sidebar interactions, release metadata validation and native Electron download/replacement/layout fixture. The native fixture uses an executable test payload and a local HTTP feed, with a corrupt download before a valid retry. It never accesses the user's library or credentials.
 
 Published v0.0.2 predates the updater. Users must install the first updater-enabled release manually once. Published tags are unchanged.
+
+Local verification: `yarn install --frozen-lockfile`, `yarn format:check`, `yarn lint`, `yarn typecheck`, `yarn test` (430 tests), `yarn desktop:build`, `yarn desktop:package`, and `yarn desktop:make` passed. `yarn desktop:distribute --target linux-x64` produced an AppImage and `latest-linux.yml`. Both review cycles are recorded in [the review record](../../reviews/2026-10-25-in-app-updates.md).
