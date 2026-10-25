@@ -5,6 +5,7 @@ import { failure, success } from "./application/result";
 import { createNativeUpdateBackend } from "./infrastructure/updates/native-update-backend";
 import { latestMuzoRelease } from "./infrastructure/updates/github-update-release";
 import { replaceAppImage } from "./infrastructure/updates/replace-appimage";
+import { MUZO_UPDATE_FEED } from "../shared/update-feed";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 interface Options {
@@ -31,15 +32,9 @@ export function createInstalledUpdates({
     enabled: app.isPackaged,
     automatic,
     createClient: () => {
-      const feed = {
-        provider: "github" as const,
-        owner: "alexanderwanyoike",
-        repo: "muzo",
-        private: false,
-      };
       return platform === "linux"
-        ? new electronUpdater.AppImageUpdater(feed)
-        : new electronUpdater.NsisUpdater(feed);
+        ? new electronUpdater.AppImageUpdater(MUZO_UPDATE_FEED)
+        : new electronUpdater.NsisUpdater(MUZO_UPDATE_FEED);
     },
     checkRelease: latestMuzoRelease,
     openRelease: (url) => shell.openExternal(url),
