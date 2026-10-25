@@ -52,7 +52,8 @@
   background: var(--selected);
   color: var(--text);
 }
-:root[data-theme="pulse"] button:hover:not(:disabled) {
+:root[data-theme="pulse"]
+  button:hover:not(:disabled, .remove-source-dialog__confirm) {
   background: var(--hover);
   color: var(--text);
 }
