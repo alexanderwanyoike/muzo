@@ -1,13 +1,14 @@
 // @vitest-environment node
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, open, readFile, readlink, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, open, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 import { previousAppImage } from "./fixtures/previous-appimage";
 import { waitForRenderer } from "./fixtures/renderer-debugger";
+import { stopAppImagePlayers } from "./fixtures/stop-appimage-players";
 
 it.skipIf(process.platform !== "linux" || !process.env.MUZO_TEST_APPIMAGE)(
   "reopens a real updated AppImage with its library, launch arguments and application menu intact",
@@ -143,27 +144,12 @@ it.skipIf(process.platform !== "linux" || !process.env.MUZO_TEST_APPIMAGE)(
       );
     } finally {
       if (browser) {
-        await browser.evaluate("window.close()").catch(() => undefined);
+        await browser
+          .evaluate("setTimeout(() => window.close(), 0); true")
+          .catch(() => undefined);
         browser.close();
       }
-      if (player.pid) {
-        try {
-          process.kill(-player.pid, "SIGTERM");
-        } catch {
-          /* The old image may already have exited. */
-        }
-      }
-      const lock = await readlink(join(profile, "SingletonLock")).catch(
-        () => "",
-      );
-      const pid = Number(lock.split("-").at(-1));
-      if (Number.isInteger(pid) && pid > 0) {
-        try {
-          process.kill(pid, "SIGTERM");
-        } catch {
-          /* The replacement may already have exited. */
-        }
-      }
+      await stopAppImagePlayers(previous.image, player.pid);
       previous.close();
       await log.close();
       await rm(root, {
