@@ -7,6 +7,7 @@ import {
   type DistributionResult,
 } from "./distribution-result";
 import { inspectInstaller } from "./inspect-installer";
+import { inspectUpdateMetadata } from "./inspect-update-metadata";
 import {
   RELEASE_TARGETS,
   isStableReleaseVersion,
@@ -55,6 +56,8 @@ export async function assembleRelease(
     artifacts,
   });
   if (!validated.ok) return validated;
+  const updates = await inspectUpdateMetadata(inputDirectory, version);
+  if (!updates.ok) return updates;
   try {
     await mkdir(outputDirectory);
     await Promise.all(
@@ -67,12 +70,14 @@ export async function assembleRelease(
       ),
     );
     const manifest = `${JSON.stringify(validated.value, null, 2)}\n`;
+    await Promise.all(updates.value.map(({name, bytes}) => writeFile(join(outputDirectory, name), bytes, {flag: "wx"})));
     const manifestName = releaseManifestName(version);
     await writeFile(join(outputDirectory, manifestName), manifest, {
       flag: "wx",
     });
     const sums = [
       ...artifacts.map(({ name, sha256 }) => `${sha256}  ${name}`),
+      ...updates.value.map(({ name, sha256 }) => `${sha256}  ${name}`),
       `${createHash("sha256").update(manifest).digest("hex")}  ${manifestName}`,
     ].join("\n");
     await writeFile(join(outputDirectory, "SHA256SUMS"), `${sums}\n`, {
