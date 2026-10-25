@@ -69,11 +69,11 @@
   width: 65%;
 }
 .appearance-material:has(input:checked) .appearance-preview {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 .appearance-material:has(input:focus-visible) .appearance-preview {
-  outline: 3px solid var(--accent);
+  outline: 3px solid var(--accent-ink);
   outline-offset: 4px;
 }
 .appearance-material__name {
@@ -117,7 +117,7 @@
   box-shadow: 0 1px 3px #0002;
 }
 .appearance-modes input:focus-visible + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
 }
 .appearance-accents {
   display: flex;
@@ -139,11 +139,23 @@
   background: var(--accent);
 }
 .appearance-accents input:checked + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 3px;
   box-shadow: inset 0 0 0 3px var(--panel-raised);
 }
 .appearance-accents input:focus-visible + span {
   outline: 3px solid var(--text);
   outline-offset: 4px;
+}
+.appearance-accent-groups {
+  display: grid;
+  gap: 14px;
+}
+.appearance-accent-group {
+  display: grid;
+  gap: 7px;
+}
+.appearance-accent-group__name {
+  font-size: 10px;
+  color: var(--text-muted);
 }

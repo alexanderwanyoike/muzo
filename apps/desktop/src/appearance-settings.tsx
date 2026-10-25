@@ -1,5 +1,5 @@
 import SettingsSection from "./settings-section";
-import { ACCENTS, MATERIALS, MODES, type Appearance } from "./appearance";
+import { ACCENT_GROUPS, MATERIALS, MODES, type Appearance } from "./appearance";
 import "./appearance-settings.css";
 
 interface Props {
@@ -75,24 +75,36 @@ export default function AppearanceSettings({
         </fieldset>
         <fieldset>
           <legend>Accent colour</legend>
-          <div className="appearance-accents">
-            {ACCENTS.map((accent) => (
-              <label
-                key={accent.id}
-                data-accent={accent.id}
-                title={accent.name}
+          <div className="appearance-accent-groups">
+            {ACCENT_GROUPS.map(({ name, accents }) => (
+              <div
+                className="appearance-accent-group"
+                role="group"
+                aria-label={`${name} accents`}
+                key={name}
               >
-                <input
-                  type="radio"
-                  name="accent"
-                  checked={appearance.accent === accent.id}
-                  onChange={() =>
-                    onChange({ ...appearance, accent: accent.id })
-                  }
-                  aria-label={accent.name}
-                />
-                <span aria-hidden="true" />
-              </label>
+                <span className="appearance-accent-group__name">{name}</span>
+                <div className="appearance-accents">
+                  {accents.map((accent) => (
+                    <label
+                      key={accent.id}
+                      data-accent={accent.id}
+                      title={accent.name}
+                    >
+                      <input
+                        type="radio"
+                        name="accent"
+                        checked={appearance.accent === accent.id}
+                        onChange={() =>
+                          onChange({ ...appearance, accent: accent.id })
+                        }
+                        aria-label={accent.name}
+                      />
+                      <span aria-hidden="true" />
+                    </label>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </fieldset>

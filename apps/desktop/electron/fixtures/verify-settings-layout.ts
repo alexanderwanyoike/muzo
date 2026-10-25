@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import { writeFileSync } from "node:fs";
-import { MATERIALS, MODES } from "../../src/appearance";
+import { ACCENTS, MATERIALS, MODES } from "../../src/appearance";
+import { measureSplitterFocus } from "./measure-splitter-focus";
 import { measureSettingsLayout } from "./measure-settings-layout";
 
 const [page, resultPath] = process.argv.slice(-2);
@@ -8,7 +9,7 @@ if (!page || !resultPath) throw new Error("Settings fixture paths required");
 void app.whenReady().then(async () => {
   try {
     const window = new BrowserWindow({
-      show: false,
+      show: true,
       webPreferences: { backgroundThrottling: false },
     });
     const measurements = [];
@@ -23,7 +24,43 @@ void app.whenReady().then(async () => {
             const layout: unknown = await window.webContents.executeJavaScript(
               `(${measureSettingsLayout.toString()})()`,
             );
-            measurements.push({ width, connected, theme, mode, layout });
+            await window.webContents.executeJavaScript(
+              "document.querySelector('.sidebar-splitter').focus()",
+            );
+            window.webContents.focus();
+            window.webContents.sendInputEvent({
+              type: "keyDown",
+              keyCode: "Tab",
+              modifiers: ["shift"],
+            });
+            window.webContents.sendInputEvent({
+              type: "keyUp",
+              keyCode: "Tab",
+              modifiers: ["shift"],
+            });
+            window.webContents.sendInputEvent({
+              type: "keyDown",
+              keyCode: "Tab",
+            });
+            window.webContents.sendInputEvent({
+              type: "keyUp",
+              keyCode: "Tab",
+            });
+            await window.webContents.executeJavaScript(
+              "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+            );
+            const splitterFocus: unknown =
+              await window.webContents.executeJavaScript(
+                `(${measureSplitterFocus.toString()})(${JSON.stringify(ACCENTS.filter(({ id }) => id.startsWith("glow-")).map(({ id }) => id))})`,
+              );
+            measurements.push({
+              width,
+              connected,
+              theme,
+              mode,
+              layout,
+              splitterFocus,
+            });
           }
         }
       }
