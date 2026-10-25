@@ -53,7 +53,11 @@
   color: var(--text);
 }
 :root[data-theme="pulse"]
-  button:hover:not(:disabled, .remove-source-dialog__confirm) {
+  button:hover:not(
+    :disabled,
+    .remove-source-dialog__confirm,
+    .library-list__remove
+  ) {
   background: var(--hover);
   color: var(--text);
 }
@@ -69,7 +73,6 @@
 :root[data-theme="pulse"] input:focus-visible,
 :root[data-theme="pulse"] select:focus-visible {
   outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
 }
 :root[data-theme="pulse"]
   .now-playing-bar__progress-shell:has(input:focus-visible),
