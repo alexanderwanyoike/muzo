@@ -11,7 +11,7 @@ The user identified Auto Digger PR #44 as a possible Muzo updater defect and app
 - [x] Wait for the operating system's spawn acknowledgement, finish the original process, and report launch errors through Result and a readable native message.
 - [x] Keep the atomic replacement, original filename, menu entry and existing library intact.
 - [x] Run the maintained packaged regression in Linux installer CI, with extraction mode for CI and optional FUSE mounting locally.
-- [ ] Complete two review cycles and all ordered checks before promoting a 0.0.4 patch through dev to main.
+- [x] Complete two review cycles and all ordered checks before promoting a 0.0.4 patch through dev to main.
 
 ## Verification
 
@@ -20,3 +20,5 @@ The native regression builds an older copy of the complete player with a local n
 The initial regression failed in both extraction and FUSE modes after successful replacement because the replacement debugging endpoint never appeared. The unit test separately confirmed the unsafe relaunch call. Failing tests were committed before implementation.
 
 After the fix, both FUSE and extraction-mode packaged regressions pass. The native library, user-agent version, new debugging endpoint, retained filename and menu entry are verified. Expected spawn errors also pass dedicated adapter tests.
+
+Final local verification passed: install, lint, strict types, 428 tests, build, package, make and formatting. Both initial review findings referred to the same cleanup defect; both re-review axes report zero findings. See the review record. Native installer CI and publication are recorded on the pull requests.
