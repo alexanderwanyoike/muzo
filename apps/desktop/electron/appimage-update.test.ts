@@ -127,14 +127,9 @@ it.skipIf(process.platform !== "linux" || !process.env.MUZO_TEST_APPIMAGE)(
           timeout: 15_000,
         })
         .toContain("Update survivor");
-      await browser.evaluate(
-        "Array.from(document.querySelectorAll('button')).find(button => button.textContent.trim() === 'Settings').click()",
+      expect(await browser.evaluate("navigator.userAgent")).toContain(
+        `Muzo/${previous.version}`,
       );
-      await expect
-        .poll(() => browser?.evaluate("document.body.textContent"), {
-          timeout: 15_000,
-        })
-        .toContain(`Version ${previous.version}`);
       const entry = await readFile(
         join(root, "data/applications/muzo.desktop"),
         "utf8",
@@ -147,7 +142,10 @@ it.skipIf(process.platform !== "linux" || !process.env.MUZO_TEST_APPIMAGE)(
         { cause: error },
       );
     } finally {
-      browser?.close();
+      if (browser) {
+        await browser.evaluate("window.close()").catch(() => undefined);
+        browser.close();
+      }
       if (player.pid) {
         try {
           process.kill(-player.pid, "SIGTERM");
