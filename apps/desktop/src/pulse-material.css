@@ -23,7 +23,7 @@
 :root[data-theme="pulse"] .now-playing-bar {
   box-shadow: none;
 }
-:root[data-theme="pulse"] .now-playing-bar__display {
+:root[data-theme="pulse"] .app-shell .now-playing-bar__display {
   border-radius: 10px;
   background: var(--panel-raised);
   box-shadow: none;
