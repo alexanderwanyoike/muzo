@@ -20,7 +20,8 @@
     "clean": "rm -rf dist dist-electron out node_modules",
     "icons:generate": "png2icons assets/icons/muzo.png assets/icons/muzo -allwe -bc && electron --no-sandbox export-window-icon.cjs",
     "electron:prepare": "node -e \"require('electron')\"",
-    "distribute": "yarn build && tsx electron/distribution/make-distribution.ts"
+    "distribute": "yarn build && tsx electron/distribution/make-distribution.ts",
+    "appimage:verify-menu": "tsx electron/fixtures/verify-appimage-menu.ts"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "5.3.0",

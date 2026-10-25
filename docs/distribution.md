@@ -115,3 +115,29 @@ notices, remain under their original terms and are retained in the payload.
 
 No third-party implementation is copied into Muzo. Existing native container and
 runtime notices remain in the standard tool-generated payload.
+
+## AppImage desktop menus
+
+Packaged AppImage launches register Muzo in the per-user XDG application directory
+(`$XDG_DATA_HOME/applications`, or `~/.local/share/applications`). The menu entry
+uses the outer AppImage filename and a durable copy of the native Linux icon,
+not a file inside the temporary mount. Desktop environments can then discover,
+launch, group and pin Muzo through their normal controls.
+
+The stable launcher is refreshed when the AppImage is opened from a new location.
+Existing externally managed menu integrations are preserved. A known Cinnamon
+shortcut to `/tmp/.mount_Muzo-*/muzo` is repaired under its existing filename to
+retain pins. This is a migration for that old shortcut, while the normal
+registration uses freedesktop/XDG standards for Linux desktops.
+
+This does not move the AppImage, require root, alter desktop preferences or change
+Muzo's profile and credential identity. If registration cannot be saved, Muzo
+continues running and reports the problem with a retry instruction.
+
+The Linux distribution job runs `appimage:verify-menu` against the real packaged
+AppImage in isolated XDG directories, with clean and broken-shortcut scenarios.
+The test validates desktop syntax and Gio discovery, checks the icon and launch
+path, and matches the actual X11 window class. The startup guard skips other
+platforms and non-AppImage launches. Normal unit checks also exercise native menu
+launching and desktop argument escaping. Linux CI installs desktop-file-utils and
+Python Gio as verification tools, not bundled runtime requirements.
