@@ -16,6 +16,7 @@ interface Measurement {
   connected: boolean;
   theme: string;
   mode: string;
+  splitterFocus: { id: string; colour: string }[];
   layout: {
     selectedTheme: string;
     selectedMode: string;
@@ -103,8 +104,24 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
       readFileSync(resultPath, "utf8"),
     ) as Measurement[];
     expect(measurements).toHaveLength(MATERIALS.length * MODES.length * 4);
-    for (const { width, connected, theme, mode, layout } of measurements) {
+    for (const {
+      width,
+      connected,
+      theme,
+      mode,
+      layout,
+      splitterFocus,
+    } of measurements) {
       const context = `${width}px, ${theme}/${mode}, Dropbox ${connected ? "connected" : "disconnected"}`;
+      expect(splitterFocus, `${context}, resize focus palettes`).toHaveLength(
+        6,
+      );
+      for (const focus of splitterFocus)
+        for (const background of [layout.colours.sidebar, layout.colours.panel])
+          expect(
+            contrastRatio(focus.colour, background),
+            `${context}, ${focus.id} resize keyboard focus contrast`,
+          ).toBeGreaterThanOrEqual(3);
       expect(layout.selectedTheme, context).toBe(theme);
       expect(layout.selectedMode, context).toBe(mode);
       expect(
