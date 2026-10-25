@@ -84,6 +84,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
             muted: string;
             backgrounds: string[];
           }[];
+          bottomCorners: string[];
           width: number;
           height: number;
           overflow: number;
@@ -97,6 +98,16 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
+      libraryControls: {
+        width: number;
+        top: number;
+        right: number;
+        bottom: number;
+        buttonWidth: number;
+        volumeTop: number;
+        text: string;
+        title: string;
+      }[];
       fallback: { queueAlpha: number };
       restoredShape: string | null;
       original: unknown;
@@ -106,13 +117,22 @@ it("fits compact controls at native minimum sizes and restores the library windo
     expect(result.failure).toBeUndefined();
     expect(result.measurements).toHaveLength(16);
     expect(result.fallback.queueAlpha).toBe(255);
+    expect(result.libraryControls).toHaveLength(8);
+    for (const control of result.libraryControls) {
+      expect(control.text).toBe("");
+      expect(control.title).toBe("Mini player");
+      expect(control.top).toBeGreaterThanOrEqual(0);
+      expect(control.top).toBeLessThanOrEqual(8);
+      expect(control.buttonWidth).toBeGreaterThanOrEqual(24);
+      expect(control.width - control.right).toBeGreaterThanOrEqual(8);
+      expect(control.width - control.right).toBeLessThanOrEqual(16);
+      expect(control.bottom).toBeLessThan(control.volumeTop);
+    }
     expect(result.restored).toEqual(result.original);
     if (process.platform === "linux") {
-      expect(result.restoredShape).toMatch(
-        /Window shape extents:\s+1200x800\+0\+0/,
-      );
+      expect(result.restoredShape).toContain("No window shape defined");
       for (const measurement of result.measurements) {
-        expect(measurement.nativeShape).toContain("Window shape extents:");
+        expect(measurement.nativeShape).toContain("No window shape defined");
       }
     }
     expect(result.minimum).toEqual([800, 600]);
@@ -144,6 +164,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
         }
       }
       const context = `${mode} ${layout.width}x${layout.height} ${queue ? "queue" : "compact"}`;
+      expect(layout.bottomCorners, context).toEqual(["0px", "0px"]);
       expect(layout.overflow, context).toBeLessThanOrEqual(0);
       expect(layout.libraryHidden, context).toBe(true);
       expect(layout.controls.length, context).toBeGreaterThanOrEqual(7);

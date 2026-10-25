@@ -1,13 +1,6 @@
 .app-shell[hidden] {
   display: none;
 }
-.app-sidebar__header > button {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-}
 .compact-player {
   height: 100dvh;
   min-height: 0;
@@ -329,10 +322,4 @@
   .compact-queue__list {
     scrollbar-color: auto;
   }
-}
-
-.compact-player {
-  --mini-player-corner-radius: 14px;
-  border-radius: 0 0 var(--mini-player-corner-radius)
-    var(--mini-player-corner-radius);
 }

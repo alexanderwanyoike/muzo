@@ -1,7 +1,4 @@
 import type { BrowserWindow } from "electron";
-import { roundedWindowShape } from "./rounded-window-shape";
-import { ConsoleLogger } from "./infrastructure/logging/console-logger";
-import type { Logger } from "./application/interfaces/logger-interfaces";
 import { failure, success, type Result } from "./application/result";
 import type { PlayerWindowMode } from "../shared/player-window-mode";
 
@@ -23,60 +20,16 @@ type PlayerWindow = Pick<
   | "setMinimumSize"
   | "setContentSize"
   | "setBounds"
-  | "getSize"
-  | "setShape"
-> & {
-  on(event: "resize" | "closed", listener: () => void): unknown;
-  removeListener(event: "resize" | "closed", listener: () => void): unknown;
-};
+>;
 interface WindowSnapshot {
   bounds: ReturnType<PlayerWindow["getNormalBounds"]>;
   minimum: number[];
   maximized: boolean;
 }
 
-export function createPlayerWindowModeController(
-  window: PlayerWindow,
-  platform: NodeJS.Platform = process.platform,
-  logger: Logger = new ConsoleLogger(),
-) {
+export function createPlayerWindowModeController(window: PlayerWindow) {
   let mode: PlayerWindowMode = "library";
   let library: WindowSnapshot | null = null;
-  let shapeApplied = false;
-  const supportsShape =
-    platform === "win32" ||
-    (platform === "linux" && process.env.XDG_SESSION_TYPE !== "wayland");
-  function shape(rounded: boolean): Result<void> {
-    if (!supportsShape || window.isDestroyed()) return success(undefined);
-    try {
-      const [width, height] = window.getSize();
-      // Electron 43/X11 interprets [] as an empty region instead of resetting it.
-      const rectangle =
-        platform === "linux" ? [{ x: 0, y: 0, width, height }] : [];
-      window.setShape(
-        rounded
-          ? roundedWindowShape(width, height, platform !== "linux")
-          : rectangle,
-      );
-      shapeApplied = rounded || platform === "linux";
-      return success(undefined);
-    } catch {
-      return failure(
-        "remote",
-        "The mini player window edges could not be updated. Try again.",
-      );
-    }
-  }
-  function resize() {
-    if (mode === "library" && !shapeApplied) return;
-    const updated = shape(mode !== "library");
-    if (!updated.ok) {
-      const cleared = shape(false);
-      if (!cleared.ok) logger.error(cleared.error.message);
-    }
-  }
-  window.on("resize", resize);
-  window.on("closed", () => window.removeListener("resize", resize));
   const snapshot = (): WindowSnapshot => ({
     bounds: window.getNormalBounds(),
     minimum: window.getMinimumSize(),
@@ -106,12 +59,6 @@ export function createPlayerWindowModeController(
         window.setMinimumSize(dimensions.minimumWidth, COMPACT_MINIMUM_HEIGHT);
         window.setContentSize(dimensions.width, COMPACT_HEIGHT);
       }
-      const shaped = shape(next !== "library");
-      if (!shaped.ok) {
-        if (before) restore(before);
-        const rolledBack = shape(mode !== "library");
-        return rolledBack.ok ? shaped : rolledBack;
-      }
       library = next === "library" ? null : savedLibrary;
       mode = next;
       return success(undefined);
@@ -119,8 +66,6 @@ export function createPlayerWindowModeController(
       try {
         if (before && !window.isDestroyed()) {
           restore(before);
-          const rolledBack = shape(mode !== "library");
-          if (!rolledBack.ok) return rolledBack;
         }
       } catch {
         return failure(
