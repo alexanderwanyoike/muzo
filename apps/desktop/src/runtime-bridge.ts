@@ -1,10 +1,12 @@
 import type { PlayerWindowMode } from "../shared/player-window-mode";
 import type { Result } from "../shared/result";
+import type { UpdateBridge } from "../shared/update-bridge";
 
 export interface RuntimeBridge {
   invoke<T>(command: string, args?: unknown): Promise<T>;
   openDirectory(): Promise<string | null>;
   setPlayerWindowMode?(mode: PlayerWindowMode): Promise<Result<void>>;
+  updates?: UpdateBridge;
 }
 
 declare global {
