@@ -94,7 +94,8 @@ it("coalesces checks and keeps a download from being replaced by a background ch
       }) => void)
     | undefined;
   let finishDownload:
-    ((value: { ok: true; value: undefined }) => void) | undefined;
+    | ((value: { ok: true; value: undefined }) => void)
+    | undefined;
   const backend = {
     check: vi.fn(
       () =>
