@@ -8,6 +8,7 @@ import { installPlayerWindowMode } from "../install-player-window-mode";
 const [page, preload, resultPath] = process.argv.slice(-3);
 if (!page || !preload || !resultPath)
   throw new Error("Compact fixture paths required");
+const LIBRARY_LAYOUT_HEIGHT = 600;
 const track = {
   id: "first",
   libraryId: "music",
@@ -23,6 +24,10 @@ const track = {
   filePath: "/Music/demo.flac",
 };
 let artwork: string | null = null;
+ipcMain.handle("muzo:get-update-status", () => ({
+  ok: true,
+  value: { state: "idle" },
+}));
 ipcMain.handle("muzo:invoke", (_event, command: string, args: unknown) => {
   if (
     command === "fixture_set_artwork" &&
@@ -261,7 +266,7 @@ void app.whenReady().then(async () => {
           `document.documentElement.dataset.theme=${JSON.stringify(theme)}; document.documentElement.dataset.mode=${JSON.stringify(mode)}; document.documentElement.style.colorScheme=${JSON.stringify(mode)}`,
         );
         for (const width of [1200, 800]) {
-          await resize(width, 800);
+          await resize(width, LIBRARY_LAYOUT_HEIGHT);
           libraryControls.push(
             await window.webContents.executeJavaScript(`(() => {
             const mini = document.querySelector('.app-shell button[aria-label="Mini player"]');
