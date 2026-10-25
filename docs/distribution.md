@@ -156,3 +156,22 @@ into `resources/app-update.yml` before native installer creation. The AppImage
 target may regenerate that file using its standard cache identity. Native installer
 checks verify the shipped configuration; release assembly verifies both update
 YAML files against the installers before publication.
+
+## AppImage update regression
+
+The Linux installer job runs `electron/appimage-update.test.ts` with
+`MUZO_TEST_APPIMAGE` set to the installer it just produced. This builds an older
+copy of the complete player with a local HTTP provider, downloads the actual new
+AppImage and checks process exit, replacement window, version, saved library and
+menu entry. Test data stays in isolated XDG directories.
+
+For a local FUSE-mounted check after `yarn desktop:distribute --target linux-x64`:
+
+```sh
+MUZO_TEST_FUSE=1 MUZO_TEST_APPIMAGE="$PWD/apps/desktop/out/distribution/Muzo-0.0.4-linux-x64.AppImage" xvfb-run -a yarn workspace @muzo/desktop test electron/appimage-update.test.ts
+```
+
+Omit `MUZO_TEST_FUSE` to use the AppImage runtime's extraction mode, as CI does.
+The restart adapter spawns the retained outer AppImage during final shutdown and
+preserves launch arguments. See ADR 0010. On the first upgrade from 0.0.3, its old
+restart code may require reopening the existing AppImage after replacement.
