@@ -12,7 +12,7 @@ it("offers a sidebar download, shows progress and waits for a separate restart c
  const bridge = { getStatus: async () => success<UpdateStatus>({state: "available", version: "0.0.3", automatic: true}), subscribe: (listener: (status: UpdateStatus) => void) => {report = listener; return unsubscribe;}, command: vi.fn(async () => success(undefined)) };
  const {unmount} = render(<UpdateNotice bridge={bridge} />);
  await userEvent.click(await screen.findByRole("button", {name: "Update available v0.0.3"}));
- expect(bridge.command).toHaveBeenCalledExactlyOnceWith("download");
+ expect(bridge.command).toHaveBeenCalledOnce(); expect(bridge.command).toHaveBeenCalledWith("download");
  act(() => report?.({state: "downloading", version: "0.0.3", progress: 42.7}));
  expect(screen.getByRole("button", {name: "Downloading v0.0.3 · 43%"}).hasAttribute("disabled")).toBe(true);
  act(() => report?.({state: "ready", version: "0.0.3"}));
