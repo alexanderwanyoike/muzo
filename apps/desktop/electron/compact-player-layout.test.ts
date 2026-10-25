@@ -99,6 +99,13 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
+      interactionStates: {
+        mode: string;
+        foreground: string;
+        selected: string;
+        hover: { background: string; color: string };
+        focus: { visible: boolean; color: string; style: string };
+      }[];
       libraryControls: {
         width: number;
         top: number;
@@ -116,6 +123,27 @@ it("fits compact controls at native minimum sizes and restores the library windo
       minimum: number[];
     };
     expect(result.failure).toBeUndefined();
+    expect(result.interactionStates).toHaveLength(4);
+    for (const state of result.interactionStates) {
+      const dark = state.mode === "dark";
+      expect(state.foreground, `${state.mode} inactive navigation`).toBe(
+        dark ? "rgb(179, 179, 179)" : "rgb(85, 85, 85)",
+      );
+      expect(state.selected, `${state.mode} selected navigation`).toBe(
+        dark ? "rgb(42, 42, 42)" : "rgb(216, 216, 216)",
+      );
+      expect(state.hover.background, `${state.mode} neutral hover`).toBe(
+        dark ? "rgb(42, 42, 42)" : "rgb(222, 222, 222)",
+      );
+      expect(state.hover.color, `${state.mode} readable hover`).toBe(
+        dark ? "rgb(245, 245, 245)" : "rgb(23, 23, 23)",
+      );
+      expect(state.focus.visible, `${state.mode} keyboard focus`).toBe(true);
+      expect(state.focus.style, `${state.mode} focus ring`).toBe("solid");
+      expect(state.focus.color, `${state.mode} neutral focus ring`).toBe(
+        dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      );
+    }
     expect(result.measurements).toHaveLength(24);
     expect(result.fallback.queueAlpha).toBe(255);
     expect(result.libraryControls).toHaveLength(12);

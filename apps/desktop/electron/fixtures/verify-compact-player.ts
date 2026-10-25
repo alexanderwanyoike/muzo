@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu } from "electron";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { measureMaterialInteractions } from "./measure-material-interactions";
 import { installDesktopMenu } from "../desktop-menu";
 import { installPlayerWindowMode } from "../install-player-window-mode";
 
@@ -260,6 +261,7 @@ void app.whenReady().then(async () => {
     const original = window.getNormalBounds();
     const measurements = [];
     const libraryControls = [];
+    const interactionStates = [];
     for (const theme of ["aluminium", "glass", "pulse"]) {
       for (const mode of ["light", "dark"]) {
         await click("Playlists");
@@ -270,6 +272,8 @@ void app.whenReady().then(async () => {
         );
         for (const width of [1200, 800]) {
           await resize(width, LIBRARY_LAYOUT_HEIGHT);
+          if (theme === "pulse")
+            interactionStates.push(await measureMaterialInteractions(window));
           libraryControls.push(
             await window.webContents.executeJavaScript(`(() => {
             const mini = document.querySelector('.app-shell button[aria-label="Mini player"]');
@@ -455,6 +459,7 @@ void app.whenReady().then(async () => {
       resultPath,
       JSON.stringify({
         measurements,
+        interactionStates,
         libraryControls,
         fallback,
         original,
