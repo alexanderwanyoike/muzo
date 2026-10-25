@@ -1,0 +1,41 @@
+[data-theme="pulse"] {
+  --material: linear-gradient(transparent, transparent);
+  --inset: none;
+}
+[data-theme="pulse"][data-mode="light"] {
+  --panel: #f3f3f3;
+  --panel-raised: #ffffff;
+  --sidebar: #e7e7e7;
+  --chrome: #fafafa;
+  --line: #d4d4d4;
+  --text: #171717;
+  --text-muted: #555555;
+}
+[data-theme="pulse"][data-mode="dark"] {
+  --panel: #121212;
+  --panel-raised: #1f1f1f;
+  --sidebar: #080808;
+  --chrome: #181818;
+  --line: #303030;
+  --text: #f5f5f5;
+  --text-muted: #b3b3b3;
+}
+:root[data-theme="pulse"] .now-playing-bar {
+  box-shadow: none;
+}
+:root[data-theme="pulse"] .now-playing-bar__display {
+  border-radius: 10px;
+  background: var(--panel-raised);
+  box-shadow: none;
+}
+:root[data-theme="pulse"] .sidebar-panel,
+:root[data-theme="pulse"] .settings-view__section {
+  border-radius: 10px;
+}
+:root[data-theme="pulse"] .settings-section__header {
+  border-radius: 9px 9px 0 0;
+}
+:root[data-theme="pulse"] .app-sidebar__nav-item--active {
+  border-radius: 8px;
+  box-shadow: none;
+}
