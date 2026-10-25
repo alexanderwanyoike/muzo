@@ -11,7 +11,7 @@ The user requested a Spotify-like material. Pulse adds flat, layered charcoal su
 - [x] Use the same material in the full player, Settings and mini player without adding a box behind the compact timeline.
 - [x] Verify text contrast and Settings alignment across all materials, both modes and minimum/desktop widths.
 - [x] Verify native mini-player controls, queue access and window restoration in both Pulse modes.
-- [ ] Complete the ordered repository gates and deliver a focused PR to dev.
+- [x] Complete the ordered repository gates and deliver a focused PR to dev.
 
 ## Design and implementation
 
@@ -30,3 +30,5 @@ The user requested correcting hover and focus against Spotify itself. The live [
 A native regression now uses real mouse movement and Tab input to check inactive, selected, hovered and keyboard-focused navigation in both modes at desktop and minimum widths. It failed before the interaction rules and passes after them. Screenshots were inspected after settling theme transitions.
 
 Initial review found missing destructive-hover coverage and clipped sidebar focus rings. A native regression reproduced both with real pointer and Tab events, including the source Remove action, its confirmation dialog, the source row and sidebar footer. The correction preserves danger colours and the components' existing inset outline offsets. The regression now passes.
+
+Final local checks passed sequentially with one test worker: install, lint, strict types, 430 tests, desktop build, package, make and formatting. Initial review and fix re-review are recorded on the PR. No release version or existing preference is changed.
