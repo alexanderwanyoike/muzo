@@ -27,19 +27,21 @@ function installer(target: string): Buffer {
 }
 
 async function writeUpdateMetadata(directory: string) {
-  for (const [target, name] of [
-    ["linux-x64", "latest-linux.yml"],
-    ["windows-x64", "latest.yml"],
-  ] as const) {
-    const file = releaseAssetName(target, "0.0.2");
-    const sha512 = createHash("sha512")
-      .update(installer(target))
-      .digest("base64");
-    await writeFile(
-      join(directory, name),
-      `version: 0.0.2\nfiles:\n  - url: ${file}\n    sha512: ${sha512}\n    size: 1024\npath: ${file}\nsha512: ${sha512}\n`,
-    );
-  }
+  await Promise.all(
+    [
+      ["linux-x64", "latest-linux.yml"] as const,
+      ["windows-x64", "latest.yml"] as const,
+    ].map(async ([target, name]) => {
+      const file = releaseAssetName(target, "0.0.2");
+      const sha512 = createHash("sha512")
+        .update(installer(target))
+        .digest("base64");
+      await writeFile(
+        join(directory, name),
+        `version: 0.0.2\nfiles:\n  - url: ${file}\n    sha512: ${sha512}\n    size: 1024\npath: ${file}\nsha512: ${sha512}\n`,
+      );
+    }),
+  );
 }
 
 it("assembles a complete verified installer set with matching manifest and checksums", async () => {
@@ -83,12 +85,14 @@ it("assembles a complete verified installer set with matching manifest and check
         expect(sums).toContain(`${artifact.sha256}  ${artifact.name}\n`);
       }),
     );
-    for (const name of ["latest-linux.yml", "latest.yml"]) {
-      const bytes = await readFile(join(outputDirectory, name));
-      expect(sums).toContain(
-        `${createHash("sha256").update(bytes).digest("hex")}  ${name}\n`,
-      );
-    }
+    await Promise.all(
+      ["latest-linux.yml", "latest.yml"].map(async (name) => {
+        const bytes = await readFile(join(outputDirectory, name));
+        expect(sums).toContain(
+          `${createHash("sha256").update(bytes).digest("hex")}  ${name}\n`,
+        );
+      }),
+    );
     expect(sums).toContain(
       `${createHash("sha256").update(manifestBytes).digest("hex")}  ${releaseManifestName("0.0.2")}\n`,
     );
@@ -180,7 +184,12 @@ it("refuses incomplete or corrupt installers and never overwrites a release set"
   }
 });
 
-it("rejects missing, foreign or corrupt update metadata before staging a release", async () => {
+it.each([
+  ["version: 0.0.2", "version: 0.0.3"],
+  ["size: 1024", "size: 1025"],
+  ["url: Muzo-", "url: https://evil.test/Muzo-"],
+  ["sha512: ", "sha512: corrupted"],
+])("rejects missing or corrupt update metadata: %s", async (from, to) => {
   const { assembleRelease } = await import("./assemble-release");
   const directory = await mkdtemp(join(tmpdir(), "muzo-update-metadata-"));
   const input = {
@@ -200,17 +209,10 @@ it("rejects missing, foreign or corrupt update metadata before staging a release
       ),
     );
     expect((await assembleRelease(input)).ok).toBe(false);
-    for (const [from, to] of [
-      ["version: 0.0.2", "version: 0.0.3"],
-      ["size: 1024", "size: 1025"],
-      ["url: Muzo-", "url: https://evil.test/Muzo-"],
-      ["sha512: ", "sha512: corrupted"],
-    ]) {
-      await writeUpdateMetadata(directory);
-      const path = join(directory, "latest-linux.yml");
-      await writeFile(path, (await readFile(path, "utf8")).replace(from, to));
-      expect((await assembleRelease(input)).ok).toBe(false);
-    }
+    await writeUpdateMetadata(directory);
+    const path = join(directory, "latest-linux.yml");
+    await writeFile(path, (await readFile(path, "utf8")).replace(from, to));
+    expect((await assembleRelease(input)).ok).toBe(false);
     await expect(
       readFile(join(input.outputDirectory, "SHA256SUMS")),
     ).rejects.toMatchObject({ code: "ENOENT" });
