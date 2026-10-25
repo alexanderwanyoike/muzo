@@ -7,7 +7,7 @@ export async function measureMaterialInteractions(
     window.webContents.executeJavaScript(expression) as Promise<unknown>;
   const settle = async () =>
     read(
-      "document.fonts.ready.then(() => { document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).forEach(animation => animation.finish()); return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); })",
+      "document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => { document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).forEach(animation => animation.finish()); requestAnimationFrame(() => requestAnimationFrame(resolve)); })))",
     );
   await settle();
   const initial = (await read(`(() => {
