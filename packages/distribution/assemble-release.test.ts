@@ -26,6 +26,24 @@ function installer(target: string): Buffer {
   return bytes;
 }
 
+async function writeUpdateMetadata(directory: string) {
+  await Promise.all(
+    [
+      ["linux-x64", "latest-linux.yml"] as const,
+      ["windows-x64", "latest.yml"] as const,
+    ].map(async ([target, name]) => {
+      const file = releaseAssetName(target, "0.0.2");
+      const sha512 = createHash("sha512")
+        .update(installer(target))
+        .digest("base64");
+      await writeFile(
+        join(directory, name),
+        `version: 0.0.2\nfiles:\n  - url: ${file}\n    sha512: ${sha512}\n    size: 1024\npath: ${file}\nsha512: ${sha512}\n`,
+      );
+    }),
+  );
+}
+
 it("assembles a complete verified installer set with matching manifest and checksums", async () => {
   const { assembleRelease } = await import("./assemble-release");
   const directory = await mkdtemp(join(tmpdir(), "muzo-release-"));
@@ -38,6 +56,7 @@ it("assembles a complete verified installer set with matching manifest and check
         ),
       ),
     );
+    await writeUpdateMetadata(directory);
     const outputDirectory = join(directory, "release-set");
     const result = await assembleRelease({
       inputDirectory: directory,
@@ -66,6 +85,14 @@ it("assembles a complete verified installer set with matching manifest and check
         expect(sums).toContain(`${artifact.sha256}  ${artifact.name}\n`);
       }),
     );
+    await Promise.all(
+      ["latest-linux.yml", "latest.yml"].map(async (name) => {
+        const bytes = await readFile(join(outputDirectory, name));
+        expect(sums).toContain(
+          `${createHash("sha256").update(bytes).digest("hex")}  ${name}\n`,
+        );
+      }),
+    );
     expect(sums).toContain(
       `${createHash("sha256").update(manifestBytes).digest("hex")}  ${releaseManifestName("0.0.2")}\n`,
     );
@@ -92,6 +119,7 @@ it("rejects a renamed AppImage for another CPU before creating release output", 
       join(directory, releaseAssetName("linux-x64", "0.0.2")),
       wrongCpu,
     );
+    await writeUpdateMetadata(directory);
     const outputDirectory = join(directory, "release-set");
     expect(
       (
@@ -141,6 +169,7 @@ it("refuses incomplete or corrupt installers and never overwrites a release set"
       join(directory, releaseAssetName("windows-x64", "0.0.2")),
       installer("windows-x64"),
     );
+    await writeUpdateMetadata(directory);
     expect((await assembleRelease(input)).ok).toBe(true);
     const before = await readFile(
       join(input.outputDirectory, "SHA256SUMS"),
@@ -150,6 +179,43 @@ it("refuses incomplete or corrupt installers and never overwrites a release set"
     expect(
       await readFile(join(input.outputDirectory, "SHA256SUMS"), "utf8"),
     ).toBe(before);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  ["version: 0.0.2", "version: 0.0.3"],
+  ["size: 1024", "size: 1025"],
+  ["url: Muzo-", "url: https://evil.test/Muzo-"],
+  ["sha512: ", "sha512: corrupted"],
+])("rejects missing or corrupt update metadata: %s", async (from, to) => {
+  const { assembleRelease } = await import("./assemble-release");
+  const directory = await mkdtemp(join(tmpdir(), "muzo-update-metadata-"));
+  const input = {
+    inputDirectory: directory,
+    outputDirectory: join(directory, "out"),
+    version: "0.0.2",
+    tag: "v0.0.2",
+    sourceCommit: "a".repeat(40),
+  };
+  try {
+    await Promise.all(
+      RELEASE_TARGETS.map(({ id }) =>
+        writeFile(
+          join(directory, releaseAssetName(id, "0.0.2")),
+          installer(id),
+        ),
+      ),
+    );
+    expect((await assembleRelease(input)).ok).toBe(false);
+    await writeUpdateMetadata(directory);
+    const path = join(directory, "latest-linux.yml");
+    await writeFile(path, (await readFile(path, "utf8")).replace(from, to));
+    expect((await assembleRelease(input)).ok).toBe(false);
+    await expect(
+      readFile(join(input.outputDirectory, "SHA256SUMS")),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

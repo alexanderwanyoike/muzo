@@ -12,6 +12,7 @@ import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
 import SourcesPanel from "./sources-panel";
+import UpdateNotice from "./update-notice";
 import TrackList from "./TrackList";
 import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
@@ -371,6 +372,7 @@ export default function App() {
             onCommit={sidebar.commit}
             onCancel={sidebar.cancel}
           />
+          <UpdateNotice bridge={window.__MUZO_RUNTIME__?.updates} />
         </aside>
 
         <section className="app-content">

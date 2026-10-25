@@ -73,17 +73,21 @@ jobs:
           - target: linux-x64
             os: ubuntu-22.04
             suffix: linux-x64.AppImage
+            metadata: latest-linux.yml
           - target: windows-x64
             os: windows-latest
             suffix: windows-x64-setup.exe
+            metadata: latest.yml
           - target: macos-arm64
             os: macos-15
             suffix: macos-arm64.dmg
             macho: arm64
+            metadata: no-update-metadata
           - target: macos-x64
             os: macos-15
             suffix: macos-x64.dmg
             macho: x86_64
+            metadata: no-update-metadata
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -123,6 +127,8 @@ jobs:
             cmp "$GITHUB_WORKSPACE/apps/desktop/out/Muzo-linux-x64/resources/app/dist-electron/$asset" "squashfs-root/resources/app/dist-electron/$asset"
           done
           test -f squashfs-root/resources/app/dist/index.html
+          test -f squashfs-root/resources/app-update.yml
+          grep -q '^updaterCacheDirName:.' squashfs-root/resources/app-update.yml
           test -f squashfs-root/resources/app/assets/licenses/manrope-OFL.txt
       - name: Verify first AppImage launch and Cinnamon launcher repair
         if: matrix.target == 'linux-x64'
@@ -166,11 +172,15 @@ jobs:
             if ($before -ne $after) { throw "Installed $asset changed" }
           }
           if (!(Test-Path "$installDir/resources/app/dist/index.html")) { throw 'Installed renderer missing' }
+          if (!(Test-Path "$installDir/resources/app-update.yml")) { throw 'Installed updater config missing' }
+          if (!(Select-String -Path "$installDir/resources/app-update.yml" -Pattern '^updaterCacheDirName: muzo-updater$' -Quiet)) { throw 'Installed updater cache config missing' }
           if (!(Test-Path "$installDir/resources/app/assets/licenses/manrope-OFL.txt")) { throw 'Font licence missing' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: installer-${{ matrix.target }}
-          path: apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+          path: |
+            apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+            apps/desktop/out/distribution/${{ matrix.metadata }}
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
