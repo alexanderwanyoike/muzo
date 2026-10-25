@@ -55,17 +55,16 @@ export async function latestMuzoRelease(
       "SHA256SUMS",
       ...(newer.value ? ["latest.yml", "latest-linux.yml"] : []),
     ];
-    const complete = names.every((name) => {
-      return (
+    const complete = names.every(
+      (name) =>
         assets.filter(
           (asset) =>
             record(asset) &&
             asset.name === name &&
             asset.browser_download_url ===
               `${MUZO_RELEASES_URL}/download/v${version}/${name}`,
-        ).length === 1
-      );
-    });
+        ).length === 1,
+    );
     return complete
       ? success({ version })
       : failure(
