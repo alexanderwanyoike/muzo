@@ -18,4 +18,4 @@ Release metadata and documentation, plus an explicit timeout for the existing na
 
 Local gates passed: install, formatting, lint, types, 426 tests, build, package and make. Both release review axes reported zero findings in both cycles. [Review record](../../reviews/2026-10-25-release-0.0.3.md). Native installer CI and publication are recorded on the PRs.
 
-CI exposed a second fixture-only timing race: a native pointer click could be lost while the mini player compositor caught up with a resize. Window-mode controls now wait until enabled and use DOM activation through the real preload. Layout, restoration, pointer scrolling and keyboard assertions remain in place.
+CI exposed a second fixture-only timing race: a native pointer click could be lost while the mini player compositor caught up with a resize. The next run confirmed an asynchronous viewport resize: the queue was measured at 360 pixels just after requesting 740 pixels. The fixture now waits for the requested viewport and restored native bounds, then uses native pointer activation for every control. Layout, restoration, pointer scrolling and keyboard assertions remain in place.
