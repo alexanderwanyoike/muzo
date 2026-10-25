@@ -144,7 +144,7 @@
   cursor: pointer;
 }
 .now-playing-bar__progress-shell:has(.now-playing-bar__progress:focus-visible) {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 2px;
 }
 .now-playing-bar__volume {

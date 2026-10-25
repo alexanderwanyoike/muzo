@@ -141,7 +141,7 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
 }
 
 .dropbox-picker__folders {
@@ -255,7 +255,7 @@
 }
 
 .dropbox-picker [role="alert"] {
-  color: var(--accent-strong);
+  color: var(--accent-ink);
   line-height: 1.5;
 }
 

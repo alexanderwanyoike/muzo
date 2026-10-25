@@ -1,0 +1,89 @@
+[data-accent="glow-green"] {
+  --accent: #1ed760;
+  --accent-strong: #42ed83;
+  --accent-ink: #08692c;
+}
+[data-accent="glow-cyan"] {
+  --accent: #00d9ed;
+  --accent-strong: #42e9ff;
+  --accent-ink: #005f6d;
+}
+[data-accent="glow-blue"] {
+  --accent: #4b9eff;
+  --accent-strong: #7dbaff;
+  --accent-ink: #104f9f;
+}
+[data-accent="glow-violet"] {
+  --accent: #b48aff;
+  --accent-strong: #c5a6ff;
+  --accent-ink: #5d2ba8;
+}
+[data-accent="glow-pink"] {
+  --accent: #ff61bc;
+  --accent-strong: #ff8ece;
+  --accent-ink: #92205f;
+}
+[data-accent="glow-orange"] {
+  --accent: #ff9842;
+  --accent-strong: #ffb36b;
+  --accent-ink: #8a3e00;
+}
+:root[data-mode="dark"][data-accent^="glow-"],
+[data-mode="dark"] [data-accent^="glow-"] {
+  --accent-ink: var(--accent-strong);
+}
+:root[data-accent^="glow-"],
+.appearance-accents [data-accent^="glow-"] {
+  --on-accent: #10151b;
+  --accent-halo: color-mix(in srgb, var(--accent) 32%, transparent);
+  --accent-glow:
+    0 0 14px var(--accent-halo),
+    0 0 28px color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-filter: drop-shadow(0 0 5px var(--accent-halo));
+}
+:root[data-accent^="glow-"]
+  .now-playing-bar__controls
+  .now-playing-bar__play:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px var(--accent-ink),
+    var(--accent-glow);
+}
+:root[data-accent^="glow-"]
+  .now-playing-bar__controls
+  .now-playing-bar__play:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+:root[data-accent^="glow-"] .now-playing-bar__progress-track {
+  box-shadow: var(--accent-glow);
+}
+:root[data-accent^="glow-"] .now-playing-bar__volume-slider {
+  accent-color: var(--accent-ink);
+  filter: var(--accent-filter);
+}
+:root[data-accent^="glow-"] .app-sidebar__nav-item--active svg {
+  filter: var(--accent-filter);
+}
+.appearance-accents [data-accent^="glow-"] span {
+  border-color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+}
+.appearance-accents [data-accent^="glow-"] input:checked + span {
+  box-shadow:
+    inset 0 0 0 3px var(--panel-raised),
+    var(--accent-glow);
+}
+@media (forced-colors: active) {
+  :root[data-accent^="glow-"],
+  .appearance-accents [data-accent^="glow-"] {
+    --accent-glow: none;
+    --accent-filter: none;
+  }
+  :root[data-accent^="glow-"]
+    .now-playing-bar__controls
+    .now-playing-bar__play:not(:disabled) {
+    box-shadow: none;
+  }
+}

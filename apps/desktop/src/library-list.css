@@ -98,7 +98,7 @@
   height: 15px;
 }
 .library-list__item--selected .library-list__row svg {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .library-list__primary {
   min-width: 0;
