@@ -15,7 +15,8 @@ export async function measureGlowControls(themes: string[], accents: string[]) {
   );
   if (!stage || !play || !volume) throw new Error("Accent controls missing");
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 1;
+  canvas.width = 1;
+  canvas.height = 1;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Accent colour decoder unavailable");
   function colour(value: string): string {
@@ -29,7 +30,7 @@ export async function measureGlowControls(themes: string[], accents: string[]) {
     return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
   }
   async function settle() {
-    await new Promise<void>((resolve) =>
+    await new Promise<void>((resolve) => {
       requestAnimationFrame(() => {
         document
           .getAnimations()
@@ -39,8 +40,8 @@ export async function measureGlowControls(themes: string[], accents: string[]) {
           )
           .forEach((animation) => animation.finish());
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-      }),
-    );
+      });
+    });
   }
   const measurements = [];
   const restored = [];
