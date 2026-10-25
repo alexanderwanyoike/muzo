@@ -55,8 +55,9 @@ jobs:
         os: [windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    # Native fixtures share the host window server and keyboard focus.
     env:
-      VITEST_MAX_FORKS: 2
+      VITEST_MAX_FORKS: 1
       VITEST_MIN_FORKS: 1
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
