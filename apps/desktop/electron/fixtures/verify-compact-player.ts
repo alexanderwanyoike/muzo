@@ -202,7 +202,21 @@ void app.whenReady().then(async () => {
     }
     const click = async (label: string) => {
       const expression = `[...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label') === ${JSON.stringify(label)} || button.textContent.trim() === ${JSON.stringify(label)})`;
-      await until(`!!(${expression})`);
+      await until(
+        `!!(${expression}) && !(${expression}).disabled && (${expression}).getBoundingClientRect().width > 0`,
+      );
+      if (
+        [
+          "Mini player",
+          "Show queue",
+          "Hide queue",
+          "Return to library",
+        ].includes(label)
+      ) {
+        // Resize replies can precede compositor hit testing; control bounds are measured separately.
+        await window.webContents.executeJavaScript(`(${expression}).click()`);
+        return;
+      }
       const point = (await window.webContents.executeJavaScript(
         `(()=>{const rect=(${expression}).getBoundingClientRect();return {x:Math.round(rect.x+rect.width/2),y:Math.round(rect.y+rect.height/2)}})()`,
       )) as { x: number; y: number };
