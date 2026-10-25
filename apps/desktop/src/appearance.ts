@@ -3,6 +3,11 @@ import { failure, type Result } from "../shared/result";
 export const MATERIALS = [
   { id: "studio", name: "Studio", detail: "Quiet, clear and contemporary" },
   {
+    id: "pulse",
+    name: "Pulse",
+    detail: "Layered surfaces, inspired by Spotify",
+  },
+  {
     id: "aluminium",
     name: "Brushed aluminium",
     detail: "Fine matte grain and satin highlights",

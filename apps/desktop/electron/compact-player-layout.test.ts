@@ -79,6 +79,7 @@ it("fits compact controls at native minimum sizes and restores the library windo
           listBottom: number;
         };
         layout: {
+          timelineBackground: string;
           contrastSamples: {
             text: string;
             muted: string;
@@ -98,6 +99,29 @@ it("fits compact controls at native minimum sizes and restores the library windo
           }[];
         };
       }[];
+      interactionStates: {
+        mode: string;
+        sidebar: {
+          row: {
+            matches: boolean;
+            visible: boolean;
+            offset: string;
+            color: string;
+          };
+          footer: {
+            matches: boolean;
+            visible: boolean;
+            offset: string;
+            color: string;
+          };
+          removal: { color: string };
+          confirmation: { background: string };
+        };
+        foreground: string;
+        selected: string;
+        hover: { background: string; color: string };
+        focus: { visible: boolean; color: string; style: string };
+      }[];
       libraryControls: {
         width: number;
         top: number;
@@ -115,9 +139,54 @@ it("fits compact controls at native minimum sizes and restores the library windo
       minimum: number[];
     };
     expect(result.failure).toBeUndefined();
-    expect(result.measurements).toHaveLength(16);
+    expect(result.interactionStates).toHaveLength(4);
+    for (const state of result.interactionStates) {
+      const dark = state.mode === "dark";
+      expect
+        .soft(
+          state.sidebar.removal.color,
+          `${state.mode} source removal danger`,
+        )
+        .toBe(dark ? "rgb(241, 164, 154)" : "rgb(171, 62, 54)");
+      expect
+        .soft(
+          state.sidebar.confirmation.background,
+          `${state.mode} destructive confirmation`,
+        )
+        .toBe(dark ? "rgb(241, 164, 154)" : "rgb(171, 62, 54)");
+      expect.soft(state.sidebar.row).toMatchObject({
+        matches: true,
+        visible: true,
+        offset: "-2px",
+        color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      });
+      expect.soft(state.sidebar.footer).toMatchObject({
+        matches: true,
+        visible: true,
+        offset: "-1px",
+        color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      });
+      expect(state.foreground, `${state.mode} inactive navigation`).toBe(
+        dark ? "rgb(179, 179, 179)" : "rgb(85, 85, 85)",
+      );
+      expect(state.selected, `${state.mode} selected navigation`).toBe(
+        dark ? "rgb(42, 42, 42)" : "rgb(216, 216, 216)",
+      );
+      expect(state.hover.background, `${state.mode} neutral hover`).toBe(
+        dark ? "rgb(42, 42, 42)" : "rgb(222, 222, 222)",
+      );
+      expect(state.hover.color, `${state.mode} readable hover`).toBe(
+        dark ? "rgb(245, 245, 245)" : "rgb(23, 23, 23)",
+      );
+      expect(state.focus.visible, `${state.mode} keyboard focus`).toBe(true);
+      expect(state.focus.style, `${state.mode} focus ring`).toBe("solid");
+      expect(state.focus.color, `${state.mode} neutral focus ring`).toBe(
+        dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      );
+    }
+    expect(result.measurements).toHaveLength(24);
     expect(result.fallback.queueAlpha).toBe(255);
-    expect(result.libraryControls).toHaveLength(8);
+    expect(result.libraryControls).toHaveLength(12);
     for (const control of result.libraryControls) {
       expect(control.text).toBe("");
       expect(control.title).toBe("Mini player");
@@ -143,6 +212,11 @@ it("fits compact controls at native minimum sizes and restores the library windo
       layout,
       queueAccess,
     } of result.measurements) {
+      if (theme === "pulse")
+        expect(
+          layout.timelineBackground,
+          `${mode} Pulse timeline stays unboxed`,
+        ).toBe("rgba(0, 0, 0, 0)");
       if (queue) {
         expect(queueAccess?.scrollTop).toBeGreaterThan(0);
         expect(queueAccess?.lastBottom).toBeLessThanOrEqual(

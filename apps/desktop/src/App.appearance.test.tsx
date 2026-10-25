@@ -147,3 +147,26 @@ it.each(["Light", "Dark"])(
     });
   },
 );
+
+it.each(["Light", "Dark"])(
+  "restores the Spotify-inspired Pulse material in %s mode without changing the chosen accent",
+  async (mode) => {
+    const user = userEvent.setup();
+    const first = render(<App />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    await user.click(screen.getByRole("radio", { name: "Copper" }));
+    await user.click(screen.getByRole("radio", { name: "Pulse" }));
+    await user.click(screen.getByRole("radio", { name: mode }));
+    first.unmount();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(
+      screen.getByRole<HTMLInputElement>("radio", { name: "Pulse" }).checked,
+    ).toBe(true);
+    expect(document.documentElement.dataset).toMatchObject({
+      theme: "pulse",
+      mode: mode.toLowerCase(),
+      accent: "copper",
+    });
+  },
+);
