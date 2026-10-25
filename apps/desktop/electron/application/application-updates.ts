@@ -7,7 +7,10 @@ interface Options {
   backend: UpdateBackend;
 }
 
-function newerStableVersion(next: string, current: string): Result<boolean> {
+export function newerStableVersion(
+  next: string,
+  current: string,
+): Result<boolean> {
   const stable = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
   if (!stable.test(next) || !stable.test(current))
     return failure("remote", "The update did not identify a stable release.");

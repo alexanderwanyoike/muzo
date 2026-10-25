@@ -22,7 +22,18 @@ it("reads only the fixed public repository's complete published stable release",
   const request = vi.fn<typeof fetch>(
     async () => new Response(JSON.stringify(release())),
   );
-  const data = release(); data.assets.push(...["latest.yml", "latest-linux.yml", "muzo-0.0.3-release.json", "SHA256SUMS"].map((name) => ({name, browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.3/${name}`})));
+  const data = release();
+  data.assets.push(
+    ...[
+      "latest.yml",
+      "latest-linux.yml",
+      "muzo-0.0.3-release.json",
+      "SHA256SUMS",
+    ].map((name) => ({
+      name,
+      browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.3/${name}`,
+    })),
+  );
   request.mockImplementation(async () => new Response(JSON.stringify(data)));
   expect(await latestMuzoRelease(request)).toEqual({
     ok: true,
@@ -32,27 +43,42 @@ it("reads only the fixed public repository's complete published stable release",
     "https://api.github.com/repos/alexanderwanyoike/muzo/releases/latest",
   );
 });
-it.each(["draft", "prerelease", "foreign", "partial", "unstable", "network", "metadata"])(
-  "rejects an unusable update release: %s",
-  async (kind) => {
-    const data = release();
-    if (kind === "draft") data.draft = true;
-    if (kind === "prerelease") data.prerelease = true;
-    if (kind === "foreign")
-      data.assets[0].browser_download_url =
-        "https://example.com/update.AppImage";
-    if (kind === "partial") data.assets.pop();
-    if (kind !== "metadata") data.assets.push(...["latest.yml", "latest-linux.yml", "muzo-0.0.3-release.json", "SHA256SUMS"].map((name) => ({name, browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.3/${name}`})));
-    if (kind === "unstable") data.tag_name = "v0.0.3-beta.1";
-    expect(
-      (
-        await latestMuzoRelease(
-          async () =>
-            new Response(JSON.stringify(data), {
-              status: kind === "network" ? 503 : 200,
-            }),
-        )
-      ).ok,
-    ).toBe(false);
-  },
-);
+it.each([
+  "draft",
+  "prerelease",
+  "foreign",
+  "partial",
+  "unstable",
+  "network",
+  "metadata",
+])("rejects an unusable update release: %s", async (kind) => {
+  const data = release();
+  if (kind === "draft") data.draft = true;
+  if (kind === "prerelease") data.prerelease = true;
+  if (kind === "foreign")
+    data.assets[0].browser_download_url = "https://example.com/update.AppImage";
+  if (kind === "partial") data.assets.pop();
+  if (kind !== "metadata")
+    data.assets.push(
+      ...[
+        "latest.yml",
+        "latest-linux.yml",
+        "muzo-0.0.3-release.json",
+        "SHA256SUMS",
+      ].map((name) => ({
+        name,
+        browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.3/${name}`,
+      })),
+    );
+  if (kind === "unstable") data.tag_name = "v0.0.3-beta.1";
+  expect(
+    (
+      await latestMuzoRelease(
+        async () =>
+          new Response(JSON.stringify(data), {
+            status: kind === "network" ? 503 : 200,
+          }),
+      )
+    ).ok,
+  ).toBe(false);
+});

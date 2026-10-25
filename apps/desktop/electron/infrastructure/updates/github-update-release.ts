@@ -2,8 +2,10 @@ import {
   RELEASE_TARGETS,
   isStableReleaseVersion,
   releaseAssetName,
+  releaseManifestName,
 } from "@muzo/distribution";
 import { failure, success, type Result } from "../../application/result";
+import { newerStableVersion } from "../../application/application-updates";
 
 export const MUZO_RELEASES_URL =
   "https://github.com/alexanderwanyoike/muzo/releases";
@@ -15,6 +17,7 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 export async function latestMuzoRelease(
   request: typeof fetch = fetch,
+  installedVersion?: string,
 ): Promise<Result<{ version: string }>> {
   try {
     const response = await request(RELEASE_API_URL, {
@@ -42,8 +45,17 @@ export async function latestMuzoRelease(
         "The update must be a published stable release.",
       );
     const assets: unknown[] = data.assets;
-    const complete = RELEASE_TARGETS.every(({ id }) => {
-      const name = releaseAssetName(id, version);
+    const newer = installedVersion
+      ? newerStableVersion(version, installedVersion)
+      : success(true);
+    if (!newer.ok) return newer;
+    const names = [
+      ...RELEASE_TARGETS.map(({ id }) => releaseAssetName(id, version)),
+      releaseManifestName(version),
+      "SHA256SUMS",
+      ...(newer.value ? ["latest.yml", "latest-linux.yml"] : []),
+    ];
+    const complete = names.every((name) => {
       return (
         assets.filter(
           (asset) =>
@@ -58,7 +70,7 @@ export async function latestMuzoRelease(
       ? success({ version })
       : failure(
           "remote",
-          "The update release is missing a supported installer.",
+          "The update release is missing an installer or update manifest.",
         );
   } catch {
     return failure(

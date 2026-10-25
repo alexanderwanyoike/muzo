@@ -31,12 +31,11 @@ export function createInstalledUpdates({
   const backend = createNativeUpdateBackend({
     enabled: app.isPackaged,
     automatic,
-    createClient: () => {
-      return platform === "linux"
+    createClient: () =>
+      platform === "linux"
         ? new electronUpdater.AppImageUpdater(MUZO_UPDATE_FEED)
-        : new electronUpdater.NsisUpdater(MUZO_UPDATE_FEED);
-    },
-    checkRelease: latestMuzoRelease,
+        : new electronUpdater.NsisUpdater(MUZO_UPDATE_FEED),
+    checkRelease: () => latestMuzoRelease(fetch, app.getVersion()),
     openRelease: (url) => shell.openExternal(url),
     async confirmRestart(version) {
       const result = await dialog.showMessageBox({
