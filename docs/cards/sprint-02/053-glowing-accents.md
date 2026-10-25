@@ -28,3 +28,5 @@ Bright accent fills and darker control text remain distinct from readable inline
 Twelve persistence cases and the native palette regression failed before implementation. They pass after adding the registry, grouped controls and colour roles. Settings checks verify all sixteen colours, glow previews, foreground contrast, alignment and overflow across all existing materials and modes.
 
 A separate native test renders the production playback component in full and compact contexts, checks all six glow fills against their glyph colours across every material and mode, verifies classic effect restoration and emulates forced colours. This test is included in Windows/macOS native CI as well as the Linux suite. Local validation uses a single worker after the user's memory-pressure restart.
+
+Initial review found that the sidebar resize handle retained the bright accent fill for its custom keyboard-focus line. A native Tab regression reproduced Glow green at 1.65:1 contrast in Studio light mode. The separately committed correction uses accent ink for the line; actual focused splitter checks now meet 3:1 across all glow palettes, materials and both modes.
