@@ -11,7 +11,7 @@ The sidebar update icon and two-line notice are too prominent. The user requeste
 - [x] Show Checking for updates..., Update available to x.x.x, percentage download progress, restart readiness and retryable failures.
 - [x] Preserve explicit download, restart confirmation, manual platform downloads and the installed updater boundary.
 - [x] Keep light/dark materials, keyboard focus and minimum-size layout readable and unclipped.
-- [ ] Complete both review cycles and ordered repository checks, then deliver a focused PR to dev.
+- [x] Complete both review cycles and ordered repository checks, then deliver a focused PR to dev.
 
 ## Implementation pattern
 
@@ -20,3 +20,5 @@ The established desktop status-bar pattern in [VS Code](https://github.com/micro
 ## Verification
 
 TDD first reproduced the hidden checking state, then the missing application footer and old availability label. Separate implementation commits made those tests pass. The native regression checks all eight materials in light and dark mode at 800 and 1200 pixels, including footer bounds, separate content/sidebar bounds, small pill height and real Tab focus. The existing Electron flow still rejects corrupt downloads, reports progress, preserves the executable path and waits for restart confirmation.
+
+Local ordered gates passed with one worker: install, lint, strict types, 444 tests, desktop build, package, make and formatting. Both review axes reported zero findings in both cycles. [Review record](../../reviews/2026-10-26-update-status-bar.md). Native screenshots were inspected in Studio dark and Pulse light.
