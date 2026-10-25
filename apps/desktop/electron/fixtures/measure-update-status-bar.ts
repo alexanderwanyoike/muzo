@@ -1,6 +1,8 @@
 export function measureUpdateStatusBar() {
   const button = document.querySelector<HTMLElement>(".update-notice button");
-  const footer = document.querySelector<HTMLElement>('footer[aria-label="Application status"]');
+  const footer = document.querySelector<HTMLElement>(
+    'footer[aria-label="Application status"]',
+  );
   const sidebar = document.querySelector<HTMLElement>(".app-sidebar");
   const content = document.querySelector<HTMLElement>(".app-content");
   if (!button || !footer || !sidebar || !content)

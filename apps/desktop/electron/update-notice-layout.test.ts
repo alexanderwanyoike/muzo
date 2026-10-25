@@ -75,7 +75,11 @@ it.skipIf(process.platform !== "linux")(
         failure?: string;
         corruptionRejected: boolean;
         installed: string;
-        layouts: (ReturnType<typeof measureUpdateStatusBar> & {theme: string; mode: string; requestedWidth: number})[];
+        layouts: (ReturnType<typeof measureUpdateStatusBar> & {
+          theme: string;
+          mode: string;
+          requestedWidth: number;
+        })[];
       };
       expect(result.failure).toBeUndefined();
       expect(result.corruptionRejected).toBe(true);

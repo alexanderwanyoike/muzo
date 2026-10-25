@@ -86,8 +86,9 @@ it("shows checking progress and allows a fresh check when the app is up to date"
   };
   render(<UpdateNotice bridge={bridge} />);
   expect(
-    (await screen.findByRole("button", { name: "Checking for updates..." }))
-      .hasAttribute("disabled"),
+    (
+      await screen.findByRole("button", { name: "Checking for updates..." })
+    ).hasAttribute("disabled"),
   ).toBe(true);
   act(() => report?.({ state: "current" }));
   await userEvent.click(screen.getByRole("button", { name: "Up to date" }));
