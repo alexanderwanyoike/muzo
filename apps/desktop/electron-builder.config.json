@@ -5,9 +5,16 @@
     "output": "out/distribution",
     "buildResources": "assets/icons"
   },
-  "publish": null,
+  "publish": {
+    "provider": "github",
+    "owner": "alexanderwanyoike",
+    "repo": "muzo",
+    "releaseType": "draft"
+  },
   "linux": {
-    "target": ["AppImage"],
+    "target": [
+      "AppImage"
+    ],
     "executableName": "muzo",
     "icon": "assets/icons/muzo.png",
     "category": "AudioVideo",
@@ -16,7 +23,9 @@
     "syncDesktopName": true
   },
   "win": {
-    "target": ["nsis"],
+    "target": [
+      "nsis"
+    ],
     "executableName": "muzo",
     "icon": "assets/icons/muzo.ico",
     "signAndEditExecutable": false,
@@ -28,7 +37,9 @@
     "allowToChangeInstallationDirectory": true
   },
   "mac": {
-    "target": ["dmg"],
+    "target": [
+      "dmg"
+    ],
     "icon": "assets/icons/muzo.icns",
     "identity": null,
     "category": "public.app-category.music",
