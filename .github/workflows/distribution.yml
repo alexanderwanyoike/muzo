@@ -133,6 +133,11 @@ jobs:
       - name: Verify first AppImage launch and Cinnamon launcher repair
         if: matrix.target == 'linux-x64'
         run: xvfb-run -a yarn workspace @muzo/desktop appimage:verify-menu "${{ github.workspace }}/apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}"
+      - name: Verify a real AppImage update and restart
+        if: matrix.target == 'linux-x64'
+        env:
+          MUZO_TEST_APPIMAGE: ${{ github.workspace }}/apps/desktop/out/distribution/Muzo-${{ needs.verify.outputs.version }}-${{ matrix.suffix }}
+        run: xvfb-run -a yarn workspace @muzo/desktop test electron/appimage-update.test.ts
       - name: Verify DMG payload and architecture without changing bundle identity
         if: startsWith(matrix.target, 'macos-')
         shell: bash
