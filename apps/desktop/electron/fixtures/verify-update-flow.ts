@@ -116,6 +116,9 @@ void app.whenReady().then(async () => {
         await window.webContents.executeJavaScript(
           `document.documentElement.dataset.theme = 'aluminium'; document.documentElement.dataset.mode = ${JSON.stringify(mode)}; new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
         );
+        await new Promise((resolve) => {
+          setTimeout(resolve, 150);
+        });
         const layout = (await window.webContents.executeJavaScript(
           `(${measure.toString()})()`,
         )) as ReturnType<typeof measure>;
