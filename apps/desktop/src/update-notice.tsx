@@ -23,18 +23,28 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
       unsubscribe();
     };
   }, [bridge]);
-  if (
-    !bridge ||
-    status.state === "idle" ||
-    status.state === "checking" ||
-    status.state === "current"
-  )
-    return null;
+  if (!bridge) return null;
   let label: string;
   let detail: string;
   let command: "download" | "install" | "check";
   let Icon = Download;
   switch (status.state) {
+    case "idle":
+      label = "Check for updates";
+      detail = "Check for a new Muzo version";
+      command = "check";
+      break;
+    case "checking":
+      label = "Checking for updates...";
+      detail = "Checking for a new Muzo version";
+      command = "check";
+      Icon = LoaderCircle;
+      break;
+    case "current":
+      label = "Up to date";
+      detail = "Check for updates";
+      command = "check";
+      break;
     case "available":
       label = `Update available v${status.version}`;
       detail = status.automatic ? "Download update" : "Download installer";
@@ -84,6 +94,7 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
         title={detail}
         disabled={
           pending ||
+          status.state === "checking" ||
           status.state === "downloading" ||
           status.state === "installing"
         }
