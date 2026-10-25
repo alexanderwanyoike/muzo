@@ -5,7 +5,7 @@ import {
   releaseManifestName,
 } from "@muzo/distribution";
 import { failure, success, type Result } from "../../application/result";
-import { newerStableVersion } from "../../application/application-updates";
+import { newerStableVersion } from "../../application/update-version";
 
 export const MUZO_RELEASES_URL =
   "https://github.com/alexanderwanyoike/muzo/releases";
