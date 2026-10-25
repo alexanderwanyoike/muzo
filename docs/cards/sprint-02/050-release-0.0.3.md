@@ -10,8 +10,10 @@ The user approved releasing the reviewed AppImage menu integration, mini player 
 - [x] Match root and desktop package versions at 0.0.3 through a feature PR.
 - [x] Add release notes covering Linux menus, mini player chrome, update behaviour, the v0.0.2 manual upgrade and unsigned macOS fallback.
 - [x] Correct distribution and README wording to match the released behaviour.
-- [ ] Complete release preparation initial review and re-review, and run existing ordered gates.
+- [x] Complete release preparation initial review and re-review, and run existing ordered gates.
 
 ## Verification
 
 Release metadata and documentation, plus an explicit timeout for the existing native menu launch test after its default five-second limit was exceeded during the full run. No production behaviour changes or artificial tests. Run the existing release-context, distribution, application and site checks. The release PR records native CI and publication evidence.
+
+Local gates passed: install, formatting, lint, types, 426 tests, build, package and make. Both release review axes reported zero findings in both cycles. [Review record](../../reviews/2026-10-25-release-0.0.3.md). Native installer CI and publication are recorded on the PRs.
