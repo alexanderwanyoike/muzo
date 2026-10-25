@@ -13,7 +13,7 @@ The user explicitly requested high-saturation glowing accent variations for pers
 - [x] Restore the existing effects when switching back to a classic accent.
 - [x] Disable glow under forced-colour preferences and add no glow animation.
 - [x] Verify contrast and actual rendered playback controls across all existing materials, both modes and full/compact player styles.
-- [ ] Complete two review cycles, the ordered repository gates and a focused PR to dev.
+- [x] Complete two review cycles, the ordered repository gates and a focused PR to dev.
 
 ## Implementation
 
@@ -30,3 +30,5 @@ Twelve persistence cases and the native palette regression failed before impleme
 A separate native test renders the production playback component in full and compact contexts, checks all six glow fills against their glyph colours across every material and mode, verifies classic effect restoration and emulates forced colours. This test is included in Windows/macOS native CI as well as the Linux suite. Local validation uses a single worker after the user's memory-pressure restart.
 
 Initial review found that the sidebar resize handle retained the bright accent fill for its custom keyboard-focus line. A native Tab regression reproduced Glow green at 1.65:1 contrast in Studio light mode. The separately committed correction uses accent ink for the line; actual focused splitter checks now meet 3:1 across all glow palettes, materials and both modes.
+
+Final local gates passed sequentially with one worker: install, lint, strict types, 441 tests, build, package, make and formatting. The Windows/macOS native job also uses one worker because the fixtures share keyboard focus on their host window server. Initial Standards review had zero findings; the one Spec focus-contrast finding is resolved, and both final review axes report zero findings.
