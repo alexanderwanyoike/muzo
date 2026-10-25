@@ -41,10 +41,6 @@ it.skipIf(process.platform !== "linux")(
         }),
       );
       await writeFile(
-        join(directory, "dev-app-update.yml"),
-        "updaterCacheDirName: muzo-native-update-fixture\n",
-      );
-      await writeFile(
         join(directory, "index.html"),
         '<!doctype html><html><head><meta charset="UTF-8"><link rel="stylesheet" href="renderer.css"></head><body><div id="root"></div><script src="renderer.js"></script></body></html>',
       );

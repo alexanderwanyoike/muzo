@@ -127,6 +127,8 @@ jobs:
             cmp "$GITHUB_WORKSPACE/apps/desktop/out/Muzo-linux-x64/resources/app/dist-electron/$asset" "squashfs-root/resources/app/dist-electron/$asset"
           done
           test -f squashfs-root/resources/app/dist/index.html
+          test -f squashfs-root/resources/app-update.yml
+          grep -q '^updaterCacheDirName: muzo-updater$' squashfs-root/resources/app-update.yml
           test -f squashfs-root/resources/app/assets/licenses/manrope-OFL.txt
       - name: Verify first AppImage launch and Cinnamon launcher repair
         if: matrix.target == 'linux-x64'
@@ -170,6 +172,8 @@ jobs:
             if ($before -ne $after) { throw "Installed $asset changed" }
           }
           if (!(Test-Path "$installDir/resources/app/dist/index.html")) { throw 'Installed renderer missing' }
+          if (!(Test-Path "$installDir/resources/app-update.yml")) { throw 'Installed updater config missing' }
+          if (!(Select-String -Path "$installDir/resources/app-update.yml" -Pattern '^updaterCacheDirName: muzo-updater$' -Quiet)) { throw 'Installed updater cache config missing' }
           if (!(Test-Path "$installDir/resources/app/assets/licenses/manrope-OFL.txt")) { throw 'Font licence missing' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

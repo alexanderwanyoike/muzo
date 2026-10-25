@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -11,6 +11,7 @@ import { success } from "../application/result";
 import { createNativeUpdateBackend } from "../infrastructure/updates/native-update-backend";
 import { replaceAppImage } from "../infrastructure/updates/replace-appimage";
 import { installApplicationUpdates } from "../install-application-updates";
+import { prepareUpdaterConfig } from "../distribution/prepare-updater-config";
 
 const directory = app.getAppPath();
 const payload = Buffer.from('#!/bin/sh\nprintf 0.0.3 > "$1"\n');
@@ -65,6 +66,12 @@ void app.whenReady().then(async () => {
     await writeFile(current, "original executable");
     await chmod(current, 0o744);
     process.env.APPIMAGE = current;
+    const configured = await prepareUpdaterConfig(directory);
+    if (!configured.ok) throw new Error(configured.error.message);
+    await copyFile(
+      join(directory, "resources", "app-update.yml"),
+      join(directory, "dev-app-update.yml"),
+    );
     const client = new electronUpdater.AppImageUpdater({
       provider: "generic",
       url: `http://127.0.0.1:${address.port}`,
