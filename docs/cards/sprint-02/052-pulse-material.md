@@ -1,0 +1,24 @@
+# 052: Add the Pulse material
+
+## Background
+
+The user requested a Spotify-like material. Pulse adds flat, layered charcoal surfaces in dark mode and a neutral light variant while retaining Muzo's desktop layout and identity. Glowing accents are a separate change and PR.
+
+## Acceptance criteria
+
+- [x] Offer Pulse alongside the existing materials, with light and dark variants.
+- [x] Preserve the selected accent when changing material and restore preferences across restarts.
+- [x] Use the same material in the full player, Settings and mini player without adding a box behind the compact timeline.
+- [x] Verify text contrast and Settings alignment across all materials, both modes and minimum/desktop widths.
+- [ ] Verify native mini-player controls, queue access and window restoration in both Pulse modes.
+- [ ] Complete the ordered repository gates and deliver a focused PR to dev.
+
+## Design and implementation
+
+Extend Muzo's existing semantic CSS surface tokens and appearance validation. The separation of colour roles from theme-specific CSS follows the established [Spicetify theme structure](https://spicetify.app/docs/development/themes). Spicetify CLI is LGPL-2.1; no implementation, assets or styles were copied, and no dependency is added.
+
+Pulse uses charcoal/black raised surfaces with softened panel corners. The light variant uses warm-neutral greys with the same hierarchy. Accent choice remains independent. No Spotify assets or branding are used.
+
+## Verification
+
+The initial persistence tests failed because Pulse was unavailable. They pass after registration. A separate native regression exposed an opaque timeline box in the mini player; scoping the full-player display rule fixes it. Both failing tests were committed separately from implementation. Existing Settings checks cover text contrast, distinct material colours, equal section widths, full-width source entries and overflow at 800 and 1280 pixels.
