@@ -22,3 +22,5 @@ The established desktop status-bar pattern in [VS Code](https://github.com/micro
 TDD first reproduced the hidden checking state, then the missing application footer and old availability label. Separate implementation commits made those tests pass. The native regression checks all eight materials in light and dark mode at 800 and 1200 pixels, including footer bounds, separate content/sidebar bounds, small pill height and real Tab focus. The existing Electron flow still rejects corrupt downloads, reports progress, preserves the executable path and waits for restart confirmation.
 
 Local ordered gates passed with one worker: install, lint, strict types, 444 tests, desktop build, package, make and formatting. Both review axes reported zero findings in both cycles. [Review record](../../reviews/2026-10-25-update-status-bar.md). Native screenshots were inspected in Studio dark and Pulse light.
+
+Linux CI exposed a native keyboard measurement race. The fixture now focuses its web contents before Tab input and waits for renderer frames before reading focus, retaining all assertions. Both fix re-review axes found zero issues and all 444 local tests passed again.
