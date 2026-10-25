@@ -27,7 +27,13 @@ interface Measurement {
       text: string;
       muted: string;
       onAccent: string;
-      accents: { id: string; colour: string }[];
+      accents: {
+        id: string;
+        colour: string;
+        onAccent: string;
+        ink: string;
+        shadow: string;
+      }[];
     };
     sections: {
       name: string;
@@ -120,11 +126,32 @@ it("aligns Settings sections and controls without overflow at desktop and minimu
           `${context}, muted contrast`,
         ).toBeGreaterThanOrEqual(4.5);
       }
-      for (const accent of layout.colours.accents)
+      const glowing = layout.colours.accents.filter(({ id }) =>
+        id.startsWith("glow-"),
+      );
+      expect(glowing, `${context}, glowing palette`).toHaveLength(6);
+      for (const accent of layout.colours.accents) {
         expect(
-          contrastRatio(layout.colours.onAccent, accent.colour),
+          contrastRatio(accent.onAccent, accent.colour),
           `${context}, ${accent.id} label contrast`,
         ).toBeGreaterThanOrEqual(4.5);
+        if (accent.id.startsWith("glow-")) {
+          expect(
+            accent.shadow,
+            `${context}, ${accent.id} visible glow`,
+          ).not.toBe("none");
+          for (const background of [
+            layout.colours.panel,
+            layout.colours.raised,
+            layout.colours.sidebar,
+            layout.colours.chrome,
+          ])
+            expect(
+              contrastRatio(accent.ink, background),
+              `${context}, ${accent.id} foreground contrast`,
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
       expect(
         layout.sections.map(({ name }) => name),
         context,
