@@ -18,7 +18,7 @@ make your own.
 
 - **Bring your music.** Add local folders or browse and select folders from Dropbox.
 - **Keep things organised.** Search your sources, build playlists and see what is coming up in the playback queue.
-- **Keep a little player nearby.** Switch to the rounded mini player with album artwork and an optional queue.
+- **Keep a little player nearby.** Switch to the mini player with album artwork and an optional queue.
 - **Make it yours.** Choose from seven materials, light or dark appearances and ten accent colours.
 - **Enjoy your album covers.** Embedded artwork is cached locally so it is ready when you return.
 

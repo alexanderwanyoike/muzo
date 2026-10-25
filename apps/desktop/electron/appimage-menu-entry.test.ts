@@ -15,6 +15,8 @@ import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { registerAppImageMenuEntry } from "./appimage-menu-entry";
 
+const NATIVE_MENU_TEST_TIMEOUT_MS = 15_000;
+
 describe.skipIf(process.platform !== "linux")(
   "Linux AppImage menu integration",
   () => {
@@ -76,6 +78,7 @@ describe.skipIf(process.platform !== "linux")(
           await rm(directory, { recursive: true, force: true });
         }
       },
+      NATIVE_MENU_TEST_TIMEOUT_MS,
     );
 
     it("preserves a launcher already installed by another package or integration tool", async () => {
