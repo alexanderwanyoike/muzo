@@ -62,6 +62,7 @@ it("checks installed builds only and replaces a Linux AppImage at its existing p
     relaunch: vi.fn(),
     once: vi.fn(),
     quit: vi.fn(),
+    exit: vi.fn(),
   };
   const dialog = {
     showErrorBox: vi.fn(),
@@ -109,10 +110,10 @@ it("checks installed builds only and replaces a Linux AppImage at its existing p
     },
   );
   child.emit("spawn");
-  await vi.waitFor(() => expect(app.quit).toHaveBeenCalledTimes(2));
+  await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
   expect(child.unref).toHaveBeenCalledOnce();
   expect(dialog.showErrorBox).not.toHaveBeenCalled();
-  expect(app.quit).toHaveBeenCalledTimes(2);
+  expect(app.exit).toHaveBeenCalledWith(0);
   runtime.stop();
   native.release.mockClear();
   native.create.mockClear();
