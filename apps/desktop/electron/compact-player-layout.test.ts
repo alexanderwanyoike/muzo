@@ -101,6 +101,22 @@ it("fits compact controls at native minimum sizes and restores the library windo
       }[];
       interactionStates: {
         mode: string;
+        sidebar: {
+          row: {
+            matches: boolean;
+            visible: boolean;
+            offset: string;
+            color: string;
+          };
+          footer: {
+            matches: boolean;
+            visible: boolean;
+            offset: string;
+            color: string;
+          };
+          removal: { color: string };
+          confirmation: { background: string };
+        };
         foreground: string;
         selected: string;
         hover: { background: string; color: string };
@@ -126,6 +142,34 @@ it("fits compact controls at native minimum sizes and restores the library windo
     expect(result.interactionStates).toHaveLength(4);
     for (const state of result.interactionStates) {
       const dark = state.mode === "dark";
+      expect
+        .soft(
+          state.sidebar.removal.color,
+          `${state.mode} source removal danger`,
+        )
+        .toBe(dark ? "rgb(241, 164, 154)" : "rgb(171, 62, 54)");
+      expect
+        .soft(
+          state.sidebar.confirmation.background,
+          `${state.mode} destructive confirmation`,
+        )
+        .toBe(dark ? "rgb(241, 164, 154)" : "rgb(171, 62, 54)");
+      expect
+        .soft(state.sidebar.row)
+        .toMatchObject({
+          matches: true,
+          visible: true,
+          offset: "-2px",
+          color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+        });
+      expect
+        .soft(state.sidebar.footer)
+        .toMatchObject({
+          matches: true,
+          visible: true,
+          offset: "-1px",
+          color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+        });
       expect(state.foreground, `${state.mode} inactive navigation`).toBe(
         dark ? "rgb(179, 179, 179)" : "rgb(85, 85, 85)",
       );

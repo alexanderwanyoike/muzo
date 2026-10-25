@@ -1,4 +1,5 @@
 import type { BrowserWindow } from "electron";
+import { measureSidebarInteractions } from "./measure-sidebar-interactions";
 
 export async function measureMaterialInteractions(
   window: BrowserWindow,
@@ -40,8 +41,9 @@ export async function measureMaterialInteractions(
   const focus = await read(
     `(() => { const button = document.activeElement; const style = getComputedStyle(button); return {visible:button.matches(':focus-visible'), color:style.outlineColor, style:style.outlineStyle}; })()`,
   );
+  const sidebar = await measureSidebarInteractions(window);
   window.webContents.sendInputEvent({ type: "mouseMove", x: 300, y: 100 });
   await read("document.activeElement.blur()");
   await settle();
-  return { ...initial, hover, focus };
+  return { ...initial, hover, focus, sidebar };
 }
