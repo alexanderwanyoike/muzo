@@ -1,4 +1,4 @@
-import type { BrowserWindow } from "electron";
+import type { BrowserWindow, KeyboardInputEvent } from "electron";
 
 export async function measureSidebarInteractions(
   window: BrowserWindow,
@@ -10,7 +10,9 @@ export async function measureSidebarInteractions(
       "new Promise(resolve => requestAnimationFrame(() => { document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).forEach(animation => animation.finish()); requestAnimationFrame(() => requestAnimationFrame(resolve)); }))",
     );
   const tab = (backwards = false) => {
-    const modifiers = backwards ? ["shift"] : [];
+    const modifiers: KeyboardInputEvent["modifiers"] = backwards
+      ? ["shift"]
+      : [];
     window.webContents.sendInputEvent({
       type: "keyDown",
       keyCode: "Tab",
