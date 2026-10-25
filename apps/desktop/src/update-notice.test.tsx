@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { UpdateStatus } from "../shared/update-status";
-import { success } from "../shared/result";
+import { success } from "../electron/application/result";
 import UpdateNotice from "./update-notice";
 
 afterEach(cleanup);
