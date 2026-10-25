@@ -117,6 +117,7 @@ void app.whenReady().then(async () => {
           await new Promise((resolve) => {
             setTimeout(resolve, 150);
           });
+          window.webContents.focus();
           await window.webContents.executeJavaScript(
             "document.querySelector('.update-notice button').focus()",
           );
@@ -132,6 +133,9 @@ void app.whenReady().then(async () => {
               modifiers: [...modifiers],
             });
           }
+          await window.webContents.executeJavaScript(
+            "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+          );
           const layout = (await window.webContents.executeJavaScript(
             `(${measureUpdateStatusBar.toString()})()`,
           )) as ReturnType<typeof measureUpdateStatusBar>;

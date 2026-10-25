@@ -99,7 +99,7 @@ it.skipIf(process.platform !== "linux")(
         expect(layout.bottom).toBeLessThanOrEqual(layout.height - 3);
         expect(layout.buttonHeight).toBe(24);
         expect(layout.overflow).toBe(false);
-        expect(layout.focused).toBe(true);
+        expect(layout.focused, JSON.stringify(layout)).toBe(true);
         expect(layout.outlineWidth).toBe("2px");
         expect(layout.outlineOffset).toBe("1px");
       }
