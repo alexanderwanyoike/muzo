@@ -14,4 +14,4 @@ The user approved releasing the reviewed AppImage menu integration, mini player 
 
 ## Verification
 
-Release metadata and documentation only. No production behaviour changes or artificial tests. Run the existing release-context, distribution, application and site checks. The release PR records native CI and publication evidence.
+Release metadata and documentation, plus an explicit timeout for the existing native menu launch test after its default five-second limit was exceeded during the full run. No production behaviour changes or artificial tests. Run the existing release-context, distribution, application and site checks. The release PR records native CI and publication evidence.
