@@ -66,6 +66,9 @@ export async function measureSettingsLayout() {
     ).map((label) => ({
       id: label.getAttribute("data-accent"),
       colour: getComputedStyle(label).getPropertyValue("--accent").trim(),
+      onAccent: getComputedStyle(label).getPropertyValue("--on-accent").trim(),
+      ink: getComputedStyle(label).getPropertyValue("--accent-ink").trim(),
+      shadow: getComputedStyle(label.querySelector("span") ?? label).boxShadow,
     })),
   };
   return {

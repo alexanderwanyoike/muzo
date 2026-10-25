@@ -89,6 +89,7 @@
 }
 :root {
   --on-accent: #ffffff;
+  --accent-ink: var(--accent);
   --green: #386e4b;
   --danger: #ab3e36;
   --selected: color-mix(in srgb, var(--accent) 13%, var(--panel));

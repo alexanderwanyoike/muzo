@@ -3,6 +3,11 @@ import { failure, type Result } from "../shared/result";
 export const MATERIALS = [
   { id: "studio", name: "Studio", detail: "Quiet, clear and contemporary" },
   {
+    id: "pulse",
+    name: "Pulse",
+    detail: "Layered surfaces, inspired by Spotify",
+  },
+  {
     id: "aluminium",
     name: "Brushed aluminium",
     detail: "Fine matte grain and satin highlights",
@@ -30,7 +35,7 @@ export const MATERIALS = [
   },
 ] as const;
 export const MODES = ["light", "dark"] as const;
-export const ACCENTS = [
+const classicAccents = [
   { id: "cobalt", name: "Cobalt" },
   { id: "copper", name: "Copper" },
   { id: "sage", name: "Sage" },
@@ -41,6 +46,19 @@ export const ACCENTS = [
   { id: "slate", name: "Slate" },
   { id: "violet", name: "Violet" },
   { id: "ice", name: "Ice" },
+] as const;
+const glowAccents = [
+  { id: "glow-green", name: "Glow green" },
+  { id: "glow-cyan", name: "Glow cyan" },
+  { id: "glow-blue", name: "Glow blue" },
+  { id: "glow-violet", name: "Glow violet" },
+  { id: "glow-pink", name: "Glow pink" },
+  { id: "glow-orange", name: "Glow orange" },
+] as const;
+export const ACCENTS = [...classicAccents, ...glowAccents] as const;
+export const ACCENT_GROUPS = [
+  { name: "Classic", accents: classicAccents },
+  { name: "Glow", accents: glowAccents },
 ] as const;
 export interface Appearance {
   theme: (typeof MATERIALS)[number]["id"];

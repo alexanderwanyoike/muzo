@@ -95,7 +95,7 @@
 .sidebar-splitter:focus-visible::after,
 .sidebar-splitter[data-resizing]::after {
   width: 3px;
-  background: var(--accent);
+  background: var(--accent-ink);
 }
 .sidebar-splitter:focus-visible {
   outline: none;

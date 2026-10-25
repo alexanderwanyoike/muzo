@@ -23,7 +23,7 @@
   width: 17px;
   height: 17px;
   flex-shrink: 0;
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .update-notice span {
   min-width: 0;
