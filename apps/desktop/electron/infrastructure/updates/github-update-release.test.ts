@@ -82,3 +82,22 @@ it.each([
     ).ok,
   ).toBe(false);
 });
+
+it.each(["0.0.3", "0.0.4"])(
+  "does not require updater YAML for an already installed or older release: %s",
+  async (installedVersion) => {
+    const data = release();
+    data.assets.push(
+      ...["muzo-0.0.3-release.json", "SHA256SUMS"].map((name) => ({
+        name,
+        browser_download_url: `https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.3/${name}`,
+      })),
+    );
+    expect(
+      await latestMuzoRelease(
+        async () => new Response(JSON.stringify(data)),
+        installedVersion,
+      ),
+    ).toEqual({ ok: true, value: { version: "0.0.3" } });
+  },
+);
