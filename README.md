@@ -18,7 +18,7 @@ make your own.
 
 - **Bring your music.** Add local folders or browse and select folders from Dropbox.
 - **Keep things organised.** Search your sources, build playlists and see what is coming up in the playback queue.
-- **Keep a little player nearby.** Switch to the rounded mini player with album artwork and an optional queue.
+- **Keep a little player nearby.** Switch to the mini player with album artwork and an optional queue.
 - **Make it yours.** Choose from seven materials, light or dark appearances and ten accent colours.
 - **Enjoy your album covers.** Embedded artwork is cached locally so it is ready when you return.
 
@@ -43,6 +43,13 @@ Checksums are included with each release.
 3. Explore **Appearance** in Settings to find a material and accent you like.
 
 Removing a source from Muzo leaves your music files in place.
+
+Updater-enabled builds check for newer releases automatically. Click the version
+notice at the bottom of the sidebar to download, then choose **Restart to install**
+when you are ready. Playback continues during the download. Windows installers
+and Linux AppImages can update in place; the AppImage keeps its existing filename
+and location. Unsigned macOS builds open the release page for manual installation.
+If you use v0.0.2, install the first updater-enabled release manually once.
 
 <details>
 <summary>Connecting Dropbox</summary>

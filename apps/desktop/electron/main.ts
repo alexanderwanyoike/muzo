@@ -19,6 +19,9 @@ import { configureDesktopIcon } from "./desktop-icon";
 import { installPlayerWindowMode } from "./install-player-window-mode";
 import { installDesktopMenu } from "./desktop-menu";
 import { runStartupTasks } from "./startup";
+import { installAppImageMenu } from "./install-appimage-menu";
+import { createInstalledUpdates } from "./create-installed-updates";
+import { installApplicationUpdates } from "./install-application-updates";
 
 configureDesktopIdentity(app);
 
@@ -36,6 +39,20 @@ const reconcileFilesystemLibraries = container.resolve(
 );
 const watchFilesystemLibraries = container.resolve("watchFilesystemLibraries");
 const logger = container.resolve("logger");
+const updateRuntime = createInstalledUpdates({
+  app,
+  dialog,
+  shell,
+  platform: process.platform,
+  arch: process.arch,
+  appImage: process.env.APPIMAGE,
+});
+installApplicationUpdates(
+  ipcMain,
+  updateRuntime.updates,
+  (event) => BrowserWindow.fromWebContents(event.sender),
+  () => BrowserWindow.getAllWindows(),
+);
 
 async function createWindow(icon: string) {
   const window = new BrowserWindow({
@@ -98,6 +115,24 @@ app.whenReady().then(async () => {
   });
   container.resolve("dropboxPoller").start();
   void createWindow(icon);
+  updateRuntime.start();
+  const menuRegistration = await installAppImageMenu({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    homeDirectory: app.getPath("home"),
+    iconPath: icon,
+    environment: process.env,
+  });
+  if (!menuRegistration.ok) {
+    logger.error(menuRegistration.error.message);
+    await dialog.showMessageBox({
+      type: "warning",
+      message: menuRegistration.error.message,
+      detail:
+        "Muzo is running, but its menu shortcut could not be saved. Check that your application menu folder is writable, then reopen the AppImage to retry.",
+      buttons: ["Continue"],
+    });
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -107,6 +142,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => container.resolve("dropboxPoller").stop());
+app.on("before-quit", () => updateRuntime.stop());
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

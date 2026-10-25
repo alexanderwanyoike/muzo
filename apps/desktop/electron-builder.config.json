@@ -5,7 +5,12 @@
     "output": "out/distribution",
     "buildResources": "assets/icons"
   },
-  "publish": null,
+  "publish": {
+    "provider": "github",
+    "owner": "alexanderwanyoike",
+    "repo": "muzo",
+    "releaseType": "draft"
+  },
   "linux": {
     "target": ["AppImage"],
     "executableName": "muzo",

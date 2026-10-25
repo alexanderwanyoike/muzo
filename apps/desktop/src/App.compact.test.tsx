@@ -226,3 +226,18 @@ it("keeps the current view usable when a native mode transition fails", async ()
   expect(await screen.findByRole("alert")).toBeDefined();
   expect(screen.getByRole("region", { name: "Mini player" })).toBeDefined();
 });
+
+it("keeps the icon-only mini player control with the transport rather than the source sidebar", () => {
+  installMusic();
+  render(<App />);
+  const mini = screen.getByRole("button", { name: "Mini player" });
+  expect(mini.textContent?.trim()).toBe("");
+  expect(mini.getAttribute("title")).toBe("Mini player");
+  expect(mini.closest("aside")).toBeNull();
+  expect(
+    screen
+      .getByRole("slider", { name: "Volume" })
+      .closest(".now-playing-bar")
+      ?.contains(mini),
+  ).toBe(true);
+});

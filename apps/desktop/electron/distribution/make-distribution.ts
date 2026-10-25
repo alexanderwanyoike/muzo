@@ -10,6 +10,7 @@ import {
   type DistributionResult,
 } from "@muzo/distribution";
 import { distributionPlan } from "./distribution-plan";
+import { prepareUpdaterConfig } from "./prepare-updater-config";
 
 async function makeDistribution(): Promise<DistributionResult<string>> {
   try {
@@ -41,6 +42,23 @@ async function makeDistribution(): Promise<DistributionResult<string>> {
       ],
       [require.resolve("electron-builder/cli.js"), plan.value.builderArgs],
     ] as const) {
+      if (
+        entry === require.resolve("electron-builder/cli.js") &&
+        plan.value.target.platform !== "macos"
+      ) {
+        const configured = await prepareUpdaterConfig(
+          join(
+            root,
+            "out",
+            `Muzo-${process.platform}-${plan.value.target.arch}`,
+          ),
+        );
+        if (!configured.ok)
+          return {
+            ok: false,
+            error: { kind: "storage", message: configured.error.message },
+          };
+      }
       const result = await promisify(execFile)(
         process.execPath,
         [entry, ...args],

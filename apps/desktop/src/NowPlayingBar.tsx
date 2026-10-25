@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Disc3,
   Pause,
@@ -12,6 +13,7 @@ import { formatDuration } from "./formatDuration";
 import type { TrackDto } from "./api";
 
 interface NowPlayingBarProps {
+  miniPlayerControl?: ReactNode;
   artworkRefreshKey?: number;
   current: TrackDto | null;
   status: "idle" | "loading" | "playing" | "paused" | "error";
@@ -29,6 +31,7 @@ interface NowPlayingBarProps {
 }
 
 export default function NowPlayingBar({
+  miniPlayerControl,
   artworkRefreshKey = 0,
   current,
   status,
@@ -53,6 +56,7 @@ export default function NowPlayingBar({
 
   return (
     <div className="now-playing-bar">
+      {miniPlayerControl}
       <div className="now-playing-bar__controls">
         <button
           type="button"

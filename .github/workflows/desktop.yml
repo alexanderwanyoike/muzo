@@ -33,7 +33,7 @@ jobs:
           corepack enable
           corepack prepare yarn@1.22.22 --activate
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb x11-utils libgtk-3-0t64 libasound2t64 libgbm1
+          sudo apt-get install --yes --no-install-recommends fakeroot dpkg xvfb x11-utils python3-gi desktop-file-utils libgtk-3-0t64 libasound2t64 libgbm1
       - run: yarn install --frozen-lockfile
       - name: Check reproducible icon exports
         run: |
@@ -76,5 +76,5 @@ jobs:
       - name: Check reproducible icon exports
         run: git diff --exit-code -- apps/desktop/assets/icons
       - name: Verify native desktop adapters and Settings layout
-        run: yarn workspace @muzo/desktop test electron/compact-player-layout.test.ts electron/player-window-mode.test.ts electron/install-player-window-mode.test.ts electron/player-window-bridge.test.ts electron/seek-focus.test.ts electron/settings-layout.test.ts electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts electron/infrastructure/metadata/node-artwork-cache.test.ts electron/application/track-artwork-service.test.ts
+        run: yarn workspace @muzo/desktop test electron/create-installed-updates.test.ts electron/distribution/prepare-updater-config.test.ts electron/install-application-updates.test.ts electron/preload-updates.test.ts electron/infrastructure/updates/native-update-backend.test.ts electron/compact-player-layout.test.ts electron/player-window-mode.test.ts electron/install-player-window-mode.test.ts electron/player-window-bridge.test.ts electron/seek-focus.test.ts electron/settings-layout.test.ts electron/app-icon-assets.test.ts electron/desktop-icon.test.ts electron/desktop-icon-packaging.test.ts electron/native-app-icon.test.ts electron/infrastructure/metadata/node-artwork-cache.test.ts electron/application/track-artwork-service.test.ts
       - run: yarn desktop:package

@@ -12,6 +12,7 @@ import { useAppearance } from "./use-appearance";
 import DropboxSettings from "./dropbox-settings";
 import AddLibraryForm from "./AddLibraryForm";
 import SourcesPanel from "./sources-panel";
+import UpdateNotice from "./update-notice";
 import TrackList from "./TrackList";
 import PlaylistPanel from "./playlist-panel";
 import NowPlayingBar from "./NowPlayingBar";
@@ -281,17 +282,6 @@ export default function App() {
                 {libraries?.length ?? 0} libraries - {totalTrackCount} tracks
               </p>
             </div>
-            <button
-              type="button"
-              ref={miniPlayerButton}
-              aria-label="Mini player"
-              disabled={playerWindow.pending}
-              onClick={() => {
-                void playerWindow.changeMode("compact");
-              }}
-            >
-              <Minimize2 aria-hidden="true" /> Mini player
-            </button>
             {playerWindow.error && <p role="alert">{playerWindow.error}</p>}
           </header>
 
@@ -382,6 +372,7 @@ export default function App() {
             onCommit={sidebar.commit}
             onCancel={sidebar.cancel}
           />
+          <UpdateNotice bridge={window.__MUZO_RUNTIME__?.updates} />
         </aside>
 
         <section className="app-content">
@@ -545,6 +536,21 @@ export default function App() {
           />
         )}
         <NowPlayingBar
+          miniPlayerControl={
+            <button
+              type="button"
+              ref={miniPlayerButton}
+              aria-label="Mini player"
+              title="Mini player"
+              className="now-playing-bar__mini-player"
+              disabled={playerWindow.pending}
+              onClick={() => {
+                void playerWindow.changeMode("compact");
+              }}
+            >
+              <Minimize2 aria-hidden="true" />
+            </button>
+          }
           artworkRefreshKey={
             current ? (trackRefreshVersions[current.libraryId] ?? 0) : 0
           }
