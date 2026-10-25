@@ -6,6 +6,7 @@
 @import "./sidebar-panels.css";
 @import "./glass-material.css";
 @import "./pulse-material.css";
+@import "./app-status-bar.css";
 
 :root {
   font-family: "Manrope Variable", sans-serif;
@@ -85,7 +86,7 @@ code {
   height: 100dvh;
   min-height: 600px;
   display: grid;
-  grid-template: 82px minmax(0, 1fr) / 218px minmax(0, 1fr);
+  grid-template: 82px minmax(0, 1fr) 34px / 218px minmax(0, 1fr);
   background: var(--panel);
 }
 .app-sidebar {
