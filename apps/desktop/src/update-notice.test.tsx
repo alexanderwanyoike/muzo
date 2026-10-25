@@ -73,3 +73,23 @@ it("keeps unsigned platform downloads honest and makes failed updates retryable"
   );
   expect(bridge.command).toHaveBeenLastCalledWith("check");
 });
+
+it("shows checking progress and allows a fresh check when the app is up to date", async () => {
+  let report: ((status: UpdateStatus) => void) | undefined;
+  const bridge = {
+    getStatus: async () => success<UpdateStatus>({ state: "checking" }),
+    subscribe: (listener: (status: UpdateStatus) => void) => {
+      report = listener;
+      return () => {};
+    },
+    command: vi.fn(async () => success(undefined)),
+  };
+  render(<UpdateNotice bridge={bridge} />);
+  expect(
+    (await screen.findByRole("button", { name: "Checking for updates..." }))
+      .hasAttribute("disabled"),
+  ).toBe(true);
+  act(() => report?.({ state: "current" }));
+  await userEvent.click(screen.getByRole("button", { name: "Up to date" }));
+  expect(bridge.command).toHaveBeenCalledWith("check");
+});
