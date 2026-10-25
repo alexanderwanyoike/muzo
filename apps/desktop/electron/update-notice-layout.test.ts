@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { build } from "esbuild";
 import { expect, it } from "vitest";
+import type { measureUpdateStatusBar } from "./fixtures/measure-update-status-bar";
+import { MATERIALS, MODES } from "../src/appearance";
 
 it.skipIf(process.platform !== "linux")(
   "downloads through Electron, rejects corrupt bytes and installs at the pinned path only after Restart",
@@ -73,23 +75,29 @@ it.skipIf(process.platform !== "linux")(
         failure?: string;
         corruptionRejected: boolean;
         installed: string;
-        layouts: {
-          mode: string;
-          width: number;
-          right: number;
-          sidebarRight: number;
-          bottom: number;
-          height: number;
-        }[];
+        layouts: (ReturnType<typeof measureUpdateStatusBar> & {theme: string; mode: string; requestedWidth: number})[];
       };
       expect(result.failure).toBeUndefined();
       expect(result.corruptionRejected).toBe(true);
       expect(result.installed).toBe("0.0.3");
-      expect(result.layouts).toHaveLength(4);
+      expect(result.layouts).toHaveLength(MATERIALS.length * MODES.length * 2);
       for (const layout of result.layouts) {
-        expect(layout.right).toBeLessThanOrEqual(layout.sidebarRight);
-        expect(layout.bottom).toBeLessThanOrEqual(layout.height);
-        expect(layout.bottom).toBeGreaterThan(layout.height - 100);
+        expect(layout.width).toBe(layout.requestedWidth);
+        expect(layout.barLeft).toBe(0);
+        expect(layout.barRight).toBe(layout.width);
+        expect(layout.barBottom).toBe(layout.height);
+        expect(layout.barHeight).toBeLessThanOrEqual(36);
+        expect(layout.sidebarBottom).toBe(layout.barTop);
+        expect(layout.contentBottom).toBe(layout.barTop);
+        expect(layout.right).toBeGreaterThanOrEqual(layout.width - 16);
+        expect(layout.right).toBeLessThanOrEqual(layout.width - 8);
+        expect(layout.top).toBeGreaterThanOrEqual(layout.barTop + 3);
+        expect(layout.bottom).toBeLessThanOrEqual(layout.height - 3);
+        expect(layout.buttonHeight).toBe(24);
+        expect(layout.overflow).toBe(false);
+        expect(layout.focused).toBe(true);
+        expect(layout.outlineWidth).toBe("2px");
+        expect(layout.outlineOffset).toBe("1px");
       }
     } finally {
       await rm(directory, { recursive: true, force: true });

@@ -6,7 +6,7 @@ import { success } from "../electron/application/result";
 import UpdateNotice from "./update-notice";
 
 afterEach(cleanup);
-it("offers a sidebar download, shows progress and waits for a separate restart click", async () => {
+it("offers a status bar download, shows progress and waits for a separate restart click", async () => {
   let report: ((status: UpdateStatus) => void) | undefined;
   const unsubscribe = vi.fn();
   const bridge = {
@@ -24,7 +24,7 @@ it("offers a sidebar download, shows progress and waits for a separate restart c
   };
   const { unmount } = render(<UpdateNotice bridge={bridge} />);
   await userEvent.click(
-    await screen.findByRole("button", { name: "Update available v0.0.3" }),
+    await screen.findByRole("button", { name: "Update available to 0.0.3" }),
   );
   expect(bridge.command).toHaveBeenCalledOnce();
   expect(bridge.command).toHaveBeenCalledWith("download");
@@ -62,9 +62,9 @@ it("keeps unsigned platform downloads honest and makes failed updates retryable"
   };
   render(<UpdateNotice bridge={bridge} />);
   const notice = await screen.findByRole("button", {
-    name: "Update available v0.0.3",
+    name: "Update available to 0.0.3",
   });
-  expect(notice.textContent).toContain("Download installer");
+  expect(notice.getAttribute("title")).toBe("Download installer");
   await userEvent.click(notice);
   expect(bridge.command).toHaveBeenCalledWith("download");
   act(() => report?.({ state: "failed", message: "Could not download." }));
