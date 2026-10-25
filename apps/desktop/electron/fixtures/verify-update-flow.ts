@@ -1,6 +1,4 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { MATERIALS, MODES } from "../../src/appearance";
-import { measureUpdateStatusBar } from "./measure-update-status-bar";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmod, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -8,6 +6,8 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import electronUpdater from "electron-updater";
+import { MATERIALS, MODES } from "../../src/appearance";
+import { measureUpdateStatusBar } from "./measure-update-status-bar";
 import { createApplicationUpdates } from "../application/application-updates";
 import { success } from "../application/result";
 import { createNativeUpdateBackend } from "../infrastructure/updates/native-update-backend";
@@ -138,6 +138,9 @@ void app.whenReady().then(async () => {
           layouts.push({ theme, mode, requestedWidth: width, ...layout });
           const capture = process.env.MUZO_UPDATE_CAPTURE_DIR;
           if (capture) {
+            await window.webContents.executeJavaScript(
+              "document.activeElement?.blur(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+            );
             await mkdir(capture, { recursive: true });
             await writeFile(
               join(capture, `update-${theme}-${mode}-${width}.png`),
