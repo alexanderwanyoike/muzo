@@ -6,11 +6,12 @@ import { createNativeUpdateBackend } from "./infrastructure/updates/native-updat
 import { latestMuzoRelease } from "./infrastructure/updates/github-update-release";
 import { replaceAppImage } from "./infrastructure/updates/replace-appimage";
 import { MUZO_UPDATE_FEED } from "../shared/update-feed";
+import { scheduleAppImageRestart } from "./restart-appimage";
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 interface Options {
-  app: Pick<App, "isPackaged" | "getVersion" | "relaunch" | "quit">;
-  dialog: Pick<Dialog, "showMessageBox">;
+  app: Pick<App, "isPackaged" | "getVersion" | "once" | "quit" | "exit">;
+  dialog: Pick<Dialog, "showMessageBox" | "showErrorBox">;
   shell: Pick<Shell, "openExternal">;
   platform: NodeJS.Platform;
   arch: string;
@@ -55,7 +56,7 @@ export function createInstalledUpdates({
         const replaced = await replaceAppImage(appImage, path);
         if (!replaced.ok) return replaced;
         try {
-          app.relaunch({ execPath: appImage });
+          scheduleAppImageRestart(app, dialog, appImage);
           app.quit();
         } catch {
           return failure(

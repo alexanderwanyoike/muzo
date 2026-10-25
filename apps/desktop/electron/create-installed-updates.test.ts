@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { EventEmitter } from "node:events";
 import { expect, it, vi } from "vitest";
 import { success } from "./application/result";
 import { createInstalledUpdates } from "./create-installed-updates";
@@ -10,7 +11,9 @@ const native = vi.hoisted(() => ({
   create: vi.fn(),
   replace: vi.fn(),
   release: vi.fn(),
+  spawn: vi.fn(),
 }));
+vi.mock("node:child_process", () => ({ spawn: native.spawn }));
 vi.mock("electron-updater", () => ({
   default: {
     AppImageUpdater: class {
@@ -57,9 +60,12 @@ it("checks installed builds only and replaces a Linux AppImage at its existing p
     isPackaged: true,
     getVersion: () => "0.0.2",
     relaunch: vi.fn(),
+    once: vi.fn(),
     quit: vi.fn(),
+    exit: vi.fn(),
   };
   const dialog = {
+    showErrorBox: vi.fn(),
     showMessageBox: vi.fn(async () => ({
       response: 1,
       checkboxChecked: false,
@@ -83,10 +89,31 @@ it("checks installed builds only and replaces a Linux AppImage at its existing p
     "/Applications/Muzo.AppImage",
     "/verified.AppImage",
   );
-  expect(app.relaunch).toHaveBeenCalledWith({
-    execPath: "/Applications/Muzo.AppImage",
-  });
-  expect(app.quit).toHaveBeenCalledOnce();
+  expect(app.relaunch).not.toHaveBeenCalled();
+  expect(native.spawn).not.toHaveBeenCalled();
+  expect(app.once).toHaveBeenCalledWith("will-quit", expect.any(Function));
+  const child = Object.assign(new EventEmitter(), { unref: vi.fn() });
+  native.spawn.mockReturnValue(child);
+  const event = { preventDefault: vi.fn() };
+  const onQuit = app.once.mock.calls[0]?.[1] as (event: {
+    preventDefault(): void;
+  }) => void;
+  onQuit(event);
+  expect(event.preventDefault).toHaveBeenCalledOnce();
+  expect(native.spawn).toHaveBeenCalledWith(
+    "/Applications/Muzo.AppImage",
+    process.argv.slice(1),
+    {
+      cwd: "/Applications",
+      detached: true,
+      stdio: "ignore",
+    },
+  );
+  child.emit("spawn");
+  await vi.waitFor(() => expect(app.exit).toHaveBeenCalledWith(0));
+  expect(child.unref).toHaveBeenCalledOnce();
+  expect(dialog.showErrorBox).not.toHaveBeenCalled();
+  expect(app.exit).toHaveBeenCalledWith(0);
   runtime.stop();
   native.release.mockClear();
   native.create.mockClear();
