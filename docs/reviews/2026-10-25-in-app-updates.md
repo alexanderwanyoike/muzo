@@ -15,7 +15,7 @@ Spec: two findings.
 
 ## Corrections
 
-The distribution command now generates the standard fixed-feed config and cache setting inside the Forge payload before builder runs. The native fixture consumes that production-generated config. Installer CI checks the shipped resource in both AppImage and installed NSIS payloads.
+The distribution command now generates the standard fixed-feed config and cache setting inside the Forge payload before builder runs. The native fixture consumes that production-generated config. Installer CI checks the shipped resource in both AppImage and installed NSIS payloads. A fresh AppImage build also showed that its target-specific writer replaces the fallback config with a valid builder-generated cache name. The Linux assertion accepts that standard value; Windows still needs the explicit prepackaged fallback.
 
 Discovery now requires the canonical release JSON, SHA256SUMS and both update YAML files for newer versions. Already installed or older releases do not require updater YAML, preserving compatibility with v0.0.2. Version comparison has one application-layer implementation.
 

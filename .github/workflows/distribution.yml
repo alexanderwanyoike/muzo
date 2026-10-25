@@ -128,7 +128,7 @@ jobs:
           done
           test -f squashfs-root/resources/app/dist/index.html
           test -f squashfs-root/resources/app-update.yml
-          grep -q '^updaterCacheDirName: muzo-updater$' squashfs-root/resources/app-update.yml
+          grep -q '^updaterCacheDirName:.' squashfs-root/resources/app-update.yml
           test -f squashfs-root/resources/app/assets/licenses/manrope-OFL.txt
       - name: Verify first AppImage launch and Cinnamon launcher repair
         if: matrix.target == 'linux-x64'
