@@ -63,14 +63,17 @@ it("keeps unsigned platform downloads honest and makes failed updates retryable"
   render(<UpdateNotice bridge={bridge} />);
   const notice = await screen.findByRole("button", {
     name: "Update available to 0.0.3",
+    description: "Download installer",
   });
   expect(notice.getAttribute("title")).toBe("Download installer");
   await userEvent.click(notice);
   expect(bridge.command).toHaveBeenCalledWith("download");
   act(() => report?.({ state: "failed", message: "Could not download." }));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Update failed. Retry" }),
-  );
+  const retry = screen.getByRole("button", {
+    name: "Update failed. Retry",
+    description: "Could not download.",
+  });
+  await userEvent.click(retry);
   expect(bridge.command).toHaveBeenLastCalledWith("check");
 });
 

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { UpdateBridge } from "../shared/update-bridge";
 import type { UpdateStatus } from "../shared/update-status";
 import "./update-notice.css";
 
 export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
+  const descriptionId = useId();
   const [status, setStatus] = useState<UpdateStatus>({ state: "idle" });
   const [pending, setPending] = useState(false);
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
       <button
         type="button"
         aria-label={label}
-        aria-description={detail}
+        aria-describedby={descriptionId}
         title={detail}
         disabled={
           pending ||
@@ -98,6 +99,9 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
       >
         <span>{label}</span>
       </button>
+      <span id={descriptionId} hidden>
+        {detail}
+      </span>
     </div>
   );
 }
