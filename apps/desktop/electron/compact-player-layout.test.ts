@@ -154,22 +154,18 @@ it("fits compact controls at native minimum sizes and restores the library windo
           `${state.mode} destructive confirmation`,
         )
         .toBe(dark ? "rgb(241, 164, 154)" : "rgb(171, 62, 54)");
-      expect
-        .soft(state.sidebar.row)
-        .toMatchObject({
-          matches: true,
-          visible: true,
-          offset: "-2px",
-          color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
-        });
-      expect
-        .soft(state.sidebar.footer)
-        .toMatchObject({
-          matches: true,
-          visible: true,
-          offset: "-1px",
-          color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
-        });
+      expect.soft(state.sidebar.row).toMatchObject({
+        matches: true,
+        visible: true,
+        offset: "-2px",
+        color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      });
+      expect.soft(state.sidebar.footer).toMatchObject({
+        matches: true,
+        visible: true,
+        offset: "-1px",
+        color: dark ? "rgb(255, 255, 255)" : "rgb(23, 23, 23)",
+      });
       expect(state.foreground, `${state.mode} inactive navigation`).toBe(
         dark ? "rgb(179, 179, 179)" : "rgb(85, 85, 85)",
       );
