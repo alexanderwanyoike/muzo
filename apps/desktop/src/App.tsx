@@ -372,7 +372,6 @@ export default function App() {
             onCommit={sidebar.commit}
             onCancel={sidebar.cancel}
           />
-          <UpdateNotice bridge={window.__MUZO_RUNTIME__?.updates} />
         </aside>
 
         <section className="app-content">
@@ -568,6 +567,9 @@ export default function App() {
           onSeek={seek}
           onSetVolume={setVolume}
         />
+        <footer className="app-status-bar" aria-label="Application status">
+          <UpdateNotice bridge={window.__MUZO_RUNTIME__?.updates} />
+        </footer>
       </main>
     </>
   );

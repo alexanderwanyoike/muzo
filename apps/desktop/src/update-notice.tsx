@@ -1,10 +1,10 @@
-import { Download, LoaderCircle, RefreshCw, RotateCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import type { UpdateBridge } from "../shared/update-bridge";
 import type { UpdateStatus } from "../shared/update-status";
 import "./update-notice.css";
 
 export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
+  const descriptionId = useId();
   const [status, setStatus] = useState<UpdateStatus>({ state: "idle" });
   const [pending, setPending] = useState(false);
   useEffect(() => {
@@ -23,20 +23,28 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
       unsubscribe();
     };
   }, [bridge]);
-  if (
-    !bridge ||
-    status.state === "idle" ||
-    status.state === "checking" ||
-    status.state === "current"
-  )
-    return null;
+  if (!bridge) return null;
   let label: string;
   let detail: string;
   let command: "download" | "install" | "check";
-  let Icon = Download;
   switch (status.state) {
+    case "idle":
+      label = "Check for updates";
+      detail = "Check for a new Muzo version";
+      command = "check";
+      break;
+    case "checking":
+      label = "Checking for updates...";
+      detail = "Checking for a new Muzo version";
+      command = "check";
+      break;
+    case "current":
+      label = "Up to date";
+      detail = "Check for updates";
+      command = "check";
+      break;
     case "available":
-      label = `Update available v${status.version}`;
+      label = `Update available to ${status.version}`;
       detail = status.automatic ? "Download update" : "Download installer";
       command = "download";
       break;
@@ -44,25 +52,21 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
       label = `Downloading v${status.version} · ${Math.round(status.progress)}%`;
       detail = "Keep listening. We’ll let you know when it’s ready.";
       command = "download";
-      Icon = LoaderCircle;
       break;
     case "ready":
       label = `Restart to install v${status.version}`;
       detail = "Your update is ready";
       command = "install";
-      Icon = RefreshCw;
       break;
     case "installing":
       label = `Installing v${status.version}`;
       detail = "Muzo will reopen shortly";
       command = "install";
-      Icon = LoaderCircle;
       break;
     case "failed":
       label = "Update failed. Retry";
       detail = status.message;
       command = "check";
-      Icon = RotateCcw;
       break;
   }
   async function act() {
@@ -77,13 +81,15 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
     }
   }
   return (
-    <div className="update-notice" aria-live="polite">
+    <div className="update-notice" aria-live="polite" aria-atomic="true">
       <button
         type="button"
         aria-label={label}
+        aria-describedby={descriptionId}
         title={detail}
         disabled={
           pending ||
+          status.state === "checking" ||
           status.state === "downloading" ||
           status.state === "installing"
         }
@@ -91,12 +97,11 @@ export default function UpdateNotice({ bridge }: { bridge?: UpdateBridge }) {
           void act();
         }}
       >
-        <Icon aria-hidden="true" />
-        <span>
-          <strong>{label}</strong>
-          <small>{detail}</small>
-        </span>
+        <span>{label}</span>
       </button>
+      <span id={descriptionId} hidden>
+        {detail}
+      </span>
     </div>
   );
 }

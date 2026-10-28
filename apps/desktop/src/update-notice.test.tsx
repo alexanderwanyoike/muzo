@@ -6,7 +6,7 @@ import { success } from "../electron/application/result";
 import UpdateNotice from "./update-notice";
 
 afterEach(cleanup);
-it("offers a sidebar download, shows progress and waits for a separate restart click", async () => {
+it("offers a status bar download, shows progress and waits for a separate restart click", async () => {
   let report: ((status: UpdateStatus) => void) | undefined;
   const unsubscribe = vi.fn();
   const bridge = {
@@ -24,7 +24,7 @@ it("offers a sidebar download, shows progress and waits for a separate restart c
   };
   const { unmount } = render(<UpdateNotice bridge={bridge} />);
   await userEvent.click(
-    await screen.findByRole("button", { name: "Update available v0.0.3" }),
+    await screen.findByRole("button", { name: "Update available to 0.0.3" }),
   );
   expect(bridge.command).toHaveBeenCalledOnce();
   expect(bridge.command).toHaveBeenCalledWith("download");
@@ -62,14 +62,38 @@ it("keeps unsigned platform downloads honest and makes failed updates retryable"
   };
   render(<UpdateNotice bridge={bridge} />);
   const notice = await screen.findByRole("button", {
-    name: "Update available v0.0.3",
+    name: "Update available to 0.0.3",
+    description: "Download installer",
   });
-  expect(notice.textContent).toContain("Download installer");
+  expect(notice.getAttribute("title")).toBe("Download installer");
   await userEvent.click(notice);
   expect(bridge.command).toHaveBeenCalledWith("download");
   act(() => report?.({ state: "failed", message: "Could not download." }));
-  await userEvent.click(
-    screen.getByRole("button", { name: "Update failed. Retry" }),
-  );
+  const retry = screen.getByRole("button", {
+    name: "Update failed. Retry",
+    description: "Could not download.",
+  });
+  await userEvent.click(retry);
   expect(bridge.command).toHaveBeenLastCalledWith("check");
+});
+
+it("shows checking progress and allows a fresh check when the app is up to date", async () => {
+  let report: ((status: UpdateStatus) => void) | undefined;
+  const bridge = {
+    getStatus: async () => success<UpdateStatus>({ state: "checking" }),
+    subscribe: (listener: (status: UpdateStatus) => void) => {
+      report = listener;
+      return () => {};
+    },
+    command: vi.fn(async () => success(undefined)),
+  };
+  render(<UpdateNotice bridge={bridge} />);
+  expect(
+    (
+      await screen.findByRole("button", { name: "Checking for updates..." })
+    ).hasAttribute("disabled"),
+  ).toBe(true);
+  act(() => report?.({ state: "current" }));
+  await userEvent.click(screen.getByRole("button", { name: "Up to date" }));
+  expect(bridge.command).toHaveBeenCalledWith("check");
 });

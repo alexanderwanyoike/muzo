@@ -1,0 +1,11 @@
+.app-status-bar {
+  grid-area: 3 / 1 / 4 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: 4px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--chrome);
+  user-select: none;
+}
