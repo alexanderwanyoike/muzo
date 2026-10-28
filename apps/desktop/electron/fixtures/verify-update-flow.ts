@@ -6,6 +6,8 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import electronUpdater from "electron-updater";
+import { MATERIALS, MODES } from "../../src/appearance";
+import { measureUpdateStatusBar } from "./measure-update-status-bar";
 import { createApplicationUpdates } from "../application/application-updates";
 import { success } from "../application/result";
 import { createNativeUpdateBackend } from "../infrastructure/updates/native-update-backend";
@@ -40,18 +42,6 @@ async function click(window: BrowserWindow) {
   await window.webContents.executeJavaScript(
     "document.querySelector('.update-notice button').click()",
   );
-}
-function measure() {
-  const button = document.querySelector<HTMLElement>(".update-notice button");
-  const sidebar = document.querySelector<HTMLElement>(".app-sidebar");
-  if (!button || !sidebar) throw new Error("Update notice missing");
-  const rect = button.getBoundingClientRect();
-  return {
-    right: rect.right,
-    bottom: rect.bottom,
-    sidebarRight: sidebar.getBoundingClientRect().right,
-    height: window.innerHeight,
-  };
 }
 void app.whenReady().then(async () => {
   try {
@@ -117,28 +107,51 @@ void app.whenReady().then(async () => {
     await updates.check();
     await waitFor(window, "Update available");
     const layouts = [];
-    for (const mode of ["light", "dark"])
-      for (const width of [800, 1200]) {
-        window.setContentSize(width, 600);
-        await window.webContents.executeJavaScript(
-          `document.documentElement.dataset.theme = 'aluminium'; document.documentElement.dataset.mode = ${JSON.stringify(mode)}; new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
-        );
-        await new Promise((resolve) => {
-          setTimeout(resolve, 150);
-        });
-        const layout = (await window.webContents.executeJavaScript(
-          `(${measure.toString()})()`,
-        )) as ReturnType<typeof measure>;
-        layouts.push({ mode, width, ...layout });
-        const capture = process.env.MUZO_UPDATE_CAPTURE_DIR;
-        if (capture) {
-          await mkdir(capture, { recursive: true });
-          await writeFile(
-            join(capture, `update-${mode}-${width}.png`),
-            (await window.webContents.capturePage()).toPNG(),
+    for (const { id: theme } of MATERIALS)
+      for (const mode of MODES)
+        for (const width of [800, 1200]) {
+          window.setContentSize(width, 600);
+          await window.webContents.executeJavaScript(
+            `document.documentElement.dataset.theme = ${JSON.stringify(theme)}; document.documentElement.dataset.mode = ${JSON.stringify(mode)}; new Promise(resolve => requestAnimationFrame(() => { document.getAnimations().filter(animation => animation.effect?.getComputedTiming().iterations !== Infinity).forEach(animation => animation.finish()); requestAnimationFrame(() => requestAnimationFrame(resolve)); }))`,
           );
+          await new Promise((resolve) => {
+            setTimeout(resolve, 150);
+          });
+          window.webContents.focus();
+          await window.webContents.executeJavaScript(
+            "document.querySelector('.update-notice button').focus()",
+          );
+          for (const modifiers of [["shift"], []] as const) {
+            window.webContents.sendInputEvent({
+              type: "keyDown",
+              keyCode: "Tab",
+              modifiers: [...modifiers],
+            });
+            window.webContents.sendInputEvent({
+              type: "keyUp",
+              keyCode: "Tab",
+              modifiers: [...modifiers],
+            });
+          }
+          await window.webContents.executeJavaScript(
+            "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+          );
+          const layout = (await window.webContents.executeJavaScript(
+            `(${measureUpdateStatusBar.toString()})()`,
+          )) as ReturnType<typeof measureUpdateStatusBar>;
+          layouts.push({ theme, mode, requestedWidth: width, ...layout });
+          const capture = process.env.MUZO_UPDATE_CAPTURE_DIR;
+          if (capture) {
+            await window.webContents.executeJavaScript(
+              "document.activeElement?.blur(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+            );
+            await mkdir(capture, { recursive: true });
+            await writeFile(
+              join(capture, `update-${theme}-${mode}-${width}.png`),
+              (await window.webContents.capturePage()).toPNG(),
+            );
+          }
         }
-      }
     await click(window);
     await waitFor(window, "Update failed");
     const corruptionRejected =
