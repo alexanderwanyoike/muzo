@@ -17,3 +17,5 @@ The user approved merging PR #88 into dev, creating and merging a release PR, th
 ## Verification
 
 Release metadata and documentation only; use existing release-context, application, distribution and site checks instead of artificial version-specific tests. Keep local test workers at one after the previously reported memory-pressure crash. Manually exercise the packaged footer using a disposable profile and capture its resting and checking states. Real AppImage update/restart coverage remains in Linux installer CI. Record final CI, manual verification and publication evidence on the release PR.
+
+Local ordered gates passed with one worker: install, lint, strict types, 444 tests, desktop build, package, make and formatting. Preparation review reported zero Standards and Spec findings in both cycles. Promotion review records one inherited commit-atomicity exception in merged PR #88 without rewriting shared history. [Review record](../../reviews/2026-10-28-release-0.0.6.md). Native CI and final release evidence are recorded on the PRs.
