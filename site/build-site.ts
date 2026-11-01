@@ -52,7 +52,7 @@ async function buildSite(): Promise<DistributionResult<void>> {
     const renderedHtml = html;
     await build({
       root: fileURLToPath(new URL(".", import.meta.url)),
-      base: "/muzo/",
+      base: "./",
       configFile: false,
       build: { outDir: outDir ?? "dist", emptyOutDir: true },
       plugins: renderedHtml
