@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,51 @@ import { promisify } from "node:util";
 import { JSDOM } from "jsdom";
 import { expect, it } from "vitest";
 import publishedReleaseFixture from "./fixtures/published-release";
+
+it("builds page assets that resolve on a custom domain and a project URL", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "muzo-site-base-"));
+  try {
+    await promisify(execFile)(
+      process.execPath,
+      [
+        "--import",
+        "tsx",
+        fileURLToPath(new URL("build-site.ts", import.meta.url)),
+        "--outDir",
+        join(directory, "dist"),
+      ],
+      { timeout: 15_000 },
+    );
+    const html = await readFile(join(directory, "dist/index.html"), "utf8");
+    for (const base of [
+      "https://muzo.alphaneuron.net/",
+      "https://alexanderwanyoike.github.io/muzo/",
+    ]) {
+      const dom = new JSDOM(html);
+      try {
+        const assets = [
+          ...dom.window.document.querySelectorAll(
+            "img[src], link[rel='stylesheet'], link[rel='icon']",
+          ),
+        ];
+        expect(assets.length).toBeGreaterThan(0);
+        for (const element of assets) {
+          const url = new URL(
+            element.getAttribute("src") ?? element.getAttribute("href") ?? "",
+            base,
+          );
+          expect(url.origin).toBe(new URL(base).origin);
+          const path = url.pathname.slice(new URL(base).pathname.length);
+          await access(join(directory, "dist", path));
+        }
+      } finally {
+        dom.window.close();
+      }
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}, 20_000);
 
 it("builds native download links only for a complete published release matching its manifest", async () => {
   const directory = await mkdtemp(join(tmpdir(), "muzo-download-build-"));
