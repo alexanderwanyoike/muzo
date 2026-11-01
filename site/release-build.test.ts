@@ -24,31 +24,37 @@ it("builds page assets that resolve on a custom domain and a project URL", async
       { timeout: 15_000 },
     );
     const html = await readFile(join(directory, "dist/index.html"), "utf8");
-    for (const base of [
-      "https://muzo.alphaneuron.net/",
-      "https://alexanderwanyoike.github.io/muzo/",
-    ]) {
-      const dom = new JSDOM(html);
-      try {
-        const assets = [
-          ...dom.window.document.querySelectorAll(
-            "img[src], link[rel='stylesheet'], link[rel='icon']",
-          ),
-        ];
-        expect(assets.length).toBeGreaterThan(0);
-        for (const element of assets) {
-          const url = new URL(
-            element.getAttribute("src") ?? element.getAttribute("href") ?? "",
-            base,
+    await Promise.all(
+      [
+        "https://muzo.alphaneuron.net/",
+        "https://alexanderwanyoike.github.io/muzo/",
+      ].map(async (base) => {
+        const dom = new JSDOM(html);
+        try {
+          const assets = [
+            ...dom.window.document.querySelectorAll(
+              "img[src], link[rel='stylesheet'], link[rel='icon']",
+            ),
+          ];
+          expect(assets.length).toBeGreaterThan(0);
+          await Promise.all(
+            assets.map(async (element) => {
+              const url = new URL(
+                element.getAttribute("src") ??
+                  element.getAttribute("href") ??
+                  "",
+                base,
+              );
+              expect(url.origin).toBe(new URL(base).origin);
+              const path = url.pathname.slice(new URL(base).pathname.length);
+              await access(join(directory, "dist", path));
+            }),
           );
-          expect(url.origin).toBe(new URL(base).origin);
-          const path = url.pathname.slice(new URL(base).pathname.length);
-          await access(join(directory, "dist", path));
+        } finally {
+          dom.window.close();
         }
-      } finally {
-        dom.window.close();
-      }
-    }
+      }),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
