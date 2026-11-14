@@ -37,24 +37,22 @@ pub(super) fn editor(
         .width(Fill)
         .spacing(6)
     };
-    let control = |kind, label| {
-        let focused = editor.action_focus == Some(kind);
-        settings_button(label, surfaces).style(move |theme, status| {
-            focus_ring(bordered_button(theme, status, surfaces), theme, focused)
-        })
+    let control = |kind: Control, label, enabled| {
+        let focused = enabled && editor.action_focus == Some(kind);
+        container(
+            settings_button(label, surfaces)
+                .style(move |theme, status| {
+                    focus_ring(bordered_button(theme, status, surfaces), theme, focused)
+                })
+                .on_press_maybe(kind.message().filter(|_| enabled)),
+        )
+        .id(kind.id())
     };
-    let mut actions =
-        row![control(Control::Save, "Save metadata").on_press_maybe(save.clone())].spacing(8);
+    let mut actions = row![control(Control::Save, "Save metadata", save.is_some())].spacing(8);
     if editor.overridden {
-        actions = actions.push(
-            control(Control::Clear, "Clear override")
-                .on_press_maybe((!busy && !saving).then_some(Message::SaveTrackEdit(true))),
-        );
+        actions = actions.push(control(Control::Clear, "Clear override", save.is_some()));
     }
-    let actions = actions.push(
-        control(Control::Cancel, "Cancel")
-            .on_press_maybe((!saving).then_some(Message::CloseTrackEdit)),
-    );
+    let actions = actions.push(control(Control::Cancel, "Cancel", !saving));
     let mut body = column![
         row![
             field(Field::Title),

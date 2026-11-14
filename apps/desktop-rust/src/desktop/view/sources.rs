@@ -12,6 +12,7 @@ use crate::{
         Message,
         dropbox_panel::{Action, Settings as DropboxSettings},
         library_sources::{Operation, Snapshot, Sources},
+        track_editor_focus::SONGS_SCROLL,
     },
     session::Session,
 };
@@ -613,5 +614,5 @@ pub fn tracks<'a>(
             .center(Fill)
         ];
     }
-    column![scrollable(column(list)).id("indexed-songs").height(Fill)]
+    column![scrollable(column(list)).id(SONGS_SCROLL).height(Fill)]
 }

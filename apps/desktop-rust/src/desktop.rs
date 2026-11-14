@@ -927,7 +927,14 @@ impl Desktop {
         if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
             return None;
         }
-        self.sources.editing.as_ref()?.action_focus?.message()
+        let editor = self.sources.editing.as_ref()?;
+        let focused = editor.action_focus?;
+        if self.sources.editor_save_pending()
+            || (focused != TrackEditorControl::Cancel && self.sources.busy())
+        {
+            return None;
+        }
+        focused.message()
     }
 
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {

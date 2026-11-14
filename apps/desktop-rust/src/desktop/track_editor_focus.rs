@@ -1,15 +1,20 @@
 use iced::{
-    Rectangle, Task,
+    Rectangle, Task, Vector,
     advanced::widget::{
         Id, Operation, operate,
         operation::{
             Outcome,
             focusable::{Focusable, focus, unfocus},
+            scope,
+            scrollable::{AbsoluteOffset, Scrollable, scroll_to},
         },
     },
 };
 
-use super::Message;
+use super::{Message, appearance_focus::LIBRARY};
+
+pub(super) const SONGS_SCROLL: &str = "indexed-songs";
+const FOCUS_MARGIN: f32 = 4.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Field {
@@ -99,17 +104,27 @@ impl Control {
         }
     }
 
-    pub(super) fn focus(self) -> Task<Message> {
-        if let Self::Input(field) = self {
-            operate(focus::<()>(field.id().into())).discard()
-        } else {
-            operate(unfocus::<()>()).discard()
+    pub(super) const fn id(self) -> &'static str {
+        match self {
+            Self::Input(field) => field.id(),
+            Self::Save => "metadata-save",
+            Self::Clear => "metadata-clear",
+            Self::Cancel => "metadata-cancel",
         }
+    }
+
+    pub(super) fn focus(self) -> Task<Message> {
+        let focus = if let Self::Input(field) = self {
+            operate(scope(LIBRARY.into(), focus::<()>(field.id().into()))).discard()
+        } else {
+            operate(scope(LIBRARY.into(), unfocus::<()>())).discard()
+        };
+        focus.chain(operate(reveal(self)).discard())
     }
 }
 
 pub(super) fn observe(track: String, backwards: bool) -> Task<Message> {
-    operate(FocusedField::default())
+    operate(scope(LIBRARY.into(), FocusedField::default()))
         .map(move |field| Message::TrackEditorTab(track.clone(), backwards, field))
 }
 
@@ -134,12 +149,67 @@ impl Operation<Option<Field>> for FocusedField {
     }
 }
 
-pub(super) fn reveal(_control: Control) -> impl Operation {
-    struct Unmoved;
-    impl Operation for Unmoved {
-        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
-            visit(self);
+pub(super) fn reveal(control: Control) -> impl Operation {
+    RevealControl {
+        target: control.id().into(),
+        viewport: None,
+        bounds: None,
+    }
+}
+
+struct RevealControl {
+    target: Id,
+    viewport: Option<(Rectangle, f32)>,
+    bounds: Option<Rectangle>,
+}
+
+impl Operation for RevealControl {
+    fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+        visit(self);
+    }
+
+    fn container(&mut self, id: Option<&Id>, bounds: Rectangle) {
+        if id == Some(&self.target) {
+            self.bounds = Some(bounds);
         }
     }
-    Unmoved
+
+    fn focusable(&mut self, id: Option<&Id>, bounds: Rectangle, _: &mut dyn Focusable) {
+        self.container(id, bounds);
+    }
+
+    fn scrollable(
+        &mut self,
+        id: Option<&Id>,
+        bounds: Rectangle,
+        _: Rectangle,
+        translation: Vector,
+        _: &mut dyn Scrollable,
+    ) {
+        if id == Some(&SONGS_SCROLL.into()) {
+            self.viewport = Some((bounds, translation.y));
+        }
+    }
+
+    fn finish(&self) -> Outcome<()> {
+        let Some((target, (viewport, offset))) = self.bounds.zip(self.viewport) else {
+            return Outcome::None;
+        };
+        let top = target.y - FOCUS_MARGIN;
+        let bottom = target.y + target.height + FOCUS_MARGIN;
+        let y = if top < viewport.y + offset {
+            top - viewport.y
+        } else if bottom > viewport.y + viewport.height + offset {
+            bottom - viewport.y - viewport.height
+        } else {
+            return Outcome::None;
+        };
+        Outcome::Chain(Box::new(scroll_to(
+            SONGS_SCROLL.into(),
+            AbsoluteOffset {
+                x: None,
+                y: Some(y.max(0.0)),
+            },
+        )))
+    }
 }
