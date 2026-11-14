@@ -23,7 +23,7 @@ pub enum Action {
     Browse(String),
     SelectFolder(String, String),
     AddSelected,
-    AddFolders(Vec<(String, String)>),
+    AddFolders(String, Vec<(String, String)>),
     Interval(String),
     SaveInterval,
     Sync,
@@ -111,7 +111,10 @@ impl Settings {
                 if self.selected_folders.is_empty() {
                     return Task::none();
                 }
-                action = Action::AddFolders(self.selected_folders.clone());
+                let Some(account) = &self.snapshot.account else {
+                    return Task::none();
+                };
+                action = Action::AddFolders(account.clone(), self.selected_folders.clone());
             }
             Action::Toggle => {
                 self.visible = !self.visible;
@@ -197,9 +200,11 @@ impl Settings {
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
         match result {
-            Ok(snapshot) => {
+            Ok(mut snapshot) => {
                 if self.snapshot.account != snapshot.account {
                     self.selected_folders.clear();
+                    snapshot.path.clear();
+                    snapshot.folders.clear();
                 }
                 self.selected_folders.retain(|(path, _)| {
                     !snapshot
@@ -383,6 +388,7 @@ fn run(
         catalogue.set_dropbox_interval(minutes)?;
     }
 
+    let previous_account = snapshot.account.clone();
     let current = catalogue.latest_dropbox()?;
     snapshot.disconnected_libraries.clear();
     snapshot.added_folders.clear();
@@ -425,6 +431,14 @@ fn run(
     let refresh_current = || client.refresh(&app_key, &refresh);
     match action {
         Action::Browse(path) => {
+            if previous_account
+                .as_ref()
+                .is_some_and(|previous| previous != &account)
+            {
+                snapshot.folder_error =
+                    Some("The connected Dropbox account changed. Browse again.".into());
+                return Ok(snapshot);
+            }
             let token = match refresh_current() {
                 Ok(token) => token,
                 Err(DropboxError::Reconnect) => {
@@ -441,7 +455,12 @@ fn run(
                 .collect();
             snapshot.path = path;
         }
-        Action::AddFolders(folders) => {
+        Action::AddFolders(expected, folders) => {
+            if expected != account {
+                snapshot.folder_error =
+                    Some("The connected Dropbox account changed. Browse again.".into());
+                return Ok(snapshot);
+            }
             let token = match refresh_current() {
                 Ok(token) => token,
                 Err(DropboxError::Reconnect) => {
