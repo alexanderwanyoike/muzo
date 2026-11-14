@@ -5,5 +5,7 @@
 - [ ] Exercise installed upgrades and explicit download and restart.
 - [ ] Preserve catalogue and preferences on upgrade.
 
-Cargo Packager builds the installer formats from the Rust binary. The release
-filename and manifest contracts remain shared with the website.
+Cargo Packager builds the AppImage and DMGs. Windows uses the existing
+electron-builder NSIS configuration to package the Rust executable and retain
+the application and installer identity across an upgrade. The release filename
+and manifest contracts remain shared with the website.

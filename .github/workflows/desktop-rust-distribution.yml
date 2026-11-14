@@ -6,6 +6,9 @@ on:
       - "apps/desktop-rust/**"
       - "apps/desktop/assets/icons/**"
       - "apps/desktop/assets/licenses/**"
+      - "apps/desktop/electron-builder.config.json"
+      - "apps/desktop/package.json"
+      - "yarn.lock"
       - ".github/workflows/desktop-rust-distribution.yml"
   workflow_dispatch:
 
@@ -126,7 +129,6 @@ jobs:
           path: |
             apps/desktop-rust/out/rust-distribution/Muzo-*.AppImage
             apps/desktop-rust/out/rust-distribution/Muzo-*.exe
-            apps/desktop-rust/out/rust-distribution/Muzo-*.exe.blockmap
             apps/desktop-rust/out/rust-distribution/Muzo-*.dmg
             apps/desktop-rust/out/rust-distribution/latest*.yml
           if-no-files-found: error
