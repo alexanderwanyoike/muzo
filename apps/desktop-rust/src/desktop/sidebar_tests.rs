@@ -268,3 +268,45 @@ fn it_tracks_the_initiating_finger_and_cancels_when_touch_is_lost() {
         SidebarWidth::new(340.0)
     );
 }
+
+#[test]
+fn it_draws_the_hovered_sidebar_divider_with_the_glow_ink() {
+    use iced::{
+        Color,
+        advanced::renderer::{Headless, Style},
+    };
+
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    library.desktop.appearance.accent = "glow-cyan".into();
+    let id = library.desktop.windows.library_id();
+    let pixels = Size::new(800, 600);
+    let viewport = Rectangle::with_size(Size::new(pixels.width as f32, pixels.height as f32));
+    let sample = (420 * pixels.width + 278) as usize * 4;
+
+    for (mode, ink) in [("light", [0, 95, 109, 255]), ("dark", [66, 233, 255, 255])] {
+        library.desktop.appearance.mode = mode.into();
+        let theme = library.desktop.theme(id);
+        let mut view = library.desktop.view(id);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut tree = Tree::new(&view);
+        let widget = view.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(viewport.size(), viewport.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Available(Point::new(279.5, 420.0)),
+            &viewport,
+        );
+        let frame = renderer.screenshot(pixels, 1.0, Color::WHITE);
+
+        assert_eq!(&frame[sample..sample + 4], &ink, "unexpected ink in {mode}");
+    }
+}
