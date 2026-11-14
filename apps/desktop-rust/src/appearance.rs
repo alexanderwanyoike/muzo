@@ -1,5 +1,7 @@
 mod legacy;
 mod palette;
+mod surfaces;
+pub(crate) use surfaces::Surfaces;
 pub mod sidebar;
 
 use std::{
@@ -60,6 +62,10 @@ impl Default for Appearance {
 impl Appearance {
     pub fn theme(&self) -> iced::Theme {
         palette::palette(&self.theme, self.mode == "dark", &self.accent)
+    }
+
+    pub(crate) fn surfaces(&self) -> Surfaces {
+        surfaces::for_material(&self.theme, self.mode == "dark")
     }
 
     fn valid(&self) -> bool {

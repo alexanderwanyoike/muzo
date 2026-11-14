@@ -89,6 +89,14 @@ impl Windows {
         self.mini
     }
 
+    pub(super) fn mini_view(&self) -> (bool, bool, Size) {
+        (
+            self.queue_open,
+            self.queue_pending(),
+            queue_bounds(self.mini_bounds, self.queue_open, QUEUE_WIDTH),
+        )
+    }
+
     pub fn queue_open(&self) -> bool {
         self.queue_open
     }

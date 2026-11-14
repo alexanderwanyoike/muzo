@@ -1,7 +1,7 @@
 use super::{Message, Session};
 
 pub(super) const QUEUE_SCROLL: &str = "mini-queue";
-pub(super) const QUEUE_ROW_HEIGHT: f32 = 34.0;
+pub(super) const QUEUE_ROW_HEIGHT: f32 = 50.0;
 pub(super) const QUEUE_ROW_SPACING: f32 = 2.0;
 
 pub(super) fn reveal_track(index: usize) -> iced::Task<Message> {

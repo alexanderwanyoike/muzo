@@ -3,13 +3,14 @@ use std::time::Duration;
 use iced::{
     Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
     widget::{
-        Space, button, column, container, image, row, scrollable, slider, stack, svg, text, tooltip,
+        Space, button, column, container, image, row, scrollable, slider, svg, text, tooltip,
     },
 };
 
 use crate::{session::Session, track::Track};
 
 mod appearance;
+mod compact;
 mod playlists;
 mod sources;
 
@@ -82,7 +83,7 @@ pub(super) fn library<'a>(
             header,
             layout,
             error_line(sources.error.as_deref()),
-            playback_error(error, retry, false, false),
+            playback_error(error, retry, false, Message::RetryTrack),
             container(
                 row![
                     artwork(cover, 54.0),
@@ -92,7 +93,7 @@ pub(super) fn library<'a>(
                             Space::new().width(Fill),
                             icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
                         ],
-                        controls(session, retry, None, false),
+                        controls(session, retry),
                     ]
                     .width(Length::Fixed(300.0)),
                 ]
@@ -151,7 +152,7 @@ fn library_content<'a>(
         ]
         .padding([5, 10])
         .spacing(8);
-        let list = queue_rows(session, None, false);
+        let list = queue_rows(session);
         column![heading, scrollable(list).height(Fill)].spacing(5)
     } else {
         column![
@@ -165,88 +166,9 @@ fn library_content<'a>(
     }
 }
 
-pub(super) fn mini<'a>(
-    session: Option<&'a Session>,
-    queue: (bool, bool),
-    cover: &super::cover::Cover,
-    playback: (Option<&'a str>, bool),
-    focus: Option<super::mini_focus::Control>,
-) -> Element<'a, Message> {
-    use super::mini_focus::Control;
-    let (queue_open, queue_pending) = queue;
-    let (error, retry) = playback;
-    let header = row![
-        focusable_icon(
-            Icon::Library,
-            "Return to library",
-            Some(Message::ClickMiniControl(Control::Library)),
-            focus == Some(Control::Library),
-        ),
-        Space::new().width(Fill),
-        focusable_icon(
-            Icon::Queue,
-            if queue_open {
-                "Hide queue"
-            } else {
-                "Show queue"
-            },
-            (!queue_pending).then_some(Message::ClickMiniControl(Control::Queue)),
-            focus == Some(Control::Queue),
-        ),
-    ]
-    .align_y(Alignment::Center);
-    let track = session.and_then(Session::current);
-    let playback = row![
-        artwork(cover.thumbnail(), 126.0),
-        column![metadata(track, 19), controls(session, retry, focus, true)]
-            .spacing(10)
-            .width(Fill),
-    ]
-    .align_y(Alignment::Center)
-    .spacing(16);
+pub(super) use compact::mini;
 
-    let mut content = column![
-        header,
-        container(playback).width(Fill).padding(12).style(panel),
-        playback_error(error, retry, focus == Some(Control::Retry), true),
-    ]
-    .spacing(8);
-
-    if queue_open {
-        let queue = session
-            .filter(|session| !session.tracks().is_empty())
-            .map_or_else(
-                || column![text("Queue is empty").size(13).style(muted)],
-                |session| queue_rows(session, focus, true),
-            );
-        content = content.push(text("Queue").font(bold()).size(15)).push(
-            scrollable(queue)
-                .id(super::mini_focus::QUEUE_SCROLL)
-                .height(Fill),
-        );
-    }
-    let foreground = container(content).padding(14).width(Fill).height(Fill);
-    if let Some(background) = cover.background() {
-        stack![foreground]
-            .push_under(
-                image(background.clone())
-                    .content_fit(iced::ContentFit::Cover)
-                    .opacity(0.12)
-                    .width(Fill)
-                    .height(Fill),
-            )
-            .clip(true)
-            .into()
-    } else {
-        foreground.into()
-    }
-}
-
-fn queue_rows(
-    session: &Session,
-    focus: Option<super::mini_focus::Control>,
-    is_mini: bool,
-) -> iced::widget::Column<'_, Message> {
+fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
     column(session.tracks().iter().enumerate().map(|(index, track)| {
         let current = session.current_index() == Some(index);
         button(
@@ -266,20 +188,13 @@ fn queue_rows(
         .width(Fill)
         .padding([8, 10])
         .style(move |theme, status| {
-            let style = if current {
+            if current {
                 selected(theme, status)
             } else {
                 action(theme, status)
-            };
-            focus_ring(
-                style,
-                theme,
-                focus == Some(super::mini_focus::Control::Track(index)),
-            )
+            }
         })
-        .on_press(if is_mini {
-            Message::ClickMiniControl(super::mini_focus::Control::Track(index))
-        } else if current {
+        .on_press(if current {
             Message::TogglePlayback
         } else {
             Message::Select(index)
@@ -341,13 +256,7 @@ fn artwork(cover: Option<&image::Handle>, size: f32) -> Element<'static, Message
         .into()
 }
 
-fn controls(
-    session: Option<&Session>,
-    retry: bool,
-    focus: Option<super::mini_focus::Control>,
-    is_mini: bool,
-) -> iced::widget::Column<'_, Message> {
-    use super::mini_focus::Control;
+fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, Message> {
     let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
     let available = retry || session.is_some_and(|player| player.current().is_some());
     let playing = session.is_some_and(Session::is_playing);
@@ -371,52 +280,22 @@ fn controls(
     let volume = slider(
         0.0..=1.0,
         session.map_or(1.0, Session::volume),
-        if is_mini {
-            Message::SetMiniVolume
-        } else {
-            Message::SetVolume
-        },
+        Message::SetVolume,
     )
     .step(0.01)
     .width(Length::Fixed(60.0));
-    let message = |control, fallback| {
-        if is_mini {
-            Message::ClickMiniControl(control)
-        } else {
-            fallback
-        }
-    };
-    let volume = container(volume).padding(2).style(move |theme: &Theme| {
-        let style = container::Style::default();
-        if focus == Some(Control::Volume) {
-            style.border(
-                border::rounded(4)
-                    .width(2.0)
-                    .color(theme.extended_palette().background.base.text),
-            )
-        } else {
-            style
-        }
-    });
     let transport = row![
-        focusable_icon(
+        icon_button(
             Icon::Previous,
             "Previous track",
-            has_previous.then_some(message(Control::Previous, Message::Previous)),
-            focus == Some(Control::Previous),
+            has_previous.then_some(Message::Previous),
         ),
-        focusable_icon(
+        icon_button(
             if playing { Icon::Pause } else { Icon::Play },
             if playing { "Pause" } else { "Play" },
-            available.then_some(message(Control::Playback, Message::TogglePlayback)),
-            focus == Some(Control::Playback),
+            available.then_some(Message::TogglePlayback),
         ),
-        focusable_icon(
-            Icon::Next,
-            "Next track",
-            has_next.then_some(message(Control::Next, Message::Next)),
-            focus == Some(Control::Next),
-        ),
+        icon_button(Icon::Next, "Next track", has_next.then_some(Message::Next),),
         Space::new().width(Fill),
         icon(Icon::Volume),
         volume,
@@ -443,7 +322,7 @@ fn playback_error(
     error: Option<&str>,
     retry: bool,
     focused: bool,
-    is_mini: bool,
+    message: Message,
 ) -> Element<'_, Message> {
     if retry {
         row![
@@ -451,11 +330,7 @@ fn playback_error(
             button(text("Retry track").size(12))
                 .padding([2, 6])
                 .style(move |theme, status| focus_ring(action(theme, status), theme, focused))
-                .on_press(if is_mini {
-                    Message::ClickMiniControl(super::mini_focus::Control::Retry)
-                } else {
-                    Message::RetryTrack
-                }),
+                .on_press(message),
         ]
         .align_y(Alignment::Center)
         .spacing(5)
@@ -467,8 +342,8 @@ fn playback_error(
 
 fn bold() -> Font {
     Font {
-        weight: font::Weight::Semibold,
-        ..Font::DEFAULT
+        weight: font::Weight::Bold,
+        ..Font::with_name("Manrope")
     }
 }
 
@@ -532,6 +407,7 @@ enum Icon {
     Previous,
     Next,
     Music,
+    Disc,
     Volume,
 }
 
@@ -588,9 +464,14 @@ fn icon(kind: Icon) -> Element<'static, Message> {
 
 fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg<'static> {
     let path = match kind {
-        Icon::Library => "<path d='M4 10V4h6M20 14v6h-6M4 4l6 6m10 10-6-6'/>",
+        Icon::Library => "<path d='M8 3H3v5m18 8v5h-5M3 3l7 7m11 11-7-7'/>",
         Icon::Mini => "<path d='M4 7V4h16v16h-3M4 12h9v8H4z'/>",
-        Icon::Queue => "<path d='M4 6h16M4 12h16M4 18h10'/>",
+        Icon::Queue => {
+            "<path d='M9 18H3m9-6H3m13-6H3m18 4v8m0-8-5 1'/><circle cx='19' cy='18' r='2'/>"
+        }
+        Icon::Disc => {
+            "<circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='2'/><path d='M7 10a5 5 0 0 1 3-3m4 10a5 5 0 0 0 3-3'/>"
+        }
         Icon::Play => "<path d='m8 5 12 7-12 7z' fill='black'/>",
         Icon::Pause => "<path d='M9 5v14m6-14v14' stroke-width='3'/>",
         Icon::Previous => "<path d='M5 5v14m14-14L8 12l11 7z' fill='black'/>",

@@ -1007,8 +1007,9 @@ impl Desktop {
         if self.windows.is_mini(id) {
             view::mini(
                 self.session.as_ref(),
-                (self.windows.queue_open(), self.windows.queue_pending()),
+                self.windows.mini_view(),
                 &self.cover,
+                self.appearance.surfaces(),
                 (self.error.as_deref(), self.failed_track.is_some()),
                 self.mini_focus,
             )
