@@ -678,6 +678,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_reopens_authorization_when_the_displayed_account_needs_reconnecting() {
+        let mut settings = Settings {
+            snapshot: Snapshot {
+                account: Some("displayed".into()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        settings.apply_refresh(Err(DropboxError::Reconnect.to_string()));
+
+        assert!(settings.snapshot.reconnect);
+    }
+
+    #[test]
     fn it_reports_when_the_requested_dropbox_source_owner_has_disconnected() {
         let directory = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(directory.path());
