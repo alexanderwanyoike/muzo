@@ -21,8 +21,8 @@
     "desktop:vite": "yarn workspace @muzo/desktop dev",
     "desktop:build": "yarn workspace @muzo/desktop-rust build",
     "desktop:legacy:build": "yarn workspace @muzo/desktop build",
-    "desktop:package": "yarn workspace @muzo/desktop package",
-    "desktop:make": "yarn workspace @muzo/desktop make",
+    "desktop:package": "yarn workspace @muzo/distribution package:native",
+    "desktop:make": "yarn workspace @muzo/distribution package:native",
     "lint": "yarn workspace @muzo/desktop lint && yarn workspace @muzo/distribution lint && yarn workspace @muzo/site lint",
     "typecheck": "yarn workspace @muzo/desktop typecheck && yarn workspace @muzo/distribution typecheck && yarn workspace @muzo/site typecheck",
     "test": "yarn workspace @muzo/desktop test && yarn workspace @muzo/distribution test && yarn workspace @muzo/site test",
@@ -32,9 +32,12 @@
     "site:verify": "yarn workspace @muzo/site test",
     "site:build": "yarn workspace @muzo/site build",
     "site:preview": "yarn workspace @muzo/site preview",
-    "desktop:distribute": "yarn workspace @muzo/desktop distribute",
+    "desktop:distribute": "yarn workspace @muzo/distribution package:native",
     "release:context": "yarn workspace @muzo/distribution context",
-    "release:assemble": "yarn workspace @muzo/distribution assemble"
+    "release:assemble": "yarn workspace @muzo/distribution assemble",
+    "desktop:legacy:package": "yarn workspace @muzo/desktop package",
+    "desktop:legacy:make": "yarn workspace @muzo/desktop make",
+    "desktop:legacy:distribute": "yarn workspace @muzo/desktop distribute"
   },
   "devDependencies": {
     "eslint-config-prettier": "10.1.8",

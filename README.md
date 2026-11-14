@@ -120,7 +120,8 @@ CI lists the required system packages.
 | Tests | `yarn test` |
 | Rust build | `yarn desktop:build` |
 | Electron reference build | `yarn desktop:legacy:build` |
-| Electron package and distributables | `yarn desktop:package` and `yarn desktop:make` |
+| Native installer | `yarn desktop:package`, `yarn desktop:make`, or `yarn desktop:distribute` |
+| Electron reference package and distributables | `yarn desktop:legacy:package` and `yarn desktop:legacy:make` |
 | Website | `yarn site:verify` and `yarn site:build` |
 
 Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev`

@@ -1,9 +1,10 @@
 # Desktop distribution
 
-Muzo uses Electron Forge to produce the existing application bundle, then
-`electron-builder` 26.18.0 packages that exact bundle through its documented
-`--prepackaged` mode. Forge remains the app packager; the renderer, bundled main
-process, profile, native icon and credential-storage identity stay in place.
+Muzo builds the Rust desktop executable for each installer. Cargo Packager builds
+the Linux AppImage and macOS application bundle. `hdiutil` builds the macOS disk
+image. On Windows, `electron-builder` 26.18.0 packages the Rust executable and
+license files through its documented `--prepackaged` mode, preserving the
+existing installer identity.
 
 The build follows the installer and validated-release-set pattern in sibling
 Showbiz and Jolt: build native artifacts, verify them, assemble one complete set,
@@ -52,18 +53,24 @@ installers, release manifest and both update YAML files.
 
 ## Local packaging
 
-Run the command on the installer's native operating system:
+Run the command on the installer's native operating system and architecture.
+Install [Cargo Packager](https://docs.crabnebula.dev/packager/) 0.11.8 on Linux or
+macOS. The Windows installer uses the packaging dependency installed by Yarn.
 
 ```sh
 yarn install
 yarn desktop:distribute --target linux-x64
 ```
 
-Windows uses `windows-x64`; macOS uses `macos-arm64` or `macos-x64`. Both macOS
-architectures can be packaged on a macOS runner. Installers are written to
-`apps/desktop/out/distribution/`. The packager is explicitly configured never to
-publish. Electron is pinned to the already-used 43.0.0 for reproducible packaging.
-Existing `desktop:package` and `desktop:make` commands remain available.
+Windows uses `windows-x64` and macOS uses `macos-arm64` or `macos-x64`.
+`desktop:package`, `desktop:make`, and `desktop:distribute` all build the host
+installer. Omit `--target` to select it automatically. The default output is
+`apps/desktop-rust/out/rust-distribution/`. Pass `--output /path/to/installers`
+to use another filesystem. Cargo's `CARGO_TARGET_DIR` controls where the compiled
+binaries are kept. These commands produce local files only.
+
+The corresponding `desktop:legacy:*` commands build the Electron reference
+packages in `apps/desktop/out/`.
 
 ## CI and release promotion
 
@@ -170,7 +177,7 @@ copy of the complete player with a local HTTP provider, downloads the actual new
 AppImage and checks process exit, replacement window, version, saved library and
 menu entry. Test data stays in isolated XDG directories.
 
-For a local FUSE-mounted check after `yarn desktop:distribute --target linux-x64`:
+For a local FUSE-mounted check after `yarn desktop:legacy:distribute --target linux-x64`:
 
 ```sh
 MUZO_TEST_FUSE=1 MUZO_TEST_APPIMAGE="$PWD/apps/desktop/out/distribution/Muzo-0.0.4-linux-x64.AppImage" xvfb-run -a yarn workspace @muzo/desktop test electron/appimage-update.test.ts

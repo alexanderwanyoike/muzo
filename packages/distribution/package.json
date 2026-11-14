@@ -10,7 +10,8 @@
     "test": "vitest run --environment node",
     "clean": "tsc --build --clean",
     "context": "tsx release-context-cli.ts",
-    "assemble": "tsx assemble-release-cli.ts"
+    "assemble": "tsx assemble-release-cli.ts",
+    "package:native": "tsx native-package-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
