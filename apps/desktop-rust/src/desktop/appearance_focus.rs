@@ -1,6 +1,9 @@
 use iced::{
     Task,
-    advanced::widget::{operate, operation::focusable::unfocus},
+    advanced::widget::{
+        operate,
+        operation::{focusable::unfocus, scope},
+    },
     widget::operation::{AbsoluteOffset, scroll_to},
 };
 
@@ -9,6 +12,7 @@ use crate::appearance::{ACCENTS, MATERIALS, MODES};
 use super::Message;
 
 pub(super) const SCROLL: &str = "appearance-settings";
+pub(super) const LIBRARY: &str = "library-window";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Choice {
@@ -59,7 +63,7 @@ impl Choice {
             Self::Accent(_) => 440.0,
         };
         Task::batch([
-            operate(unfocus::<()>()).discard(),
+            operate(scope(LIBRARY.into(), unfocus::<()>())).discard(),
             scroll_to(
                 SCROLL,
                 AbsoluteOffset {

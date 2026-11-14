@@ -68,7 +68,7 @@ pub(in crate::desktop) fn library<'a>(
     .width(Fill)
     .height(Fill);
 
-    column![
+    let content = column![
         transport(session, cover, retry, surfaces, preferences),
         playback_error(error, retry, false, Message::RetryTrack),
         view,
@@ -79,9 +79,12 @@ pub(in crate::desktop) fn library<'a>(
         .height(34)
         .center_y(34)
         .style(move |_| container::Style::default().background(surfaces.chrome)),
-    ]
-    .height(Fill)
-    .into()
+    ];
+
+    container(content)
+        .id(crate::desktop::appearance_focus::LIBRARY)
+        .height(Fill)
+        .into()
 }
 
 fn transport<'a>(

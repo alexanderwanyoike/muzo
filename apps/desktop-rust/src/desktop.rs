@@ -1149,6 +1149,7 @@ fn input_message(
     if matches!(
         &event,
         iced::Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left))
+            | iced::Event::Touch(iced::touch::Event::FingerPressed { .. })
     ) {
         return Some(Message::AppearancePointerPressed(id));
     }
