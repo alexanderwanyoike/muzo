@@ -49,6 +49,11 @@ struct Page {
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(crate) fn for_endpoint(endpoint: &str) -> Result<Self, DropboxError> {
+        Self::with_endpoints(endpoint, endpoint)
+    }
+
     pub fn new() -> Result<Self, DropboxError> {
         Self::with_endpoints(API, CONTENT)
     }
