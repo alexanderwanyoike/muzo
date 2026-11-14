@@ -116,3 +116,23 @@ fn it_reports_download_progress_before_publishing_the_verified_installer() {
     assert_eq!(ticks.last(), Some(&100));
     assert_eq!(std::fs::read(path).unwrap(), payload);
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn it_keeps_relative_music_arguments_resolvable_when_the_appimage_restarts() {
+    use std::{ffi::OsString, path::Path};
+    let result = crate::distribution::appimage::relaunch_arguments(
+        Path::new("/home/music"),
+        [
+            OsString::from("album/song.mp3"),
+            OsString::from("/mnt/track.flac"),
+        ],
+    );
+    assert_eq!(
+        result,
+        [
+            OsString::from("/home/music/album/song.mp3"),
+            OsString::from("/mnt/track.flac")
+        ]
+    );
+}
