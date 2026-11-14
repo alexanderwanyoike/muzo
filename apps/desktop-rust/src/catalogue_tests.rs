@@ -50,7 +50,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     let version: u32 = database
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 8);
+    assert_eq!(version, 9);
     let entry: String = database
         .query_row("SELECT track_id FROM playlist_entries", [], |row| {
             row.get(0)

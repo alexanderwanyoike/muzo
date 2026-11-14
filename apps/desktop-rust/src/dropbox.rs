@@ -27,6 +27,8 @@ pub enum DropboxError {
     Credential(#[from] keyring::Error),
     #[error("Could not migrate the saved Electron Dropbox credential.")]
     LegacyCredential,
+    #[error("Unlock the operating system wallet to use the saved Dropbox account.")]
+    WalletUnavailable,
     #[error(transparent)]
     Catalogue(#[from] crate::catalogue::CatalogueError),
     #[error("Could not access the Dropbox audio cache: {0}")]

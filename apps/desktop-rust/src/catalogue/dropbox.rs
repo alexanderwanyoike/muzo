@@ -19,16 +19,35 @@ impl Catalogue {
         account: &str,
         client_id: &str,
     ) -> Result<(), CatalogueError> {
+        self.write_dropbox_account(account, client_id, None)
+    }
+
+    pub(crate) fn save_native_dropbox_account(
+        &self,
+        account: &str,
+        client_id: &str,
+        store: &str,
+    ) -> Result<(), CatalogueError> {
+        self.write_dropbox_account(account, client_id, Some(store))
+    }
+
+    fn write_dropbox_account(
+        &self,
+        account: &str,
+        client_id: &str,
+        store: Option<&str>,
+    ) -> Result<(), CatalogueError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |duration| duration.as_secs() as i64);
         self.database.execute(
             "INSERT INTO dropbox_accounts (account_id, client_id, encrypted_access_token,
-              encrypted_refresh_token, access_token_expires_at_unix_seconds, connected_at_unix_seconds)
-              VALUES (?1, ?2, '', '', 0, ?3)
+              encrypted_refresh_token, access_token_expires_at_unix_seconds, connected_at_unix_seconds, credential_store)
+              VALUES (?1, ?2, '', '', 0, ?3, ?4)
               ON CONFLICT(account_id) DO UPDATE SET client_id=excluded.client_id,
-              encrypted_access_token='', encrypted_refresh_token='', connected_at_unix_seconds=excluded.connected_at_unix_seconds",
-            params![account, client_id, now],
+              encrypted_access_token='', encrypted_refresh_token='', connected_at_unix_seconds=excluded.connected_at_unix_seconds,
+              credential_store=excluded.credential_store",
+            params![account, client_id, now, store],
         )?;
         Ok(())
     }
@@ -64,6 +83,33 @@ impl Catalogue {
                 |row| row.get(0),
             )
             .optional()?)
+    }
+
+    pub(crate) fn dropbox_credential_store(
+        &self,
+        account: &str,
+    ) -> Result<Option<String>, CatalogueError> {
+        Ok(self
+            .database
+            .query_row(
+                "SELECT credential_store FROM dropbox_accounts WHERE account_id=?1",
+                [account],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten())
+    }
+
+    pub(crate) fn set_dropbox_credential_store(
+        &self,
+        account: &str,
+        store: &str,
+    ) -> Result<(), CatalogueError> {
+        self.database.execute(
+            "UPDATE dropbox_accounts SET credential_store=?2 WHERE account_id=?1",
+            params![account, store],
+        )?;
+        Ok(())
     }
 
     pub(crate) fn clear_legacy_dropbox_tokens(&self, account: &str) -> Result<(), CatalogueError> {

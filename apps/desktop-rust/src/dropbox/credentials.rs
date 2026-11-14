@@ -15,12 +15,14 @@ impl Credentials {
         if catalogue.dropbox_client(account)?.is_none() {
             return Ok(None);
         }
+        let (store, secret) = resolve_store(catalogue, account)?;
+        catalogue.set_dropbox_credential_store(account, store.label())?;
         Self::migrate_with(
             catalogue,
             account,
-            || Self::read(account),
+            || Ok(secret),
             legacy_credentials::decrypt,
-            |token| Self::save(account, token),
+            |token| store.save(account, token),
         )
     }
 
@@ -31,13 +33,13 @@ impl Credentials {
         token: &str,
     ) -> Result<(), DropboxError> {
         let _guard = lifecycle_guard()?;
-        let previous = Self::read(account)?;
-        Self::save(account, token)?;
-        if let Err(error) = catalogue.save_dropbox_account(account, client) {
+        let (store, previous) = resolve_store(catalogue, account)?;
+        store.save(account, token)?;
+        if let Err(error) = catalogue.save_native_dropbox_account(account, client, store.label()) {
             if let Some(previous) = previous {
-                Self::save(account, &previous)?;
+                store.save(account, &previous)?;
             } else {
-                Self::remove(account)?;
+                store.remove(account)?;
             }
             return Err(error.into());
         }
@@ -47,11 +49,11 @@ impl Credentials {
     pub fn disconnect(catalogue: &Catalogue, account: &str) -> Result<Vec<String>, DropboxError> {
         let _guard = lifecycle_guard()?;
         let libraries = catalogue.dropbox_libraries_for(account)?;
-        let previous = Self::read(account)?;
-        Self::remove(account)?;
+        let (store, previous) = resolve_store(catalogue, account)?;
+        store.remove(account)?;
         if let Err(error) = catalogue.disconnect_dropbox(account) {
             if let Some(previous) = previous {
-                Self::save(account, &previous)?;
+                store.save(account, &previous)?;
             }
             return Err(error.into());
         }
@@ -79,57 +81,81 @@ impl Credentials {
         catalogue.clear_legacy_dropbox_tokens(account)?;
         Ok(Some(token))
     }
+}
 
-    fn read(account: &str) -> Result<Option<String>, DropboxError> {
-        let result = keyring::Entry::new(SERVICE, account).and_then(|entry| entry.get_password());
-        #[cfg(target_os = "linux")]
-        if result
-            .as_ref()
-            .err()
-            .is_some_and(secret_service_unavailable)
-            && let Some(value) = legacy_credentials::platform::read(account)
-        {
-            return Ok(value);
-        }
-        match result {
-            Ok(secret) => Ok(Some(secret)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(error) => Err(error.into()),
+#[derive(Clone, Copy)]
+enum Store {
+    Keyring,
+    #[cfg(target_os = "linux")]
+    KWallet,
+}
+
+impl Store {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Keyring => "keyring",
+            #[cfg(target_os = "linux")]
+            Self::KWallet => "kwallet",
         }
     }
 
-    fn save(account: &str, refresh_token: &str) -> Result<(), DropboxError> {
-        let result = keyring::Entry::new(SERVICE, account)
-            .and_then(|entry| entry.set_password(refresh_token));
-        #[cfg(target_os = "linux")]
-        if result
-            .as_ref()
-            .err()
-            .is_some_and(secret_service_unavailable)
-            && legacy_credentials::platform::save(account, refresh_token).is_some()
-        {
-            return Ok(());
+    fn read(self, account: &str) -> Result<Option<String>, DropboxError> {
+        match self {
+            Self::Keyring => match keyring::Entry::new(SERVICE, account)?.get_password() {
+                Ok(secret) => Ok(Some(secret)),
+                Err(keyring::Error::NoEntry) => Ok(None),
+                Err(error) => Err(error.into()),
+            },
+            #[cfg(target_os = "linux")]
+            Self::KWallet => {
+                legacy_credentials::platform::read(account).ok_or(DropboxError::WalletUnavailable)
+            }
         }
-        Ok(result?)
     }
 
-    fn remove(account: &str) -> Result<(), DropboxError> {
-        let result =
-            keyring::Entry::new(SERVICE, account).and_then(|entry| entry.delete_credential());
-        #[cfg(target_os = "linux")]
-        if result
-            .as_ref()
-            .err()
-            .is_some_and(secret_service_unavailable)
-            && legacy_credentials::platform::remove(account).is_some()
-        {
-            return Ok(());
-        }
-        match result {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(error) => Err(error.into()),
+    fn save(self, account: &str, token: &str) -> Result<(), DropboxError> {
+        match self {
+            Self::Keyring => Ok(keyring::Entry::new(SERVICE, account)?.set_password(token)?),
+            #[cfg(target_os = "linux")]
+            Self::KWallet => legacy_credentials::platform::save(account, token)
+                .ok_or(DropboxError::WalletUnavailable),
         }
     }
+
+    fn remove(self, account: &str) -> Result<(), DropboxError> {
+        match self {
+            Self::Keyring => match keyring::Entry::new(SERVICE, account)?.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(error) => Err(error.into()),
+            },
+            #[cfg(target_os = "linux")]
+            Self::KWallet => {
+                legacy_credentials::platform::remove(account).ok_or(DropboxError::WalletUnavailable)
+            }
+        }
+    }
+}
+
+fn resolve_store(
+    catalogue: &Catalogue,
+    account: &str,
+) -> Result<(Store, Option<String>), DropboxError> {
+    let configured = catalogue.dropbox_credential_store(account)?;
+    let store = match configured.as_deref() {
+        Some("keyring") | None => Store::Keyring,
+        #[cfg(target_os = "linux")]
+        Some("kwallet") => Store::KWallet,
+        Some(_) => return Err(DropboxError::WalletUnavailable),
+    };
+    let result = store.read(account);
+    #[cfg(target_os = "linux")]
+    if configured.is_none()
+        && matches!(&result, Err(DropboxError::Credential(error)) if secret_service_unavailable(error))
+    {
+        let store = Store::KWallet;
+        return Ok((store, store.read(account)?));
+    }
+    Ok((store, result?))
 }
 
 #[cfg(target_os = "linux")]

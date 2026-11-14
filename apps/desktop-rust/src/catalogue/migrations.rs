@@ -2,7 +2,7 @@ use rusqlite::Connection;
 
 use super::CatalogueError;
 
-const MIGRATIONS: [&str; 8] = [
+const MIGRATIONS: [&str; 9] = [
     include_str!(
         "../../../desktop/electron/infrastructure/sqlite/migrations/0001-create-libraries.sql"
     ),
@@ -27,6 +27,8 @@ const MIGRATIONS: [&str; 8] = [
     include_str!(
         "../../../desktop/electron/infrastructure/sqlite/migrations/0008-dropbox-library-sync.sql"
     ),
+    "ALTER TABLE dropbox_accounts ADD COLUMN credential_store TEXT
+     CHECK (credential_store IN ('keyring', 'kwallet'));",
 ];
 
 pub fn run(database: &mut Connection) -> Result<(), CatalogueError> {
