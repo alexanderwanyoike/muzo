@@ -1,6 +1,7 @@
 mod dropbox_panel;
 pub(crate) mod library_sources;
 mod mini_focus;
+mod sidebar;
 pub use mini_focus::Control as MiniControl;
 mod updates;
 mod view;
@@ -63,6 +64,8 @@ pub enum Message {
     SeekRelative(i8),
     SetVolume(f32),
     SetMiniVolume(f32),
+    ResizeSidebar(f32),
+    SaveSidebar(u64, crate::appearance::sidebar::SidebarWidth),
     Tick,
     ShowMini,
     ToggleMini(window::Id),
@@ -93,6 +96,8 @@ pub struct Desktop {
     pending_track: Option<usize>,
     failed_track: Option<usize>,
     mini_focus: Option<mini_focus::Control>,
+    sidebar: sidebar::Sidebar,
+    sidebar_revision: u64,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
 }
@@ -119,6 +124,16 @@ impl Desktop {
             };
             match appearance {
                 Ok(appearance) => desktop.appearance = appearance,
+                Err(error) => desktop.error = Some(error.to_string()),
+            }
+        }
+        if let Some(path) = desktop.sources.paths().map(|paths| paths.sidebar()) {
+            let legacy = std::env::var_os("MUZO_DATA_DIR")
+                .is_none()
+                .then(CataloguePaths::legacy_appearance)
+                .flatten();
+            match crate::appearance::sidebar::load_or_import(&path, legacy.as_deref()) {
+                Ok(width) => desktop.sidebar.set(width),
                 Err(error) => desktop.error = Some(error.to_string()),
             }
         }
@@ -154,6 +169,8 @@ impl Desktop {
                 pending_track: None,
                 failed_track: None,
                 mini_focus: None,
+                sidebar: sidebar::Sidebar::default(),
+                sidebar_revision: 0,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
             },
@@ -408,6 +425,26 @@ impl Desktop {
                 };
                 session.seek(target)
             }),
+            Message::ResizeSidebar(ratio) => {
+                let width = self.sidebar.drag(ratio);
+                self.sidebar_revision += 1;
+                let revision = self.sidebar_revision;
+                Task::perform(
+                    async { tokio::time::sleep(Duration::from_millis(180)).await },
+                    move |()| Message::SaveSidebar(revision, width),
+                )
+            }
+            Message::SaveSidebar(revision, width) => {
+                if revision != self.sidebar_revision {
+                    return Task::none();
+                }
+                if let Some(path) = self.sources.paths().map(|paths| paths.sidebar())
+                    && let Err(error) = crate::appearance::sidebar::save(&path, width)
+                {
+                    self.error = Some(error.to_string());
+                }
+                Task::none()
+            }
             Message::SetVolume(value) => self.transport(|session| {
                 session.set_volume(value);
                 Ok(())
@@ -528,7 +565,11 @@ impl Desktop {
 
             Message::CloseRequested(id) => self.windows.close_requested(id),
             Message::MiniResized(id, size) => {
-                self.windows.resized(id, size);
+                if self.windows.is_mini(id) {
+                    self.windows.resized(id, size);
+                } else if self.windows.is_library(id) {
+                    self.sidebar.layout_width(size.width);
+                }
                 Task::none()
             }
         }
@@ -828,7 +869,7 @@ impl Desktop {
             view::library(
                 &self.sources,
                 &self.dropbox,
-                (&self.appearance, &self.update_status),
+                (&self.appearance, &self.update_status, &self.sidebar),
                 self.session.as_ref(),
                 self.artwork.as_ref(),
                 (self.error.as_deref(), self.failed_track.is_some()),

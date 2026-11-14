@@ -51,6 +51,10 @@ impl CataloguePaths {
         )
     }
 
+    pub(crate) fn sidebar(&self) -> PathBuf {
+        self.current.with_file_name("sidebar-rust.json")
+    }
+
     pub(crate) fn appearance(&self) -> PathBuf {
         self.current.with_file_name("appearance-rust.json")
     }

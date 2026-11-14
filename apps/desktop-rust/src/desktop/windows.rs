@@ -6,7 +6,7 @@ use window::raw_window_handle::RawWindowHandle;
 
 use super::Message;
 
-const LIBRARY_SIZE: Size = Size::new(850.0, 570.0);
+pub(super) const LIBRARY_SIZE: Size = Size::new(850.0, 570.0);
 const LIBRARY_MIN: Size = Size::new(550.0, 380.0);
 const MINI_SIZE: Size = Size::new(426.0, 236.0);
 const MINI_MIN: Size = Size::new(370.0, 222.0);
@@ -72,6 +72,10 @@ impl Windows {
 
     pub fn is_mini(&self, id: window::Id) -> bool {
         self.mini == Some(id)
+    }
+
+    pub(super) fn is_library(&self, id: window::Id) -> bool {
+        self.library == id
     }
 
     #[cfg(test)]

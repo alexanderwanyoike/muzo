@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, Length,
+    Alignment, Element, Fill,
     widget::{button, column, container, row, scrollable, text, text_input},
 };
 
@@ -87,7 +87,7 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
     container(panel_content)
         .style(panel)
         .padding(12)
-        .width(Length::Fixed(180.0))
+        .width(Fill)
         .height(Fill)
         .into()
 }

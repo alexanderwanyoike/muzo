@@ -27,18 +27,19 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
     }
 }
 
-pub fn library<'a>(
+pub(super) fn library<'a>(
     sources: &'a Sources,
     dropbox: &'a super::dropbox_panel::Settings,
     settings: (
         &'a crate::appearance::Appearance,
         &'a super::updates::Status,
+        &'a super::sidebar::Sidebar,
     ),
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     playback: (Option<&'a str>, bool),
 ) -> Element<'a, Message> {
-    let (preferences, update_status) = settings;
+    let (preferences, update_status, sidebar) = settings;
     let (error, retry) = playback;
     let header = row![
         text("Library").font(bold()).size(24),
@@ -59,7 +60,71 @@ pub fn library<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let body = if dropbox.visible {
+    let layout = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
+        let body: Element<'_, Message> = match pane {
+            super::sidebar::Pane::Sidebar => column![
+                sources::sidebar(sources),
+                super::updates::view(update_status)
+            ]
+            .spacing(5)
+            .width(Fill)
+            .height(Fill)
+            .into(),
+            super::sidebar::Pane::Content => {
+                library_content(sources, dropbox, preferences, session)
+                    .width(Fill)
+                    .height(Fill)
+                    .into()
+            }
+        };
+        iced::widget::pane_grid::Content::new(body)
+    })
+    .spacing(super::sidebar::SPLITTER_SPACING)
+    .on_resize(10.0, |event| Message::ResizeSidebar(event.ratio))
+    .width(Fill)
+    .height(Fill);
+
+    container(
+        column![
+            header,
+            layout,
+            error_line(sources.error.as_deref()),
+            playback_error(error, retry, false, false),
+            container(
+                row![
+                    artwork(cover, 54.0),
+                    metadata(session.and_then(Session::current), 15),
+                    column![
+                        row![
+                            Space::new().width(Fill),
+                            icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
+                        ],
+                        controls(session, retry, None, false),
+                    ]
+                    .width(Length::Fixed(300.0)),
+                ]
+                .align_y(Alignment::Center)
+                .spacing(15)
+            )
+            .style(panel)
+            .padding(12)
+            .width(Fill),
+        ]
+        .spacing(16),
+    )
+    .padding(super::sidebar::LIBRARY_PADDING)
+    .height(Fill)
+    .width(Fill)
+    .into()
+}
+
+fn library_content<'a>(
+    sources: &'a Sources,
+    dropbox: &'a super::dropbox_panel::Settings,
+    preferences: &'a crate::appearance::Appearance,
+    session: Option<&'a Session>,
+) -> iced::widget::Column<'a, Message> {
+    if dropbox.visible {
         column![appearance::controls(preferences), dropbox.view()].spacing(22)
     } else if let Some((_, _, fields)) = &sources.editing {
         playlists::edit(fields, sources.busy())
@@ -93,48 +158,7 @@ pub fn library<'a>(
             )
             .center(Fill)
         ]
-    };
-
-    container(
-        column![
-            header,
-            row![
-                column![
-                    sources::sidebar(sources),
-                    super::updates::view(update_status)
-                ]
-                .spacing(5),
-                body.width(Fill).height(Fill)
-            ]
-            .spacing(16),
-            error_line(sources.error.as_deref()),
-            playback_error(error, retry, false, false),
-            container(
-                row![
-                    artwork(cover, 54.0),
-                    metadata(session.and_then(Session::current), 15),
-                    column![
-                        row![
-                            Space::new().width(Fill),
-                            icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
-                        ],
-                        controls(session, retry, None, false),
-                    ]
-                    .width(Length::Fixed(300.0)),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(15)
-            )
-            .style(panel)
-            .padding(12)
-            .width(Fill),
-        ]
-        .spacing(16),
-    )
-    .padding(20)
-    .height(Fill)
-    .width(Fill)
-    .into()
+    }
 }
 
 pub(super) fn mini<'a>(
