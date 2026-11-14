@@ -25,9 +25,11 @@ pub enum Message {
     Previous,
     Next,
     Seek(f32),
+    SeekRelative(i8),
     SetVolume(f32),
     Tick,
     ShowMini,
+    ToggleMini(window::Id),
     MiniOpened(window::Id),
     LibraryVisibilityChecked(window::Id, bool),
     ShowLibrary,
@@ -123,6 +125,15 @@ impl Desktop {
             Message::Seek(seconds) => {
                 self.transport(|session| session.seek(Duration::from_secs_f32(seconds)))
             }
+            Message::SeekRelative(seconds) => self.transport(|session| {
+                let (position, _) = session.observe();
+                let target = if seconds >= 0 {
+                    position + Duration::from_secs(seconds as u64)
+                } else {
+                    position.saturating_sub(Duration::from_secs(seconds.unsigned_abs().into()))
+                };
+                session.seek(target)
+            }),
             Message::SetVolume(value) => self.transport(|session| {
                 session.set_volume(value);
                 Ok(())
@@ -130,6 +141,13 @@ impl Desktop {
             Message::Tick => {
                 self.refresh_transport(Session::advance_if_finished, false);
                 Task::none()
+            }
+            Message::ToggleMini(id) => {
+                if self.windows.is_mini(id) {
+                    self.windows.show_library()
+                } else {
+                    self.windows.show_mini()
+                }
             }
             Message::ShowMini => self.windows.show_mini(),
             Message::MiniOpened(id) => self.windows.mini_opened(id),
@@ -187,18 +205,30 @@ impl Desktop {
             } else {
                 Subscription::none()
             },
-            iced::event::listen_with(|event, status, _| {
+            iced::event::listen_with(|event, status, id| {
                 if status == iced::event::Status::Captured {
                     return None;
                 }
-                if let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                    key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Space),
-                    ..
+                let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key, modifiers, ..
                 }) = event
-                {
-                    return Some(Message::TogglePlayback);
+                else {
+                    return None;
+                };
+                use iced::keyboard::{Key, key::Named};
+                match (key.as_ref(), modifiers.command()) {
+                    (Key::Named(Named::Space), false) => Some(Message::TogglePlayback),
+                    (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
+                    (Key::Named(Named::ArrowLeft), false) => Some(Message::SeekRelative(-5)),
+                    (Key::Named(Named::ArrowRight), false) => Some(Message::SeekRelative(5)),
+                    (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
+                    (Key::Character("o"), true) => Some(Message::OpenFiles),
+                    (Key::Character("q"), true) if !cfg!(target_os = "macos") => {
+                        Some(Message::ToggleQueue)
+                    }
+                    (Key::Character("q"), true) if modifiers.shift() => Some(Message::ToggleQueue),
+                    _ => None,
                 }
-                None
             }),
         ])
     }

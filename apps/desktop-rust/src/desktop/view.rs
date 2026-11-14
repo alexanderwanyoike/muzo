@@ -45,7 +45,6 @@ pub fn library<'a>(
             .padding([7, 14])
             .style(primary)
             .on_press_maybe(session.map(|_| Message::OpenFiles)),
-        icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini)),
     ]
     .align_y(Alignment::Center)
     .spacing(10);
@@ -79,7 +78,14 @@ pub fn library<'a>(
                 row![
                     artwork(cover, 54.0),
                     metadata(session.and_then(Session::current), 15),
-                    controls(session).width(Length::Fixed(300.0)),
+                    column![
+                        row![
+                            Space::new().width(Fill),
+                            icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
+                        ],
+                        controls(session),
+                    ]
+                    .width(Length::Fixed(300.0)),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(15)
