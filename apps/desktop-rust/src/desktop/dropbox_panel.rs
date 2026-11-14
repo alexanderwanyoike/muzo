@@ -375,8 +375,15 @@ fn run(
                     let Some(key) = catalogue.dropbox_client(&owner)? else {
                         continue;
                     };
-                    let Some(refresh) = Credentials::read_or_migrate(&catalogue, &owner)? else {
-                        continue;
+                    let refresh = match Credentials::read_or_migrate(&catalogue, &owner) {
+                        Ok(Some(refresh)) => refresh,
+                        Ok(None) => continue,
+                        Err(DropboxError::LegacyCredential | DropboxError::Credential(_))
+                            if owner != account =>
+                        {
+                            continue;
+                        }
+                        Err(error) => return Err(error.into()),
                     };
                     let token = match client.refresh(&key, &refresh) {
                         Ok(token) => token,

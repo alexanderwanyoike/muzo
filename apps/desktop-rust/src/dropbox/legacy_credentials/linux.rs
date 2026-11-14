@@ -19,18 +19,19 @@ pub(super) fn decrypt(ciphertext: &[u8]) -> Result<Vec<u8>, DropboxError> {
     if let Some(plaintext) = decrypt_secret_service(encrypted) {
         return Ok(plaintext);
     }
-    let password = with_wallet(ELECTRON_WALLET_APP, |proxy, handle| {
-        read_password(
+    with_wallet(ELECTRON_WALLET_APP, |proxy, handle| {
+        let password = read_password(
             proxy,
             handle,
             ELECTRON_WALLET_FOLDER,
             ELECTRON_WALLET_KEY,
             ELECTRON_WALLET_APP,
         )
+        .flatten()?;
+        let plaintext = decrypt_cbc(encrypted, password.as_bytes(), 1).ok()?;
+        valid_token(&plaintext).then_some(plaintext)
     })
-    .flatten()
-    .ok_or(DropboxError::LegacyCredential)?;
-    decrypt_cbc(encrypted, password.as_bytes(), 1)
+    .ok_or(DropboxError::LegacyCredential)
 }
 
 fn decrypt_secret_service(encrypted: &[u8]) -> Option<Vec<u8>> {

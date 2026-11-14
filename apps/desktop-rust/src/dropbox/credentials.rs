@@ -83,7 +83,10 @@ impl Credentials {
     fn read(account: &str) -> Result<Option<String>, DropboxError> {
         let result = keyring::Entry::new(SERVICE, account).and_then(|entry| entry.get_password());
         #[cfg(target_os = "linux")]
-        if result.is_err()
+        if result
+            .as_ref()
+            .err()
+            .is_some_and(secret_service_unavailable)
             && let Some(value) = legacy_credentials::platform::read(account)
         {
             return Ok(value);
@@ -99,7 +102,12 @@ impl Credentials {
         let result = keyring::Entry::new(SERVICE, account)
             .and_then(|entry| entry.set_password(refresh_token));
         #[cfg(target_os = "linux")]
-        if result.is_err() && legacy_credentials::platform::save(account, refresh_token).is_some() {
+        if result
+            .as_ref()
+            .err()
+            .is_some_and(secret_service_unavailable)
+            && legacy_credentials::platform::save(account, refresh_token).is_some()
+        {
             return Ok(());
         }
         Ok(result?)
@@ -109,7 +117,12 @@ impl Credentials {
         let result =
             keyring::Entry::new(SERVICE, account).and_then(|entry| entry.delete_credential());
         #[cfg(target_os = "linux")]
-        if legacy_credentials::platform::remove(account).is_some() && result.is_err() {
+        if result
+            .as_ref()
+            .err()
+            .is_some_and(secret_service_unavailable)
+            && legacy_credentials::platform::remove(account).is_some()
+        {
             return Ok(());
         }
         match result {
@@ -117,6 +130,25 @@ impl Credentials {
             Err(error) => Err(error.into()),
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+fn secret_service_unavailable(error: &keyring::Error) -> bool {
+    use std::error::Error;
+    error
+        .source()
+        .and_then(|source| source.downcast_ref::<dbus_secret_service::Error>())
+        .is_some_and(|error| match error {
+            dbus_secret_service::Error::Unavailable => true,
+            dbus_secret_service::Error::Dbus(error) => matches!(
+                error.name(),
+                Some(
+                    "org.freedesktop.DBus.Error.ServiceUnknown"
+                        | "org.freedesktop.DBus.Error.NameHasNoOwner"
+                )
+            ),
+            _ => false,
+        })
 }
 
 fn lifecycle_guard() -> Result<std::sync::MutexGuard<'static, ()>, DropboxError> {
