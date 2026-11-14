@@ -810,6 +810,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_rolls_back_a_track_add_when_the_resulting_snapshot_cannot_be_read() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let catalogue = paths.open().unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection.execute_batch(
+            "INSERT INTO libraries (id, name, kind, location) VALUES ('source', 'Test', 'filesystem', '/songs');
+             INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+             VALUES ('song', 'source', 'Song', '', 60, '/songs/song.mp3', 0, 0),
+                    ('broken', 'source', 'Broken', '', 'invalid', '/songs/broken.mp3', 0, 0);",
+        ).unwrap();
+        let playlist = catalogue.create_playlist("Evening").unwrap();
+        let add = Operation::AddToPlaylist(playlist.id.clone(), "song".into());
+
+        assert!(run(&paths, add.clone()).is_err());
+        assert!(catalogue.playlist_entries(&playlist.id).unwrap().is_empty());
+
+        connection
+            .execute("UPDATE tracks SET duration_seconds=1 WHERE id='broken'", [])
+            .unwrap();
+        let snapshot = run(&paths, add).unwrap();
+        assert_eq!(snapshot.playlist_entries.len(), 1);
+    }
+
+    #[test]
     fn it_rolls_back_a_playlist_when_its_catalogue_snapshot_cannot_be_read() {
         let root = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(root.path());
