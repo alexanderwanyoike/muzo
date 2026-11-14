@@ -8,6 +8,8 @@ publish = false
 
 [dependencies]
 iced = { version = "0.14.0", default-features = false, features = ["tiny-skia", "image", "svg", "tokio", "x11", "wayland", "linux-theme-detection"] }
+directories = "6.0.0"
+notify = "8.2.0"
 lofty = "0.25.5"
 rusqlite = { version = "0.41.1", default-features = false, features = ["bundled", "backup"] }
 opus-decoder = "0.1.1"

@@ -94,3 +94,25 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
     drop(catalogue);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_reopens_the_same_rust_catalogue_across_launches() {
+    let root = std::env::temp_dir().join(format!("muzo-launch-{}", uuid::Uuid::new_v4()));
+    let music = root.join("Music");
+    fs::create_dir_all(&music).unwrap();
+    let paths = crate::desktop::library_sources::CataloguePaths::in_directory(&root);
+    let snapshot = crate::desktop::library_sources::run(
+        &paths,
+        crate::desktop::library_sources::Operation::Add(music),
+    )
+    .unwrap();
+    let id = snapshot.libraries[0].id.clone();
+    let restarted = crate::desktop::library_sources::run(
+        &paths,
+        crate::desktop::library_sources::Operation::Startup,
+    )
+    .unwrap();
+    assert_eq!(restarted.libraries[0].id, id);
+    assert_eq!(restarted.selected.as_deref(), Some(id.as_str()));
+    fs::remove_dir_all(root).unwrap();
+}
