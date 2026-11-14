@@ -39,6 +39,30 @@ fn snapshot(ids: &[&str]) -> Snapshot {
 }
 
 #[test]
+fn it_clears_a_source_search_without_changing_the_selected_library() {
+    let (mut desktop, _) = setup();
+    let mut sources = snapshot(&["first", "second"]);
+    sources.selected = Some("second".into());
+    desktop.sources.snapshot = Some(sources);
+    let _ = desktop.update(Message::SourceSearch("archive".into()));
+
+    let clear = desktop.update(Message::ClearSourceSearch);
+
+    assert!(desktop.sources.search.is_empty());
+    assert_eq!(
+        desktop
+            .sources
+            .snapshot
+            .as_ref()
+            .unwrap()
+            .selected
+            .as_deref(),
+        Some("second")
+    );
+    assert_ne!(clear.units(), 0);
+}
+
+#[test]
 fn it_retries_the_same_track_after_an_earlier_source_is_removed() {
     let (mut desktop, _) = setup();
     desktop.sources.snapshot = Some(snapshot(&["first", "second"]));

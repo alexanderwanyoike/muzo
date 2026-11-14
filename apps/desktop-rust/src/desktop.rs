@@ -38,6 +38,7 @@ pub enum Message {
     FolderLocation(String),
     SubmitFolder,
     SourceSearch(String),
+    ClearSourceSearch,
     OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
@@ -304,6 +305,7 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 Task::none()
             }
+            Message::ClearSourceSearch => Task::none(),
             Message::SourceOperation(operation) => {
                 if matches!(operation, Operation::Select(_)) {
                     self.page = LibraryPage::Songs;
