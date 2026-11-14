@@ -163,7 +163,22 @@ fn settings(size: Size, min: Size) -> window::Settings {
 
 #[cfg(test)]
 mod tests {
-    use super::LibraryVisibility;
+    use super::{LibraryVisibility, MINI_SIZE, QUEUE_HEIGHT, Windows};
+    use iced::window;
+
+    #[test]
+    fn it_keeps_the_queue_closed_until_the_native_window_has_room() {
+        let (mut windows, _) = Windows::open();
+        let id = window::Id::unique();
+        windows.mini = Some(id);
+        let _ = windows.toggle_queue();
+        assert!(!windows.queue_open());
+        windows.resized(id, MINI_SIZE);
+        assert!(!windows.queue_open());
+        let expanded = iced::Size::new(MINI_SIZE.width, MINI_SIZE.height + QUEUE_HEIGHT);
+        windows.resized(id, expanded);
+        assert!(windows.queue_open());
+    }
 
     #[test]
     fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
