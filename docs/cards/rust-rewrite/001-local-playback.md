@@ -41,3 +41,7 @@ seek preroll, and output gain. Xiph's BSD-3-Clause
 [libopusfile seek implementation](https://github.com/xiph/opusfile/blob/master/src/opusfile.c#L2223-L2239)
 informs the stream-relative boundary handling. Real Opus fixtures check gain,
 cropped-stream seeking, and playback through the final sample.
+
+The transport and window controls use the original
+[Lucide glyphs](https://github.com/lucide-icons/lucide). The installer includes
+the upstream ISC and Feather MIT terms in `assets/licenses/lucide.txt`.
