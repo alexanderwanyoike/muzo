@@ -1162,3 +1162,34 @@ fn it_keeps_space_on_an_unavailable_metadata_action_out_of_playback() {
 
     assert!(desktop.session.as_ref().unwrap().is_playing());
 }
+
+#[test]
+fn it_changes_the_focused_playlist_choice_with_the_arrow_keys() {
+    let (mut desktop, track) = editing_source();
+    let library = desktop.windows.library_id();
+    desktop.sources.snapshot.as_mut().unwrap().playlists = vec![
+        crate::catalogue::Playlist {
+            id: "first".into(),
+            name: "First".into(),
+        },
+        crate::catalogue::Playlist {
+            id: "second".into(),
+            name: "Second".into(),
+        },
+    ];
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::MiniArrow(library, 1));
+
+    assert_eq!(
+        desktop
+            .sources
+            .playlist_picker
+            .as_ref()
+            .unwrap()
+            .playlist
+            .as_deref(),
+        Some("second")
+    );
+    assert!(!desktop.sources.track_add_pending());
+}
