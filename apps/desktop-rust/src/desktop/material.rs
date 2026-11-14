@@ -99,9 +99,9 @@ fn mix(base: Color, overlay: Color, amount: f32) -> Color {
     )
 }
 
-struct Grain(&'static svg::Handle);
+struct Grain<'a>(&'a svg::Handle);
 
-impl Widget<Message, Theme, Renderer> for Grain {
+impl Widget<Message, Theme, Renderer> for Grain<'_> {
     fn size(&self) -> Size<Length> {
         Size::new(Fill, Fill)
     }
@@ -160,45 +160,45 @@ mod tests {
 
     use super::*;
 
-    fn walnut_pixels(drawable: bool) -> Vec<u8> {
-        let logical_size = Size::new(480.0, 64.0);
-        let viewport = Rectangle::with_size(logical_size);
-        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-        if drawable {
-            let mut grain = Grain(&WALNUT);
-            let mut tree = Tree::new(&Element::new(Grain(&WALNUT)));
-            let node = grain.layout(
-                &mut tree,
-                &renderer,
-                &layout::Limits::new(logical_size, logical_size),
-            );
-            grain.draw(
-                &tree,
-                &mut renderer,
-                &Theme::Light,
-                &renderer::Style::default(),
-                Layout::new(&node),
-                mouse::Cursor::Unavailable,
-                &viewport,
-            );
-        }
-        renderer.screenshot(Size::new(600, 80), 1.25, Color::WHITE)
-    }
-
     #[test]
     fn it_does_not_leave_a_bare_walnut_column_at_fractional_scale() {
-        let off = walnut_pixels(false);
-        let grain = walnut_pixels(true);
-        let row_width = 600 * 4;
-        let changed = |x: usize| {
-            grain
-                .chunks_exact(row_width)
-                .zip(off.chunks_exact(row_width))
-                .any(|(painted, blank)| painted[x * 4..x * 4 + 4] != blank[x * 4..x * 4 + 4])
-        };
+        use svg::Renderer as _;
 
-        assert!(changed(576));
-        assert!(changed(577));
+        let scale = 1.25;
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let tile = renderer.measure_svg(&WALNUT);
+        let solid = svg::Handle::from_memory(
+            format!(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='{}' height='{}'><rect width='100%' height='100%'/></svg>",
+                tile.width, tile.height
+            )
+            .into_bytes(),
+        );
+        let logical_size = Size::new((tile.width * 3) as f32, 2.0);
+        let viewport = Rectangle::with_size(logical_size);
+        let mut grain = Grain(&solid);
+        let mut tree = Tree::new(&Element::new(Grain(&solid)));
+        let node = grain.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(logical_size, logical_size),
+        );
+        grain.draw(
+            &tree,
+            &mut renderer,
+            &Theme::Light,
+            &renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let width = (logical_size.width * scale) as u32;
+        let pixels = renderer.screenshot(Size::new(width, 2), scale, Color::WHITE);
+        let seam = (tile.width as f32 * 2.0 * scale) as usize;
+        assert_eq!(
+            &pixels[(seam - 1) * 4..(seam + 1) * 4],
+            &[0, 0, 0, 255, 0, 0, 0, 255]
+        );
     }
 
     fn chrome_pixels(width: u32, mode: &str) -> Vec<u8> {
