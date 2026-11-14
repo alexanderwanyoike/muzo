@@ -68,3 +68,13 @@ fn it_narrows_sidebar_on_a_small_window_without_losing_the_preferred_width() {
     assert_eq!(width.visible(750.0), 230.0);
     assert_eq!(width.visible(900.0), 310.0);
 }
+
+#[test]
+fn it_keeps_a_distinct_material_preview_for_each_textured_surface() {
+    use crate::desktop::material;
+
+    for material_id in ["aluminium", "carbon", "walnut"] {
+        assert!(material::has_texture(material_id));
+    }
+    assert!(!material::has_texture("pulse"));
+}
