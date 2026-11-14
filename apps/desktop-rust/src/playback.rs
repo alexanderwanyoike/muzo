@@ -15,6 +15,8 @@ pub enum PlaybackError {
     Decode(#[from] DecoderError),
     #[error("Could not seek in the current track: {0}")]
     Seek(#[from] SeekError),
+    #[error("Could not decode the Ogg Opus file: {0}")]
+    Opus(#[from] symphonia::core::errors::Error),
     #[error("Could not open an audio output: {0}")]
     Device(#[from] rodio::DeviceSinkError),
 }
@@ -47,11 +49,29 @@ impl Playback {
     }
 
     fn start(&mut self, path: &Path, offset: Duration, paused: bool) -> Result<(), PlaybackError> {
-        let mut decoded = Decoder::try_from(File::open(path)?)?;
+        let file = File::open(path)?;
+        let decoded: Box<dyn Source + Send> = match Decoder::try_from(file) {
+            Ok(mut decoder) => {
+                if !offset.is_zero() {
+                    decoder.try_seek(offset)?;
+                }
+                Box::new(decoder)
+            }
+            Err(error)
+                if path.extension().is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("opus") || ext.eq_ignore_ascii_case("ogg")
+                }) =>
+            {
+                match crate::opus::OpusSource::open(File::open(path)?, offset) {
+                    Err(symphonia::core::errors::Error::Unsupported(
+                        "No Ogg Opus track was found",
+                    )) => return Err(error.into()),
+                    source => Box::new(source?),
+                }
+            }
+            Err(error) => return Err(error.into()),
+        };
         let duration = decoded.total_duration().unwrap_or_default();
-        if !offset.is_zero() {
-            decoded.try_seek(offset)?;
-        }
         let player = Player::connect_new(&self.mixer);
         if paused {
             player.pause();

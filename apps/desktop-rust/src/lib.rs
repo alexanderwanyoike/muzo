@@ -1,4 +1,5 @@
 pub mod desktop;
+mod opus;
 pub mod playback;
 pub mod session;
 pub mod track;
