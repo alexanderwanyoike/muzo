@@ -1,0 +1,61 @@
+name: Rust desktop verification
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop-rust/**"
+      - "apps/desktop/assets/icons/muzo-window.png"
+      - "apps/desktop/electron/infrastructure/metadata/fixtures/embedded-cover.mp3"
+      - ".github/workflows/desktop-rust.yml"
+  push:
+    branches: [epic/rust-rewrite, dev, main]
+    paths:
+      - "apps/desktop-rust/**"
+      - ".github/workflows/desktop-rust.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-rust-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Rust desktop (${{ matrix.os }} / ${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+    defaults:
+      run:
+        working-directory: apps/desktop-rust
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - name: Set up Yarn
+        run: corepack enable
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libasound2-dev libwayland-dev libxkbcommon-dev
+      - run: rustup toolchain install 1.95 --profile minimal --component rustfmt,clippy --target ${{ matrix.target }}
+      - run: yarn exec cargo -- +1.95 fmt --check
+      - run: yarn exec cargo -- +1.95 clippy --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+      - run: yarn exec cargo -- +1.95 test --locked --target ${{ matrix.target }}
+      - run: yarn exec cargo -- +1.95 build --locked --release --target ${{ matrix.target }}
