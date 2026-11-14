@@ -72,6 +72,7 @@ pub enum Message {
     ShowPlaylistForm(bool),
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
+    OpenPlaylistPicker(crate::catalogue::IndexedTrack),
     EditField(MetadataField, String),
     TrackEditorTab(u64, bool, Option<MetadataField>),
     TrackEditorFocusApplied(u64),
@@ -568,6 +569,7 @@ impl Desktop {
                 self.editor_navigation.reset();
                 self.sources.open_editor(track)
             }
+            Message::OpenPlaylistPicker(_) => Task::none(),
             Message::EditField(field, value) => {
                 if self.sources.editor_save_pending() {
                     return Task::none();

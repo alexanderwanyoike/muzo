@@ -798,44 +798,16 @@ fn it_opens_and_reveals_source_setup_from_the_sidebar() {
 
 #[test]
 fn it_lists_every_indexed_source_and_location_in_settings() {
-    use iced::{
-        Font, Pixels, Rectangle, Renderer, Size,
-        advanced::{
-            Layout, layout,
-            widget::{Operation, Tree},
-        },
-    };
-
-    #[derive(Default)]
-    struct Labels(Vec<String>);
-
-    impl Operation for Labels {
-        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
-            visit(self);
-        }
-
-        fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, label: &str) {
-            self.0.push(label.into());
-        }
-    }
-
     let (mut desktop, _) = setup();
     let mut sources = snapshot(&["Records", "Field recordings"]);
     sources.libraries[0].location = PathBuf::from("/fixtures/records");
     sources.libraries[1].location = PathBuf::from("/fixtures/field recordings");
     desktop.sources.snapshot = Some(sources);
     let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
-    let mut view = desktop.view(desktop.windows.library_id());
-    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-    let mut tree = Tree::new(&view);
-    let size = Size::new(1200.0, 800.0);
-    let widget = view.as_widget_mut();
-    let layout = widget.layout(&mut tree, &renderer, &layout::Limits::new(size, size));
-    let mut labels = Labels::default();
-    widget.operate(&mut tree, Layout::new(&layout), &renderer, &mut labels);
+    let labels = rendered_labels(&desktop);
     for location in ["/fixtures/records", "/fixtures/field recordings"] {
         assert!(
-            labels.0.iter().any(|label| label == location),
+            labels.iter().any(|label| label == location),
             "missing {location}"
         );
     }
@@ -1083,4 +1055,50 @@ fn it_ignores_an_old_tab_result_after_opening_the_same_song_again() {
     let stale = desktop.update(Message::TrackEditorTab(1, false, Some(MetadataField::Year)));
 
     assert_eq!(stale.units(), 0);
+}
+
+fn rendered_labels(desktop: &Desktop) -> Vec<String> {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout,
+            widget::{Operation, Tree},
+        },
+    };
+
+    #[derive(Default)]
+    struct Labels(Vec<String>);
+
+    impl Operation for Labels {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, label: &str) {
+            self.0.push(label.into());
+        }
+    }
+
+    let mut view = desktop.view(desktop.windows.library_id());
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut tree = Tree::new(&view);
+    let size = Size::new(1200.0, 800.0);
+    let widget = view.as_widget_mut();
+    let layout = widget.layout(&mut tree, &renderer, &layout::Limits::new(size, size));
+    let mut labels = Labels::default();
+    widget.operate(&mut tree, Layout::new(&layout), &renderer, &mut labels);
+    labels.0
+}
+
+#[test]
+fn it_opens_the_playlist_picker_inline_even_without_a_playlist() {
+    let (mut desktop, track) = editing_source();
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+
+    let labels = rendered_labels(&desktop);
+
+    assert!(labels.iter().any(|label| label == "No playlists yet."));
+    assert!(labels.iter().any(|label| label == "Cancel"));
+    assert!(labels.iter().any(|label| label == "Song"));
+    assert!(!labels.iter().any(|label| label == "Save metadata"));
 }
