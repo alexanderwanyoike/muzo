@@ -22,9 +22,9 @@ pub fn register(image: &Path, data: &Path) -> io::Result<()> {
     for entry in fs::read_dir(&directory)? {
         let entry = entry?;
         let path = entry.path();
-        if !path
+        if path
             .extension()
-            .is_some_and(|extension| extension == "desktop")
+            .is_none_or(|extension| extension != "desktop")
         {
             continue;
         }
