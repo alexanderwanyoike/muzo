@@ -15,7 +15,7 @@ use std::{
     time::Duration,
 };
 
-use rusqlite::{Connection, OpenFlags, backup::Backup};
+use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, backup::Backup};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CatalogueError {
@@ -79,6 +79,13 @@ impl Catalogue {
         database.pragma_update(None, "foreign_keys", true)?;
         migrations::run(&mut database)?;
         Ok(Self { database })
+    }
+
+    pub(crate) fn begin_write(&self) -> Result<Transaction<'_>, CatalogueError> {
+        Ok(Transaction::new_unchecked(
+            &self.database,
+            TransactionBehavior::Immediate,
+        )?)
     }
 
     pub fn libraries(&self) -> Result<Vec<Library>, CatalogueError> {

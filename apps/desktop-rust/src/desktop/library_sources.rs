@@ -139,8 +139,18 @@ fn run_with_selection(
             previous_source.clone()
         }
         Operation::CreatePlaylist(name) => {
-            selected_playlist = Some(catalogue.create_playlist(&name)?.id);
-            previous_source.clone()
+            let transaction = catalogue.begin_write()?;
+            let playlist = catalogue.create_playlist(&name)?;
+            let mut snapshot = read_snapshot(
+                &catalogue,
+                previous_source,
+                Some(playlist.id),
+                None,
+                warnings,
+            )?;
+            transaction.commit()?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::SelectPlaylist(id) => {
             selected_playlist = Some(id);
@@ -204,9 +214,26 @@ fn run_with_selection(
             }
         }
     };
+    let mut snapshot = read_snapshot(
+        &catalogue,
+        selected.or(previous_source),
+        selected_playlist,
+        editor,
+        warnings,
+    )?;
+    load_covers(paths, &catalogue, &mut snapshot);
+    Ok(snapshot)
+}
+
+fn read_snapshot(
+    catalogue: &Catalogue,
+    selected: Option<String>,
+    selected_playlist: Option<String>,
+    editor: Option<(String, String, Box<[String; 7]>)>,
+    warnings: Vec<String>,
+) -> Result<Snapshot, CatalogueError> {
     let libraries = catalogue.libraries()?;
     let selected = selected
-        .or(previous_source)
         .filter(|id| libraries.iter().any(|source| source.id == *id))
         .or_else(|| {
             libraries
@@ -228,20 +255,10 @@ fn run_with_selection(
         .map(|id| catalogue.tracks(id))
         .transpose()?
         .unwrap_or_default();
-    let playlist_covers = super::row_cover::indexed(
-        paths,
-        &catalogue,
-        &libraries,
-        playlist_entries
-            .iter()
-            .filter_map(|entry| entry.track.as_ref()),
-    );
-    let mut covers = super::row_cover::indexed(paths, &catalogue, &libraries, &tracks);
-    covers.extend(playlist_covers);
     Ok(Snapshot {
         track_counts: catalogue.track_counts()?,
         playlist_counts: catalogue.playlist_counts()?,
-        covers,
+        covers: Default::default(),
         libraries,
         selected,
         tracks,
@@ -251,6 +268,21 @@ fn run_with_selection(
         playlist_entries,
         editor,
     })
+}
+
+fn load_covers(paths: &CataloguePaths, catalogue: &Catalogue, snapshot: &mut Snapshot) {
+    let playlist_covers = super::row_cover::indexed(
+        paths,
+        catalogue,
+        &snapshot.libraries,
+        snapshot
+            .playlist_entries
+            .iter()
+            .filter_map(|entry| entry.track.as_ref()),
+    );
+    snapshot.covers =
+        super::row_cover::indexed(paths, catalogue, &snapshot.libraries, &snapshot.tracks);
+    snapshot.covers.extend(playlist_covers);
 }
 
 pub(super) struct Sources {
