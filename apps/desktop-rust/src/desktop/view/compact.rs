@@ -306,7 +306,7 @@ fn play_button(
         .into()
 }
 
-fn slider_style(theme: &Theme, surfaces: Surfaces, volume: bool) -> slider::Style {
+pub(super) fn slider_style(theme: &Theme, surfaces: Surfaces, volume: bool) -> slider::Style {
     let primary = theme.palette().primary;
     slider::Style {
         rail: slider::Rail {

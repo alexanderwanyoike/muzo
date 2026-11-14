@@ -16,3 +16,7 @@ sizes, artwork and controls follow `player-window-mode.ts` and
 faces](https://github.com/google/fonts/tree/b31870aff700ab7a1d74fa0c6887d95beb9e0037/ofl/manrope),
 instanced at weights 400 and 700. The installers include the existing Manrope
 SIL Open Font License.
+
+The library matches the Electron window dimensions and the
+`styles.css` and `transport.css` arrangement of the top transport,
+resizable navigation sidebar, content toolbar and bottom update status.

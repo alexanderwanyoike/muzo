@@ -265,21 +265,21 @@ fn it_rebases_mini_queue_focus_after_a_source_is_removed() {
 #[test]
 fn it_uses_the_resized_sidebar_in_the_library_without_changing_mini_geometry() {
     let (mut desktop, _) = setup();
-    let _ = desktop.update(Message::ResizeSidebar(0.39));
-    assert_eq!(desktop.sidebar.visible_width(), 278.0);
+    let _ = desktop.update(Message::ResizeSidebar(0.25));
+    assert_eq!(desktop.sidebar.visible_width(), 300.0);
     let _ = desktop.update(Message::ShowMini);
     let window = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::MiniResized(window, iced::Size::new(420.0, 560.0)));
-    assert_eq!(desktop.sidebar.visible_width(), 278.0);
+    assert_eq!(desktop.sidebar.visible_width(), 300.0);
 }
 
 #[test]
 fn it_measures_minimum_main_content_inside_the_library_chrome() {
     let mut sidebar = sidebar::Sidebar::default();
-    sidebar.layout_width(900.0);
+    sidebar.layout_width(850.0);
     sidebar.set(crate::appearance::sidebar::SidebarWidth::new(360.0));
 
-    assert_eq!(sidebar.visible_width(), 328.0);
+    assert_eq!(sidebar.visible_width(), 329.0);
 }
 
 #[test]
@@ -294,7 +294,7 @@ fn it_saves_the_completed_sidebar_resize_even_when_the_library_closes_immediatel
     assert_eq!(
         crate::appearance::sidebar::load_or_import(&paths.sidebar(), None)
             .unwrap()
-            .visible(850.0),
+            .visible(1199.0),
         desktop.sidebar.visible_width(),
     );
 }
@@ -417,6 +417,7 @@ fn it_does_not_regress_a_committed_play_count_when_an_older_snapshot_arrives() {
         path: PathBuf::from("track.mp3"),
         plays: 0,
         library_id: "first".into(),
+        duration_seconds: 0,
     };
     older.tracks.push(row);
     let mut newer = older.clone();
@@ -462,6 +463,7 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
         path: audio.path().into(),
         plays: 0,
         library_id: "local-library".into(),
+        duration_seconds: 0,
     };
     playlist.playlist_entries = ["first", "second"]
         .into_iter()

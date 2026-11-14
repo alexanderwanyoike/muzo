@@ -1,19 +1,24 @@
 use iced::{
-    Alignment, Element, Fill,
-    widget::{button, column, container, row, scrollable, text, text_input},
+    Alignment, Element, Fill, Theme, border,
+    widget::{
+        Space, button, column, container, image, pick_list, row, scrollable, text, text_input,
+        tooltip,
+    },
 };
 
 use crate::{
+    appearance::Surfaces,
     desktop::{
-        Message,
+        LibraryPage, Message,
         library_sources::{Operation, Snapshot, Sources},
     },
+    session::Session,
     track::Track,
 };
 
-use super::{action, bold, muted, panel, selected};
+use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
 
-pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
+pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -26,145 +31,267 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
         .filter(|source| source.name.to_lowercase().contains(&query))
         .map(|source| {
             let current = selected_id == Some(source.id.as_str());
-            let label = text(&source.name)
-                .size(13)
+            let count = sources
+                .snapshot
+                .as_ref()
+                .filter(|_| current)
+                .map(|snapshot| format!("{} tracks", snapshot.tracks.len()));
+            row![
+                button(
+                    row![
+                        icon_tinted(Icon::Folder, move |theme| if current {
+                            theme.palette().primary
+                        } else {
+                            surfaces.muted
+                        })
+                        .width(15)
+                        .height(15),
+                        text(&source.name)
+                            .size(11)
+                            .font(bold())
+                            .width(Fill)
+                            .wrapping(text::Wrapping::None),
+                        text(count.unwrap_or_default())
+                            .size(9)
+                            .color(surfaces.muted),
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center)
+                )
                 .width(Fill)
-                .wrapping(text::Wrapping::None);
-            button(label)
-                .width(Fill)
-                .padding([8, 9])
-                .style(move |theme, status| {
-                    if current {
-                        selected(theme, status)
-                    } else {
-                        action(theme, status)
-                    }
-                })
+                .height(32)
+                .padding([5, 8])
+                .style(move |theme, status| source_button(theme, status, current, surfaces))
                 .on_press_maybe(
                     (!sources.busy())
-                        .then(|| Message::SourceOperation(Operation::Select(source.id.clone()))),
-                )
-                .into()
+                        .then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
+                ),
+                icon_button(
+                    Icon::Close,
+                    "Remove source",
+                    (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
+                ),
+            ]
+            .align_y(Alignment::Center)
+            .into()
         });
-    let mut panel_content = column![
-        text("Sources").font(bold()).size(15),
+    let libraries = sources
+        .snapshot
+        .as_ref()
+        .map_or(0, |snapshot| snapshot.libraries.len());
+    let heading = container(
+        row![
+            icon_tinted(Icon::Folder, move |_| surfaces.muted)
+                .width(14)
+                .height(14),
+            text("Sources").size(11).font(bold()),
+            Space::new().width(Fill),
+            text(libraries).size(9).color(surfaces.muted),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([0, 10])
+    .height(32)
+    .center_y(32)
+    .style(move |_| container::Style::default().background(surfaces.chrome));
+    let search = container(
         text_input("Search sources", &sources.search)
-            .size(13)
+            .size(11)
+            .padding([8, 9])
+            .style(move |theme, status| search_style(theme, status, surfaces))
             .on_input(Message::SourceSearch),
-        scrollable(column(source_rows).spacing(2)).height(Fill),
-        super::playlists::sidebar(sources),
-    ]
-    .spacing(9);
-
+    )
+    .padding(8);
+    let add = button(
+        row![
+            text("+").size(16).color(surfaces.muted),
+            text("Add source").size(11),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([5, 11])
+    .height(32)
+    .width(Fill)
+    .style(move |theme, status| button::Style {
+        background: Some(surfaces.chrome.into()),
+        border: border::rounded(0),
+        ..action(theme, status)
+    })
+    .on_press(Message::LibraryPage(LibraryPage::Settings));
+    let mut body = column![
+        heading,
+        library::line(surfaces),
+        search,
+        library::line(surfaces),
+        scrollable(column(source_rows)).height(Fill),
+    ];
     if sources.busy() {
-        panel_content = panel_content.push(text("Scanning…").size(12).style(muted));
+        body =
+            body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
     }
-    if let Some(id) = selected_id {
-        let controls = if sources.pending_remove.as_deref() == Some(id) {
+    if let Some(id) = &sources.pending_remove {
+        body = body.push(
             row![
-                button(text("Remove source").size(11))
-                    .on_press(Message::SourceOperation(Operation::Remove(id.into()))),
-                button(text("Cancel").size(11)).on_press(Message::CancelSourceRemoval),
-            ]
-        } else {
-            row![
-                button(text("Refresh").size(11))
+                button(text("Remove source").size(10))
                     .style(action)
-                    .on_press_maybe(
-                        (!sources.busy())
-                            .then(|| Message::SourceOperation(Operation::Refresh(id.into())))
-                    ),
-                button(text("Remove").size(11))
+                    .on_press(Message::SourceOperation(Operation::Remove(id.clone()))),
+                button(text("Cancel").size(10))
                     .style(action)
-                    .on_press_maybe(
-                        (!sources.busy()).then(|| Message::RequestSourceRemoval(id.into()))
-                    ),
+                    .on_press(Message::CancelSourceRemoval),
             ]
-        };
-        panel_content = panel_content.push(controls.spacing(5));
+            .spacing(3),
+        );
     }
-
-    container(panel_content)
-        .style(panel)
-        .padding(12)
+    container(body.push(library::line(surfaces)).push(add))
+        .style(move |_| library::framed(surfaces.raised, surfaces, 2))
         .width(Fill)
         .height(Fill)
         .into()
 }
 
+fn search_style(
+    theme: &Theme,
+    status: text_input::Status,
+    surfaces: Surfaces,
+) -> text_input::Style {
+    let mut style = text_input::default(theme, status);
+    style.background = surfaces.raised.into();
+    style.border = border::rounded(4).width(1).color(surfaces.line);
+    style
+}
+
+fn source_button(
+    theme: &Theme,
+    status: button::Status,
+    current: bool,
+    surfaces: Surfaces,
+) -> button::Style {
+    let style = action(theme, status);
+    if current {
+        button::Style {
+            background: Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into()),
+            border: border::rounded(0),
+            ..style
+        }
+    } else {
+        style
+    }
+}
+
 pub fn tracks<'a>(
     snapshot: &'a Snapshot,
-    current: Option<&Track>,
+    session: Option<&Session>,
+    cover: Option<&image::Handle>,
     busy: bool,
+    surfaces: Surfaces,
 ) -> iced::widget::Column<'a, Message> {
-    let columns = row![
-        text("Title").size(12).style(muted).width(Fill),
-        text("Artist").size(12).style(muted).width(Fill),
-        text("Plays").size(12).style(muted).width(38),
-        iced::widget::Space::new().width(145)
-    ]
-    .padding([5, 10])
-    .spacing(8);
-    let playing_path = current.map(Track::path);
+    let playing = session.is_some_and(Session::is_playing);
+    let active_id = session
+        .and_then(Session::current)
+        .and_then(Track::indexed_id);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
-        let active = playing_path == Some(track.path.as_path());
-        let play = button(
-            row![
-                text(&track.title)
-                    .size(14)
-                    .width(Fill)
-                    .wrapping(text::Wrapping::None),
-                text(&track.artist)
-                    .size(13)
-                    .style(muted)
-                    .width(Fill)
-                    .wrapping(text::Wrapping::None),
-                text(track.plays).size(12).style(muted).width(38),
-            ]
-            .align_y(Alignment::Center)
-            .spacing(8),
-        )
-        .style(move |theme, status| {
-            if active {
-                selected(theme, status)
+        let active = active_id == Some(track.id.as_str());
+        let play = super::track_play_button(
+            if active && playing {
+                Icon::Pause
             } else {
-                action(theme, status)
-            }
-        })
-        .width(Fill)
-        .padding([8, 10])
-        .on_press(if active {
-            Message::TogglePlayback
-        } else {
-            Message::PlayIndexed(index)
-        });
+                Icon::Play
+            },
+            if active && playing { "Pause" } else { "Play" },
+            Some(if active {
+                Message::TogglePlayback
+            } else {
+                Message::PlayIndexed(index)
+            }),
+        );
+        let metadata = column![
+            text(&track.title)
+                .size(12)
+                .font(bold())
+                .wrapping(text::Wrapping::None),
+            text(match &track.album {
+                Some(album) if !album.is_empty() => format!("{} · {album}", track.artist),
+                _ => track.artist.clone(),
+            })
+            .size(10)
+            .color(surfaces.muted)
+            .wrapping(text::Wrapping::None),
+        ]
+        .spacing(4)
+        .width(Fill);
         let options = if busy {
             Vec::new()
         } else {
             snapshot.playlists.clone()
         };
-        let add =
-            iced::widget::pick_list(options, None::<crate::catalogue::Playlist>, |playlist| {
+        let add = tooltip(
+            pick_list(options, None::<crate::catalogue::Playlist>, |playlist| {
                 Message::SourceOperation(Operation::AddToPlaylist(playlist.id, track.id.clone()))
             })
-            .placeholder("Add to playlist")
-            .text_size(11)
-            .width(115);
-        row![
+            .placeholder("+")
+            .text_size(12)
+            .width(34)
+            .padding([4, 2])
+            .style(move |theme, status| {
+                let mut style = pick_list::default(theme, status);
+                style.background = iced::Color::TRANSPARENT.into();
+                style.border = border::rounded(4);
+                style
+            }),
+            text("Add to playlist").size(11),
+            tooltip::Position::Left,
+        );
+        let body = row![
             play,
-            button(text("Edit").size(11))
-                .style(action)
-                .on_press_maybe((!busy).then(|| Message::EditTrack(track.clone()))),
-            add
+            container(text(index + 1).size(10).color(surfaces.muted)).center_x(18),
+            library::small_cover(cover.filter(|_| active), 36.0, surfaces),
+            metadata,
+            container(
+                text(clock(std::time::Duration::from_secs(
+                    track.duration_seconds.into()
+                )))
+                .size(10)
+                .color(surfaces.muted)
+            )
+            .center_x(56),
+            container(
+                text(format!("{} plays", track.plays))
+                    .size(10)
+                    .color(surfaces.muted)
+            )
+            .center_x(58),
+            icon_button(
+                Icon::Edit,
+                "Edit track",
+                (!busy).then(|| Message::EditTrack(track.clone()))
+            ),
+            add,
         ]
-        .align_y(Alignment::Center)
-        .spacing(5)
+        .spacing(8)
+        .align_y(Alignment::Center);
+        column![
+            container(body)
+                .center_y(59)
+                .padding([0, 24])
+                .style(move |theme: &Theme| {
+                    let base = theme.palette().background;
+                    let background = if active {
+                        compact::tint(base, theme.palette().primary, 0.09)
+                    } else if index % 2 == 1 {
+                        compact::tint(base, surfaces.line, 0.18)
+                    } else {
+                        base
+                    };
+                    container::Style::default().background(background)
+                }),
+            library::line(surfaces),
+        ]
         .into()
     });
     if snapshot.tracks.is_empty() {
-        return column![
-            container(text("No audio files found.").size(14).style(muted)).center(Fill)
-        ];
+        return column![library::empty(surfaces)];
     }
-    column![columns, scrollable(column(list).spacing(2)).height(Fill)].spacing(5)
+    column![scrollable(column(list)).height(Fill)]
 }

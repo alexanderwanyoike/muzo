@@ -3,8 +3,7 @@ use iced::widget::pane_grid::{Axis, Split, State};
 use super::windows::LIBRARY_SIZE;
 use crate::appearance::sidebar::SidebarWidth;
 
-pub(super) const LIBRARY_PADDING: f32 = 20.0;
-pub(super) const SPLITTER_SPACING: f32 = 12.0;
+pub(super) const SPLITTER_SPACING: f32 = 1.0;
 
 #[derive(Clone, Copy)]
 pub(super) enum Pane {
@@ -68,7 +67,7 @@ impl Sidebar {
     }
 
     fn content_width(&self) -> f32 {
-        (self.viewport - LIBRARY_PADDING * 2.0).max(1.0)
+        self.viewport.max(1.0)
     }
 
     fn update_grid(&mut self) {

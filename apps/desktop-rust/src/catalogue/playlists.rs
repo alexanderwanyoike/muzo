@@ -55,7 +55,7 @@ impl Catalogue {
     pub fn playlist_entries(&self, playlist: &str) -> Result<Vec<PlaylistEntry>, CatalogueError> {
         let mut statement = self.database.prepare(
             "SELECT e.id, t.id, COALESCE(t.override_title, t.title), COALESCE(t.override_artist, t.artist),
-                    COALESCE(t.override_album, t.album), t.file_path, COUNT(h.id), t.library_id
+                    COALESCE(t.override_album, t.album), t.file_path, COUNT(h.id), t.library_id, MAX(t.duration_seconds, 0)
              FROM playlist_entries e LEFT JOIN tracks t ON t.id=e.track_id
              LEFT JOIN play_history h ON h.library_id=t.library_id AND h.track_id=t.id
              WHERE e.playlist_id=?1 GROUP BY e.id ORDER BY e.position"
@@ -74,6 +74,7 @@ impl Catalogue {
                             path: std::path::PathBuf::from(row.get::<_, String>(5)?),
                             plays: row.get(6)?,
                             library_id: row.get(7)?,
+                            duration_seconds: row.get(8)?,
                         })
                     })
                     .transpose()?;

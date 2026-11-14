@@ -31,6 +31,7 @@ pub enum Message {
     AddFolder,
     FolderPicked(Option<PathBuf>),
     SourceSearch(String),
+    LibraryPage(LibraryPage),
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, String>),
     SourceWatchTick,
@@ -94,6 +95,14 @@ enum CatalogueSelection<'a> {
     PlaylistEntry(&'a str),
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum LibraryPage {
+    #[default]
+    Songs,
+    Playlists,
+    Settings,
+}
+
 pub struct Desktop {
     windows: Windows,
     session: Option<Session>,
@@ -107,6 +116,7 @@ pub struct Desktop {
     failed_track: Option<usize>,
     mini_focus: Option<mini_focus::Control>,
     sidebar: sidebar::Sidebar,
+    page: LibraryPage,
     sidebar_revision: u64,
     plays_pending: usize,
     close_after_history: Option<window::Id>,
@@ -183,6 +193,7 @@ impl Desktop {
                 failed_track: None,
                 mini_focus: None,
                 sidebar: sidebar::Sidebar::default(),
+                page: LibraryPage::default(),
                 sidebar_revision: 0,
                 plays_pending: 0,
                 close_after_history: None,
@@ -207,11 +218,30 @@ impl Desktop {
             ),
             Message::FolderPicked(Some(path)) => self.sources.start(Operation::Add(path)),
             Message::FolderPicked(None) => Task::none(),
+            Message::LibraryPage(page) => {
+                self.page = page;
+                self.dropbox.visible = page == LibraryPage::Settings;
+                self.sources.editing = None;
+                if page == LibraryPage::Playlists
+                    && let Some(snapshot) = self.sources.snapshot.as_ref()
+                    && snapshot.selected_playlist.is_none()
+                    && let Some(first) = snapshot.playlists.first()
+                {
+                    return self
+                        .sources
+                        .start(Operation::SelectPlaylist(first.id.clone()));
+                }
+                Task::none()
+            }
             Message::SourceSearch(query) => {
                 self.sources.search = query;
                 Task::none()
             }
             Message::SourceOperation(operation) => {
+                if matches!(operation, Operation::Select(_)) {
+                    self.page = LibraryPage::Songs;
+                    self.dropbox.visible = false;
+                }
                 self.sources.pending_remove = None;
                 self.sources.start(operation)
             }
@@ -1017,7 +1047,12 @@ impl Desktop {
             view::library(
                 &self.sources,
                 &self.dropbox,
-                (&self.appearance, &self.update_status, &self.sidebar),
+                (
+                    &self.appearance,
+                    &self.update_status,
+                    &self.sidebar,
+                    self.page,
+                ),
                 self.session.as_ref(),
                 self.cover.thumbnail(),
                 (self.error.as_deref(), self.failed_track.is_some()),

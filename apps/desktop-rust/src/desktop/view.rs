@@ -1,16 +1,15 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
-    widget::{
-        Space, button, column, container, image, row, scrollable, slider, svg, text, tooltip,
-    },
+    Alignment, Color, Element, Fill, Font, Theme, border, color, font,
+    widget::{Space, button, column, container, image, row, scrollable, svg, text, tooltip},
 };
 
 use crate::{session::Session, track::Track};
 
 mod appearance;
 mod compact;
+mod library;
 mod playlists;
 mod sources;
 
@@ -28,123 +27,51 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
     }
 }
 
-pub(super) fn library<'a>(
-    sources: &'a Sources,
-    dropbox: &'a super::dropbox_panel::Settings,
-    settings: (
-        &'a crate::appearance::Appearance,
-        &'a super::updates::Status,
-        &'a super::sidebar::Sidebar,
-    ),
-    session: Option<&'a Session>,
-    cover: Option<&image::Handle>,
-    playback: (Option<&'a str>, bool),
-) -> Element<'a, Message> {
-    let (preferences, update_status, sidebar) = settings;
-    let (error, retry) = playback;
-    let header = row![
-        text("Library").font(bold()).size(24),
-        Space::new().width(Fill),
-        button(text("Settings").size(14))
-            .padding([7, 14])
-            .style(action)
-            .on_press(Message::Dropbox(super::dropbox_panel::Action::Toggle)),
-        button(text("Add folder").size(14))
-            .padding([7, 14])
-            .style(action)
-            .on_press_maybe((!sources.busy()).then_some(Message::AddFolder)),
-        button(text("Open files").size(14))
-            .padding([7, 14])
-            .style(primary)
-            .on_press_maybe(session.map(|_| Message::OpenFiles)),
-    ]
-    .align_y(Alignment::Center)
-    .spacing(10);
-
-    let layout = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
-        let body: Element<'_, Message> = match pane {
-            super::sidebar::Pane::Sidebar => sources::sidebar(sources),
-            super::sidebar::Pane::Content => {
-                library_content(sources, dropbox, preferences, session)
-                    .width(Fill)
-                    .height(Fill)
-                    .into()
-            }
-        };
-        iced::widget::pane_grid::Content::new(body)
-    })
-    .spacing(super::sidebar::SPLITTER_SPACING)
-    .on_resize(10.0, |event| Message::ResizeSidebar(event.ratio))
-    .width(Fill)
-    .height(Fill);
-
-    container(
-        column![
-            header,
-            layout,
-            error_line(sources.error.as_deref()),
-            playback_error(error, retry, false, Message::RetryTrack),
-            container(
-                row![
-                    artwork(cover, 54.0),
-                    metadata(session.and_then(Session::current), 15),
-                    column![
-                        row![
-                            Space::new().width(Fill),
-                            icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
-                        ],
-                        controls(session, retry),
-                    ]
-                    .width(Length::Fixed(300.0)),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(15)
-            )
-            .style(panel)
-            .padding(12)
-            .width(Fill),
-            row![
-                Space::new().width(Fill),
-                super::updates::view(update_status),
-            ]
-            .width(Fill),
-        ]
-        .spacing(12),
-    )
-    .padding(super::sidebar::LIBRARY_PADDING)
-    .height(Fill)
-    .width(Fill)
-    .into()
-}
+pub(super) use library::library;
 
 fn library_content<'a>(
     sources: &'a Sources,
     dropbox: &'a super::dropbox_panel::Settings,
     preferences: &'a crate::appearance::Appearance,
     session: Option<&'a Session>,
+    page: super::LibraryPage,
+    cover: Option<&image::Handle>,
 ) -> iced::widget::Column<'a, Message> {
-    if dropbox.visible {
-        column![appearance::controls(preferences), dropbox.view()].spacing(22)
-    } else if let Some((_, _, fields)) = &sources.editing {
-        playlists::edit(fields, sources.busy())
-    } else if let Some(snapshot) = sources
-        .snapshot
-        .as_ref()
-        .filter(|snapshot| snapshot.selected_playlist.is_some())
-    {
-        playlists::tracks(
+    use super::LibraryPage;
+    if page == LibraryPage::Settings {
+        return library::settings(preferences, dropbox, sources, session.is_some());
+    }
+    if let Some((_, _, fields)) = &sources.editing {
+        return playlists::edit(fields, sources.busy());
+    }
+    if page == LibraryPage::Playlists {
+        let Some(snapshot) = sources
+            .snapshot
+            .as_ref()
+            .filter(|snapshot| snapshot.selected_playlist.is_some())
+        else {
+            return column![container(text("No playlists yet").size(18).font(bold())).center(Fill)];
+        };
+        return playlists::tracks(
             snapshot,
             sources.busy(),
             session
                 .and_then(Session::current)
                 .and_then(Track::playlist_entry),
-        )
-    } else if let Some(snapshot) = sources
+        );
+    }
+    if let Some(snapshot) = sources
         .snapshot
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(snapshot, session.and_then(Session::current), sources.busy())
+        sources::tracks(
+            snapshot,
+            session,
+            cover,
+            sources.busy(),
+            preferences.surfaces(),
+        )
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
@@ -155,14 +82,7 @@ fn library_content<'a>(
         let list = queue_rows(session);
         column![heading, scrollable(list).height(Fill)].spacing(5)
     } else {
-        column![
-            container(
-                text("Open a local audio file to start listening.")
-                    .size(14)
-                    .style(muted)
-            )
-            .center(Fill)
-        ]
+        column![library::empty(preferences.surfaces())]
     }
 }
 
@@ -202,108 +122,6 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
         .into()
     }))
     .spacing(super::mini_focus::QUEUE_ROW_SPACING)
-}
-
-fn metadata(track: Option<&Track>, size: u32) -> Element<'_, Message> {
-    let mut metadata = column![
-        text(track.map_or("Not playing", Track::title))
-            .font(bold())
-            .size(size)
-            .width(Fill)
-            .wrapping(text::Wrapping::None),
-    ]
-    .width(Fill)
-    .spacing(3);
-    if let Some(artist) = track.and_then(Track::artist) {
-        metadata = metadata.push(
-            text(artist)
-                .size(13)
-                .style(muted)
-                .width(Fill)
-                .wrapping(text::Wrapping::None),
-        );
-    }
-    if let Some(album) = track.and_then(Track::album) {
-        metadata = metadata.push(
-            text(album)
-                .size(12)
-                .style(muted)
-                .width(Fill)
-                .wrapping(text::Wrapping::None),
-        );
-    }
-    metadata.into()
-}
-
-fn artwork(cover: Option<&image::Handle>, size: f32) -> Element<'static, Message> {
-    let box_size = Length::Fixed(size);
-    let contents: Element<'_, Message> = match cover {
-        Some(art) => image(art.clone())
-            .content_fit(iced::ContentFit::Cover)
-            .width(box_size)
-            .height(box_size)
-            .into(),
-        None => icon(Icon::Music),
-    };
-    container(contents)
-        .clip(true)
-        .center(box_size)
-        .style(|_| {
-            container::Style::default()
-                .background(color!(0x343a35))
-                .border(border::rounded(8))
-        })
-        .into()
-}
-
-fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, Message> {
-    let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
-    let available = retry || session.is_some_and(|player| player.current().is_some());
-    let playing = session.is_some_and(Session::is_playing);
-    let index = session.and_then(Session::current_index);
-    let has_previous = index.is_some_and(|index| index > 0);
-    let has_next = session
-        .zip(index)
-        .is_some_and(|(player, index)| index + 1 < player.tracks().len());
-
-    let seek = slider(
-        0.0..=duration.as_secs_f32().max(0.1),
-        position.as_secs_f32(),
-        Message::Seek,
-    )
-    .step(0.1);
-    let times = row![
-        text(clock(position)).size(11).style(muted),
-        Space::new().width(Fill),
-        text(clock(duration)).size(11).style(muted)
-    ];
-    let volume = slider(
-        0.0..=1.0,
-        session.map_or(1.0, Session::volume),
-        Message::SetVolume,
-    )
-    .step(0.01)
-    .width(Length::Fixed(60.0));
-    let transport = row![
-        icon_button(
-            Icon::Previous,
-            "Previous track",
-            has_previous.then_some(Message::Previous),
-        ),
-        icon_button(
-            if playing { Icon::Pause } else { Icon::Play },
-            if playing { "Pause" } else { "Play" },
-            available.then_some(Message::TogglePlayback),
-        ),
-        icon_button(Icon::Next, "Next track", has_next.then_some(Message::Next),),
-        Space::new().width(Fill),
-        icon(Icon::Volume),
-        volume,
-    ]
-    .spacing(3)
-    .align_y(Alignment::Center);
-
-    column![seek, times, transport].spacing(3)
 }
 
 fn clock(duration: Duration) -> String {
@@ -406,8 +224,12 @@ enum Icon {
     Pause,
     Previous,
     Next,
-    Music,
     Disc,
+    Music,
+    Settings,
+    Folder,
+    Edit,
+    Close,
     Volume,
 }
 
@@ -450,6 +272,27 @@ fn focusable_icon(
     .into()
 }
 
+fn track_play_button(
+    kind: Icon,
+    label: &'static str,
+    message: Option<Message>,
+) -> Element<'static, Message> {
+    tooltip(
+        button(
+            icon_tinted(kind, |theme| theme.palette().primary)
+                .width(14)
+                .height(14),
+        )
+        .padding([6, 7])
+        .style(action)
+        .on_press_maybe(message),
+        text(label).size(11),
+        tooltip::Position::Top,
+    )
+    .style(panel)
+    .into()
+}
+
 fn focus_ring(mut style: button::Style, theme: &Theme, focused: bool) -> button::Style {
     if focused {
         style.border.width = 2.0;
@@ -476,6 +319,14 @@ fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg
         Icon::Pause => "<path d='M9 5v14m6-14v14' stroke-width='3'/>",
         Icon::Previous => "<path d='M5 5v14m14-14L8 12l11 7z' fill='black'/>",
         Icon::Next => "<path d='M19 5v14M5 5l11 7-11 7z' fill='black'/>",
+        Icon::Settings => {
+            "<path d='M4 7h16M4 17h16'/><circle cx='8' cy='7' r='2' fill='white'/><circle cx='16' cy='17' r='2' fill='white'/>"
+        }
+        Icon::Folder => {
+            "<path d='M3 7a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>"
+        }
+        Icon::Edit => "<path d='m14 6 4 4M4 20l4-1L20 7l-4-4L4 15z'/>",
+        Icon::Close => "<path d='m7 7 10 10m0-10L7 17'/>",
         Icon::Music => {
             "<path d='M10 17V6l9-2v11M10 17a3 2-20 1 1-6 1 3 2-20 1 1 6-1m9-2a3 2-20 1 1-6 1 3 2-20 1 1 6-1'/>"
         }

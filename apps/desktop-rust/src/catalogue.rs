@@ -59,6 +59,7 @@ pub struct IndexedTrack {
     pub album: Option<String>,
     pub path: PathBuf,
     pub plays: u32,
+    pub duration_seconds: u32,
     pub library_id: String,
 }
 
@@ -102,7 +103,7 @@ impl Catalogue {
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
              COALESCE(override_album, album), file_path,
              (SELECT COUNT(*) FROM play_history h WHERE h.library_id=tracks.library_id AND h.track_id=tracks.id),
-             library_id FROM tracks WHERE library_id = ?1 ORDER BY rowid"
+             library_id, MAX(duration_seconds, 0) FROM tracks WHERE library_id = ?1 ORDER BY rowid"
         )?;
         let tracks = statement
             .query_map([library_id], |row| {
@@ -114,6 +115,7 @@ impl Catalogue {
                     path: PathBuf::from(row.get::<_, String>(4)?),
                     plays: row.get(5)?,
                     library_id: row.get(6)?,
+                    duration_seconds: row.get(7)?,
                 })
             })?
             .collect::<Result<_, _>>()?;
