@@ -313,6 +313,24 @@ mod tests {
     }
 
     #[test]
+    fn it_waits_for_both_target_dimensions_when_opening_the_queue() {
+        let (mut windows, _) = Windows::open();
+        let _ = windows.show_mini();
+        let id = windows.mini_id().unwrap();
+        windows.resized(id, iced::Size::new(820.0, 480.0));
+        let _ = windows.toggle_queue();
+
+        windows.resized(id, iced::Size::new(740.0, 480.0));
+        assert!(windows.queue_pending());
+        assert!(!windows.queue_open());
+        windows.resized(id, iced::Size::new(820.0, 560.0));
+        assert!(windows.queue_pending());
+        windows.resized(id, iced::Size::new(740.0, 560.0));
+        assert!(!windows.queue_pending());
+        assert!(windows.queue_open());
+    }
+
+    #[test]
     fn it_starts_the_library_at_the_original_size() {
         assert_eq!(super::LIBRARY_SIZE, iced::Size::new(1200.0, 800.0));
         assert_eq!(super::LIBRARY_MIN, iced::Size::new(800.0, 600.0));
