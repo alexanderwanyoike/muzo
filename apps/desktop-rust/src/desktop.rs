@@ -375,6 +375,14 @@ impl Desktop {
                     }),
                     Err(error) => {
                         self.failed_track = Some(index);
+                        if self.session.as_ref().and_then(Session::current).is_none() {
+                            self.artwork = self
+                                .session
+                                .as_ref()
+                                .and_then(|session| session.tracks().get(index))
+                                .and_then(Track::artwork)
+                                .map(|art| image::Handle::from_bytes(art.to_vec()));
+                        }
                         self.error = Some(error);
                         Task::none()
                     }
@@ -747,7 +755,7 @@ impl Desktop {
     fn select_track(&mut self, index: usize) -> Task<Message> {
         self.playback_request += 1;
         let request = self.playback_request;
-        let Some(track) = self
+        let Some(mut track) = self
             .session
             .as_ref()
             .and_then(|session| session.tracks().get(index))
@@ -763,6 +771,20 @@ impl Desktop {
             };
             let library = library.to_owned();
             let path = path.to_owned();
+            if let Some(revision) = artwork_revision(&paths, &track)
+                && let Some(bytes) =
+                    crate::artwork_cache::ArtworkCache::new(paths.artwork_cache()).lookup(&revision)
+            {
+                track = track.with_artwork(bytes);
+                if let Some(session) = &mut self.session {
+                    let _ = session.replace_track(index, track.clone());
+                    if session.current().is_none() {
+                        self.artwork = track
+                            .artwork()
+                            .map(|art| image::Handle::from_bytes(art.to_vec()));
+                    }
+                }
+            }
             self.pending_track = Some(index);
             return Task::perform(
                 async move {
@@ -981,10 +1003,7 @@ fn cache_artwork(
     track: Track,
     read: impl FnOnce() -> Option<Vec<u8>>,
 ) -> Track {
-    let revision = paths
-        .zip(track.library())
-        .zip(track.indexed_id())
-        .and_then(|((paths, library), id)| paths.open().ok()?.artwork_revision(library, id).ok());
+    let revision = paths.and_then(|paths| artwork_revision(paths, &track));
     let cover = match paths.zip(revision) {
         Some((paths, revision)) => crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
             .get_or_read(&revision, read),
@@ -994,6 +1013,17 @@ fn cache_artwork(
         return track.with_artwork(bytes);
     }
     track
+}
+
+fn artwork_revision(
+    paths: &CataloguePaths,
+    track: &Track,
+) -> Option<crate::artwork_cache::Revision> {
+    paths
+        .open()
+        .ok()?
+        .artwork_revision(track.library()?, track.indexed_id()?)
+        .ok()
 }
 
 #[cfg(test)]
