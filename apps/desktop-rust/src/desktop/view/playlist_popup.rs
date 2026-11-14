@@ -228,3 +228,22 @@ fn press_in(event: &Event, cursor: mouse::Cursor, bounds: Rectangle) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::touch::{Event::FingerPressed, Finger};
+
+    use super::*;
+
+    #[test]
+    fn it_hits_the_playlist_anchor_using_the_scrolled_touch_cursor() {
+        let bounds = Rectangle::new(Point::new(40.0, 640.0), Size::new(160.0, 28.0));
+        let finger = Event::Touch(FingerPressed {
+            id: Finger(0),
+            position: Point::new(60.0, 240.0),
+        });
+        let cursor = mouse::Cursor::Available(Point::new(60.0, 644.0));
+
+        assert!(press_in(&finger, cursor, bounds));
+    }
+}
