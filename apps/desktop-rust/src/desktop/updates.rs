@@ -217,3 +217,31 @@ fn pill<'a>(
         })
         .on_press_maybe(action)
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Font, Pixels, Renderer, Size,
+        advanced::{layout, widget::Tree},
+    };
+
+    use super::*;
+
+    #[test]
+    fn it_reserves_footer_space_for_the_update_failure_reason() {
+        let surfaces = crate::appearance::Appearance::default().surfaces();
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
+        let width = |reason| {
+            let status = Status::Error(reason);
+            let mut element = view(&status, surfaces);
+            let mut tree = Tree::new(&element);
+            element
+                .as_widget_mut()
+                .layout(&mut tree, &renderer, &limits)
+                .size()
+                .width
+        };
+        assert!(width("Connection closed during the download".into()) > width("Offline".into()));
+    }
+}
