@@ -3,8 +3,9 @@ name: Rust desktop installers
 on:
   pull_request:
     paths:
-      - "apps/desktop-rust/Packager.toml"
-      - "apps/desktop-rust/src/bin/name-installer.rs"
+      - "apps/desktop-rust/**"
+      - "apps/desktop/assets/icons/**"
+      - "apps/desktop/assets/licenses/**"
       - ".github/workflows/desktop-rust-distribution.yml"
   workflow_dispatch:
 
@@ -37,6 +38,7 @@ jobs:
     timeout-minutes: 35
     defaults:
       run:
+        shell: bash
         working-directory: apps/desktop-rust
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
