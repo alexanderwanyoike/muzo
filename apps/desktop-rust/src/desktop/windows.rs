@@ -8,9 +8,10 @@ use super::Message;
 
 pub(super) const LIBRARY_SIZE: Size = Size::new(850.0, 570.0);
 const LIBRARY_MIN: Size = Size::new(764.0, 380.0);
-const MINI_SIZE: Size = Size::new(426.0, 236.0);
-const MINI_MIN: Size = Size::new(370.0, 222.0);
-const QUEUE_HEIGHT: f32 = 198.0;
+const MINI_SIZE: Size = Size::new(420.0, 560.0);
+const MINI_MIN: Size = Size::new(360.0, 480.0);
+const QUEUE_WIDTH: f32 = 320.0;
+const QUEUE_MIN_WIDTH: f32 = 280.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LibraryVisibility {
@@ -151,11 +152,11 @@ impl Windows {
         let request = QueueResize {
             generation: self.resize_generation,
             expanded,
-            target: queue_bounds(self.mini_bounds, expanded),
+            target: queue_bounds(self.mini_bounds, expanded, QUEUE_WIDTH),
         };
         self.queue_resize = Some(request);
 
-        window::set_min_size(id, Some(queue_bounds(MINI_MIN, expanded)))
+        window::set_min_size(id, Some(queue_bounds(MINI_MIN, expanded, QUEUE_MIN_WIDTH)))
             .chain(window::resize(id, request.target))
             .chain(Task::perform(
                 async { tokio::time::sleep(QUEUE_RESIZE_TIMEOUT).await },
@@ -168,7 +169,7 @@ impl Windows {
             return;
         }
         if let Some(request) = self.queue_resize {
-            let delta = size.height - request.target.height;
+            let delta = size.width - request.target.width;
             let reached = if request.expanded {
                 delta >= -1.0
             } else {
@@ -180,10 +181,10 @@ impl Windows {
             self.queue_open = request.expanded;
             self.queue_resize = None;
         }
-        let queue_height = if self.queue_open { QUEUE_HEIGHT } else { 0.0 };
+        let queue_width = if self.queue_open { QUEUE_WIDTH } else { 0.0 };
         self.mini_bounds = Size::new(
-            size.width.max(MINI_MIN.width),
-            (size.height - queue_height).max(MINI_MIN.height),
+            (size.width - queue_width).max(MINI_MIN.width),
+            size.height.max(MINI_MIN.height),
         );
     }
 
@@ -205,8 +206,8 @@ impl Windows {
             return (Task::none(), Ok(()));
         }
         self.queue_resize = None;
-        let min = queue_bounds(MINI_MIN, self.queue_open);
-        let bounds = queue_bounds(self.mini_bounds, self.queue_open);
+        let min = queue_bounds(MINI_MIN, self.queue_open, QUEUE_MIN_WIDTH);
+        let bounds = queue_bounds(self.mini_bounds, self.queue_open, QUEUE_WIDTH);
         (
             window::set_min_size(id, Some(min)).chain(window::resize(id, bounds)),
             Err(WindowError::ResizeRejected),
@@ -222,10 +223,10 @@ impl Windows {
     }
 }
 
-fn queue_bounds(base: Size, expanded: bool) -> Size {
+fn queue_bounds(base: Size, expanded: bool, queue_width: f32) -> Size {
     Size::new(
-        base.width,
-        base.height + if expanded { QUEUE_HEIGHT } else { 0.0 },
+        base.width + if expanded { queue_width } else { 0.0 },
+        base.height,
     )
 }
 

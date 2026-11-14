@@ -999,13 +999,8 @@ impl Desktop {
         ])
     }
 
-    pub fn title(&self, id: window::Id) -> String {
-        if self.windows.is_mini(id) {
-            "Muzo · Mini player"
-        } else {
-            "Muzo"
-        }
-        .into()
+    pub fn title(&self, _id: window::Id) -> String {
+        "Muzo".into()
     }
 
     pub fn view(&self, id: window::Id) -> Element<'_, Message> {
