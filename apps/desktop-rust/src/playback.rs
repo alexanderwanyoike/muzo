@@ -134,6 +134,10 @@ impl crate::session::AudioPlayback for Playback {
         }
     }
 
+    fn has_source(&self) -> bool {
+        self.source_path.is_some()
+    }
+
     fn seek(&mut self, target: Duration) -> Result<(), crate::session::AudioError> {
         if let Some(path) = self.source_path.clone() {
             let target = if self.duration.is_zero() {

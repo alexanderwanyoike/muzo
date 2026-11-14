@@ -18,6 +18,7 @@ pub trait AudioPlayback {
     fn pause(&self);
     fn resume(&self);
     fn seek(&mut self, target: Duration) -> Result<(), AudioError>;
+    fn has_source(&self) -> bool;
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -100,6 +101,7 @@ impl Session {
     pub fn advance_if_finished(&mut self) -> Result<(), SessionError> {
         if self.started && self.playback.is_finished() {
             self.started = false;
+            self.playback.pause();
             self.next_track()?;
         }
         Ok(())
@@ -128,6 +130,7 @@ impl Session {
 
     pub fn seek(&mut self, value: Duration) -> Result<(), SessionError> {
         self.playback.seek(value)?;
+        self.started |= self.playback.has_source() && !self.playback.is_finished();
         Ok(())
     }
 

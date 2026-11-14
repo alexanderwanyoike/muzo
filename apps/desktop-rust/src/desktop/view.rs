@@ -202,7 +202,11 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
                 action(theme, status)
             }
         })
-        .on_press(Message::Select(index))
+        .on_press(if current {
+            Message::TogglePlayback
+        } else {
+            Message::Select(index)
+        })
         .into()
     }))
     .spacing(2)
