@@ -58,6 +58,7 @@ pub struct Settings {
     pub snapshot: Snapshot,
     selected_folders: Vec<(String, String)>,
     auth: Option<Arc<Authorization>>,
+    connecting: bool,
     next_sync: std::time::Instant,
 }
 
@@ -82,6 +83,7 @@ impl Default for Settings {
             snapshot: Snapshot::default(),
             selected_folders: Vec::new(),
             auth: None,
+            connecting: false,
             next_sync: std::time::Instant::now(),
         }
     }
@@ -120,7 +122,9 @@ impl Settings {
                 action = Action::AddFolders(account.clone(), self.selected_folders.clone());
             }
             Action::Key(value) => {
-                self.app_key = value;
+                if self.auth.is_none() {
+                    self.app_key = value;
+                }
                 return Task::none();
             }
             Action::Code(value) => {
@@ -142,14 +146,22 @@ impl Settings {
         if self.busy {
             return Task::none();
         }
+        if matches!(action, Action::Disconnect) && self.auth.is_some() {
+            self.auth = None;
+            self.code.clear();
+            self.error = None;
+            return Task::none();
+        }
         if matches!(action, Action::Begin) {
             let key = self.app_key.trim();
             if key.is_empty() {
                 return Task::none();
             }
+            self.error = None;
             return match Authorization::new(key).and_then(|authorization| {
                 let url = authorization.url()?;
                 self.auth = Some(Arc::new(authorization));
+                self.code.clear();
                 Ok(url)
             }) {
                 Ok(url) => Task::done(Message::Dropbox(Action::OpenAuthorization(url.to_string()))),
@@ -166,8 +178,13 @@ impl Settings {
             + Duration::from_secs(u64::from(self.snapshot.interval.max(1)) * 60);
         self.busy = true;
         self.error = None;
+        self.connecting = matches!(action, Action::Connect);
         let auth = self.auth.clone();
-        let code = std::mem::take(&mut self.code);
+        let code = if self.connecting {
+            std::mem::take(&mut self.code)
+        } else {
+            String::new()
+        };
         let interval = self.interval.clone();
         let old = self.snapshot.clone();
         Task::perform(
@@ -206,6 +223,7 @@ impl Settings {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
+        let connecting = std::mem::take(&mut self.connecting);
         match result {
             Ok(mut snapshot) => {
                 if self.snapshot.account != snapshot.account {
@@ -228,6 +246,10 @@ impl Settings {
                 self.interval = snapshot.interval.to_string();
                 self.next_sync = std::time::Instant::now()
                     + Duration::from_secs(u64::from(snapshot.interval.max(1)) * 60);
+                if connecting && snapshot.account.is_some() && !snapshot.reconnect {
+                    self.auth = None;
+                    self.next_sync = std::time::Instant::now();
+                }
                 self.snapshot = snapshot;
             }
             Err(error) => {
@@ -291,6 +313,8 @@ impl Settings {
                         (!self.busy && !self.code.trim().is_empty())
                             .then_some(msg(Action::Connect))
                     ),
+                    settings_button("Cancel connection", surfaces)
+                        .on_press_maybe((!self.busy).then_some(msg(Action::Disconnect))),
                 ]
                 .spacing(7),
             );
@@ -447,7 +471,7 @@ fn run(
         .filter(|library| owned.contains(&library.id))
         .map(|library| library.location.to_string_lossy().into_owned())
         .collect();
-    if matches!(action, Action::Disconnect) {
+    if matches!(action, Action::Disconnect | Action::Connect) {
         return Ok(snapshot);
     }
     let refresh = match Credentials::read_or_migrate(&catalogue, &account) {
@@ -519,7 +543,7 @@ fn run(
                 snapshot.folder_error = Some(failures.join("; "));
             }
         }
-        Action::Sync | Action::Connect | Action::SyncLibrary(_) => {
+        Action::Sync | Action::SyncLibrary(_) => {
             let selected = match &action {
                 Action::SyncLibrary(id) => Some(id.as_str()),
                 _ => None,
@@ -602,6 +626,52 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_cancels_pending_dropbox_authorization_and_accepts_a_different_key() {
+        let mut settings = Settings::default();
+        let _ = settings
+            .update(Action::Key("first-key".into()), None)
+            .discard::<()>();
+        let _ = settings.update(Action::Begin, None).discard::<()>();
+        let _ = settings
+            .update(Action::Code("first-code".into()), None)
+            .discard::<()>();
+
+        let _ = settings.update(Action::Disconnect, None).discard::<()>();
+        let _ = settings
+            .update(Action::Key("second-key".into()), None)
+            .discard::<()>();
+
+        assert!(settings.auth.is_none());
+        assert!(settings.code.is_empty());
+        assert_eq!(settings.app_key, "second-key");
+    }
+
+    #[test]
+    fn it_clears_pending_authorization_after_connecting() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut settings = Settings::default();
+        let _ = settings
+            .update(Action::Key("test-key".into()), None)
+            .discard::<()>();
+        let _ = settings.update(Action::Begin, None).discard::<()>();
+        let _ = settings
+            .update(Action::Code("test-code".into()), None)
+            .discard::<()>();
+        let _ = settings
+            .update(Action::Connect, Some(paths))
+            .discard::<()>();
+
+        settings.apply(Ok(Snapshot {
+            account: Some("connected".into()),
+            ..Default::default()
+        }));
+
+        assert!(settings.auth.is_none());
+        assert!(settings.code.is_empty());
+    }
 
     #[test]
     fn it_retains_selected_dropbox_folders_across_browsing_and_partial_success() {

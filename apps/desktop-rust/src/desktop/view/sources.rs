@@ -57,22 +57,6 @@ pub(super) fn indexed_sources<'a>(
     can_refresh_dropbox: bool,
 ) -> Element<'a, Message> {
     let surfaces = appearance.surfaces();
-    let heading = container(
-        column![
-            text("Indexed sources").size(13).font(bold()),
-            text(
-                "Manual refresh is a fallback for recovery. Normal listening does not require it."
-            )
-            .size(11)
-            .color(surfaces.muted),
-        ]
-        .spacing(5),
-    )
-    .padding([16, 20])
-    .width(Fill);
-    let heading = stack![heading]
-        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
-        .clip(true);
     let button_style =
         move |theme: &Theme, status| library::bordered_button(theme, status, surfaces);
     let mut body = column![
@@ -144,14 +128,12 @@ pub(super) fn indexed_sources<'a>(
             .align_y(Alignment::Center),
         );
     }
-    container(column![
-        heading,
-        library::line(surfaces),
-        container(body).padding(20).width(Fill)
-    ])
-    .width(Fill)
-    .style(move |_| library::framed(surfaces.raised, surfaces, 4))
-    .into()
+    library::settings_section(
+        "Indexed sources",
+        "Manual refresh is a fallback for recovery. Normal listening does not require it.",
+        body.into(),
+        appearance,
+    )
 }
 
 pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a, Message> {
