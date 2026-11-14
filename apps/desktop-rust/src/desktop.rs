@@ -906,6 +906,14 @@ impl Desktop {
                 editor.error = Some("Track, disc and year must be whole numbers.".into());
                 return Task::none();
             };
+            if [track_number, disc_number]
+                .into_iter()
+                .flatten()
+                .any(|value| value < 1)
+            {
+                editor.error = Some("Track and disc numbers must be at least 1.".into());
+                return Task::none();
+            }
             crate::catalogue::MetadataOverride {
                 title: non_empty(0),
                 artist: non_empty(1),

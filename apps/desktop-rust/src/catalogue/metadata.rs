@@ -20,10 +20,10 @@ pub(crate) struct TrackMetadata {
     pub title: String,
     pub artist: String,
     pub album: Option<String>,
-    pub track_number: Option<i64>,
-    pub disc_number: Option<i64>,
+    pub track_number: Option<String>,
+    pub disc_number: Option<String>,
     pub genre: Option<String>,
-    pub year: Option<i64>,
+    pub year: Option<String>,
     pub overridden: bool,
 }
 
@@ -35,9 +35,9 @@ impl Catalogue {
     ) -> Result<TrackMetadata, CatalogueError> {
         Ok(self.database.query_row(
             "SELECT COALESCE(override_title, title), COALESCE(override_artist, artist),
-                    COALESCE(override_album, album), COALESCE(override_track_number, track_number),
-                    COALESCE(override_disc_number, disc_number), COALESCE(override_genre, genre),
-                    COALESCE(override_year, year),
+                    COALESCE(override_album, album), CAST(COALESCE(override_track_number, track_number) AS TEXT),
+                    CAST(COALESCE(override_disc_number, disc_number) AS TEXT), COALESCE(override_genre, genre),
+                    CAST(COALESCE(override_year, year) AS TEXT),
                     (override_title IS NOT NULL OR override_artist IS NOT NULL
                         OR override_album IS NOT NULL OR override_track_number IS NOT NULL
                         OR override_disc_number IS NOT NULL OR override_genre IS NOT NULL

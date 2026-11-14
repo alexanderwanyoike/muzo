@@ -197,8 +197,6 @@ fn run_with_selection(
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let metadata = catalogue.track_metadata(&id, &library_id)?;
-            let number =
-                |value: Option<i64>| value.map_or_else(String::new, |value| value.to_string());
             editor = Some(Box::new(TrackEditor {
                 track_id: id,
                 library_id: library_id.clone(),
@@ -206,10 +204,10 @@ fn run_with_selection(
                     metadata.title,
                     metadata.artist,
                     metadata.album.unwrap_or_default(),
-                    number(metadata.track_number),
-                    number(metadata.disc_number),
+                    metadata.track_number.unwrap_or_default(),
+                    metadata.disc_number.unwrap_or_default(),
                     metadata.genre.unwrap_or_default(),
-                    number(metadata.year),
+                    metadata.year.unwrap_or_default(),
                 ],
                 overridden: metadata.overridden,
                 error: None,
@@ -502,6 +500,8 @@ impl Sources {
                 if saving_editor {
                     if let Some(editor) = &mut self.editing {
                         editor.error = Some(error);
+                    } else {
+                        self.error = Some(error);
                     }
                 } else if !loading_editor || self.pending_editor.take().is_some() {
                     self.error = Some(error);
