@@ -439,3 +439,31 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
         path,
     )?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_retains_selected_dropbox_folders_across_browsing_and_partial_success() {
+        let mut settings = Settings::default();
+        let _ = settings.update(Action::SelectFolder("/First".into(), "First".into()), None);
+        settings.apply(Ok(Snapshot {
+            path: "/Second".into(),
+            ..Default::default()
+        }));
+        let _ = settings.update(
+            Action::SelectFolder("/Second".into(), "Second".into()),
+            None,
+        );
+        settings.apply(Ok(Snapshot {
+            added_folders: vec!["/First".into()],
+            ..settings.snapshot.clone()
+        }));
+
+        assert_eq!(
+            settings.selected_folders,
+            [("/Second".into(), "Second".into())]
+        );
+    }
+}
