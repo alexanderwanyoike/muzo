@@ -104,10 +104,11 @@ pub fn library<'a>(
 
 pub fn mini<'a>(
     session: Option<&'a Session>,
-    queue_open: bool,
+    queue: (bool, bool),
     cover: Option<&image::Handle>,
     error: Option<&'a str>,
 ) -> Element<'a, Message> {
+    let (queue_open, queue_pending) = queue;
     let header = row![
         icon_button(
             Icon::Library,
@@ -122,7 +123,7 @@ pub fn mini<'a>(
             } else {
                 "Show queue"
             },
-            Some(Message::ToggleQueue)
+            (!queue_pending).then_some(Message::ToggleQueue)
         ),
     ]
     .align_y(Alignment::Center);

@@ -36,6 +36,7 @@ pub enum Message {
     ToggleQueue,
     CloseRequested(window::Id),
     MiniResized(window::Id, iced::Size),
+    QueueResizeTimedOut(window::Id, u64),
 }
 
 pub struct Desktop {
@@ -155,7 +156,18 @@ impl Desktop {
                 self.windows.library_visibility_checked(id, wayland)
             }
             Message::ShowLibrary => self.windows.show_library(),
-            Message::ToggleQueue => self.windows.toggle_queue(),
+            Message::ToggleQueue => {
+                self.error = None;
+                self.windows.toggle_queue()
+            }
+            Message::QueueResizeTimedOut(id, generation) => {
+                let (task, result) = self.windows.resize_timed_out(id, generation);
+                if let Err(error) = result {
+                    self.error = Some(error.to_string());
+                }
+                task
+            }
+
             Message::CloseRequested(id) => self.windows.close_requested(id),
             Message::MiniResized(id, size) => {
                 self.windows.resized(id, size);
@@ -246,7 +258,7 @@ impl Desktop {
         if self.windows.is_mini(id) {
             view::mini(
                 self.session.as_ref(),
-                self.windows.queue_open(),
+                (self.windows.queue_open(), self.windows.queue_pending()),
                 self.artwork.as_ref(),
                 self.error.as_deref(),
             )

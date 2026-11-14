@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use iced::{Size, Task, window};
 
 use window::raw_window_handle::RawWindowHandle;
@@ -26,10 +28,27 @@ impl LibraryVisibility {
     }
 }
 
+const QUEUE_RESIZE_TIMEOUT: Duration = Duration::from_millis(700);
+
+#[derive(Debug, thiserror::Error)]
+pub(super) enum WindowError {
+    #[error("The window could not resize. Restore its size and try again.")]
+    ResizeRejected,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct QueueResize {
+    generation: u64,
+    expanded: bool,
+    target: Size,
+}
+
 pub struct Windows {
     library: window::Id,
     mini: Option<window::Id>,
     queue_open: bool,
+    queue_resize: Option<QueueResize>,
+    resize_generation: u64,
     mini_bounds: Size,
     library_visibility: LibraryVisibility,
 }
@@ -42,6 +61,8 @@ impl Windows {
                 library,
                 mini: None,
                 queue_open: false,
+                queue_resize: None,
+                resize_generation: 0,
                 mini_bounds: MINI_SIZE,
                 library_visibility: LibraryVisibility::KeepMapped,
             },
@@ -64,6 +85,7 @@ impl Windows {
         let (id, open) = window::open(settings(self.mini_bounds, MINI_MIN));
         self.mini = Some(id);
         self.queue_open = false;
+        self.queue_resize = None;
         open.map(Message::MiniOpened)
     }
 
@@ -102,30 +124,74 @@ impl Windows {
         })
     }
 
+    pub fn queue_pending(&self) -> bool {
+        self.queue_resize.is_some()
+    }
+
     pub fn toggle_queue(&mut self) -> Task<Message> {
-        let Some(id) = self.mini else {
+        let Some(id) = self.mini.filter(|_| self.queue_resize.is_none()) else {
             return Task::none();
         };
-        self.queue_open = !self.queue_open;
-        let height = if self.queue_open { QUEUE_HEIGHT } else { 0.0 };
-        window::set_min_size(
-            id,
-            Some(Size::new(MINI_MIN.width, MINI_MIN.height + height)),
-        )
-        .chain(window::resize(
-            id,
-            Size::new(self.mini_bounds.width, self.mini_bounds.height + height),
-        ))
+        let expanded = !self.queue_open;
+        self.resize_generation += 1;
+        let request = QueueResize {
+            generation: self.resize_generation,
+            expanded,
+            target: queue_bounds(self.mini_bounds, expanded),
+        };
+        self.queue_resize = Some(request);
+
+        window::set_min_size(id, Some(queue_bounds(MINI_MIN, expanded)))
+            .chain(window::resize(id, request.target))
+            .chain(Task::perform(
+                async { tokio::time::sleep(QUEUE_RESIZE_TIMEOUT).await },
+                move |()| Message::QueueResizeTimedOut(id, request.generation),
+            ))
     }
 
     pub fn resized(&mut self, id: window::Id, size: Size) {
-        if self.is_mini(id) {
-            let height = if self.queue_open { QUEUE_HEIGHT } else { 0.0 };
-            self.mini_bounds = Size::new(
-                size.width.max(MINI_MIN.width),
-                (size.height - height).max(MINI_MIN.height),
-            );
+        if !self.is_mini(id) {
+            return;
         }
+        if let Some(request) = self.queue_resize {
+            let delta = size.height - request.target.height;
+            let reached = if request.expanded {
+                delta >= -1.0
+            } else {
+                delta <= 1.0
+            };
+            if !reached {
+                return;
+            }
+            self.queue_open = request.expanded;
+            self.queue_resize = None;
+        }
+        let queue_height = if self.queue_open { QUEUE_HEIGHT } else { 0.0 };
+        self.mini_bounds = Size::new(
+            size.width.max(MINI_MIN.width),
+            (size.height - queue_height).max(MINI_MIN.height),
+        );
+    }
+
+    pub fn resize_timed_out(
+        &mut self,
+        id: window::Id,
+        generation: u64,
+    ) -> (Task<Message>, Result<(), WindowError>) {
+        if !self.is_mini(id)
+            || self
+                .queue_resize
+                .is_none_or(|request| request.generation != generation)
+        {
+            return (Task::none(), Ok(()));
+        }
+        self.queue_resize = None;
+        let min = queue_bounds(MINI_MIN, self.queue_open);
+        let bounds = queue_bounds(self.mini_bounds, self.queue_open);
+        (
+            window::set_min_size(id, Some(min)).chain(window::resize(id, bounds)),
+            Err(WindowError::ResizeRejected),
+        )
     }
 
     pub fn close_requested(&mut self, id: window::Id) -> Task<Message> {
@@ -135,6 +201,13 @@ impl Windows {
             iced::exit()
         }
     }
+}
+
+fn queue_bounds(base: Size, expanded: bool) -> Size {
+    Size::new(
+        base.width,
+        base.height + if expanded { QUEUE_HEIGHT } else { 0.0 },
+    )
 }
 
 fn settings(size: Size, min: Size) -> window::Settings {
