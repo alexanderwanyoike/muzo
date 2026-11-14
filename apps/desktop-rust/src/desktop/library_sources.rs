@@ -79,6 +79,7 @@ impl CataloguePaths {
 #[derive(Debug, Clone)]
 pub enum Operation {
     Startup,
+    Reload,
     Add(PathBuf),
     Select(String),
     Refresh(String),
@@ -144,7 +145,7 @@ fn run_with_selection(
         }
         Operation::AddToPlaylist(id, track) => {
             catalogue.add_to_playlist(&id, &track)?;
-            selected_playlist = Some(id);
+            selected_playlist = selected_playlist.or(Some(id));
             previous_source.clone()
         }
         Operation::MovePlaylistEntry(id, entry, delta) => {
@@ -180,6 +181,7 @@ fn run_with_selection(
             catalogue.override_track(&id, &edit)?;
             Some(library_id)
         }
+        Operation::Reload => previous_source.clone(),
         Operation::Startup | Operation::Reconcile(_, _) => {
             for source in catalogue
                 .libraries()?
@@ -279,8 +281,7 @@ impl Sources {
     }
 
     pub(super) fn reload(&mut self) -> Task<Message> {
-        self.changed.store(true, Ordering::Release);
-        Task::none()
+        self.start(Operation::Reload)
     }
 
     pub fn confirm_play_count(&mut self, id: &str, count: u32) {

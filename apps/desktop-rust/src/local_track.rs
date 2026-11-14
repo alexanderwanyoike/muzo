@@ -9,6 +9,7 @@ pub fn read_track(path: PathBuf) -> Track {
 }
 
 pub(crate) fn read_track_with_embedded_title(path: PathBuf) -> (Track, Option<String>) {
+    let path = path.canonicalize().unwrap_or(path);
     let file = lofty::read_from_path(&path).ok();
     let tag = file
         .as_ref()
