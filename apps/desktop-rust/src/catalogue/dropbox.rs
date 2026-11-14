@@ -4,6 +4,7 @@ use std::{
 };
 
 use rusqlite::{OptionalExtension, TransactionBehavior::Immediate, params};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::dropbox::Entry;
@@ -204,7 +205,14 @@ impl Catalogue {
                 Some(ScannedFile {
                     path: path.into(),
                     size: entry.size.unwrap_or_default(),
-                    mtime: 0,
+                    mtime: entry
+                        .rev
+                        .as_deref()
+                        .or(entry.server_modified.as_deref())
+                        .map_or(0, |revision| {
+                            let digest = Sha256::digest(revision);
+                            i64::from_le_bytes(digest[..8].try_into().expect("SHA-256 is 32 bytes"))
+                        }),
                     title: name
                         .file_stem()
                         .unwrap_or_default()
