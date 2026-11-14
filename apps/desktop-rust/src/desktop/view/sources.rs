@@ -479,6 +479,7 @@ pub fn tracks<'a>(
     surfaces: Surfaces,
 ) -> iced::widget::Column<'a, Message> {
     let busy = sources.busy();
+    let saving_editor = sources.editor_save_pending();
     let playing = session.is_some_and(Session::is_playing);
     let current = session.and_then(Session::current);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
@@ -565,8 +566,7 @@ pub fn tracks<'a>(
             icon_button(
                 Icon::Edit,
                 "Edit track",
-                (!busy && !sources.editor_save_pending())
-                    .then(|| Message::EditTrack(track.clone()))
+                (!busy && !saving_editor).then(|| Message::EditTrack(track.clone()))
             ),
             add,
         ]
@@ -580,7 +580,7 @@ pub fn tracks<'a>(
             content = content.push(track_metadata::editor(
                 editor,
                 busy,
-                sources.editor_save_pending(),
+                saving_editor,
                 surfaces,
             ));
         }
