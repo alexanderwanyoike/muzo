@@ -162,3 +162,23 @@ fn it_replaces_and_restarts_a_real_appimage() {
     appimage::replace_and_launch(&update, &downloaded, &installed, vec![media]).unwrap();
     assert_eq!(std::fs::read(installed).unwrap(), payload);
 }
+
+#[cfg(target_os = "windows")]
+#[test]
+fn it_embeds_the_native_shell_icon_in_the_executable() {
+    use windows_sys::Win32::{
+        System::LibraryLoader::FindResourceW, System::LibraryLoader::GetModuleHandleW,
+    };
+    const GROUP_ICON: usize = 14;
+    let resource = unsafe {
+        FindResourceW(
+            GetModuleHandleW(std::ptr::null()),
+            1usize as *const u16,
+            GROUP_ICON as *const u16,
+        )
+    };
+    assert!(
+        !resource.is_null(),
+        "the installed shell icon resource is missing"
+    );
+}

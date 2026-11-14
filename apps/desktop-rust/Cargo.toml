@@ -52,7 +52,7 @@ security-framework = "3.7.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 aes-gcm = "0.10.3"
-windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_System_LibraryLoader"] }
 
 [profile.dev]
 debug = 0
