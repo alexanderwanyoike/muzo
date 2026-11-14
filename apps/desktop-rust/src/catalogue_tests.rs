@@ -59,3 +59,38 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     drop(database);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
+    let root = std::env::temp_dir().join(format!("muzo-scan-{}", uuid::Uuid::new_v4()));
+    let music = root.join("Music");
+    fs::create_dir_all(music.join("disc")).unwrap();
+    let file = music.join("disc/tone.mp3");
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+        &file,
+    )
+    .unwrap();
+    fs::write(music.join("notes.txt"), "ignored").unwrap();
+
+    let mut catalogue = Catalogue::open(&root.join("muzo.sqlite"), None).unwrap();
+    let library = catalogue.add_folder(&music).unwrap();
+    let tracks = catalogue.tracks(&library.id).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].path, file);
+    assert!(catalogue.add_folder(&music).is_err());
+    catalogue.refresh(&library.id).unwrap();
+    assert_eq!(catalogue.tracks(&library.id).unwrap()[0].id, tracks[0].id);
+
+    let moved = music.join("moved.mp3");
+    fs::rename(&file, &moved).unwrap();
+    catalogue.refresh(&library.id).unwrap();
+    let tracks = catalogue.tracks(&library.id).unwrap();
+    assert_eq!(tracks.len(), 1);
+    assert_eq!(tracks[0].path, moved);
+    catalogue.remove(&library.id).unwrap();
+    assert!(catalogue.libraries().unwrap().is_empty());
+    assert!(moved.is_file());
+    drop(catalogue);
+    fs::remove_dir_all(root).unwrap();
+}
