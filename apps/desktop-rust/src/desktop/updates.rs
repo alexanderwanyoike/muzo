@@ -165,7 +165,15 @@ pub fn view(status: &Status, surfaces: Surfaces) -> Element<'_, Message> {
             Some(Message::InstallUpdate(update.clone(), path.clone())),
             "Your update is ready",
         ),
-        Status::Error(error) => (Some(Message::CheckUpdate), error.as_str()),
+        Status::Error(error) => {
+            return row![
+                text(error).size(10).color(surfaces.muted),
+                pill(label, Some(Message::CheckUpdate), surfaces),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .into();
+        }
         Status::Confirming(_, _) => {
             return row![
                 text(label).size(11),
