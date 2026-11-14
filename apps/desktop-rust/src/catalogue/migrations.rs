@@ -38,13 +38,16 @@ pub fn run(database: &mut Connection) -> Result<(), CatalogueError> {
     let version = if reported == 0 {
         infer_version(&transaction)?
     } else {
-        reported as usize
+        let version = reported as usize;
+        validate_version(&transaction, version)?;
+        version
     };
 
     for (index, sql) in MIGRATIONS.iter().enumerate().skip(version) {
         transaction.execute_batch(sql)?;
         transaction.pragma_update(None, "user_version", (index + 1) as u32)?;
     }
+    validate_version(&transaction, MIGRATIONS.len())?;
     transaction.commit()?;
     Ok(())
 }
@@ -89,4 +92,40 @@ fn columns(
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
         })?
         .collect()
+}
+
+fn validate_version(database: &Connection, version: usize) -> Result<(), CatalogueError> {
+    const TABLES: [&str; 8] = [
+        "libraries",
+        "tracks",
+        "playlists",
+        "playlist_entries",
+        "play_history",
+        "dropbox_accounts",
+        "dropbox_library_accounts",
+        "dropbox_sync_settings",
+    ];
+    let expected = Connection::open_in_memory()?;
+    for sql in MIGRATIONS.iter().take(version) {
+        expected.execute_batch(sql)?;
+    }
+    for table in TABLES {
+        if columns(database, table)? != columns(&expected, table)?
+            || unique_keys(database, table)? != unique_keys(&expected, table)?
+        {
+            return Err(CatalogueError::UnsupportedSchema);
+        }
+    }
+    Ok(())
+}
+
+fn unique_keys(database: &Connection, table: &str) -> rusqlite::Result<Vec<String>> {
+    let mut statement = database.prepare(
+        "SELECT group_concat(name, ',') FROM (
+            SELECT l.name AS index_name, i.name AS name
+            FROM pragma_index_list(?1) l JOIN pragma_index_info(l.name) i
+            WHERE l.[unique]=1 ORDER BY l.name, i.seqno
+        ) GROUP BY index_name ORDER BY 1",
+    )?;
+    statement.query_map([table], |row| row.get(0))?.collect()
 }
