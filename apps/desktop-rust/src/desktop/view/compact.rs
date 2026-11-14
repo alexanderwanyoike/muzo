@@ -14,16 +14,18 @@ use super::{
 use crate::desktop::{
     cover::Cover,
     mini_focus::{Control, QUEUE_ROW_HEIGHT, QUEUE_ROW_SPACING, QUEUE_SCROLL},
+    row_cover::{Covers, DirectCovers},
 };
 
 pub(in crate::desktop) fn mini<'a>(
     session: Option<&'a Session>,
     window: (bool, bool, Size),
-    cover: &Cover,
+    covers: (&Cover, Option<&Covers>, &DirectCovers),
     surfaces: Surfaces,
     playback: (Option<&'a str>, bool),
     focus: Option<Control>,
 ) -> Element<'a, Message> {
+    let (cover, indexed, direct) = covers;
     let (queue_open, queue_pending, size) = window;
     let (error, retry) = playback;
     let header = container(
@@ -123,7 +125,13 @@ pub(in crate::desktop) fn mini<'a>(
     .width(Fill);
     let workspace = if queue_open {
         row![
-            queue(session, cover.thumbnail(), focus, surfaces, size.width),
+            queue(
+                session,
+                (cover.thumbnail(), indexed, direct),
+                focus,
+                surfaces,
+                size.width
+            ),
             body
         ]
     } else {
@@ -329,11 +337,12 @@ pub(super) fn slider_style(theme: &Theme, surfaces: Surfaces, volume: bool) -> s
 
 fn queue<'a>(
     session: Option<&'a Session>,
-    thumbnail: Option<&image::Handle>,
+    covers: (Option<&image::Handle>, Option<&Covers>, &DirectCovers),
     focus: Option<Control>,
     surfaces: Surfaces,
     width: f32,
 ) -> Element<'a, Message> {
+    let (thumbnail, indexed, direct) = covers;
     let tracks = session.map_or(&[][..], Session::tracks);
     let count = tracks.len();
     let heading = container(
@@ -367,10 +376,10 @@ fn queue<'a>(
         let playing = session.is_some_and(Session::is_playing);
         let list = column(tracks.iter().enumerate().map(|(index, track)| {
             let active = current == Some(index);
-            let embedded = track
-                .artwork()
-                .map(|bytes| image::Handle::from_bytes(bytes.to_vec()));
-            let handle = thumbnail.filter(|_| active).or(embedded.as_ref());
+            let handle = thumbnail
+                .filter(|_| active)
+                .or_else(|| indexed.and_then(|covers| covers.get(track.indexed_id()?)))
+                .or_else(|| direct.get(track.path()));
             let image: Element<'_, Message> = if let Some(thumbnail) = handle {
                 image(thumbnail.clone())
                     .content_fit(ContentFit::Cover)

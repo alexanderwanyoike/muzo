@@ -185,7 +185,14 @@ pub fn tracks<'a>(
                         )
                     });
             let content = row![
-                library::small_cover(cover.filter(|_| active), 38.0, surfaces),
+                library::small_cover(
+                    cover.filter(|_| active).or_else(|| entry
+                        .track
+                        .as_ref()
+                        .and_then(|track| snapshot.covers.get(&track.id))),
+                    38.0,
+                    surfaces
+                ),
                 column![
                     text(label).size(12).wrapping(text::Wrapping::None),
                     text(artist)

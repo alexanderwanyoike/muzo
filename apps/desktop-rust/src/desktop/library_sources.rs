@@ -99,6 +99,7 @@ pub struct Snapshot {
     pub libraries: Vec<Library>,
     pub selected: Option<String>,
     pub tracks: Vec<IndexedTrack>,
+    pub covers: super::row_cover::Covers,
     pub warnings: Vec<String>,
     pub playlists: Vec<Playlist>,
     pub selected_playlist: Option<String>,
@@ -225,7 +226,18 @@ fn run_with_selection(
         .map(|id| catalogue.tracks(id))
         .transpose()?
         .unwrap_or_default();
+    let covers = super::row_cover::indexed(
+        paths,
+        &catalogue,
+        &libraries,
+        tracks.iter().chain(
+            playlist_entries
+                .iter()
+                .filter_map(|entry| entry.track.as_ref()),
+        ),
+    );
     Ok(Snapshot {
+        covers,
         libraries,
         selected,
         tracks,
@@ -611,7 +623,7 @@ mod artwork_tests {
 
         let snapshot = run(&paths, Operation::Add(source)).unwrap();
         let row = &snapshot.tracks[0];
-        assert!(snapshot.covers.get(&row.id).is_some());
+        assert!(snapshot.covers.contains_key(&row.id));
         assert_eq!(row.plays, 0);
     }
 }

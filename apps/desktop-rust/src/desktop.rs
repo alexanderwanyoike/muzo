@@ -2,6 +2,7 @@ mod cover;
 mod dropbox_panel;
 pub(crate) mod library_sources;
 mod mini_focus;
+mod row_cover;
 mod sidebar;
 pub use mini_focus::Control as MiniControl;
 mod updates;
@@ -63,7 +64,7 @@ pub enum Message {
     SaveTrackEdit(bool),
     CloseTrackEdit,
     RemoteTrackReady(u64, Result<Track, String>),
-    FilesRead(Result<Vec<Track>, String>),
+    FilesRead(Result<row_cover::OpenedFiles, String>),
     Select(usize),
     TogglePlayback,
     RetryTrack,
@@ -112,6 +113,7 @@ pub struct Desktop {
     output: Option<MixerDeviceSink>,
     error: Option<String>,
     cover: Cover,
+    direct_covers: row_cover::DirectCovers,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
@@ -189,6 +191,7 @@ impl Desktop {
                 output: None,
                 error,
                 cover: Cover::default(),
+                direct_covers: Default::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
@@ -487,18 +490,19 @@ impl Desktop {
             Message::FilesPicked(paths) if paths.is_empty() => Task::none(),
             Message::FilesPicked(paths) => Task::perform(
                 async move {
-                    tokio::task::spawn_blocking(move || paths.into_iter().map(read_track).collect())
+                    tokio::task::spawn_blocking(move || row_cover::open_files(paths))
                         .await
                         .map_err(|error| format!("Could not read the selected tracks: {error}"))
                 },
                 Message::FilesRead,
             ),
-            Message::FilesRead(Ok(tracks)) => {
+            Message::FilesRead(Ok(files)) => {
                 if let Some(session) = &mut self.session
-                    && !tracks.is_empty()
+                    && !files.tracks.is_empty()
                 {
                     let first = session.tracks().len();
-                    session.extend(tracks);
+                    self.direct_covers.extend(files.covers);
+                    session.extend(files.tracks);
                     if session.current().is_none() {
                         return self.transport(|session| session.select(first));
                     }
@@ -1069,7 +1073,14 @@ impl Desktop {
             view::mini(
                 self.session.as_ref(),
                 self.windows.mini_view(),
-                &self.cover,
+                (
+                    &self.cover,
+                    self.sources
+                        .snapshot
+                        .as_ref()
+                        .map(|snapshot| &snapshot.covers),
+                    &self.direct_covers,
+                ),
                 self.appearance.surfaces(),
                 (self.error.as_deref(), self.failed_track.is_some()),
                 self.mini_focus,

@@ -256,7 +256,13 @@ pub fn tracks<'a>(
         let body = row![
             play,
             container(text(index + 1).size(10).color(surfaces.muted)).center_x(18),
-            library::small_cover(cover.filter(|_| active), 36.0, surfaces),
+            library::small_cover(
+                cover
+                    .filter(|_| active)
+                    .or_else(|| snapshot.covers.get(&track.id)),
+                36.0,
+                surfaces
+            ),
             metadata,
             container(
                 text(clock(std::time::Duration::from_secs(

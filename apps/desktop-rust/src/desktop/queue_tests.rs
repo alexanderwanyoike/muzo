@@ -27,6 +27,7 @@ fn snapshot(ids: &[&str]) -> Snapshot {
         libraries: ids.iter().map(|id| source(id)).collect(),
         selected: None,
         tracks: vec![],
+        covers: Default::default(),
         warnings: vec![],
         playlists: vec![],
         selected_playlist: None,
