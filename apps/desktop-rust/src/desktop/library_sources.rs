@@ -37,6 +37,17 @@ impl CataloguePaths {
         self.current.with_file_name("updates-rust")
     }
 
+    pub(crate) fn legacy_appearance() -> Option<PathBuf> {
+        let profile = directories::BaseDirs::new()?;
+        Some(
+            profile
+                .config_dir()
+                .join("Muzo")
+                .join("Local Storage")
+                .join("leveldb"),
+        )
+    }
+
     pub(crate) fn appearance(&self) -> PathBuf {
         self.current.with_file_name("appearance-rust.json")
     }

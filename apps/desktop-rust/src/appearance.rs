@@ -1,3 +1,4 @@
+mod legacy;
 mod palette;
 
 use std::{
@@ -75,6 +76,22 @@ pub enum AppearanceError {
     Json(#[from] serde_json::Error),
     #[error("The saved appearance contains an unknown setting.")]
     Invalid,
+    #[error("Could not read Electron appearance preferences: {0}")]
+    Legacy(String),
+}
+
+pub fn load_or_import(
+    target: &Path,
+    electron_leveldb: &Path,
+) -> Result<Appearance, AppearanceError> {
+    if target.try_exists()? {
+        return load(target);
+    }
+    if let Some(appearance) = legacy::read(electron_leveldb)? {
+        save(target, &appearance)?;
+        return Ok(appearance);
+    }
+    Ok(Appearance::default())
 }
 
 pub fn load(path: &Path) -> Result<Appearance, AppearanceError> {

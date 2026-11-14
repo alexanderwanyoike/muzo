@@ -99,7 +99,15 @@ impl Desktop {
         desktop.output = output.ok();
         desktop.sources = Sources::new(CataloguePaths::from_environment());
         if let Some(path) = desktop.sources.paths().map(|paths| paths.appearance()) {
-            match crate::appearance::load(&path) {
+            let appearance = if std::env::var_os("MUZO_DATA_DIR").is_none() {
+                CataloguePaths::legacy_appearance().map_or_else(
+                    || crate::appearance::load(&path),
+                    |legacy| crate::appearance::load_or_import(&path, &legacy),
+                )
+            } else {
+                crate::appearance::load(&path)
+            };
+            match appearance {
                 Ok(appearance) => desktop.appearance = appearance,
                 Err(error) => desktop.error = Some(error.to_string()),
             }
