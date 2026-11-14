@@ -28,3 +28,6 @@ mod dropbox_tests;
 
 #[cfg(test)]
 mod appearance_tests;
+
+#[cfg(test)]
+mod distribution_tests;
