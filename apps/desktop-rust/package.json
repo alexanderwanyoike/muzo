@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "cargo run --locked",
-    "lint": "cargo clippy --locked --all-targets -- -D warnings",
-    "typecheck": "cargo check --locked --all-targets",
-    "test": "cargo test --locked",
+    "native:lint": "cargo clippy --locked --all-targets -- -D warnings",
+    "native:typecheck": "cargo check --locked --all-targets",
+    "native:test": "cargo test --locked",
     "build": "cargo build --locked --release",
     "format:check": "cargo fmt --check"
   }
