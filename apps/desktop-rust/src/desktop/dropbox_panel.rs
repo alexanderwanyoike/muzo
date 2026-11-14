@@ -593,3 +593,13 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[test]
+fn it_rejects_an_empty_dropbox_key_without_launching_authorization() {
+    let mut settings = Settings::default();
+    let task = settings.update(Action::Begin, None);
+
+    assert_eq!(task.units(), 0);
+    assert!(settings.error.is_none());
+}
