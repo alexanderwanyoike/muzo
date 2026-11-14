@@ -3,7 +3,7 @@ mod windows;
 
 use std::{path::PathBuf, time::Duration};
 
-use iced::{Element, Subscription, Task, Theme, window};
+use iced::{Element, Subscription, Task, Theme, widget::image, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
 
 use crate::{
@@ -41,6 +41,7 @@ pub struct Desktop {
     session: Option<Session>,
     output: Option<MixerDeviceSink>,
     error: Option<String>,
+    artwork: Option<image::Handle>,
 }
 
 impl Desktop {
@@ -69,6 +70,7 @@ impl Desktop {
                 session,
                 output: None,
                 error,
+                artwork: None,
             },
             open,
         )
@@ -126,11 +128,7 @@ impl Desktop {
                 Ok(())
             }),
             Message::Tick => {
-                if let Some(session) = &mut self.session
-                    && let Err(error) = session.advance_if_finished()
-                {
-                    self.error = Some(error.to_string());
-                }
+                self.refresh_transport(Session::advance_if_finished, false);
                 Task::none()
             }
             Message::ShowMini => self.windows.show_mini(),
@@ -152,10 +150,32 @@ impl Desktop {
         &mut self,
         operation: impl FnOnce(&mut Session) -> Result<(), SessionError>,
     ) -> Task<Message> {
-        if let Some(session) = &mut self.session {
-            self.error = operation(session).err().map(|error| error.to_string());
-        }
+        self.refresh_transport(operation, true);
         Task::none()
+    }
+
+    fn refresh_transport(
+        &mut self,
+        operation: impl FnOnce(&mut Session) -> Result<(), SessionError>,
+        clear_on_success: bool,
+    ) {
+        if let Some(session) = &mut self.session {
+            let current = session.current_index();
+            match operation(session) {
+                Ok(()) => {
+                    if clear_on_success || current != session.current_index() {
+                        self.error = None;
+                    }
+                }
+                Err(error) => self.error = Some(error.to_string()),
+            }
+            if current != session.current_index() {
+                self.artwork = session
+                    .current()
+                    .and_then(Track::artwork)
+                    .map(|encoded| image::Handle::from_bytes(encoded.to_vec()));
+            }
+        }
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -197,10 +217,15 @@ impl Desktop {
             view::mini(
                 self.session.as_ref(),
                 self.windows.queue_open(),
+                self.artwork.as_ref(),
                 self.error.as_deref(),
             )
         } else {
-            view::library(self.session.as_ref(), self.error.as_deref())
+            view::library(
+                self.session.as_ref(),
+                self.artwork.as_ref(),
+                self.error.as_deref(),
+            )
         }
     }
 
