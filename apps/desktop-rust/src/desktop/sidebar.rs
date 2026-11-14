@@ -38,10 +38,7 @@ impl Sidebar {
     pub(super) fn resize(&mut self, action: Resize) -> Option<SidebarWidth> {
         match action {
             Resize::Preview(requested) => {
-                let width = SidebarWidth::new(requested);
-                let available = self.viewport - SPLITTER_WIDTH;
-                self.preview = (width.visible(available) != self.preferred.visible(available))
-                    .then_some(width);
+                self.preview = Some(SidebarWidth::new(requested));
                 None
             }
             Resize::Commit => {

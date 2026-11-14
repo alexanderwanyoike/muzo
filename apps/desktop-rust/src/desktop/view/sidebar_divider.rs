@@ -1,5 +1,5 @@
 use iced::{
-    Color, Event, Length, Rectangle, Renderer, Size, Theme,
+    Color, Event, Length, Point, Rectangle, Renderer, Size, Theme,
     advanced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer,
         widget::{self, Tree},
@@ -23,12 +23,14 @@ pub(super) struct Divider {
 struct State {
     drag: Option<Drag>,
     hovered: bool,
+    mouse_position: Option<Point>,
 }
 
 #[derive(Clone, Copy)]
 struct Drag {
     pointer: Pointer,
     start_x: f32,
+    last_x: f32,
     start_width: f32,
 }
 
@@ -39,22 +41,28 @@ enum Pointer {
 }
 
 enum Gesture {
-    Press(Pointer),
-    Move(Pointer),
+    Press(Pointer, Point),
+    Move(Pointer, Point),
     Release(Pointer),
     Lose(Pointer),
     Cancel,
 }
 
-fn gesture(event: &Event) -> Option<Gesture> {
+fn gesture(event: &Event, mouse_position: Option<Point>) -> Option<Gesture> {
     use mouse::{Button, Event as Mouse};
     use touch::Event as Touch;
     Some(match event {
-        Event::Mouse(Mouse::ButtonPressed(Button::Left)) => Gesture::Press(Pointer::Mouse),
-        Event::Mouse(Mouse::CursorMoved { .. }) => Gesture::Move(Pointer::Mouse),
+        Event::Mouse(Mouse::ButtonPressed(Button::Left)) => {
+            Gesture::Press(Pointer::Mouse, mouse_position?)
+        }
+        Event::Mouse(Mouse::CursorMoved { position }) => Gesture::Move(Pointer::Mouse, *position),
         Event::Mouse(Mouse::ButtonReleased(Button::Left)) => Gesture::Release(Pointer::Mouse),
-        Event::Touch(Touch::FingerPressed { id, .. }) => Gesture::Press(Pointer::Touch(*id)),
-        Event::Touch(Touch::FingerMoved { id, .. }) => Gesture::Move(Pointer::Touch(*id)),
+        Event::Touch(Touch::FingerPressed { id, position }) => {
+            Gesture::Press(Pointer::Touch(*id), *position)
+        }
+        Event::Touch(Touch::FingerMoved { id, position }) => {
+            Gesture::Move(Pointer::Touch(*id), *position)
+        }
         Event::Touch(Touch::FingerLifted { id, .. }) => Gesture::Release(Pointer::Touch(*id)),
         Event::Touch(Touch::FingerLost { id, .. }) => Gesture::Lose(Pointer::Touch(*id)),
         Event::Window(window::Event::Unfocused)
@@ -103,32 +111,50 @@ impl Widget<Message, Theme, Renderer> for Divider {
         _: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<State>();
-        let hovered = cursor.is_over(hit_area(layout.bounds()));
+        let area = hit_area(layout.bounds());
+        let hovered = cursor.is_over(area);
         if state.hovered != hovered {
             state.hovered = hovered;
             shell.request_redraw();
         }
-        let Some(gesture) = gesture(event) else {
+        // Iced batches input events with the latest cursor. A mouse press has no position.
+        match event {
+            Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                state.mouse_position = Some(*position);
+            }
+            Event::Mouse(mouse::Event::CursorLeft) | Event::Window(window::Event::Unfocused) => {
+                state.mouse_position = None;
+            }
+            _ => {}
+        }
+        let Some(gesture) = gesture(event, state.mouse_position.or_else(|| cursor.position()))
+        else {
             return;
         };
         let action = match (gesture, state.drag) {
-            (Gesture::Press(pointer), None)
-                if hovered && let Some(position) = cursor.position() =>
+            (Gesture::Press(pointer, position), None)
+                if !cursor.is_levitating() && area.contains(position) =>
             {
                 state.drag = Some(Drag {
                     pointer,
                     start_x: position.x,
+                    last_x: position.x,
                     start_width: self.sidebar_width,
                 });
                 None
             }
-            (Gesture::Move(pointer), Some(drag))
-                if drag.pointer == pointer
-                    && let Some(position) = cursor.position() =>
-            {
-                Some(Resize::Preview(
-                    drag.start_width + position.x - drag.start_x,
-                ))
+            (Gesture::Move(pointer, position), Some(drag)) if drag.pointer == pointer => {
+                if drag.last_x == position.x {
+                    None
+                } else {
+                    state.drag = Some(Drag {
+                        last_x: position.x,
+                        ..drag
+                    });
+                    Some(Resize::Preview(
+                        drag.start_width + position.x - drag.start_x,
+                    ))
+                }
             }
             (Gesture::Release(pointer), Some(drag)) if drag.pointer == pointer => {
                 state.drag = None;
