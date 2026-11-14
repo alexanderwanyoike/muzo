@@ -1016,28 +1016,23 @@ impl Desktop {
         if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
             return None;
         }
-        let control = self.sources.playlist_picker.as_ref()?.focus?;
-        Some(
-            control
-                .message()
-                .map_or_else(Task::none, |message| self.update(message)),
-        )
+        let picker = self.sources.playlist_picker.as_ref()?;
+        let message = picker
+            .focus
+            .and_then(playlist_picker_focus::Control::message);
+        Some(message.map_or_else(Task::none, |message| self.update(message)))
     }
 
     fn route_playlist_picker_arrow(&mut self, id: window::Id, step: i8) -> bool {
         if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
             return false;
         }
-        if self
-            .sources
-            .playlist_picker
-            .as_ref()
-            .and_then(|picker| picker.focus)
-            != Some(playlist_picker_focus::Control::Choice)
-        {
+        let Some(picker) = self.sources.playlist_picker.as_ref() else {
             return false;
+        };
+        if picker.focus == Some(playlist_picker_focus::Control::Choice) {
+            self.sources.step_track_playlist(step);
         }
-        self.sources.step_track_playlist(step);
         true
     }
 

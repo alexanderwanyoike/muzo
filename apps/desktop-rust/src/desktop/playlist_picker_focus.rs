@@ -1,6 +1,12 @@
-use iced::{Task, advanced::widget::operate};
+use iced::{
+    Task,
+    advanced::widget::{
+        operate,
+        operation::{focusable::unfocus, scope},
+    },
+};
 
-use super::{Message, track_editor_focus::reveal_songs_control};
+use super::{Message, appearance_focus::LIBRARY, track_editor_focus::reveal_songs_control};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Control {
@@ -59,6 +65,8 @@ impl Control {
     }
 
     pub(super) fn reveal(self) -> Task<Message> {
-        operate(reveal_songs_control(self.id())).discard()
+        operate(scope(LIBRARY.into(), unfocus::<()>()))
+            .discard()
+            .chain(operate(reveal_songs_control(self.id())).discard())
     }
 }
