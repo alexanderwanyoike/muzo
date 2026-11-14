@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Color, ContentFit, Element, Fill, Shadow, Size, Theme, Vector, border,
+    Alignment, Color, ContentFit, Element, Fill, Size, Theme, border,
     widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
 };
 
@@ -177,11 +177,6 @@ fn sleeve(
         .style(move |_| container::Style {
             background: Some(surfaces.sidebar.into()),
             border: border::rounded(8),
-            shadow: Shadow {
-                color: Color::BLACK.scale_alpha(0.145),
-                offset: Vector::new(0.0, 12.0),
-                blur_radius: 30.0,
-            },
             ..Default::default()
         })
         .into()
@@ -372,8 +367,11 @@ fn queue<'a>(
         let playing = session.is_some_and(Session::is_playing);
         let list = column(tracks.iter().enumerate().map(|(index, track)| {
             let active = current == Some(index);
-            let image: Element<'_, Message> = if let Some(thumbnail) = thumbnail.filter(|_| active)
-            {
+            let embedded = track
+                .artwork()
+                .map(|bytes| image::Handle::from_bytes(bytes.to_vec()));
+            let handle = thumbnail.filter(|_| active).or(embedded.as_ref());
+            let image: Element<'_, Message> = if let Some(thumbnail) = handle {
                 image(thumbnail.clone())
                     .content_fit(ContentFit::Cover)
                     .width(36)
