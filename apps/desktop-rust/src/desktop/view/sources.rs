@@ -1,9 +1,6 @@
 use iced::{
     Alignment, Element, Fill, Theme, border,
-    widget::{
-        Space, button, column, container, image, pick_list, row, scrollable, stack, text,
-        text_input, tooltip,
-    },
+    widget::{Space, button, column, container, image, row, scrollable, stack, text, text_input},
 };
 
 use crate::{
@@ -19,6 +16,7 @@ use crate::{
 
 use super::{
     Icon, action, bold, clock, compact, icon_button, icon_tinted, library, track_metadata,
+    track_playlist,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -481,6 +479,7 @@ pub fn tracks<'a>(
 ) -> iced::widget::Column<'a, Message> {
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
+    let adding_track = sources.track_add_pending();
     let playing = session.is_some_and(Session::is_playing);
     let current = session.and_then(Session::current);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
@@ -517,28 +516,6 @@ pub fn tracks<'a>(
         ]
         .spacing(4)
         .width(Fill);
-        let options = if busy {
-            Vec::new()
-        } else {
-            snapshot.playlists.clone()
-        };
-        let add = tooltip(
-            pick_list(options, None::<crate::catalogue::Playlist>, |playlist| {
-                Message::SourceOperation(Operation::AddToPlaylist(playlist.id, track.id.clone()))
-            })
-            .placeholder("+")
-            .text_size(12)
-            .width(34)
-            .padding([4, 2])
-            .style(move |theme, status| {
-                let mut style = pick_list::default(theme, status);
-                style.background = iced::Color::TRANSPARENT.into();
-                style.border = border::rounded(4);
-                style
-            }),
-            text("Add to playlist").size(11),
-            tooltip::Position::Left,
-        );
         let body = row![
             play,
             container(text(index + 1).size(10).color(surfaces.muted)).center_x(18),
@@ -567,9 +544,15 @@ pub fn tracks<'a>(
             icon_button(
                 Icon::Edit,
                 "Edit track",
-                (!busy && !saving_editor).then(|| Message::EditTrack(track.clone()))
+                (!busy && !saving_editor && !adding_track)
+                    .then(|| Message::EditTrack(track.clone()))
             ),
-            add,
+            icon_button(
+                Icon::AddToPlaylist,
+                "Add to playlist",
+                (!busy && !saving_editor && !adding_track)
+                    .then(|| Message::OpenPlaylistPicker(track.clone()))
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -582,6 +565,19 @@ pub fn tracks<'a>(
                 editor,
                 busy,
                 saving_editor,
+                surfaces,
+            ));
+        }
+        if let Some(draft) = sources
+            .playlist_picker
+            .as_ref()
+            .filter(|draft| draft.track_id == track.id)
+        {
+            content = content.push(track_playlist::picker(
+                draft,
+                &snapshot.playlists,
+                busy,
+                adding_track,
                 surfaces,
             ));
         }
@@ -614,5 +610,9 @@ pub fn tracks<'a>(
             .center(Fill)
         ];
     }
-    column![scrollable(column(list)).id(SONGS_SCROLL).height(Fill)]
+    let mut songs = column(list);
+    if let Some(message) = &sources.playlist_message {
+        songs = songs.push(container(text(message).size(12)).padding([12, 24]));
+    }
+    column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
 }

@@ -15,6 +15,7 @@ mod sleeve_image;
 mod source_search_input;
 mod sources;
 mod track_metadata;
+mod track_playlist;
 
 use super::{Message, library_sources::Sources};
 
@@ -303,6 +304,7 @@ enum Icon {
     Folder,
     Search,
     Edit,
+    AddToPlaylist,
     Close,
     Up,
     Down,
@@ -412,6 +414,7 @@ fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg
             "<path d='M3 7a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>"
         }
         Icon::Search => "<circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/>",
+        Icon::AddToPlaylist => "<path d='M4 6h13M4 12h13M4 18h7M18 15v6m-3-3h6'/>",
         Icon::Edit => "<path d='m14 6 4 4M4 20l4-1L20 7l-4-4L4 15z'/>",
         Icon::Up => "<path d='m7 15 5-5 5 5'/>",
         Icon::Down => "<path d='m7 10 5 5 5-5'/>",

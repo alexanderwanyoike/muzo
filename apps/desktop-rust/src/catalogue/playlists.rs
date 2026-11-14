@@ -88,9 +88,19 @@ impl Catalogue {
         playlist: &str,
         track: &str,
     ) -> Result<String, CatalogueError> {
+        let transaction = self.begin_write()?;
+        let entry = self.insert_playlist_entry(playlist, track)?;
+        transaction.commit()?;
+        Ok(entry)
+    }
+
+    pub(crate) fn insert_playlist_entry(
+        &self,
+        playlist: &str,
+        track: &str,
+    ) -> Result<String, CatalogueError> {
         let entry = Uuid::new_v4().to_string();
-        let transaction = self.database.transaction_with_behavior(Immediate)?;
-        let inserted = transaction.execute(
+        let inserted = self.database.execute(
             "INSERT INTO playlist_entries (id, playlist_id, track_id, position)
              SELECT ?1, ?2, ?3, (SELECT COALESCE(MAX(position) + 1, 0) FROM playlist_entries WHERE playlist_id=?2)
              WHERE EXISTS (SELECT 1 FROM tracks WHERE id=?3) AND EXISTS (SELECT 1 FROM playlists WHERE id=?2)",
@@ -99,7 +109,6 @@ impl Catalogue {
         if inserted == 0 {
             return Err(CatalogueError::UnknownPlaylistEntry);
         }
-        transaction.commit()?;
         Ok(entry)
     }
 

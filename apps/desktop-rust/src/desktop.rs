@@ -73,6 +73,9 @@ pub enum Message {
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
     OpenPlaylistPicker(crate::catalogue::IndexedTrack),
+    ClosePlaylistPicker,
+    ChooseTrackPlaylist(String),
+    SubmitPlaylistPicker,
     EditField(MetadataField, String),
     TrackEditorTab(u64, bool, Option<MetadataField>),
     TrackEditorFocusApplied(u64),
@@ -301,7 +304,7 @@ impl Desktop {
                 self.appearance_focus = None;
                 self.sources.pending_remove = None;
                 self.editor_navigation.reset();
-                self.sources.close_editor();
+                self.sources.close_track_panels();
                 Task::none()
             }
             Message::OpenSourceSettings => {
@@ -330,7 +333,7 @@ impl Desktop {
                         != Some(id)
                     {
                         self.editor_navigation.reset();
-                        self.sources.close_editor();
+                        self.sources.close_track_panels();
                     }
                 }
                 self.sources.pending_remove = None;
@@ -566,10 +569,35 @@ impl Desktop {
                 ))
             }
             Message::EditTrack(track) => {
+                if self.sources.track_add_pending() {
+                    return Task::none();
+                }
+                self.sources.playlist_picker = None;
+                self.sources.playlist_message = None;
                 self.editor_navigation.reset();
                 self.sources.open_editor(track)
             }
-            Message::OpenPlaylistPicker(_) => Task::none(),
+            Message::OpenPlaylistPicker(track) => {
+                self.editor_navigation.reset();
+                self.sources.open_playlist_picker(track);
+                Task::none()
+            }
+            Message::ClosePlaylistPicker => {
+                if !self.sources.track_add_pending() {
+                    self.sources.playlist_picker = None;
+                }
+                Task::none()
+            }
+            Message::ChooseTrackPlaylist(id) => {
+                if !self.sources.track_add_pending()
+                    && let Some(draft) = self.sources.playlist_picker.as_mut()
+                {
+                    draft.playlist = Some(id);
+                    draft.error = None;
+                }
+                Task::none()
+            }
+            Message::SubmitPlaylistPicker => self.sources.submit_playlist_picker(),
             Message::EditField(field, value) => {
                 if self.sources.editor_save_pending() {
                     return Task::none();
