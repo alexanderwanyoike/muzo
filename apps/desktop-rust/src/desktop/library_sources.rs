@@ -555,20 +555,35 @@ mod navigation_tests {
     use super::*;
 
     #[test]
-    fn it_keeps_the_selected_catalogue_during_a_background_reload() {
+    fn it_keeps_the_selected_source_and_playlist_when_adding_a_song_elsewhere() {
         let directory = tempfile::tempdir().unwrap();
-        let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
-        sources.snapshot = Some(Snapshot {
-            libraries: vec![],
-            selected: Some("picked-source".into()),
-            tracks: vec![],
-            warnings: vec![],
-            playlists: vec![],
-            selected_playlist: Some("picked-playlist".into()),
-            playlist_entries: vec![],
-            editor: None,
-        });
-        assert_eq!(sources.reload().units(), 0);
-        assert!(sources.changed.load(Ordering::Acquire));
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut catalogue = paths.open().unwrap();
+        let first = directory.path().join("first");
+        let second = directory.path().join("second");
+        std::fs::create_dir(&first).unwrap();
+        std::fs::create_dir(&second).unwrap();
+        std::fs::copy(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+            second.join("tone.mp3"),
+        )
+        .unwrap();
+        catalogue.add_folder(&first).unwrap();
+        let source = catalogue.add_folder(&second).unwrap().id;
+        let track = catalogue.tracks(&source).unwrap().remove(0).id;
+        let selected = catalogue.create_playlist("Selected").unwrap().id;
+        let target = catalogue.create_playlist("Target").unwrap().id;
+
+        let snapshot = run_with_selection(
+            &paths,
+            Operation::AddToPlaylist(target.clone(), track),
+            Some(source.clone()),
+            Some(selected.clone()),
+        )
+        .unwrap();
+
+        assert_eq!(snapshot.selected, Some(source));
+        assert_eq!(snapshot.selected_playlist, Some(selected));
+        assert_eq!(catalogue.playlist_entries(&target).unwrap().len(), 1);
     }
 }
