@@ -35,12 +35,13 @@ fn library_content<'a>(
     dropbox: &'a super::dropbox_panel::Settings,
     preferences: &'a crate::appearance::Appearance,
     session: Option<&'a Session>,
-    page: super::LibraryPage,
+    page: (super::LibraryPage, Option<super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
 ) -> iced::widget::Column<'a, Message> {
     use super::LibraryPage;
+    let (page, focus) = page;
     if page == LibraryPage::Settings {
-        return library::settings(preferences, dropbox, sources, session.is_some());
+        return library::settings(preferences, dropbox, sources, session.is_some(), focus);
     }
     if let Some((_, _, fields)) = &sources.editing {
         return playlists::edit(fields, sources.busy());

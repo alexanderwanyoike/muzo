@@ -1,3 +1,4 @@
+mod appearance_focus;
 mod cover;
 mod dropbox_panel;
 pub(crate) mod library_sources;
@@ -123,6 +124,7 @@ pub struct Desktop {
     mini_focus: Option<mini_focus::Control>,
     sidebar: sidebar::Sidebar,
     page: LibraryPage,
+    appearance_focus: Option<appearance_focus::Choice>,
     sidebar_revision: u64,
     plays_pending: usize,
     close_after_history: Option<window::Id>,
@@ -202,6 +204,7 @@ impl Desktop {
                 mini_focus: None,
                 sidebar: sidebar::Sidebar::default(),
                 page: LibraryPage::default(),
+                appearance_focus: None,
                 sidebar_revision: 0,
                 plays_pending: 0,
                 close_after_history: None,
@@ -228,6 +231,7 @@ impl Desktop {
             Message::FolderPicked(None) => Task::none(),
             Message::LibraryPage(page) => {
                 self.page = page;
+                self.appearance_focus = None;
                 self.sources.pending_remove = None;
                 self.sources.editing = None;
                 Task::none()
@@ -607,6 +611,15 @@ impl Desktop {
                 self.windows.show_mini()
             }
             Message::CycleMiniFocus(id, backwards) => {
+                if self.windows.is_library(id) && self.page == LibraryPage::Settings {
+                    self.appearance_focus = Some(appearance_focus::Choice::next(
+                        self.appearance_focus,
+                        backwards,
+                    ));
+                    return self
+                        .appearance_focus
+                        .map_or_else(Task::none, appearance_focus::Choice::reveal);
+                }
                 if self.windows.is_mini(id) {
                     let queue_len = self
                         .session
@@ -629,6 +642,12 @@ impl Desktop {
                 Task::none()
             }
             Message::ActivateMiniFocus(id) => {
+                if self.windows.is_library(id)
+                    && self.page == LibraryPage::Settings
+                    && let Some(choice) = self.appearance_focus
+                {
+                    return self.update(choice.message());
+                }
                 if let Some(control) = self.mini_focus.filter(|_| self.windows.is_mini(id)) {
                     return self.update(Message::ClickMiniControl(control));
                 }
@@ -647,6 +666,12 @@ impl Desktop {
                 Task::none()
             }
             Message::MiniSpace(id) => {
+                if self.windows.is_library(id)
+                    && self.page == LibraryPage::Settings
+                    && self.appearance_focus.is_some()
+                {
+                    return self.update(Message::ActivateMiniFocus(id));
+                }
                 if self.windows.is_mini(id) && self.mini_focus.is_some() {
                     self.update(Message::ActivateMiniFocus(id))
                 } else {
@@ -1117,6 +1142,7 @@ impl Desktop {
                     &self.update_status,
                     &self.sidebar,
                     self.page,
+                    self.appearance_focus,
                 ),
                 self.session.as_ref(),
                 self.cover.thumbnail(),

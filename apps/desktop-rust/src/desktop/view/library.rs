@@ -25,12 +25,13 @@ pub(in crate::desktop) fn library<'a>(
         &'a updates::Status,
         &'a sidebar::Sidebar,
         LibraryPage,
+        Option<crate::desktop::appearance_focus::Choice>,
     ),
     session: Option<&'a Session>,
     cover: Option<&'a image::Handle>,
     playback: (Option<&'a str>, bool),
 ) -> Element<'a, Message> {
-    let (preferences, update, sidebar, page) = settings;
+    let (preferences, update, sidebar, page, focus) = settings;
     let (error, retry) = playback;
     let surfaces = preferences.surfaces();
     let view = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
@@ -39,7 +40,8 @@ pub(in crate::desktop) fn library<'a>(
             sidebar::Pane::Content => column![
                 toolbar(sources, page, surfaces),
                 error_line(sources.error.as_deref()),
-                library_content(sources, dropbox, preferences, session, page, cover).height(Fill),
+                library_content(sources, dropbox, preferences, session, (page, focus), cover)
+                    .height(Fill),
             ]
             .width(Fill)
             .height(Fill)
@@ -369,6 +371,7 @@ pub(super) fn settings<'a>(
     dropbox: &'a dropbox_panel::Settings,
     sources: &'a Sources,
     audio: bool,
+    focus: Option<crate::desktop::appearance_focus::Choice>,
 ) -> iced::widget::Column<'a, Message> {
     let surfaces = preferences.surfaces();
     let refresh = sources
@@ -382,7 +385,7 @@ pub(super) fn settings<'a>(
             ))
         });
     let body = column![
-        appearance::controls(preferences),
+        appearance::controls(preferences, focus),
         container(
             column![
                 text("Sources").size(16).font(bold()),
@@ -409,7 +412,11 @@ pub(super) fn settings<'a>(
     .spacing(20)
     .width(Fill)
     .max_width(850);
-    column![scrollable(container(body).padding([24, 28]).center_x(Fill)).height(Fill)]
+    column![
+        scrollable(container(body).padding([24, 28]).center_x(Fill))
+            .id(crate::desktop::appearance_focus::SCROLL)
+            .height(Fill)
+    ]
 }
 
 pub(super) fn line(surfaces: Surfaces) -> Element<'static, Message> {

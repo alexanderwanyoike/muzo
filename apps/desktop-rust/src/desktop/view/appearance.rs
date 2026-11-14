@@ -5,7 +5,9 @@ use iced::{
 
 use crate::appearance::{ACCENTS, Appearance, MATERIALS, MODES, Surfaces};
 
-use super::{Message, action, bold, library};
+use crate::desktop::appearance_focus::Choice;
+
+use super::{Message, action, bold, focus_ring, library};
 
 const DETAILS: [&str; 8] = [
     "Quiet, clear and contemporary",
@@ -18,7 +20,7 @@ const DETAILS: [&str; 8] = [
     "Soft translucency and blurred colour",
 ];
 
-pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
+pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'static, Message> {
     let surfaces = appearance.surfaces();
     let variants = MATERIALS
         .into_iter()
@@ -26,7 +28,13 @@ pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
         .map(|((id, name), detail)| {
             let mut sample = appearance.clone();
             sample.theme = id.into();
-            let choice = material_choice(&sample, name, detail, appearance.theme == id);
+            let choice = material_choice(
+                &sample,
+                name,
+                detail,
+                appearance.theme == id,
+                focus == Some(Choice::Material(id)),
+            );
             container(choice).width(Fill).into()
         })
         .collect::<Vec<_>>();
@@ -43,11 +51,12 @@ pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
 
     let modes = row(MODES.into_iter().map(|(id, label)| {
         let selected = appearance.mode == id;
+        let focused = focus == Some(Choice::Mode(id));
         button(container(text(label).size(12)).center_x(68))
             .padding([5, 0])
             .style(move |theme, status| {
                 let style = action(theme, status);
-                button::Style {
+                let style = button::Style {
                     background: Some(
                         if selected {
                             surfaces.raised
@@ -63,7 +72,8 @@ pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
                     },
                     border: border::rounded(3),
                     ..style
-                }
+                };
+                focus_ring(style, theme, focused)
             })
             .on_press(Message::AppearanceMode(id.into()))
             .into()
@@ -79,9 +89,9 @@ pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
     let accents = column![
         text("Accent colour").size(11).color(surfaces.muted),
         text("Classic").size(10).color(surfaces.muted),
-        accent_group(appearance, &ACCENTS[..10], surfaces),
+        accent_group(appearance, &ACCENTS[..10], surfaces, focus),
         text("Glow").size(10).color(surfaces.muted),
-        accent_group(appearance, &ACCENTS[10..], surfaces),
+        accent_group(appearance, &ACCENTS[10..], surfaces, focus),
     ]
     .spacing(9);
 
@@ -121,6 +131,7 @@ fn material_choice(
     name: &'static str,
     detail: &'static str,
     selected: bool,
+    focused: bool,
 ) -> Element<'static, Message> {
     let surfaces = appearance.surfaces();
     let palette = appearance.theme().palette();
@@ -167,9 +178,16 @@ fn material_choice(
         .padding(2)
         .width(Fill)
         .style(move |theme: &Theme| {
-            if selected {
-                container::Style::default()
-                    .border(border::rounded(7).color(theme.palette().primary).width(2))
+            if selected || focused {
+                container::Style::default().border(
+                    border::rounded(7)
+                        .color(if focused {
+                            theme.palette().text
+                        } else {
+                            theme.palette().primary
+                        })
+                        .width(2),
+                )
             } else {
                 container::Style::default()
             }
@@ -209,12 +227,14 @@ fn accent_group(
     appearance: &Appearance,
     choices: &'static [(&'static str, &'static str)],
     surfaces: Surfaces,
+    focus: Option<Choice>,
 ) -> Element<'static, Message> {
     row(choices.iter().map(|&(id, label)| {
         let mut sample = appearance.clone();
         sample.accent = id.into();
         let color = sample.theme().palette().primary;
         let selected = appearance.accent == id;
+        let focused = focus == Some(Choice::Accent(id));
         let glow = id.starts_with("glow-");
         let dot = container(Space::new()).center(19).style(move |_| {
             container::Style::default()
@@ -233,12 +253,20 @@ fn accent_group(
         tooltip(
             button(dot)
                 .padding(3)
-                .style(move |theme, status| button::Style {
-                    background: Some(surfaces.raised.into()),
-                    border: border::rounded(15)
-                        .color(color)
-                        .width(if selected { 2 } else { 0 }),
-                    ..action(theme, status)
+                .style(move |theme, status| {
+                    focus_ring(
+                        button::Style {
+                            background: Some(surfaces.raised.into()),
+                            border: border::rounded(15).color(color).width(if selected {
+                                2
+                            } else {
+                                0
+                            }),
+                            ..action(theme, status)
+                        },
+                        theme,
+                        focused,
+                    )
                 })
                 .on_press(Message::Accent(id.into())),
             text(label).size(11),
