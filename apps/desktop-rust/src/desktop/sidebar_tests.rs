@@ -327,6 +327,32 @@ fn it_keeps_a_batched_divider_drag_from_activating_the_navigation_under_it() {
 }
 
 #[test]
+fn it_keeps_a_batched_divider_drag_from_opening_the_mini_player() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    let divider = Point::new(279.5, DRAG_HEIGHT);
+    let mini_button = Point::new(774.0, 16.0);
+
+    library.batch(
+        &[
+            Event::Mouse(mouse::Event::CursorMoved { position: divider }),
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::CursorMoved {
+                position: mini_button,
+            }),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        mini_button,
+    );
+
+    assert_eq!(
+        library.desktop.sidebar.preferred_width(),
+        SidebarWidth::new(279.0)
+    );
+    assert!(library.desktop.windows.mini_id().is_none());
+}
+
+#[test]
 fn it_draws_the_hovered_sidebar_divider_with_the_glow_ink() {
     use iced::{
         Color,
