@@ -12,3 +12,9 @@ Windows uses the existing
 electron-builder NSIS configuration to package the Rust executable and retain
 the application and installer identity across an upgrade. The release filename
 and manifest contracts remain shared with the website.
+
+The Rust desktop installers workflow prepares the release draft for annotated
+version tags on `main`. It validates the root version, the desktop workspace
+versions, Cargo and Packager before starting the four installer jobs. The draft
+uses the assembled native installer set and its verified checksums. The Electron
+distribution workflow still runs on pull requests and manual runs during the port.

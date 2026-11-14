@@ -67,10 +67,13 @@ Existing `desktop:package` and `desktop:make` commands remain available.
 
 ## CI and release promotion
 
-The Desktop distribution workflow runs on relevant PRs to dev/main, annotated
-version-tag pushes, and manual workflow runs. It verifies package-version equality
-and the exact source SHA, then runs formatting, lint, strict types and tests.
-Four native jobs build the installers and upload reviewer artifacts.
+The Rust desktop installers workflow runs on relevant pull requests, annotated
+version-tag pushes and manual runs. It validates the root version, both workspace
+versions, Cargo and Packager against the exact checkout before launching four
+native installer jobs. It builds the Linux AppImage, Windows NSIS installer and
+both macOS DMGs described in [the Rust distribution card](cards/rust-rewrite/006-distribution.md).
+The Electron distribution workflow remains available on relevant PRs to dev/main
+and manual runs to verify the existing application while the port is in progress.
 
 Linux extracts the real AppImage and checks its launcher and packaged resources.
 macOS verifies and mounts each DMG, checks the executable architecture and compares
@@ -87,10 +90,9 @@ runs against the assembled set before upload.
 
 PR/manual artifacts are unpublished release candidates. Their manifest tag names
 the intended release, and sourceCommit identifies that exact candidate checkout.
-Only a real annotated tag whose commit is already on main can create a draft GitHub
-Release. Both root and desktop package versions must match that tag. Existing
-releases and published tags are never replaced or moved. Version 0.0.3 is
-prepared through a feature PR before promotion to main.
+Pushing an annotated tag whose commit is already on main can create a draft
+GitHub Release. Its native package versions must match the version in the tag.
+Existing releases and published tags retain their original assets and commits.
 
 Merge feature PRs into dev with merge commits, then promote dev to main through a
 release PR. After all checks pass, tag the merged main release commit with the
