@@ -23,6 +23,7 @@ pub enum Action {
     Code(String),
     Begin,
     Connect,
+    CancelAuthorization,
     Disconnect,
     Browse(String),
     SelectFolder(String, String),
@@ -146,7 +147,7 @@ impl Settings {
         if self.busy {
             return Task::none();
         }
-        if matches!(action, Action::Disconnect) && self.auth.is_some() {
+        if matches!(action, Action::CancelAuthorization) {
             self.auth = None;
             self.code.clear();
             self.error = None;
@@ -314,7 +315,7 @@ impl Settings {
                             .then_some(msg(Action::Connect))
                     ),
                     settings_button("Cancel connection", surfaces)
-                        .on_press_maybe((!self.busy).then_some(msg(Action::Disconnect))),
+                        .on_press_maybe((!self.busy).then_some(msg(Action::CancelAuthorization))),
                 ]
                 .spacing(7),
             );
@@ -656,7 +657,7 @@ mod tests {
             .update(Action::Code("first-code".into()), None)
             .discard::<()>();
 
-        let _ = settings.update(Action::Disconnect, None).discard::<()>();
+        let _ = settings.update(Action::CancelAuthorization, None);
         let _ = settings
             .update(Action::Key("second-key".into()), None)
             .discard::<()>();
