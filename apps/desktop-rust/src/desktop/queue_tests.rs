@@ -74,3 +74,18 @@ fn it_reevaluates_a_pending_track_index_when_an_unrelated_source_is_removed() {
 
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(0));
 }
+
+#[test]
+fn it_pauses_current_audio_even_after_another_track_fails_to_load() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::Select(0));
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+    desktop.failed_track = Some(1);
+
+    let _ = desktop.update(Message::TogglePlayback);
+
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current_index(), Some(0));
+    assert!(!session.is_playing());
+    assert_eq!(desktop.failed_track, Some(1));
+}
