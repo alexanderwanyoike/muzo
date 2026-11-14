@@ -273,26 +273,21 @@ impl Sources {
         selected.map_or_else(Task::none, |id| self.start(Operation::Select(id)))
     }
 
-    pub fn record_play(&mut self, id: &str) -> Result<(), CatalogueError> {
-        let Some(paths) = self.paths.as_ref() else {
-            return Ok(());
-        };
-        paths.open()?.record_play(id)?;
+    pub fn confirm_play_count(&mut self, id: &str, count: u32) {
         if let Some(snapshot) = &mut self.snapshot {
             for track in &mut snapshot.tracks {
                 if track.id == id {
-                    track.plays = track.plays.saturating_add(1);
+                    track.plays = track.plays.max(count);
                 }
             }
             for entry in &mut snapshot.playlist_entries {
                 if let Some(track) = &mut entry.track
                     && track.id == id
                 {
-                    track.plays = track.plays.saturating_add(1);
+                    track.plays = track.plays.max(count);
                 }
             }
         }
-        Ok(())
     }
 
     pub fn busy(&self) -> bool {

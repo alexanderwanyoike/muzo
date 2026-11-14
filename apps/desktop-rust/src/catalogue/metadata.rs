@@ -56,11 +56,33 @@ impl Catalogue {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |duration| duration.as_secs() as i64);
-        self.database.execute(
+        let inserted = self.database.execute(
             "INSERT INTO play_history (id, library_id, track_id, played_at_unix_seconds)
              SELECT ?1, library_id, id, ?2 FROM tracks WHERE id=?3",
             params![Uuid::new_v4().to_string(), now, track_id],
         )?;
+        if inserted == 0 {
+            return Err(CatalogueError::UnknownTrack);
+        }
         Ok(())
+    }
+
+    pub fn record_origin_play(
+        &self,
+        event: &str,
+        library: &str,
+        track: &str,
+        started: i64,
+    ) -> Result<u32, CatalogueError> {
+        self.database.execute(
+            "INSERT OR IGNORE INTO play_history (id, library_id, track_id, played_at_unix_seconds)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![event, library, track, started],
+        )?;
+        Ok(self.database.query_row(
+            "SELECT count(*) FROM play_history WHERE library_id=?1 AND track_id=?2",
+            params![library, track],
+            |row| row.get(0),
+        )?)
     }
 }

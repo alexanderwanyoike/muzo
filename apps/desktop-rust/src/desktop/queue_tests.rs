@@ -349,6 +349,7 @@ fn it_saves_a_successful_play_before_the_next_background_poll() {
     std::fs::copy(audio.path(), &file).unwrap();
     let library = catalogue.add_folder(&media).unwrap();
     let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let row_id = row.id.clone();
     let item = read_track(file)
         .with_indexed_id(row.id)
         .with_library(library.id.clone())
@@ -356,9 +357,12 @@ fn it_saves_a_successful_play_before_the_next_background_poll() {
     desktop.sources = Sources::new(Some(paths.clone()));
     desktop.session.as_mut().unwrap().replace(vec![item]);
 
-    let _ = desktop.update(Message::Select(0));
-    let _ = desktop.update(Message::TogglePlayback);
-    let _ = desktop.update(Message::TogglePlayback);
+    let write = desktop.update(Message::Select(0));
+    assert!(write.units() > 0);
+    assert_eq!(desktop.update(Message::TogglePlayback).units(), 0);
+    assert_eq!(desktop.update(Message::TogglePlayback).units(), 0);
+    let count = persist_play(&paths, "event", &library.id, &row_id, 1).unwrap();
+    let _ = desktop.update(Message::PlayRecorded(row_id, Ok(count)));
 
     assert_eq!(
         paths.open().unwrap().tracks(&library.id).unwrap()[0].plays,

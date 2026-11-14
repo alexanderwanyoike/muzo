@@ -32,6 +32,7 @@ pub enum Message {
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, String>),
     SourceWatchTick,
+    PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
     Material(String),
@@ -100,6 +101,8 @@ pub struct Desktop {
     mini_focus: Option<mini_focus::Control>,
     sidebar: sidebar::Sidebar,
     sidebar_revision: u64,
+    plays_pending: usize,
+    close_after_history: Option<window::Id>,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
 }
@@ -173,6 +176,8 @@ impl Desktop {
                 mini_focus: None,
                 sidebar: sidebar::Sidebar::default(),
                 sidebar_revision: 0,
+                plays_pending: 0,
+                close_after_history: None,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
             },
@@ -490,8 +495,7 @@ impl Desktop {
                         return self.select_track(index);
                     }
                 }
-                self.refresh_transport(Session::advance_if_finished, false);
-                Task::none()
+                self.refresh_transport(Session::advance_if_finished, false)
             }
             Message::ToggleMini(id) => {
                 if self.windows.is_mini(id) {
@@ -587,7 +591,27 @@ impl Desktop {
                 task
             }
 
+            Message::PlayRecorded(id, result) => {
+                self.plays_pending = self.plays_pending.saturating_sub(1);
+                match result {
+                    Ok(count) => self.sources.confirm_play_count(&id, count),
+                    Err(error) => {
+                        self.error = Some(error);
+                        self.close_after_history = None;
+                    }
+                }
+                if self.plays_pending == 0
+                    && let Some(window) = self.close_after_history.take()
+                {
+                    return self.update(Message::CloseRequested(window));
+                }
+                Task::none()
+            }
             Message::CloseRequested(id) => {
+                if self.windows.is_library(id) && self.plays_pending > 0 {
+                    self.close_after_history = Some(id);
+                    return Task::none();
+                }
                 if self.windows.is_library(id) && self.sidebar_revision != 0 {
                     self.persist_sidebar(self.sidebar.preferred_width());
                 }
@@ -818,15 +842,15 @@ impl Desktop {
         &mut self,
         operation: impl FnOnce(&mut Session) -> Result<(), SessionError>,
     ) -> Task<Message> {
-        self.refresh_transport(operation, true);
-        Task::none()
+        self.refresh_transport(operation, true)
     }
 
     fn refresh_transport(
         &mut self,
         operation: impl FnOnce(&mut Session) -> Result<(), SessionError>,
         clear_on_success: bool,
-    ) {
+    ) -> Task<Message> {
+        let mut started = None;
         if let Some(session) = &mut self.session {
             let current = session.current_index();
             let before = session.start_generation();
@@ -835,12 +859,10 @@ impl Desktop {
                     if clear_on_success || current != session.current_index() {
                         self.error = None;
                     }
-                    if let Some(id) = session.current().and_then(Track::indexed_id)
-                        && session.is_playing()
-                        && before != session.start_generation()
-                        && let Err(error) = self.sources.record_play(id)
-                    {
-                        self.error = Some(error.to_string());
+                    if session.is_playing() && before != session.start_generation() {
+                        started = session.current().and_then(|track| {
+                            Some((track.library()?.to_owned(), track.indexed_id()?.to_owned()))
+                        });
                     }
                 }
                 Err(error) => self.error = Some(error.to_string()),
@@ -852,6 +874,32 @@ impl Desktop {
                     .map(|encoded| image::Handle::from_bytes(encoded.to_vec()));
             }
         }
+        started.map_or_else(Task::none, |(library, track)| {
+            self.record_play(library, track)
+        })
+    }
+
+    fn record_play(&mut self, library: String, track: String) -> Task<Message> {
+        let Some(paths) = self.sources.paths() else {
+            return Task::none();
+        };
+        self.plays_pending += 1;
+        let event = uuid::Uuid::new_v4().to_string();
+        let started = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |duration| duration.as_secs() as i64);
+        let id = track.clone();
+        Task::perform(
+            async move {
+                tokio::task::spawn_blocking(move || {
+                    persist_play(&paths, &event, &library, &track, started)
+                })
+                .await
+                .map_err(|error| format!("Could not record playback: {error}"))?
+                .map_err(|error| error.to_string())
+            },
+            move |result| Message::PlayRecorded(id, result),
+        )
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
@@ -940,6 +988,18 @@ impl Desktop {
         let session = self.session.as_ref()?;
         Some((session.current_index()?, session.observe().0))
     }
+}
+
+fn persist_play(
+    paths: &CataloguePaths,
+    event: &str,
+    library: &str,
+    track: &str,
+    started: i64,
+) -> Result<u32, crate::catalogue::CatalogueError> {
+    paths
+        .open()?
+        .record_origin_play(event, library, track, started)
 }
 
 fn auto_update() -> Task<Message> {
