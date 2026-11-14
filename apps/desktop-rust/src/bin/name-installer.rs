@@ -11,10 +11,14 @@ use muzo_desktop::distribution::{Target, filename};
 fn main() -> io::Result<()> {
     let target = Target::current()
         .ok_or_else(|| io::Error::other("Unsupported Muzo distribution target"))?;
-    let directory = std::env::args_os()
+    let argument = std::env::args_os()
         .nth(1)
-        .map(PathBuf::from)
         .ok_or_else(|| io::Error::other("Pass the package output directory"))?;
+    if argument == "--target-id" {
+        println!("{}", target.id());
+        return Ok(());
+    }
+    let directory = PathBuf::from(argument);
     let mut candidates = fs::read_dir(&directory)?
         .filter_map(Result::ok)
         .map(|entry| entry.path())

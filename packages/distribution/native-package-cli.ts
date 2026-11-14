@@ -8,7 +8,7 @@ import {
   stat,
   symlink,
 } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs, promisify } from "node:util";
@@ -39,6 +39,12 @@ const hostPlatforms = new Map<NodeJS.Platform, ReleaseTarget["platform"]>([
   ["darwin", "macos"],
   ["win32", "windows"],
 ]);
+const cargoHosts = {
+  "linux-x64": /^x86_64-.*-linux-gnu$/u,
+  "windows-x64": /^x86_64-.*-windows-(msvc|gnu)$/u,
+  "macos-arm64": /^aarch64-apple-darwin$/u,
+  "macos-x64": /^x86_64-apple-darwin$/u,
+};
 
 async function run(
   executable: string,
@@ -47,6 +53,7 @@ async function run(
 ): Promise<string> {
   const result = await execute(executable, args, {
     cwd,
+    maxBuffer: 16 * 1024 * 1024,
     env: {
       ...process.env,
       APPIMAGE_EXTRACT_AND_RUN: "1",
@@ -58,17 +65,65 @@ async function run(
   return result.stdout;
 }
 
+async function buildExecutables(target: ReleaseTarget) {
+  const { stdout } = await execute("cargo", ["-vV"], { cwd: native });
+  const host = /^host: (.*)$/mu.exec(stdout)?.[1]?.trim();
+  if (!host || !cargoHosts[target.id].test(host))
+    return distributionFailure(
+      "invalidRelease",
+      "The Rust toolchain must match the requested installer architecture.",
+    );
+
+  const { stdout: messages, stderr } = await execute(
+    "cargo",
+    [
+      "build",
+      "--locked",
+      "--release",
+      "--message-format=json-render-diagnostics",
+    ],
+    { cwd: native, maxBuffer: 16 * 1024 * 1024 },
+  );
+  process.stderr.write(stderr);
+  const executables = new Map<string, string>();
+  for (const line of messages.trim().split(/\r?\n/u).filter(Boolean)) {
+    const message: unknown = JSON.parse(line);
+    if (
+      message &&
+      typeof message === "object" &&
+      "reason" in message &&
+      message.reason === "compiler-artifact" &&
+      "executable" in message &&
+      typeof message.executable === "string" &&
+      "target" in message &&
+      message.target &&
+      typeof message.target === "object" &&
+      "name" in message.target &&
+      typeof message.target.name === "string"
+    )
+      executables.set(message.target.name, message.executable);
+  }
+  const application = executables.get("muzo-desktop");
+  const namer = executables.get("name-installer");
+  if (!application || !namer)
+    return distributionFailure(
+      "storage",
+      "Cargo did not report the two desktop executables.",
+    );
+  return { ok: true as const, value: { application, namer } };
+}
+
 async function buildPayload(
   target: ReleaseTarget,
   version: string,
-  binaries: string,
+  executable: string,
   stage: string,
 ) {
   if (target.platform === "windows") {
     const payload = join(stage, "payload");
     const resources = join(payload, "resources");
     await mkdir(resources, { recursive: true });
-    await cp(join(binaries, "muzo-desktop.exe"), join(payload, "muzo.exe"));
+    await cp(executable, join(payload, "muzo.exe"));
     await cp(join(legacy, "assets/licenses"), join(resources, "licenses"), {
       recursive: true,
     });
@@ -98,7 +153,7 @@ async function buildPayload(
     "--config",
     "Packager.toml",
     "--binaries-dir",
-    binaries,
+    dirname(executable),
     "--out-dir",
     stage,
     "--formats",
@@ -144,32 +199,24 @@ async function packageNative(): Promise<DistributionResult<string>> {
     const output = values.output
       ? resolve(process.env.INIT_CWD ?? process.cwd(), values.output)
       : join(native, "out/rust-distribution");
-    const { stdout } = await execute(
-      "cargo",
-      ["metadata", "--locked", "--no-deps", "--format-version", "1"],
-      { cwd: native },
-    );
-    const metadata: unknown = JSON.parse(stdout);
-    if (
-      !metadata ||
-      typeof metadata !== "object" ||
-      !("target_directory" in metadata) ||
-      typeof metadata.target_directory !== "string"
-    )
+    const executables = await buildExecutables(target);
+    if (!executables.ok) return executables;
+    const builtTarget = await execute(executables.value.namer, ["--target-id"]);
+    if (builtTarget.stdout.trim() !== target.id)
       return distributionFailure(
-        "storage",
-        "Could not locate Cargo’s target directory.",
+        "invalidRelease",
+        "Cargo built a different installer target.",
       );
-    const binaries = join(metadata.target_directory, "release");
-    await run("cargo", ["build", "--locked", "--release"]);
     await mkdir(output, { recursive: true });
     const stage = await mkdtemp(join(output, ".muzo-package-"));
     try {
-      await buildPayload(target, version.value, binaries, stage);
-      const suffix = process.platform === "win32" ? ".exe" : "";
-      const renamed = await run(join(binaries, `name-installer${suffix}`), [
+      await buildPayload(
+        target,
+        version.value,
+        executables.value.application,
         stage,
-      ]);
+      );
+      const renamed = await run(executables.value.namer, [stage]);
       const name = basename(renamed.trim());
       if (
         name !== releaseAssetName(target.id, version.value) ||

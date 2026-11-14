@@ -45,6 +45,15 @@ impl Target {
             Self::MacArm64 | Self::MacX64 => "dmg",
         }
     }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::LinuxX64 => "linux-x64",
+            Self::WindowsX64 => "windows-x64",
+            Self::MacArm64 => "macos-arm64",
+            Self::MacX64 => "macos-x64",
+        }
+    }
 }
 
 pub fn filename(version: &str, target: Target) -> String {
