@@ -1,3 +1,4 @@
+pub mod desktop;
 pub mod playback;
 pub mod session;
 pub mod track;
