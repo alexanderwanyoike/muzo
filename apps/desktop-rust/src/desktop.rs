@@ -100,8 +100,7 @@ pub enum Message {
     SeekRelative(i8),
     SetVolume(f32),
     SetMiniVolume(f32),
-    ResizeSidebar(f32),
-    SaveSidebar(u64, crate::appearance::sidebar::SidebarWidth),
+    ResizeSidebar(sidebar::Resize),
     Tick,
     ShowMini,
     ToggleMini(window::Id),
@@ -152,7 +151,6 @@ pub struct Desktop {
     sidebar: sidebar::Sidebar,
     page: LibraryPage,
     appearance_focus: Option<appearance_focus::Choice>,
-    sidebar_revision: u64,
     plays_pending: usize,
     close_after_history: Option<window::Id>,
     install_after_history: bool,
@@ -233,7 +231,6 @@ impl Desktop {
                 sidebar: sidebar::Sidebar::default(),
                 page: LibraryPage::default(),
                 appearance_focus: None,
-                sidebar_revision: 0,
                 plays_pending: 0,
                 close_after_history: None,
                 install_after_history: false,
@@ -443,9 +440,6 @@ impl Desktop {
                     return Task::none();
                 }
                 self.install_after_history = false;
-                if self.sidebar_revision != 0 {
-                    self.persist_sidebar(self.sidebar.preferred_width());
-                }
                 self.update_status = updates::Status::Installing;
                 Task::perform(
                     async move {
@@ -769,20 +763,10 @@ impl Desktop {
                 };
                 session.seek(target)
             }),
-            Message::ResizeSidebar(ratio) => {
-                let width = self.sidebar.drag(ratio);
-                self.sidebar_revision += 1;
-                let revision = self.sidebar_revision;
-                Task::perform(
-                    async { tokio::time::sleep(Duration::from_millis(180)).await },
-                    move |()| Message::SaveSidebar(revision, width),
-                )
-            }
-            Message::SaveSidebar(revision, width) => {
-                if revision != self.sidebar_revision {
-                    return Task::none();
+            Message::ResizeSidebar(action) => {
+                if let Some(width) = self.sidebar.resize(action) {
+                    self.persist_sidebar(width);
                 }
-                self.persist_sidebar(width);
                 Task::none()
             }
             Message::SetVolume(value) => self.transport(|session| {
@@ -983,9 +967,6 @@ impl Desktop {
                 if self.windows.is_library(id) && self.plays_pending > 0 {
                     self.close_after_history = Some(id);
                     return Task::none();
-                }
-                if self.windows.is_library(id) && self.sidebar_revision != 0 {
-                    self.persist_sidebar(self.sidebar.preferred_width());
                 }
                 self.windows.close_requested(id)
             }

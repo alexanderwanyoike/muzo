@@ -12,6 +12,7 @@ mod compact;
 mod library;
 mod playlist_popup;
 mod playlists;
+mod sidebar_divider;
 mod sleeve_image;
 mod source_search_input;
 mod sources;

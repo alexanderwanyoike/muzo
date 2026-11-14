@@ -1,77 +1,70 @@
-use iced::widget::pane_grid::{Axis, Split, State};
-
 use super::windows::LIBRARY_SIZE;
 use crate::appearance::sidebar::SidebarWidth;
 
-pub(super) const SPLITTER_SPACING: f32 = 1.0;
+pub(super) const SPLITTER_WIDTH: f32 = 1.0;
 
-#[derive(Clone, Copy)]
-pub(super) enum Pane {
-    Sidebar,
-    Content,
+#[derive(Debug, Clone, Copy)]
+pub enum Resize {
+    Preview(f32),
+    Commit,
+    Cancel,
 }
 
 pub(super) struct Sidebar {
-    pub grid: State<Pane>,
-    split: Split,
     viewport: f32,
-    width: SidebarWidth,
+    preferred: SidebarWidth,
+    preview: Option<SidebarWidth>,
 }
 
 impl Default for Sidebar {
     fn default() -> Self {
-        let (mut grid, sidebar) = State::new(Pane::Sidebar);
-        let (_, split) = grid
-            .split(Axis::Vertical, sidebar, Pane::Content)
-            .expect("a fresh pane grid has one pane to split");
-        let mut layout = Self {
-            grid,
-            split,
+        Self {
             viewport: LIBRARY_SIZE.width,
-            width: SidebarWidth::default(),
-        };
-        layout.update_grid();
-        layout
+            preferred: SidebarWidth::default(),
+            preview: None,
+        }
     }
 }
 
 impl Sidebar {
     pub(super) fn layout_width(&mut self, viewport: f32) {
         self.viewport = viewport;
-        self.update_grid();
     }
 
     pub(super) fn set(&mut self, width: SidebarWidth) {
-        self.width = width;
-        self.update_grid();
+        self.preferred = width;
     }
 
-    pub(super) fn drag(&mut self, ratio: f32) -> SidebarWidth {
-        let requested = ratio * self.content_width() - SPLITTER_SPACING / 2.0;
-        let desired = SidebarWidth::new(requested);
-        let clamped = SidebarWidth::new(desired.visible(self.pane_space()));
-        self.set(clamped);
-        clamped
+    pub(super) fn resize(&mut self, action: Resize) -> Option<SidebarWidth> {
+        match action {
+            Resize::Preview(requested) => {
+                let width = SidebarWidth::new(requested);
+                let available = self.viewport - SPLITTER_WIDTH;
+                self.preview = (width.visible(available) != self.preferred.visible(available))
+                    .then_some(width);
+                None
+            }
+            Resize::Commit => {
+                let preview = self.preview.take()?;
+                let width = SidebarWidth::new(preview.visible(self.viewport - SPLITTER_WIDTH));
+                self.set(width);
+                Some(width)
+            }
+            Resize::Cancel => {
+                self.preview = None;
+                None
+            }
+        }
     }
 
     pub(super) fn visible_width(&self) -> f32 {
-        self.width.visible(self.pane_space())
+        self.preview
+            .unwrap_or(self.preferred)
+            .visible(self.viewport - SPLITTER_WIDTH)
     }
 
+    #[cfg(test)]
     pub(super) fn preferred_width(&self) -> SidebarWidth {
-        self.width
-    }
-
-    fn pane_space(&self) -> f32 {
-        self.content_width() - SPLITTER_SPACING
-    }
-
-    fn content_width(&self) -> f32 {
-        self.viewport.max(1.0)
-    }
-
-    fn update_grid(&mut self) {
-        let ratio = (self.visible_width() + SPLITTER_SPACING / 2.0) / self.content_width();
-        self.grid.resize(self.split, ratio.clamp(0.0, 1.0));
+        self.preferred
     }
 }

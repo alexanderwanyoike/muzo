@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     Icon, action, appearance, bold, clock, compact, control_opacity, error_line, icon_button,
-    icon_tinted, library_content, playback_error, playlists, sources,
+    icon_tinted, library_content, playback_error, playlists, sidebar_divider::Divider, sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -34,37 +34,24 @@ pub(in crate::desktop) fn library<'a>(
     let (preferences, update, sidebar, page, focus) = settings;
     let (error, retry) = playback;
     let surfaces = preferences.surfaces();
-    let view = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
-        let body: Element<'_, Message> = match pane {
-            sidebar::Pane::Sidebar => navigation(sources, page, session, cover, preferences),
-            sidebar::Pane::Content => column![
-                toolbar(sources, page, surfaces),
-                error_line(sources.error.as_deref()),
-                library_content(sources, dropbox, preferences, session, (page, focus), cover)
-                    .height(Fill),
-            ]
-            .width(Fill)
-            .height(Fill)
-            .into(),
-        };
-        iced::widget::pane_grid::Content::new(body)
-    })
-    .style(move |_| iced::widget::pane_grid::Style {
-        hovered_region: iced::widget::pane_grid::Highlight {
-            background: surfaces.line.into(),
-            border: border::rounded(0),
-        },
-        picked_split: iced::widget::pane_grid::Line {
-            color: surfaces.line,
-            width: 1.0,
-        },
-        hovered_split: iced::widget::pane_grid::Line {
-            color: surfaces.line,
-            width: 1.0,
-        },
-    })
-    .spacing(sidebar::SPLITTER_SPACING)
-    .on_resize(9.0, |event| Message::ResizeSidebar(event.ratio))
+    let width = sidebar.visible_width();
+    let view = row![
+        container(navigation(sources, page, session, cover, preferences))
+            .width(width)
+            .height(Fill),
+        Element::new(Divider {
+            sidebar_width: width,
+            line: surfaces.line,
+        }),
+        column![
+            toolbar(sources, page, surfaces),
+            error_line(sources.error.as_deref()),
+            library_content(sources, dropbox, preferences, session, (page, focus), cover)
+                .height(Fill),
+        ]
+        .width(Fill)
+        .height(Fill),
+    ]
     .width(Fill)
     .height(Fill);
 
