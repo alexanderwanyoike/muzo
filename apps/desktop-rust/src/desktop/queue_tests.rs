@@ -840,3 +840,117 @@ fn it_lists_every_indexed_source_and_location_in_settings() {
         );
     }
 }
+
+fn editing_source() -> (Desktop, crate::catalogue::IndexedTrack) {
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(None);
+    let track = crate::catalogue::IndexedTrack {
+        id: "song".into(),
+        title: "Song".into(),
+        artist: "Artist".into(),
+        album: None,
+        path: "track.mp3".into(),
+        plays: 0,
+        duration_seconds: 1,
+        library_id: "first".into(),
+    };
+    let mut selected = snapshot(&["first", "second"]);
+    selected.selected = Some("first".into());
+    selected.tracks.push(track.clone());
+    desktop.sources.snapshot = Some(selected);
+    desktop.sources.editing = Some(Box::new(library_sources::TrackEditor {
+        track_id: track.id.clone(),
+        library_id: track.library_id.clone(),
+        fields: std::array::from_fn(|_| String::new()),
+        overridden: false,
+    }));
+    (desktop, track)
+}
+
+#[test]
+fn it_discards_a_metadata_draft_when_opening_another_song() {
+    let (mut desktop, mut track) = editing_source();
+    track.id = "next-song".into();
+    desktop
+        .sources
+        .snapshot
+        .as_mut()
+        .unwrap()
+        .tracks
+        .push(track.clone());
+
+    let _ = desktop.update(Message::EditTrack(track));
+
+    assert!(desktop.sources.editing.is_none());
+}
+
+#[test]
+fn it_discards_a_metadata_draft_when_switching_sources() {
+    let (mut desktop, _) = editing_source();
+
+    let _ = desktop.update(Message::SourceOperation(Operation::Select("second".into())));
+
+    assert!(desktop.sources.editing.is_none());
+}
+
+#[test]
+fn it_does_not_reopen_the_metadata_editor_after_cancel() {
+    let (mut desktop, track) = editing_source();
+    let _ = desktop.update(Message::EditTrack(track));
+    let mut returned = desktop.sources.snapshot.clone().unwrap();
+    returned.editor = desktop.sources.editing.take().or_else(|| {
+        Some(Box::new(library_sources::TrackEditor {
+            track_id: "song".into(),
+            library_id: "first".into(),
+            fields: Default::default(),
+            overridden: false,
+        }))
+    });
+    let _ = desktop.update(Message::CloseTrackEdit);
+
+    let _ = desktop.update(Message::SourcesUpdated(Ok(returned)));
+
+    assert!(desktop.sources.editing.is_none());
+}
+
+#[test]
+fn it_allows_saving_a_metadata_edit_with_a_signed_year() {
+    let (mut desktop, _) = editing_source();
+    let directory = tempfile::tempdir().unwrap();
+    let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    sources.editing = desktop.sources.editing.take();
+    desktop.sources = sources;
+    let _ = desktop.update(Message::EditField(6, "-120".into()));
+
+    let save = desktop.update(Message::SaveTrackEdit(false));
+
+    assert_ne!(save.units(), 0);
+}
+
+#[test]
+fn it_keeps_the_metadata_draft_until_its_queued_save_completes() {
+    let (mut desktop, _) = editing_source();
+    let directory = tempfile::tempdir().unwrap();
+    let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    sources.editing = desktop.sources.editing.take();
+    desktop.sources = sources;
+    let _ = desktop.sources.start(Operation::Reload);
+    let _ = desktop.sources.start(Operation::Reload);
+    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first", "second"]))));
+
+    let _ = desktop.update(Message::SaveTrackEdit(false));
+    let _ = desktop.sources.poll();
+    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first", "second"]))));
+
+    assert!(desktop.sources.editing.is_some());
+}
+
+#[test]
+fn it_clears_the_metadata_validation_error_when_cancelling() {
+    let (mut desktop, _) = editing_source();
+    let _ = desktop.update(Message::EditField(3, "not a number".into()));
+    let _ = desktop.update(Message::SaveTrackEdit(false));
+    let _ = desktop.update(Message::CloseTrackEdit);
+
+    assert!(desktop.sources.error.is_none());
+}
