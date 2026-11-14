@@ -220,13 +220,7 @@ fn pressed(event: &Event) -> bool {
 }
 
 fn press_in(event: &Event, cursor: mouse::Cursor, bounds: Rectangle) -> bool {
-    match event {
-        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)) => cursor.is_over(bounds),
-        Event::Touch(iced::touch::Event::FingerPressed { position, .. }) => {
-            bounds.contains(*position)
-        }
-        _ => false,
-    }
+    pressed(event) && cursor.is_over(bounds)
 }
 
 #[cfg(test)]
