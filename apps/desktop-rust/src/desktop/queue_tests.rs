@@ -131,3 +131,26 @@ fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
 
     assert_eq!(result.path(), path);
 }
+
+#[test]
+fn it_starts_no_second_install_while_the_first_is_running() {
+    let (mut desktop, _) = setup();
+    let update = crate::distribution::Update {
+        version: semver::Version::new(0, 1, 0),
+        asset: crate::distribution::Artifact {
+            name: "Muzo-0.1.0-linux-x64.AppImage".into(),
+            platform: "linux".into(),
+            arch: "x64".into(),
+            size: 1,
+            sha256: "a".repeat(64),
+        },
+    };
+    let path = PathBuf::from("download.AppImage");
+    desktop.update_status = updates::Status::Ready(update.clone(), path.clone());
+
+    let first = desktop.update(Message::InstallUpdate(update.clone(), path.clone()));
+    let second = desktop.update(Message::InstallUpdate(update, path));
+
+    assert!(first.units() > 0);
+    assert_eq!(second.units(), 0);
+}
