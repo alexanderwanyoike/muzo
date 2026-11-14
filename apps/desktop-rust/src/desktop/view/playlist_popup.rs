@@ -178,21 +178,27 @@ impl Overlay<Message, Theme, Renderer> for Popup<'_, '_> {
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
-        if pressed(event) && !press_in(event, cursor, layout.bounds()) {
-            shell.publish(Message::DismissTrackPlaylistPopup);
-            shell.capture_event();
-        } else {
-            self.content.as_widget_mut().update(
-                self.tree,
-                event,
-                layout,
-                cursor,
-                renderer,
-                clipboard,
-                shell,
-                &layout.bounds(),
-            );
+        if !cursor.is_over(layout.bounds()) {
+            if pressed(event) {
+                shell.publish(Message::DismissTrackPlaylistPopup);
+                shell.capture_event();
+                return;
+            }
+            if matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. })) {
+                shell.publish(Message::DismissTrackPlaylistPopup);
+                return;
+            }
         }
+        self.content.as_widget_mut().update(
+            self.tree,
+            event,
+            layout,
+            cursor,
+            renderer,
+            clipboard,
+            shell,
+            &layout.bounds(),
+        );
     }
 
     fn mouse_interaction(
