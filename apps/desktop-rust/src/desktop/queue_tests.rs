@@ -89,3 +89,45 @@ fn it_pauses_current_audio_even_after_another_track_fails_to_load() {
     assert!(!session.is_playing());
     assert_eq!(desktop.failed_track, Some(1));
 }
+
+#[test]
+fn it_keeps_the_catalogued_title_when_a_cached_download_has_no_embedded_title() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let entry = serde_json::from_str(
+        r#"{".tag":"file","name":"Track.mp3","path_display":"/Music/Track.mp3","size":48,"rev":"1"}"#,
+    )
+    .unwrap();
+    catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
+    let indexed = catalogue.tracks(&library.id).unwrap().remove(0);
+    let (_, audio) = setup();
+    let local = root.path().join("8b2e-2c9f.mp3");
+    std::fs::copy(audio.path(), &local).unwrap();
+
+    let track = Track::new(PathBuf::new(), indexed.title.clone(), None, None, None)
+        .with_indexed_id(indexed.id);
+    let played = prepare_dropbox_track(&paths, track, local).unwrap();
+
+    assert_eq!(played.title(), indexed.title);
+    assert_eq!(
+        catalogue.tracks(&library.id).unwrap()[0].title,
+        indexed.title
+    );
+}
+
+#[test]
+fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    std::fs::create_dir(root.path().join("muzo-rust.sqlite")).unwrap();
+    let (_, audio) = setup();
+    let path = audio.path().to_path_buf();
+    let result = prepare_dropbox_track(&paths, audio.with_indexed_id("track".into()), path.clone());
+
+    assert_eq!(result.unwrap().path(), path);
+}
