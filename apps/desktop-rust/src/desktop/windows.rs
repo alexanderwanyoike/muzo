@@ -145,7 +145,7 @@ impl Windows {
             .chain(window::resize(id, request.target))
             .chain(Task::perform(
                 async { tokio::time::sleep(QUEUE_RESIZE_TIMEOUT).await },
-                move |()| Message::QueueResizeTimedOut(id, request.generation),
+                move |()| Message::CheckQueueSize(id, request.generation),
             ))
     }
 
@@ -177,12 +177,17 @@ impl Windows {
         &mut self,
         id: window::Id,
         generation: u64,
+        actual_size: Size,
     ) -> (Task<Message>, Result<(), WindowError>) {
         if !self.is_mini(id)
             || self
                 .queue_resize
                 .is_none_or(|request| request.generation != generation)
         {
+            return (Task::none(), Ok(()));
+        }
+        self.resized(id, actual_size);
+        if self.queue_resize.is_none() {
             return (Task::none(), Ok(()));
         }
         self.queue_resize = None;

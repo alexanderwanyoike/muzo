@@ -36,7 +36,8 @@ pub enum Message {
     ToggleQueue,
     CloseRequested(window::Id),
     MiniResized(window::Id, iced::Size),
-    QueueResizeTimedOut(window::Id, u64),
+    CheckQueueSize(window::Id, u64),
+    QueueResizeTimedOut(window::Id, u64, iced::Size),
 }
 
 pub struct Desktop {
@@ -160,8 +161,11 @@ impl Desktop {
                 self.error = None;
                 self.windows.toggle_queue()
             }
-            Message::QueueResizeTimedOut(id, generation) => {
-                let (task, result) = self.windows.resize_timed_out(id, generation);
+            Message::CheckQueueSize(id, generation) => {
+                window::size(id).map(move |size| Message::QueueResizeTimedOut(id, generation, size))
+            }
+            Message::QueueResizeTimedOut(id, generation, size) => {
+                let (task, result) = self.windows.resize_timed_out(id, generation, size);
                 if let Err(error) = result {
                     self.error = Some(error.to_string());
                 }
