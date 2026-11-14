@@ -17,6 +17,7 @@ pub enum Status {
     Available(Update),
     Downloading,
     Ready(Update, PathBuf),
+    Installing,
     Error(String),
 }
 
@@ -110,6 +111,7 @@ pub fn view(status: &Status) -> Element<'_, Message> {
         Status::Downloading => button(text("Downloading update…").size(11)),
         Status::Ready(update, path) => button(text("Restart to install").size(11))
             .on_press(Message::InstallUpdate(update.clone(), path.clone())),
+        Status::Installing => button(text("Installing update…").size(11)),
         Status::Error(error) => {
             return row![
                 text(error).size(11),

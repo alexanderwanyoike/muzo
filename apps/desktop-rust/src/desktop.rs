@@ -227,14 +227,22 @@ impl Desktop {
                 Task::none()
             }
             Message::CheckUpdate => {
+                if matches!(self.update_status, updates::Status::Installing) {
+                    return Task::none();
+                }
                 self.update_status = updates::Status::Checking;
                 updates::check()
             }
             Message::UpdateReceived(status) => {
-                self.update_status = status;
+                if !matches!(self.update_status, updates::Status::Installing) {
+                    self.update_status = status;
+                }
                 Task::none()
             }
             Message::DownloadUpdate(update) => {
+                if !matches!(self.update_status, updates::Status::Available(_)) {
+                    return Task::none();
+                }
                 if cfg!(target_os = "macos")
                     || (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none())
                 {
@@ -249,16 +257,22 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::InstallUpdate(update, path) => Task::perform(
-                async move {
-                    tokio::task::spawn_blocking(move || {
-                        updates::launch(&update, &path).map_err(|error| error.to_string())
-                    })
-                    .await
-                    .map_err(|error| format!("Could not install the update: {error}"))?
-                },
-                Message::UpdateInstalled,
-            ),
+            Message::InstallUpdate(update, path) => {
+                if !matches!(self.update_status, updates::Status::Ready(_, _)) {
+                    return Task::none();
+                }
+                self.update_status = updates::Status::Installing;
+                Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            updates::launch(&update, &path).map_err(|error| error.to_string())
+                        })
+                        .await
+                        .map_err(|error| format!("Could not install the update: {error}"))?
+                    },
+                    Message::UpdateInstalled,
+                )
+            }
             Message::UpdateInstalled(result) => match result {
                 Ok(()) => iced::exit(),
                 Err(error) => {
