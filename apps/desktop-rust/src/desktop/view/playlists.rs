@@ -63,18 +63,19 @@ pub fn tracks(snapshot: &Snapshot, busy: bool) -> iced::widget::Column<'_, Messa
         .iter()
         .enumerate()
         .map(|(index, entry)| {
-            let (label, play) = if let Some(track) = &entry.track {
+            let (label, plays, play) = if let Some(track) = &entry.track {
                 let play = Message::PlayPlaylist(playable);
                 playable += 1;
-                (track.title.as_str(), Some(play))
+                (track.title.as_str(), track.plays.to_string(), Some(play))
             } else {
-                ("Unavailable track", None)
+                ("Unavailable track", String::new(), None)
             };
             row![
                 button(text(label).size(14).width(Fill))
                     .width(Fill)
                     .style(action)
                     .on_press_maybe(play),
+                text(plays).size(12).style(muted).width(38),
                 button(text("Up").size(11)).style(action).on_press_maybe(
                     (!busy && index > 0).then(|| Message::SourceOperation(
                         Operation::MovePlaylistEntry(playlist.clone(), entry.id.clone(), -1)
@@ -108,7 +109,17 @@ pub fn tracks(snapshot: &Snapshot, busy: bool) -> iced::widget::Column<'_, Messa
     if snapshot.playlist_entries.is_empty() {
         return column![header, text("Playlist is empty").size(13).style(muted)].spacing(9);
     }
-    column![header, scrollable(column(rows).spacing(4)).height(Fill)].spacing(9)
+    column![
+        header,
+        row![
+            text("Title").size(12).style(muted).width(Fill),
+            text("Plays").size(12).style(muted).width(38),
+            iced::widget::Space::new().width(145),
+        ]
+        .spacing(5),
+        scrollable(column(rows).spacing(4)).height(Fill)
+    ]
+    .spacing(9)
 }
 
 pub fn edit(fields: &[String; 7], busy: bool) -> iced::widget::Column<'_, Message> {

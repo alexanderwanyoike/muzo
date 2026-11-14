@@ -327,7 +327,7 @@ impl Sources {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
-        let snapshot = match result {
+        let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
                 self.saving_editor = false;
@@ -335,6 +335,9 @@ impl Sources {
                 return;
             }
         };
+        if let Some(previous) = &self.snapshot {
+            preserve_play_counts(&mut snapshot, previous);
+        }
         self.error = snapshot.warnings.first().cloned();
         let roots: Vec<_> = snapshot
             .libraries
@@ -441,6 +444,30 @@ impl Sources {
                     self.error = Some(format!("Could not watch {}: {error}", root.display()))
                 }
             }
+        }
+    }
+}
+
+fn preserve_play_counts(snapshot: &mut Snapshot, previous: &Snapshot) {
+    let previous_counts: std::collections::HashMap<_, _> = previous
+        .tracks
+        .iter()
+        .chain(
+            previous
+                .playlist_entries
+                .iter()
+                .filter_map(|entry| entry.track.as_ref()),
+        )
+        .map(|track| (track.id.as_str(), track.plays))
+        .collect();
+    for track in snapshot.tracks.iter_mut().chain(
+        snapshot
+            .playlist_entries
+            .iter_mut()
+            .filter_map(|entry| entry.track.as_mut()),
+    ) {
+        if let Some(previous) = previous_counts.get(track.id.as_str()) {
+            track.plays = track.plays.max(*previous);
         }
     }
 }
