@@ -154,3 +154,15 @@ fn it_starts_no_second_install_while_the_first_is_running() {
     assert!(first.units() > 0);
     assert_eq!(second.units(), 0);
 }
+
+#[test]
+fn it_keeps_current_audio_until_dropbox_disconnect_succeeds() {
+    let (mut desktop, _) = setup();
+    desktop.sources.snapshot = Some(snapshot(&["first", "second"]));
+    let _ = desktop.update(Message::Select(0));
+
+    let _ = desktop.update(Message::Dropbox(dropbox_panel::Action::Disconnect));
+
+    assert_eq!(desktop.session.as_ref().unwrap().tracks().len(), 2);
+    assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(0));
+}
