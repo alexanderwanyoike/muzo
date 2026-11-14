@@ -2759,6 +2759,7 @@ dependencies = [
  "dbus-secret-service",
  "directories",
  "iced",
+ "image",
  "keyring",
  "lofty",
  "notify",

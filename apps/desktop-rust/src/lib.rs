@@ -1,4 +1,5 @@
 pub mod appearance;
+pub mod artwork_cache;
 pub mod catalogue;
 pub mod desktop;
 pub mod distribution;
