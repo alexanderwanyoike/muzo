@@ -28,7 +28,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
         ))
         .unwrap();
     database.execute_batch("
-        INSERT INTO libraries VALUES ('library-1', 'Records', 'filesystem', '/music');
+        INSERT INTO libraries VALUES ('library-1', 'Records', 'Filesystem', '/music');
         INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
         VALUES ('track-1', 'library-1', 'Imported song', 'Artist', 60, '/music/a.mp3', 42, 45);
         INSERT INTO playlists VALUES ('playlist-1', 'Collection');
@@ -40,6 +40,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     let catalog = Catalogue::open(&current, Some(&legacy)).unwrap();
     let library = catalog.libraries().unwrap().remove(0);
     assert_eq!(library.name, "Records");
+    assert_eq!(library.kind, "filesystem");
     let track = catalog.tracks(&library.id).unwrap().remove(0);
     assert_eq!(track.id, "track-1");
     assert_eq!(track.title, "Imported song");
@@ -77,7 +78,7 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
     let library = catalogue.add_folder(&music).unwrap();
     let tracks = catalogue.tracks(&library.id).unwrap();
     assert_eq!(tracks.len(), 1);
-    assert_eq!(tracks[0].path, file);
+    assert_eq!(tracks[0].path, file.canonicalize().unwrap());
     assert!(catalogue.add_folder(&music).is_err());
     catalogue.refresh(&library.id).unwrap();
     assert_eq!(catalogue.tracks(&library.id).unwrap()[0].id, tracks[0].id);
@@ -87,7 +88,7 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
     catalogue.refresh(&library.id).unwrap();
     let tracks = catalogue.tracks(&library.id).unwrap();
     assert_eq!(tracks.len(), 1);
-    assert_eq!(tracks[0].path, moved);
+    assert_eq!(tracks[0].path, moved.canonicalize().unwrap());
     catalogue.remove(&library.id).unwrap();
     assert!(catalogue.libraries().unwrap().is_empty());
     assert!(moved.is_file());
@@ -141,7 +142,7 @@ fn it_imports_electron_metadata_overrides_and_play_events() {
         ))
         .unwrap();
     database.execute_batch("PRAGMA user_version = 8; CREATE TABLE electron_migrations (version INTEGER PRIMARY KEY, name TEXT, applied_at_unix_seconds INTEGER);
-        INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'dropbox', '/Cloud');
+        INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'Dropbox', '/Cloud');
         INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, override_title)
             VALUES ('track-1','dropbox-1','Original','Artist',5,'/Cloud/tone.mp3',100,100,'Edited');
         INSERT INTO play_history VALUES ('play-1','dropbox-1','track-1',123);
@@ -239,5 +240,20 @@ fn it_browses_the_created_playlist_and_keeps_duplicate_entries_in_order() {
     assert_eq!(added.playlist_entries.len(), 2);
     assert_eq!(added.playlist_entries[0].id, first_entry);
     assert_ne!(added.playlist_entries[1].id, first_entry);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn it_rejects_invalid_legacy_schema_without_publishing_a_catalogue() {
+    let root = std::env::temp_dir().join(format!("muzo-invalid-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&root).unwrap();
+    let legacy = root.join("muzo.sqlite");
+    let current = root.join("muzo-rust.sqlite");
+    let database = Connection::open(&legacy).unwrap();
+    database.pragma_update(None, "user_version", 8).unwrap();
+    drop(database);
+
+    assert!(Catalogue::open(&current, Some(&legacy)).is_err());
+    assert!(!current.exists());
     fs::remove_dir_all(root).unwrap();
 }

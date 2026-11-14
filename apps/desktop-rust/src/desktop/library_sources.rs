@@ -33,10 +33,7 @@ impl CataloguePaths {
         let data = std::env::var_os("MUZO_DATA_DIR")
             .filter(|path| !path.is_empty())
             .map(PathBuf::from)
-            .or_else(|| {
-                directories::ProjectDirs::from_path(PathBuf::from("muzo"))
-                    .map(|dirs| dirs.data_dir().to_owned())
-            })?;
+            .or_else(|| directories::BaseDirs::new().map(|dirs| dirs.data_dir().join("muzo")))?;
         Some(Self::in_directory(&data))
     }
 }

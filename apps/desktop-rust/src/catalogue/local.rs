@@ -37,12 +37,20 @@ impl Catalogue {
         let transaction = self
             .database
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let existing: bool = transaction.query_row(
-            "SELECT EXISTS(SELECT 1 FROM libraries WHERE kind = 'filesystem' AND location = ?1)",
-            [location],
-            |row| row.get(0),
-        )?;
-        if existing {
+        let mut roots = transaction
+            .prepare("SELECT location FROM libraries WHERE lower(kind) = 'filesystem'")?;
+        let existing = roots
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        let duplicate = existing.iter().any(|existing| {
+            let existing = Path::new(existing);
+            existing == library.location
+                || existing
+                    .canonicalize()
+                    .is_ok_and(|canonical| canonical == library.location)
+        });
+        drop(roots);
+        if duplicate {
             return Err(CatalogueError::DuplicateFolder);
         }
         transaction.execute(
@@ -58,7 +66,7 @@ impl Catalogue {
         let location: String = self
             .database
             .query_row(
-                "SELECT location FROM libraries WHERE id = ?1 AND kind = 'filesystem'",
+                "SELECT location FROM libraries WHERE id = ?1 AND lower(kind) = 'filesystem'",
                 [library_id],
                 |row| row.get(0),
             )
