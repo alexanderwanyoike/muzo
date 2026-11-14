@@ -8,6 +8,8 @@ mod playlist_picker_focus;
 mod row_cover;
 mod settings_scroll;
 mod sidebar;
+#[cfg(test)]
+mod sidebar_tests;
 pub use mini_focus::Control as MiniControl;
 mod track_editor_focus;
 mod updates;
