@@ -1,13 +1,13 @@
 use iced::{
     Alignment, Element, Fill, Theme, border,
     widget::{
-        Space, button, column, container, image, pick_list, row, scrollable, text, text_input,
-        tooltip,
+        Space, button, column, container, image, pick_list, row, scrollable, stack, text,
+        text_input, tooltip,
     },
 };
 
 use crate::{
-    appearance::Surfaces,
+    appearance::{Appearance, Surfaces},
     desktop::{
         LibraryPage, Message,
         library_sources::{Operation, Snapshot, Sources},
@@ -17,7 +17,8 @@ use crate::{
 
 use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
 
-pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a, Message> {
+    let surfaces = appearance.surfaces();
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -91,9 +92,11 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
         .align_y(Alignment::Center),
     )
     .padding([0, 10])
-    .height(32)
-    .center_y(32)
-    .style(move |_| container::Style::default().background(surfaces.chrome));
+    .center_y(32);
+    let heading = stack![
+        crate::desktop::material::chrome(appearance, surfaces, 32),
+        heading
+    ];
     let search = container(
         text_input("Search sources", &sources.search)
             .size(11)
@@ -114,11 +117,14 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     .height(32)
     .width(Fill)
     .style(move |theme, status| button::Style {
-        background: Some(surfaces.chrome.into()),
         border: border::rounded(0),
         ..action(theme, status)
     })
     .on_press(Message::LibraryPage(LibraryPage::Settings));
+    let add = stack![
+        crate::desktop::material::chrome(appearance, surfaces, 32),
+        add
+    ];
     let mut body = column![
         heading,
         library::line(surfaces),

@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Color, Element, Fill, Shadow, Theme, border,
-    widget::{Space, button, column, container, row, text, tooltip},
+    widget::{Space, button, column, container, row, stack, text, tooltip},
 };
 
 use crate::appearance::{ACCENTS, Appearance, MATERIALS, MODES, Surfaces};
@@ -96,7 +96,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
     ]
     .spacing(9);
 
-    let header = container(
+    let header_content = container(
         column![
             text("Appearance").size(13).font(bold()),
             text("Choose a material, appearance and accent colour.")
@@ -106,8 +106,10 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
         .spacing(5),
     )
     .padding([16, 20])
-    .width(Fill)
-    .style(move |_| container::Style::default().background(surfaces.chrome));
+    .width(Fill);
+    let header = stack![header_content]
+        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
+        .clip(true);
 
     container(column![
         header,

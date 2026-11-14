@@ -36,7 +36,7 @@ pub(in crate::desktop) fn library<'a>(
     let surfaces = preferences.surfaces();
     let view = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
         let body: Element<'_, Message> = match pane {
-            sidebar::Pane::Sidebar => navigation(sources, page, session, cover, surfaces),
+            sidebar::Pane::Sidebar => navigation(sources, page, session, cover, preferences),
             sidebar::Pane::Content => column![
                 toolbar(sources, page, surfaces),
                 error_line(sources.error.as_deref()),
@@ -217,8 +217,9 @@ fn navigation<'a>(
     page: LibraryPage,
     session: Option<&Session>,
     cover: Option<&image::Handle>,
-    surfaces: Surfaces,
+    preferences: &Appearance,
 ) -> Element<'a, Message> {
+    let surfaces = preferences.surfaces();
     let libraries = sources
         .snapshot
         .as_ref()
@@ -258,7 +259,7 @@ fn navigation<'a>(
     let panel: Element<'_, Message> = if page == LibraryPage::Playlists {
         playlists::sidebar(sources, surfaces)
     } else {
-        sources::sidebar(sources, surfaces)
+        sources::sidebar(sources, preferences)
     };
     let mut content = column![heading, nav, panel].spacing(18);
     if session.and_then(Session::current).is_some() {
