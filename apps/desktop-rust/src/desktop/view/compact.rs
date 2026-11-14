@@ -479,3 +479,48 @@ pub(super) fn tint(base: Color, overlay: Color, amount: f32) -> Color {
         base.b + (overlay.b - base.b) * amount,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn it_paints_both_wide_pause_bars_in_the_mini_player() {
+        let surfaces = Appearance::default().surfaces();
+        let mut control = play_button(true, true, false, surfaces);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut tree = Tree::new(&control);
+        let bounds = Rectangle::with_size(Size::new(48.0, 48.0));
+        let widget = control.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &Theme::Light,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &bounds,
+        );
+        let pixels = renderer.screenshot(Size::new(48, 48), 1.0, Color::WHITE);
+        let centre = pixels.chunks_exact(48 * 4).nth(24).unwrap();
+        let dark = centre.chunks_exact(4).filter(|pixel| pixel[0] < 80).count();
+        assert!(
+            dark >= 10,
+            "expected two filled pause bars, found {dark} dark pixels"
+        );
+    }
+}
