@@ -279,3 +279,52 @@ fn accent_group(
     .vertical_spacing(10)
     .into()
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn it_paints_the_selected_material_behind_the_settings_header() {
+        let appearance = Appearance {
+            theme: "walnut".into(),
+            ..Appearance::default()
+        };
+        let mut settings = controls(&appearance, None);
+        let size = Size::new(640, 480);
+        let bounds = Rectangle::with_size(Size::new(640.0, 480.0));
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut tree = Tree::new(&settings);
+        let widget = settings.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &Theme::Light,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &bounds,
+        );
+        let pixels = renderer.screenshot(size, 1.0, Color::WHITE);
+        let header = pixels.chunks_exact(640 * 4).nth(10).unwrap();
+        let grain = &header[96 * 4..220 * 4];
+        assert!(
+            grain.chunks_exact(4).any(|color| color != &grain[..4]),
+            "the Walnut header has no horizontal grain"
+        );
+    }
+}
