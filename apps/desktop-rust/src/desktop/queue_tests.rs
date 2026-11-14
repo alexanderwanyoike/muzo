@@ -336,3 +336,32 @@ fn it_can_reopen_cached_catalogue_artwork_without_the_original_audio() {
     let reopened = prepare_local_track(Some(&paths), item);
     assert_eq!(reopened.artwork(), first.artwork());
 }
+
+#[test]
+fn it_saves_a_successful_play_before_the_next_background_poll() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    let media = root.path().join("music");
+    std::fs::create_dir(&media).unwrap();
+    let (mut desktop, audio) = setup();
+    let file = media.join("song.mp3");
+    std::fs::copy(audio.path(), &file).unwrap();
+    let library = catalogue.add_folder(&media).unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let item = read_track(file)
+        .with_indexed_id(row.id)
+        .with_library(library.id.clone())
+        .with_artwork(vec![0]);
+    desktop.sources = Sources::new(Some(paths.clone()));
+    desktop.session.as_mut().unwrap().replace(vec![item]);
+
+    let _ = desktop.update(Message::Select(0));
+    let _ = desktop.update(Message::TogglePlayback);
+    let _ = desktop.update(Message::TogglePlayback);
+
+    assert_eq!(
+        paths.open().unwrap().tracks(&library.id).unwrap()[0].plays,
+        1
+    );
+}
