@@ -35,3 +35,36 @@ fn it_imports_the_electron_appearance_without_changing_its_storage() {
     assert_eq!(load(&path).unwrap(), imported);
     assert_eq!(database.get(key).unwrap(), before);
 }
+
+#[test]
+fn it_imports_a_valid_legacy_sidebar_width_and_keeps_the_rust_choice() {
+    use crate::appearance::sidebar::{SidebarWidth, load_or_import, save};
+    let root = tempfile::tempdir().unwrap();
+    let legacy = root.path().join("leveldb");
+    let mut database = rusty_leveldb::DB::open(&legacy, rusty_leveldb::Options::default()).unwrap();
+    database
+        .put(b"_app://muzo\0\x01muzo.sidebar-width.v1", b"\x01312")
+        .unwrap();
+    database.flush().unwrap();
+    let path = root.path().join("sidebar-rust.json");
+
+    assert_eq!(
+        load_or_import(&path, Some(&legacy)).unwrap(),
+        SidebarWidth::new(312.0)
+    );
+    save(&path, SidebarWidth::new(275.0)).unwrap();
+    assert_eq!(
+        load_or_import(&path, Some(&legacy)).unwrap(),
+        SidebarWidth::new(275.0)
+    );
+}
+
+#[test]
+fn it_narrows_sidebar_on_a_small_window_without_losing_the_preferred_width() {
+    use crate::appearance::sidebar::SidebarWidth;
+    let width = SidebarWidth::new(310.0);
+
+    assert_eq!(width.visible(500.0), 192.0);
+    assert_eq!(width.visible(750.0), 230.0);
+    assert_eq!(width.visible(900.0), 310.0);
+}
