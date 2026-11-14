@@ -240,4 +240,35 @@ mod tests {
 
         assert!(press_in(&finger, cursor, bounds));
     }
+
+    #[test]
+    fn it_dismisses_the_playlist_popup_when_scrolling_outside_it() {
+        let mut content = iced::widget::space().height(80).into();
+        let mut tree = Tree::new(&content);
+        let renderer = Renderer::new(iced::Font::DEFAULT, iced::Pixels(16.0));
+        let mut popup = Popup {
+            content: &mut content,
+            tree: &mut tree,
+            anchor: Rectangle::new(Point::new(40.0, 40.0), Size::new(160.0, 28.0)),
+        };
+        let node = popup.layout(&renderer, Size::new(400.0, 400.0));
+        let cursor = mouse::Cursor::Available(Point::new(240.0, 80.0));
+        let wheel = Event::Mouse(mouse::Event::WheelScrolled {
+            delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
+        });
+        let mut messages = Vec::new();
+        popup.update(
+            &wheel,
+            Layout::new(&node),
+            cursor,
+            &renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut Shell::new(&mut messages),
+        );
+
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::DismissTrackPlaylistPopup]
+        ));
+    }
 }
