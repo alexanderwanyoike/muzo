@@ -18,6 +18,7 @@ struct Library {
     desktop: Desktop,
     renderer: Renderer,
     tree: Tree,
+    width: f32,
 }
 
 impl Library {
@@ -30,6 +31,7 @@ impl Library {
             desktop,
             renderer: Renderer::new(Font::DEFAULT, Pixels(16.0)),
             tree: Tree::empty(),
+            width: VIEW_WIDTH,
         }
     }
 
@@ -40,7 +42,7 @@ impl Library {
             let mut view = self.desktop.view(id);
             let widget = view.as_widget_mut();
             self.tree.diff(&*widget);
-            let bounds = Rectangle::with_size(Size::new(VIEW_WIDTH, 600.0));
+            let bounds = Rectangle::with_size(Size::new(self.width, 600.0));
             let node = widget.layout(
                 &mut self.tree,
                 &self.renderer,
@@ -84,6 +86,14 @@ impl Library {
             Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
             245.5,
         );
+    }
+
+    fn resize(&mut self, width: f32) {
+        self.width = width;
+        let _ = self.desktop.update(Message::MiniResized(
+            self.desktop.windows.library_id(),
+            Size::new(width, 600.0),
+        ));
     }
 }
 
@@ -135,4 +145,126 @@ fn it_restores_the_preferred_sidebar_width_after_cancelling_a_narrow_drag() {
 
     assert_eq!(library.desktop.sidebar.visible_width(), 340.0);
     assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), saved);
+}
+
+#[test]
+fn it_preserves_the_drag_target_until_release_when_widening_a_narrow_window() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let mut library = Library::new(paths.clone());
+    library.input(
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        279.5,
+    );
+    library.input(
+        Event::Mouse(mouse::Event::CursorMoved {
+            position: Point::new(310.5, DRAG_HEIGHT),
+        }),
+        310.5,
+    );
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+    library.resize(1200.0);
+    assert_eq!(library.desktop.sidebar.visible_width(), 310.0);
+    library.release();
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(310.0)
+    );
+}
+
+#[test]
+fn it_commits_a_real_drag_back_to_the_narrow_window_limit() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let mut library = Library::new(paths.clone());
+    library.drag_inward();
+    library.input(
+        Event::Mouse(mouse::Event::CursorMoved {
+            position: Point::new(279.5, DRAG_HEIGHT),
+        }),
+        279.5,
+    );
+    library.release();
+    library.resize(1200.0);
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(279.0)
+    );
+}
+
+#[test]
+fn it_starts_at_the_divider_when_mouse_press_and_movement_share_a_cursor_sample() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    library.input(
+        Event::Mouse(mouse::Event::CursorMoved {
+            position: Point::new(279.5, DRAG_HEIGHT),
+        }),
+        245.5,
+    );
+    library.input(
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        245.5,
+    );
+    library.input(
+        Event::Mouse(mouse::Event::CursorMoved {
+            position: Point::new(245.5, DRAG_HEIGHT),
+        }),
+        245.5,
+    );
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 245.0);
+    library.input(Event::Window(iced::window::Event::Unfocused), 245.5);
+    library.release();
+    assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+    assert_eq!(
+        library.desktop.sidebar.preferred_width(),
+        SidebarWidth::new(340.0)
+    );
+}
+
+#[test]
+fn it_tracks_the_initiating_finger_and_cancels_when_touch_is_lost() {
+    use iced::touch::{Event as Touch, Finger};
+
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    library.input(
+        Event::Touch(Touch::FingerPressed {
+            id: Finger(1),
+            position: Point::new(279.5, DRAG_HEIGHT),
+        }),
+        440.0,
+    );
+    library.input(
+        Event::Touch(Touch::FingerMoved {
+            id: Finger(1),
+            position: Point::new(245.5, DRAG_HEIGHT),
+        }),
+        440.0,
+    );
+    library.input(
+        Event::Touch(Touch::FingerMoved {
+            id: Finger(2),
+            position: Point::new(440.0, DRAG_HEIGHT),
+        }),
+        440.0,
+    );
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 245.0);
+    library.input(
+        Event::Touch(Touch::FingerLost {
+            id: Finger(1),
+            position: Point::new(245.5, DRAG_HEIGHT),
+        }),
+        440.0,
+    );
+    assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+    assert_eq!(
+        library.desktop.sidebar.preferred_width(),
+        SidebarWidth::new(340.0)
+    );
 }
