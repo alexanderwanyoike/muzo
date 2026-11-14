@@ -628,6 +628,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_disconnects_the_account_while_a_separate_authorization_is_pending() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut settings = Settings::default();
+        let _ = settings.update(Action::Key("replacement-key".into()), None);
+        let _ = settings.update(Action::Begin, None);
+        settings.apply(Ok(Snapshot {
+            account: Some("connected".into()),
+            ..Default::default()
+        }));
+
+        let disconnect = settings.update(Action::Disconnect, Some(paths));
+
+        assert!(settings.busy);
+        assert_ne!(disconnect.units(), 0);
+    }
+
+    #[test]
     fn it_cancels_pending_dropbox_authorization_and_accepts_a_different_key() {
         let mut settings = Settings::default();
         let _ = settings
