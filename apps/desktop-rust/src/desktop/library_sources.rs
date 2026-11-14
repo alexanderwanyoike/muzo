@@ -417,3 +417,52 @@ impl Sources {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_starts_queued_source_actions_before_new_arrivals() {
+        let root = tempfile::tempdir().unwrap();
+        let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        assert!(sources.start(Operation::Select("first".into())).units() > 0);
+        assert_eq!(sources.start(Operation::Select("second".into())).units(), 0);
+
+        sources.apply(Err("first finished".into()));
+
+        assert_eq!(sources.start(Operation::Select("third".into())).units(), 0);
+        assert!(sources.poll().units() > 0);
+        assert!(matches!(sources.pending.front(), Some(Operation::Select(id)) if id == "third"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_reattaches_a_watched_folder_replaced_between_polls() {
+        let root = tempfile::tempdir().unwrap();
+        let library = root.path().join("library");
+        std::fs::create_dir(&library).unwrap();
+        let mut sources = Sources::new(None);
+        sources.roots = vec![library.clone()];
+        sources.install_watcher(std::slice::from_ref(&library));
+        sources.changed.store(false, Ordering::Release);
+
+        std::fs::rename(&library, root.path().join("renamed")).unwrap();
+        std::fs::create_dir(&library).unwrap();
+        wait_for_event(&sources.changed);
+        let _ = sources.poll();
+        sources.changed.store(false, Ordering::Release);
+
+        std::fs::write(library.join("Track.mp3"), "fixture").unwrap();
+        wait_for_event(&sources.changed);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn wait_for_event(changed: &AtomicBool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !changed.load(Ordering::Acquire) {
+            assert!(std::time::Instant::now() < deadline, "no filesystem event");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+}
