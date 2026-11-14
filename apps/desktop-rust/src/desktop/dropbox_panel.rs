@@ -473,11 +473,7 @@ fn run(
             for (path, name) in folders {
                 let result = (|| -> Result<(), Error> {
                     let entries = client.list(&token.access_token, &path, true)?;
-                    let library = catalogue.add_dropbox(&account, &path, &name)?;
-                    if let Err(error) = catalogue.sync_dropbox(&library.id, &entries) {
-                        catalogue.remove(&library.id)?;
-                        return Err(error.into());
-                    }
+                    catalogue.add_dropbox_indexed(&account, &path, &name, &entries)?;
                     Ok(())
                 })();
                 match result {

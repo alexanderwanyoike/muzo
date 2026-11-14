@@ -3,7 +3,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use rusqlite::{OptionalExtension, TransactionBehavior::Immediate, params};
+use rusqlite::{OptionalExtension, Transaction, TransactionBehavior::Immediate, params};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -157,28 +157,22 @@ impl Catalogue {
         name: &str,
     ) -> Result<Library, CatalogueError> {
         let transaction = self.database.transaction_with_behavior(Immediate)?;
-        let duplicate: bool = transaction.query_row(
-            "SELECT EXISTS(SELECT 1 FROM libraries l JOIN dropbox_library_accounts a ON a.library_id=l.id
-             WHERE a.account_id=?1 AND lower(l.location)=lower(?2))",
-            params![account, path], |row| row.get(0),
-        )?;
-        if duplicate {
-            return Err(CatalogueError::DuplicateFolder);
-        }
-        let library = Library {
-            id: Uuid::new_v4().to_string(),
-            name: name.to_owned(),
-            kind: "dropbox".into(),
-            location: PathBuf::from(path),
-        };
-        transaction.execute(
-            "INSERT INTO libraries VALUES (?1, ?2, 'dropbox', ?3)",
-            params![library.id, name, path],
-        )?;
-        transaction.execute(
-            "INSERT INTO dropbox_library_accounts VALUES (?1, ?2)",
-            params![library.id, account],
-        )?;
+        let library = insert_library(&transaction, account, path, name)?;
+        transaction.commit()?;
+        Ok(library)
+    }
+
+    pub(crate) fn add_dropbox_indexed(
+        &mut self,
+        account: &str,
+        path: &str,
+        name: &str,
+        entries: &[Entry],
+    ) -> Result<Library, CatalogueError> {
+        let files = scanned_files(entries);
+        let transaction = self.database.transaction_with_behavior(Immediate)?;
+        let library = insert_library(&transaction, account, path, name)?;
+        reconcile(&transaction, &library.id, &files)?;
         transaction.commit()?;
         Ok(library)
     }
@@ -188,46 +182,7 @@ impl Catalogue {
         library: &str,
         entries: &[Entry],
     ) -> Result<usize, CatalogueError> {
-        let files: Vec<_> = entries
-            .iter()
-            .filter_map(|entry| {
-                let path = entry.path().filter(|path| path.starts_with('/'))?;
-                let name = Path::new(&entry.name);
-                if entry.kind != "file"
-                    || !name.extension().is_some_and(|extension| {
-                        MUSIC_EXTENSIONS
-                            .iter()
-                            .any(|audio| extension.eq_ignore_ascii_case(audio))
-                    })
-                {
-                    return None;
-                }
-                Some(ScannedFile {
-                    path: path.into(),
-                    size: entry.size.unwrap_or_default(),
-                    mtime: entry
-                        .rev
-                        .as_deref()
-                        .or(entry.server_modified.as_deref())
-                        .map_or(0, |revision| {
-                            let digest = Sha256::digest(revision);
-                            i64::from_le_bytes(digest[..8].try_into().expect("SHA-256 is 32 bytes"))
-                        }),
-                    title: name
-                        .file_stem()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .into_owned(),
-                    artist: String::new(),
-                    album: None,
-                    seconds: 0,
-                    track: None,
-                    disc: None,
-                    genre: None,
-                    year: None,
-                })
-            })
-            .collect();
+        let mut files = scanned_files(entries);
         let transaction = self.database.transaction_with_behavior(Immediate)?;
         let exists: bool = transaction.query_row(
             "SELECT EXISTS(SELECT 1 FROM dropbox_library_accounts WHERE library_id=?1)",
@@ -259,7 +214,6 @@ impl Catalogue {
             })?
             .collect::<Result<std::collections::HashMap<_, _>, _>>()?;
         drop(fields);
-        let mut files = files;
         for file in &mut files {
             if let Some((title, artist, album, seconds, track, disc, genre, year)) =
                 prior.get(&file.path)
@@ -309,4 +263,78 @@ impl Catalogue {
         )?;
         Ok(())
     }
+}
+
+fn insert_library(
+    transaction: &Transaction<'_>,
+    account: &str,
+    path: &str,
+    name: &str,
+) -> Result<Library, CatalogueError> {
+    let duplicate: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM libraries l JOIN dropbox_library_accounts a ON a.library_id=l.id
+             WHERE a.account_id=?1 AND lower(l.location)=lower(?2))",
+            params![account, path], |row| row.get(0),
+        )?;
+    if duplicate {
+        return Err(CatalogueError::DuplicateFolder);
+    }
+    let library = Library {
+        id: Uuid::new_v4().to_string(),
+        name: name.to_owned(),
+        kind: "dropbox".into(),
+        location: PathBuf::from(path),
+    };
+    transaction.execute(
+        "INSERT INTO libraries VALUES (?1, ?2, 'dropbox', ?3)",
+        params![library.id, name, path],
+    )?;
+    transaction.execute(
+        "INSERT INTO dropbox_library_accounts VALUES (?1, ?2)",
+        params![library.id, account],
+    )?;
+    Ok(library)
+}
+
+fn scanned_files(entries: &[Entry]) -> Vec<ScannedFile> {
+    entries
+        .iter()
+        .filter_map(|entry| {
+            let path = entry.path().filter(|path| path.starts_with('/'))?;
+            let name = Path::new(&entry.name);
+            if entry.kind != "file"
+                || !name.extension().is_some_and(|extension| {
+                    MUSIC_EXTENSIONS
+                        .iter()
+                        .any(|audio| extension.eq_ignore_ascii_case(audio))
+                })
+            {
+                return None;
+            }
+            Some(ScannedFile {
+                path: path.into(),
+                size: entry.size.unwrap_or_default(),
+                mtime: entry
+                    .rev
+                    .as_deref()
+                    .or(entry.server_modified.as_deref())
+                    .map_or(0, |revision| {
+                        let digest = Sha256::digest(revision);
+                        i64::from_le_bytes(digest[..8].try_into().expect("SHA-256 is 32 bytes"))
+                    }),
+                title: name
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned(),
+                artist: String::new(),
+                album: None,
+                seconds: 0,
+                track: None,
+                disc: None,
+                genre: None,
+                year: None,
+            })
+        })
+        .collect()
 }
