@@ -328,7 +328,7 @@ fn run(
     if matches!(action, Action::Disconnect) {
         return Ok(snapshot);
     }
-    let Some(refresh) = Credentials::read(&account)? else {
+    let Some(refresh) = Credentials::read_or_migrate(&catalogue, &account)? else {
         snapshot.reconnect = true;
         return Ok(snapshot);
     };
@@ -360,7 +360,7 @@ fn run(
                     let Some(key) = catalogue.dropbox_client(&owner)? else {
                         continue;
                     };
-                    let Some(refresh) = Credentials::read(&owner)? else {
+                    let Some(refresh) = Credentials::read_or_migrate(&catalogue, &owner)? else {
                         continue;
                     };
                     let token = client.refresh(&key, &refresh)?;
@@ -397,7 +397,8 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
     let client_id = catalogue
         .dropbox_client(&account)?
         .ok_or(DropboxError::Reconnect)?;
-    let refresh = Credentials::read(&account)?.ok_or(DropboxError::Reconnect)?;
+    let refresh =
+        Credentials::read_or_migrate(&catalogue, &account)?.ok_or(DropboxError::Reconnect)?;
     let client = Client::new()?;
     let token = client.refresh(&client_id, &refresh)?;
     Ok(cache::download(

@@ -51,6 +51,30 @@ impl Catalogue {
             .optional()?)
     }
 
+    pub(crate) fn legacy_dropbox_token(
+        &self,
+        account: &str,
+    ) -> Result<Option<String>, CatalogueError> {
+        Ok(self
+            .database
+            .query_row(
+                "SELECT encrypted_refresh_token FROM dropbox_accounts
+                 WHERE account_id=?1 AND encrypted_refresh_token<>''",
+                [account],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub(crate) fn clear_legacy_dropbox_tokens(&self, account: &str) -> Result<(), CatalogueError> {
+        self.database.execute(
+            "UPDATE dropbox_accounts SET encrypted_access_token='', encrypted_refresh_token=''
+             WHERE account_id=?1",
+            [account],
+        )?;
+        Ok(())
+    }
+
     pub fn dropbox_account_for(&self, library: &str) -> Result<Option<String>, CatalogueError> {
         Ok(self
             .database

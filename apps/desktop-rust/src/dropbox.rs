@@ -1,6 +1,7 @@
 mod api;
 pub mod cache;
 mod credentials;
+mod legacy_credentials;
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use reqwest::Url;
@@ -24,6 +25,10 @@ pub enum DropboxError {
     Address,
     #[error("Could not access the OS credential store: {0}")]
     Credential(#[from] keyring::Error),
+    #[error("Could not migrate the saved Electron Dropbox credential.")]
+    LegacyCredential,
+    #[error(transparent)]
+    Catalogue(#[from] crate::catalogue::CatalogueError),
     #[error("Could not access the Dropbox audio cache: {0}")]
     Cache(#[from] std::io::Error),
     #[error("The Dropbox track exceeds the audio cache limit.")]

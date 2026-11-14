@@ -35,5 +35,22 @@ walkdir = "2.5.0"
 [lib]
 path = "src/lib.rs"
 
+[target.'cfg(unix)'.dependencies]
+aes = "0.8.4"
+cbc = "0.1.2"
+pbkdf2 = "0.12.2"
+sha1 = "0.10.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+dbus = "0.9.10"
+dbus-secret-service = "4.1.0"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3.7.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+aes-gcm = "0.10.3"
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security_Cryptography"] }
+
 [profile.dev]
 debug = 0
