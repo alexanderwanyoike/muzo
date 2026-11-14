@@ -798,3 +798,7 @@ fn appimage_integration() -> Task<Message> {
     }
     Task::none()
 }
+
+#[cfg(test)]
+#[path = "desktop/queue_tests.rs"]
+mod queue_tests;
