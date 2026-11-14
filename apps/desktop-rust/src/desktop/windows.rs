@@ -6,8 +6,8 @@ use window::raw_window_handle::RawWindowHandle;
 
 use super::Message;
 
-pub(super) const LIBRARY_SIZE: Size = Size::new(850.0, 570.0);
-const LIBRARY_MIN: Size = Size::new(764.0, 380.0);
+pub(super) const LIBRARY_SIZE: Size = Size::new(1200.0, 800.0);
+const LIBRARY_MIN: Size = Size::new(800.0, 600.0);
 const MINI_SIZE: Size = Size::new(420.0, 560.0);
 const MINI_MIN: Size = Size::new(360.0, 480.0);
 const QUEUE_WIDTH: f32 = 320.0;
