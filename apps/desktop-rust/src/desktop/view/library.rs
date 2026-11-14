@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use iced::{
     Alignment, Element, Fill, Length, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
+    widget::{Space, button, column, container, image, row, scrollable, slider, text},
 };
 
 use crate::{
@@ -51,34 +51,26 @@ pub(in crate::desktop) fn library<'a>(
     ]
     .width(Fill)
     .height(Fill);
-    let divider = row![
-        Space::new().width(width),
-        Element::new(Divider {
-            sidebar_width: width,
-            line: surfaces.line,
-            ink: preferences.accent_ink(),
-        }),
-    ]
-    .width(Fill)
-    .height(Fill);
-    let view = stack![panes, divider].width(Fill).height(Fill);
-
-    let content = column![
+    let header = column![
         transport(session, cover, retry, surfaces, preferences),
         playback_error(error, retry, false, Message::RetryTrack),
-        view,
-        container(
-            row![Space::new().width(Fill), updates::view(update, surfaces)]
-                .align_y(Alignment::Center),
-        )
-        .padding([5, 12])
-        .style(move |_| container::Style::default().background(surfaces.chrome)),
     ];
+    let footer = container(
+        row![Space::new().width(Fill), updates::view(update, surfaces)].align_y(Alignment::Center),
+    )
+    .padding([5, 12])
+    .style(move |_| container::Style::default().background(surfaces.chrome));
 
-    container(content)
-        .id(crate::desktop::appearance_focus::LIBRARY)
-        .height(Fill)
-        .into()
+    container(Element::new(Divider::around(
+        header.into(),
+        panes.into(),
+        footer.into(),
+        width,
+        (surfaces.line, preferences.accent_ink()),
+    )))
+    .id(crate::desktop::appearance_focus::LIBRARY)
+    .height(Fill)
+    .into()
 }
 
 fn transport<'a>(

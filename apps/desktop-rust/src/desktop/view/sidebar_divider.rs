@@ -1,11 +1,13 @@
 use iced::{
-    Color, Event, Length, Point, Rectangle, Renderer, Size, Theme,
+    Color, Element, Event, Length, Point, Rectangle, Renderer, Size, Theme, Vector,
     advanced::{
-        Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer,
-        widget::{self, Tree},
+        Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, overlay, renderer,
+        widget::{self, Operation, Tree},
     },
     keyboard::{self, Key, key::Named},
-    touch, window,
+    touch,
+    widget::column,
+    window,
 };
 
 use super::Message;
@@ -14,10 +16,11 @@ use crate::desktop::sidebar::{Resize, SPLITTER_WIDTH};
 const HIT_SLOP: f32 = 4.5;
 const ACTIVE_LINE_WIDTH: f32 = 3.0;
 
-pub(super) struct Divider {
-    pub sidebar_width: f32,
-    pub line: Color,
-    pub ink: Color,
+pub(super) struct Divider<'a> {
+    body: Element<'a, Message>,
+    sidebar_width: f32,
+    line: Color,
+    ink: Color,
 }
 
 #[derive(Default)]
@@ -83,40 +86,39 @@ fn hit_area(bounds: Rectangle) -> Rectangle {
     }
 }
 
-impl Widget<Message, Theme, Renderer> for Divider {
-    fn tag(&self) -> widget::tree::Tag {
-        widget::tree::Tag::of::<State>()
+impl<'a> Divider<'a> {
+    pub(super) fn around(
+        header: Element<'a, Message>,
+        panes: Element<'a, Message>,
+        footer: Element<'a, Message>,
+        sidebar_width: f32,
+        colors: (Color, Color),
+    ) -> Self {
+        let (line, ink) = colors;
+        Self {
+            body: column([header, panes, footer])
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into(),
+            sidebar_width,
+            line,
+            ink,
+        }
     }
 
-    fn state(&self) -> widget::tree::State {
-        widget::tree::State::new(State::default())
-    }
-
-    fn size(&self) -> Size<Length> {
-        Size::new(Length::Fixed(SPLITTER_WIDTH), Length::Fill)
-    }
-
-    fn layout(&mut self, _: &mut Tree, _: &Renderer, limits: &layout::Limits) -> layout::Node {
-        layout::Node::new(limits.resolve(SPLITTER_WIDTH, Length::Fill, Size::ZERO))
-    }
-
-    fn update(
-        &mut self,
-        tree: &mut Tree,
+    fn handle_input(
+        &self,
+        state: &mut State,
         event: &Event,
-        layout: Layout<'_>,
+        bounds: Rectangle,
         cursor: mouse::Cursor,
-        _: &Renderer,
-        _: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
-        _: &Rectangle,
     ) {
         if let Event::Window(window::Event::Resized(size)) = event {
             shell.publish(Message::ResizeSidebar(Resize::Viewport(size.width)));
             return;
         }
-        let state = tree.state.downcast_mut::<State>();
-        let area = hit_area(layout.bounds());
+        let area = hit_area(bounds);
         let hovered = cursor.is_over(area);
         if state.hovered != hovered {
             state.hovered = hovered;
@@ -181,20 +183,116 @@ impl Widget<Message, Theme, Renderer> for Divider {
         shell.capture_event();
         shell.request_redraw();
     }
+}
+
+fn regions(layout: Layout<'_>) -> (Layout<'_>, Layout<'_>) {
+    let mut regions = layout.children();
+    (
+        regions.next().expect("library chrome"),
+        regions.next().expect("sidebar divider"),
+    )
+}
+
+fn divider_active(state: &State, bounds: Rectangle, cursor: mouse::Cursor) -> bool {
+    state.drag.is_some() || cursor.is_over(hit_area(bounds))
+}
+
+impl Widget<Message, Theme, Renderer> for Divider<'_> {
+    fn tag(&self) -> widget::tree::Tag {
+        widget::tree::Tag::of::<State>()
+    }
+
+    fn state(&self) -> widget::tree::State {
+        widget::tree::State::new(State::default())
+    }
+
+    fn children(&self) -> Vec<Tree> {
+        vec![Tree::new(&self.body)]
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        tree.diff_children(&[self.body.as_widget()]);
+    }
+
+    fn size(&self) -> Size<Length> {
+        self.body.as_widget().size()
+    }
+
+    fn layout(
+        &mut self,
+        tree: &mut Tree,
+        renderer: &Renderer,
+        limits: &layout::Limits,
+    ) -> layout::Node {
+        let body = self
+            .body
+            .as_widget_mut()
+            .layout(&mut tree.children[0], renderer, limits);
+        let [_, panes, _] = body.children() else {
+            unreachable!("library chrome contains a header, panes and footer");
+        };
+        let bounds = panes.bounds();
+        let divider = layout::Node::new(Size::new(SPLITTER_WIDTH, bounds.height))
+            .move_to(Point::new(bounds.x + self.sidebar_width, bounds.y));
+        layout::Node::with_children(body.size(), vec![body, divider])
+    }
+
+    fn update(
+        &mut self,
+        tree: &mut Tree,
+        event: &Event,
+        layout: Layout<'_>,
+        cursor: mouse::Cursor,
+        renderer: &Renderer,
+        clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
+    ) {
+        let (body, divider) = regions(layout);
+        let state = tree.state.downcast_mut::<State>();
+        self.handle_input(state, event, divider.bounds(), cursor, shell);
+        if !shell.is_event_captured() {
+            let cursor = if divider_active(state, divider.bounds(), cursor) {
+                cursor.levitate()
+            } else {
+                cursor
+            };
+            self.body.as_widget_mut().update(
+                &mut tree.children[0],
+                event,
+                body,
+                cursor,
+                renderer,
+                clipboard,
+                shell,
+                viewport,
+            );
+        }
+    }
 
     fn draw(
         &self,
         tree: &Tree,
         renderer: &mut Renderer,
-        _: &Theme,
-        _: &renderer::Style,
+        theme: &Theme,
+        style: &renderer::Style,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
-        _: &Rectangle,
+        viewport: &Rectangle,
     ) {
-        let bounds = layout.bounds();
+        let (body, divider) = regions(layout);
+        let bounds = divider.bounds();
         let state = tree.state.downcast_ref::<State>();
-        let active = state.drag.is_some() || cursor.is_over(hit_area(bounds));
+        let active = divider_active(state, bounds, cursor);
+        self.body.as_widget().draw(
+            &tree.children[0],
+            renderer,
+            theme,
+            style,
+            body,
+            if active { cursor.levitate() } else { cursor },
+            viewport,
+        );
         let (width, color) = if active {
             (ACTIVE_LINE_WIDTH, self.ink)
         } else {
@@ -218,15 +316,52 @@ impl Widget<Message, Theme, Renderer> for Divider {
         tree: &Tree,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
-        _: &Rectangle,
-        _: &Renderer,
+        viewport: &Rectangle,
+        renderer: &Renderer,
     ) -> mouse::Interaction {
-        if tree.state.downcast_ref::<State>().drag.is_some()
-            || cursor.is_over(hit_area(layout.bounds()))
-        {
+        let (body, divider) = regions(layout);
+        if divider_active(tree.state.downcast_ref::<State>(), divider.bounds(), cursor) {
             mouse::Interaction::ResizingHorizontally
         } else {
-            mouse::Interaction::None
+            self.body.as_widget().mouse_interaction(
+                &tree.children[0],
+                body,
+                cursor,
+                viewport,
+                renderer,
+            )
         }
+    }
+
+    fn operate(
+        &mut self,
+        tree: &mut Tree,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn Operation,
+    ) {
+        self.body.as_widget_mut().operate(
+            &mut tree.children[0],
+            regions(layout).0,
+            renderer,
+            operation,
+        );
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        tree: &'b mut Tree,
+        layout: Layout<'b>,
+        renderer: &Renderer,
+        viewport: &Rectangle,
+        translation: Vector,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
+        self.body.as_widget_mut().overlay(
+            &mut tree.children[0],
+            regions(layout).0,
+            renderer,
+            viewport,
+            translation,
+        )
     }
 }
