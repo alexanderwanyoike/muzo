@@ -1117,8 +1117,13 @@ fn it_labels_songs_with_saved_edits_when_the_album_is_missing() {
         include_bytes!("../../tests/fixtures/tone.mp3"),
     )
     .unwrap();
-    let mut catalogue = Catalogue::open(&directory.path().join("catalogue.sqlite"), None).unwrap();
+    let database = directory.path().join("catalogue.sqlite");
+    let mut catalogue = Catalogue::open(&database, None).unwrap();
     let library = catalogue.add_folder(&audio).unwrap();
+    rusqlite::Connection::open(&database)
+        .unwrap()
+        .execute("UPDATE tracks SET artist='Mara Vale'", [])
+        .unwrap();
     let original = catalogue.tracks(&library.id).unwrap().remove(0);
     assert!(original.album.is_none());
 
@@ -1151,6 +1156,17 @@ fn it_labels_songs_with_saved_edits_when_the_album_is_missing() {
         .unwrap();
     let labels = song_labels();
     assert!(labels.contains(&format!("{} - Field Recordings", original.artist)));
+    assert!(!labels.contains(&edited));
+
+    let edit_with_empty_album = MetadataOverride {
+        album: Some(String::new()),
+        ..edit_with_album
+    };
+    catalogue
+        .override_track(&original.id, &edit_with_empty_album)
+        .unwrap();
+    let labels = song_labels();
+    assert!(labels.contains(&original.artist));
     assert!(!labels.contains(&edited));
 
     catalogue
