@@ -636,6 +636,41 @@ mod tests {
     }
 
     #[test]
+    fn it_rolls_back_source_creation_when_a_selected_playlist_cannot_be_read() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("New source");
+        std::fs::create_dir(&folder).unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let catalogue = paths.open().unwrap();
+        let playlist = catalogue.create_playlist("Existing playlist").unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection.execute_batch(
+            "INSERT INTO libraries (id, name, kind, location) VALUES ('existing', 'Existing', 'filesystem', '/test');
+             INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime) VALUES ('bad', 'existing', 'Test', '', 'invalid', '/test/bad.mp3', 0, 0);",
+        ).unwrap();
+        connection.execute("INSERT INTO playlist_entries (id, playlist_id, track_id, position) VALUES ('entry', ?1, 'bad', 0)", [&playlist.id]).unwrap();
+
+        let add_source = || {
+            run_with_selection(
+                &paths,
+                Operation::AddNamedFolder("For later".into(), folder.clone()),
+                None,
+                Some(playlist.id.clone()),
+            )
+        };
+        assert!(add_source().is_err());
+        assert_eq!(catalogue.libraries().unwrap().len(), 1);
+        connection
+            .execute("UPDATE tracks SET duration_seconds=1", [])
+            .unwrap();
+        let snapshot = add_source().unwrap();
+        let source = snapshot.libraries.last().unwrap();
+        assert_eq!(source.name, "For later");
+        assert_eq!(snapshot.selected.as_ref(), Some(&source.id));
+        assert_eq!(snapshot.selected_playlist.as_ref(), Some(&playlist.id));
+    }
+
+    #[test]
     fn it_starts_queued_source_actions_before_new_arrivals() {
         let root = tempfile::tempdir().unwrap();
         let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
