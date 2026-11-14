@@ -155,3 +155,24 @@ fn it_decodes_the_entire_opus_stream_without_trailing_or_preskip_samples() {
 
     assert_eq!(track.count(), 96_000);
 }
+
+#[test]
+fn it_seeks_in_a_single_page_opus_stream_and_stops_at_the_final_granule() {
+    use crate::opus::OpusSource;
+    use std::fs::File;
+
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone-short.opus");
+    let decode = |milliseconds| {
+        OpusSource::open(
+            File::open(&path).unwrap(),
+            Duration::from_millis(milliseconds),
+        )
+        .unwrap()
+        .collect::<Vec<_>>()
+    };
+
+    let continuous = decode(0);
+    assert_eq!(continuous.len(), 4_800);
+    assert_eq!(decode(81), continuous[3_888..]);
+    assert!(decode(100).is_empty());
+}
