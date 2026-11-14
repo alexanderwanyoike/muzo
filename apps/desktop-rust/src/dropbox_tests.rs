@@ -282,10 +282,9 @@ fn it_rolls_back_a_dropbox_source_if_the_initial_track_index_cannot_be_written()
              BEGIN SELECT RAISE(ABORT, 'index write failed'); END;",
         )
         .unwrap();
-    let valid: Entry = serde_json::from_str(
-        r#"{".tag":"file","name":"A.mp3","path_display":"/Music/A.mp3"}"#,
-    )
-    .unwrap();
+    let valid: Entry =
+        serde_json::from_str(r#"{".tag":"file","name":"A.mp3","path_display":"/Music/A.mp3"}"#)
+            .unwrap();
     let invalid: Entry = serde_json::from_str(
         r#"{".tag":"file","name":"Broken.mp3","path_display":"/Music/Broken.mp3"}"#,
     )
@@ -297,7 +296,12 @@ fn it_rolls_back_a_dropbox_source_if_the_initial_track_index_cannot_be_written()
     assert!(error.to_string().contains("index write failed"));
     let reopened = Catalogue::open(&path, None).unwrap();
     assert!(reopened.libraries().unwrap().is_empty());
-    assert!(reopened.dropbox_libraries_for("account").unwrap().is_empty());
+    assert!(
+        reopened
+            .dropbox_libraries_for("account")
+            .unwrap()
+            .is_empty()
+    );
     let library = catalogue
         .add_dropbox_indexed("account", "/Music", "Music", &[valid])
         .unwrap();
