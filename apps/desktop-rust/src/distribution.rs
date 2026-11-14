@@ -1,3 +1,6 @@
+mod update;
+pub use update::{Release, Update, UpdateError, latest, update_for};
+
 #[derive(Clone, Copy)]
 pub enum Target {
     LinuxX64,
