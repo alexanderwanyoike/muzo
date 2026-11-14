@@ -629,3 +629,15 @@ fn it_clears_direct_covers_when_catalogue_playback_replaces_the_queue() {
 
     assert!(desktop.direct_covers.is_empty());
 }
+
+#[test]
+fn it_can_choose_the_next_appearance_material_with_tab_and_space() {
+    let (mut desktop, _) = setup();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::MiniSpace(library));
+
+    assert_eq!(desktop.appearance.theme, "pulse");
+}
