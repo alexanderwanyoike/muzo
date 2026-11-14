@@ -1084,3 +1084,33 @@ fn it_ignores_an_old_tab_result_after_opening_the_same_song_again() {
 
     assert_eq!(stale.units(), 0);
 }
+
+#[test]
+fn it_does_not_activate_an_old_metadata_button_while_tab_is_moving_focus() {
+    let (mut desktop, _) = editing_source();
+    let library = desktop.windows.library_id();
+    desktop.sources.editing.as_mut().unwrap().action_focus = Some(TrackEditorControl::Cancel);
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+
+    let _ = desktop.update(Message::ActivateMiniFocus(library));
+
+    assert!(desktop.sources.editing.is_some());
+}
+
+#[test]
+fn it_keeps_space_on_an_unavailable_metadata_action_out_of_playback() {
+    let (mut desktop, _) = editing_source();
+    let library = desktop.windows.library_id();
+    let directory = tempfile::tempdir().unwrap();
+    let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    sources.editing = desktop.sources.editing.take();
+    sources.editing.as_mut().unwrap().action_focus = Some(TrackEditorControl::Save);
+    desktop.sources = sources;
+    let _ = desktop.sources.start(Operation::Reload);
+    let _ = desktop.update(Message::Select(0));
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+
+    let _ = desktop.update(Message::MiniSpace(library));
+
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+}
