@@ -215,3 +215,29 @@ fn it_reorders_duplicate_playlist_entries_and_edits_track_catalogue_metadata() {
     drop(catalogue);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_browses_the_created_playlist_and_keeps_duplicate_entries_in_order() {
+    use crate::desktop::library_sources::{CataloguePaths, Operation, run};
+
+    let root = std::env::temp_dir().join(format!("muzo-playlist-view-{}", uuid::Uuid::new_v4()));
+    let music = root.join("Music");
+    fs::create_dir_all(&music).unwrap();
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+        music.join("tone.mp3"),
+    )
+    .unwrap();
+    let paths = CataloguePaths::in_directory(&root);
+    let library = run(&paths, Operation::Add(music)).unwrap();
+    let track = library.tracks[0].id.clone();
+    let playlist = run(&paths, Operation::CreatePlaylist("Live Set".into())).unwrap();
+    let id = playlist.selected_playlist.unwrap();
+    let added = run(&paths, Operation::AddToPlaylist(id.clone(), track.clone())).unwrap();
+    let first_entry = added.playlist_entries[0].id.clone();
+    let added = run(&paths, Operation::AddToPlaylist(id, track)).unwrap();
+    assert_eq!(added.playlist_entries.len(), 2);
+    assert_eq!(added.playlist_entries[0].id, first_entry);
+    assert_ne!(added.playlist_entries[1].id, first_entry);
+    fs::remove_dir_all(root).unwrap();
+}
