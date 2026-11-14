@@ -51,3 +51,28 @@ fn it_does_not_restart_the_current_queue_entry_when_selected_again() {
     assert_eq!(session.current_index(), Some(1));
     assert!(session.observe().0 < position);
 }
+
+#[test]
+fn it_stays_paused_after_seeking_an_ended_track_and_resumes_from_that_position() {
+    let (mixer, mut output) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
+    let audio = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let mut session = Session::new(Playback::new(mixer));
+    session.extend([read_track(audio)]);
+    session.select(0).unwrap();
+    output.by_ref().take(3 * 44_100 * 2).for_each(drop);
+    session.advance_if_finished().unwrap();
+
+    let target = session.observe().1 / 2;
+    session.seek(target).unwrap();
+    assert!(!session.is_playing());
+    assert!(output.by_ref().take(4096).all(|sample| sample == 0.0));
+    session.toggle().unwrap();
+    assert!(session.is_playing());
+    assert!(session.observe().0 >= target);
+    assert!(
+        output
+            .by_ref()
+            .take(4096)
+            .any(|sample| sample.abs() > 0.001)
+    );
+}
