@@ -49,6 +49,13 @@ impl Session {
         self.tracks.extend(tracks);
     }
 
+    pub fn replace(&mut self, tracks: Vec<Track>) {
+        self.playback.reset();
+        self.tracks = tracks;
+        self.current = None;
+        self.started = false;
+    }
+
     pub fn tracks(&self) -> &[Track] {
         &self.tracks
     }

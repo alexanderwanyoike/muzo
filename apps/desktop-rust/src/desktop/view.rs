@@ -10,7 +10,9 @@ use iced::{
 
 use crate::{session::Session, track::Track};
 
-use super::Message;
+mod sources;
+
+use super::{Message, library_sources::Sources};
 
 const BACKGROUND: Color = color!(0x202321);
 const PANEL: Color = color!(0x292d2a);
@@ -34,6 +36,7 @@ pub fn theme() -> Theme {
 }
 
 pub fn library<'a>(
+    sources: &'a Sources,
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     error: Option<&'a str>,
@@ -41,6 +44,10 @@ pub fn library<'a>(
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
+        button(text("Add folder").size(14))
+            .padding([7, 14])
+            .style(action)
+            .on_press_maybe((!sources.busy()).then_some(Message::AddFolder)),
         button(text("Open files").size(14))
             .padding([7, 14])
             .style(primary)
@@ -49,7 +56,13 @@ pub fn library<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let body = if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
+    let body = if let Some(snapshot) = sources
+        .snapshot
+        .as_ref()
+        .filter(|snapshot| snapshot.selected.is_some())
+    {
+        sources::tracks(snapshot, session.and_then(Session::current))
+    } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).color(MUTED).width(Fill),
             text("Artist").size(12).color(MUTED).width(Fill)
@@ -72,7 +85,8 @@ pub fn library<'a>(
     container(
         column![
             header,
-            body.height(Fill),
+            row![sources::sidebar(sources), body.width(Fill).height(Fill)].spacing(16),
+            error_line(sources.error.as_deref()),
             error_line(error),
             container(
                 row![

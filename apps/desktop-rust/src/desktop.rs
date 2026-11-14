@@ -1,3 +1,4 @@
+pub(crate) mod library_sources;
 mod view;
 mod windows;
 
@@ -13,12 +14,23 @@ use crate::{
     track::Track,
 };
 
+use library_sources::{CataloguePaths, Operation, Snapshot, Sources};
 use windows::Windows;
 
 #[derive(Debug, Clone)]
 pub enum Message {
     OpenFiles,
     FilesPicked(Vec<PathBuf>),
+    AddFolder,
+    FolderPicked(Option<PathBuf>),
+    SourceSearch(String),
+    SourceOperation(Operation),
+    SourcesUpdated(Result<Snapshot, String>),
+    SourceWatchTick,
+    RequestSourceRemoval(String),
+    CancelSourceRemoval,
+    PlayIndexed(usize),
+    IndexedQueueReady(usize, Result<Vec<Track>, String>),
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
@@ -45,6 +57,7 @@ pub struct Desktop {
     output: Option<MixerDeviceSink>,
     error: Option<String>,
     artwork: Option<image::Handle>,
+    sources: Sources,
 }
 
 impl Desktop {
@@ -57,8 +70,16 @@ impl Desktop {
             .map_err(ToString::to_string);
         let (mut desktop, open) = Self::with_session(session);
         desktop.output = output.ok();
+        desktop.sources = Sources::new(CataloguePaths::from_environment());
+        let load_sources = desktop.sources.start(Operation::Startup);
         let files = std::env::args_os().skip(1).map(PathBuf::from).collect();
-        (desktop, open.chain(Task::done(Message::FilesPicked(files))))
+        (
+            desktop,
+            open.chain(Task::batch([
+                load_sources,
+                Task::done(Message::FilesPicked(files)),
+            ])),
+        )
     }
 
     pub fn with_session(session: Result<Session, String>) -> (Self, Task<Message>) {
@@ -74,6 +95,7 @@ impl Desktop {
                 output: None,
                 error,
                 artwork: None,
+                sources: Sources::new(None),
             },
             open,
         )
@@ -81,10 +103,54 @@ impl Desktop {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::AddFolder => Task::perform(
+                async {
+                    rfd::AsyncFileDialog::new()
+                        .pick_folder()
+                        .await
+                        .map(|folder| folder.path().to_owned())
+                },
+                Message::FolderPicked,
+            ),
+            Message::FolderPicked(Some(path)) => self.sources.start(Operation::Add(path)),
+            Message::FolderPicked(None) => Task::none(),
+            Message::SourceSearch(query) => {
+                self.sources.search = query;
+                Task::none()
+            }
+            Message::SourceOperation(operation) => {
+                self.sources.pending_remove = None;
+                self.sources.start(operation)
+            }
+            Message::SourcesUpdated(result) => {
+                self.sources.apply(result);
+                Task::none()
+            }
+            Message::SourceWatchTick => self.sources.poll(),
+            Message::RequestSourceRemoval(id) => {
+                self.sources.pending_remove = Some(id);
+                Task::none()
+            }
+            Message::CancelSourceRemoval => {
+                self.sources.pending_remove = None;
+                Task::none()
+            }
+            Message::PlayIndexed(index) => self.play_indexed(index),
+            Message::IndexedQueueReady(index, Ok(tracks)) => {
+                self.artwork = None;
+                self.transport(|session| {
+                    session.replace(tracks);
+                    session.select(index)
+                })
+            }
+            Message::IndexedQueueReady(_, Err(error)) => {
+                self.error = Some(error);
+                Task::none()
+            }
             Message::OpenFiles => Task::perform(
                 async {
                     rfd::AsyncFileDialog::new()
-                        .add_filter("Audio", &["mp3", "flac", "m4a", "ogg", "opus", "wav"])
+                        .add_filter("Audio", &crate::catalogue::MUSIC_EXTENSIONS)
                         .pick_files()
                         .await
                         .unwrap_or_default()
@@ -176,6 +242,42 @@ impl Desktop {
         }
     }
 
+    fn play_indexed(&self, index: usize) -> Task<Message> {
+        let Some(snapshot) = &self.sources.snapshot else {
+            return Task::none();
+        };
+        if index >= snapshot.tracks.len() || self.session.is_none() {
+            return Task::none();
+        }
+        let tracks = snapshot.tracks.clone();
+        Task::perform(
+            async move {
+                tokio::task::spawn_blocking(move || {
+                    tracks
+                        .into_iter()
+                        .enumerate()
+                        .map(|(position, track)| {
+                            let cover = (position == index).then(|| read_track(track.path.clone()));
+                            Track::new(
+                                track.path,
+                                track.title,
+                                Some(track.artist),
+                                track.album,
+                                cover
+                                    .as_ref()
+                                    .and_then(Track::artwork)
+                                    .map(std::sync::Arc::from),
+                            )
+                        })
+                        .collect()
+                })
+                .await
+                .map_err(|error| format!("Could not load the indexed tracks: {error}"))
+            },
+            move |result| Message::IndexedQueueReady(index, result),
+        )
+    }
+
     fn transport(
         &mut self,
         operation: impl FnOnce(&mut Session) -> Result<(), SessionError>,
@@ -211,6 +313,7 @@ impl Desktop {
     pub fn subscription(&self) -> Subscription<Message> {
         Subscription::batch([
             window::close_requests().map(Message::CloseRequested),
+            iced::time::every(Duration::from_secs(1)).map(|_| Message::SourceWatchTick),
             window::resize_events().map(|(id, size)| Message::MiniResized(id, size)),
             if self.session.as_ref().is_some_and(Session::is_playing) {
                 iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
@@ -264,6 +367,7 @@ impl Desktop {
             )
         } else {
             view::library(
+                &self.sources,
                 self.session.as_ref(),
                 self.artwork.as_ref(),
                 self.error.as_deref(),
