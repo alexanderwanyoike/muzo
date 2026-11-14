@@ -181,10 +181,19 @@ jobs:
           pattern: muzo-rust-*
           path: release-input
           merge-multiple: true
+      - name: Resolve matching native release versions
+        id: context
+        env:
+          MUZO_SOURCE_COMMIT: ${{ github.sha }}
+        run: yarn release:context --native --source-commit "$MUZO_SOURCE_COMMIT" --github-output "$GITHUB_OUTPUT"
       - name: Assemble and verify the existing release contract
+        env:
+          MUZO_VERSION: ${{ steps.context.outputs.version }}
+          MUZO_TAG: ${{ steps.context.outputs.tag }}
+          MUZO_SOURCE_COMMIT: ${{ steps.context.outputs.sourceCommit }}
         run: |
-          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' apps/desktop-rust/Packager.toml)
-          yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "$version" --tag "v$version" --source-commit "$(git rev-parse HEAD)"
+          set -euo pipefail
+          yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "$MUZO_VERSION" --tag "$MUZO_TAG" --source-commit "$MUZO_SOURCE_COMMIT"
           cd release-set
           sha256sum --check SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
