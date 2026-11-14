@@ -288,14 +288,20 @@ pub(super) fn reveal(control: Control) -> RevealControl {
 }
 
 pub(super) fn reveal_songs_control(id: &'static str) -> RevealControl {
+    reveal_scroll_item(SONGS_SCROLL, id)
+}
+
+pub(super) fn reveal_scroll_item(scroll: &'static str, item: impl Into<Id>) -> RevealControl {
     RevealControl {
-        target: id.into(),
+        scroll,
+        target: item.into(),
         viewport: None,
         bounds: None,
     }
 }
 
 pub(super) struct RevealControl {
+    scroll: &'static str,
     target: Id,
     viewport: Option<(Rectangle, f32)>,
     bounds: Option<Rectangle>,
@@ -324,7 +330,7 @@ impl Operation for RevealControl {
         translation: Vector,
         _: &mut dyn Scrollable,
     ) {
-        if id == Some(&SONGS_SCROLL.into()) {
+        if id == Some(&self.scroll.into()) {
             self.viewport = Some((bounds, translation.y));
         }
     }
@@ -333,7 +339,7 @@ impl Operation for RevealControl {
         self.offset().map_or(Outcome::None, |offset| {
             Outcome::Chain(Box::new(
                 iced::advanced::widget::operation::scrollable::scroll_to(
-                    SONGS_SCROLL.into(),
+                    self.scroll.into(),
                     offset,
                 ),
             ))

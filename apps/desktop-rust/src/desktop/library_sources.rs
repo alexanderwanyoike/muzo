@@ -128,6 +128,7 @@ pub(super) struct PlaylistPicker {
     pub playlist: Option<String>,
     pub error: Option<String>,
     pub focus: Option<super::playlist_picker_focus::Control>,
+    pub preview: Option<String>,
 }
 
 struct PlaylistAddition {
@@ -500,6 +501,7 @@ impl Sources {
             playlist: playlist.map(|playlist| playlist.id.clone()),
             error: None,
             focus: None,
+            preview: None,
         });
     }
 
@@ -509,31 +511,29 @@ impl Sources {
         {
             self.last_playlist_choice = Some(id.clone());
             draft.playlist = Some(id);
+            draft.preview = None;
             draft.error = None;
         }
     }
 
-    pub fn step_track_playlist(&mut self, step: i8) {
-        let Some(draft) = self.playlist_picker.as_ref() else {
-            return;
-        };
-        let Some(snapshot) = &self.snapshot else {
-            return;
-        };
-        let playlists = &snapshot.playlists;
-        let next = draft
-            .playlist
-            .as_ref()
-            .and_then(|id| {
-                playlists
-                    .iter()
-                    .position(|playlist| &playlist.id == id)
-                    .and_then(|index| index.checked_add_signed(isize::from(step)))
-                    .and_then(|index| playlists.get(index))
-            })
-            .map(|playlist| playlist.id.clone());
-        if let Some(id) = next {
-            self.choose_track_playlist(id);
+    pub fn step_track_playlist(&mut self, step: i8) -> Option<String> {
+        if self.track_add_pending() {
+            return None;
+        }
+        let draft = self.playlist_picker.as_mut()?;
+        let playlists = &self.snapshot.as_ref()?.playlists;
+        let current = draft.preview.as_ref().or(draft.playlist.as_ref())?;
+        let current = playlists
+            .iter()
+            .position(|playlist| &playlist.id == current)?;
+        let index = current.checked_add_signed(isize::from(step))?;
+        let next = playlists.get(index)?.id.clone();
+        if draft.preview.is_some() {
+            draft.preview = Some(next.clone());
+            Some(next)
+        } else {
+            self.choose_track_playlist(next);
+            None
         }
     }
 
@@ -563,6 +563,7 @@ impl Sources {
             return Task::none();
         };
         picker.error = None;
+        picker.preview = None;
         let operation = Operation::AddToPlaylist(playlist, picker.track_id.clone());
         self.start(operation)
     }

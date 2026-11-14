@@ -1213,7 +1213,7 @@ fn it_keeps_horizontal_arrows_out_of_playback_while_playlist_cancel_is_focused()
     let _ = desktop.update(Message::OpenPlaylistPicker(track));
     let _ = desktop.update(Message::CycleMiniFocus(library, true));
 
-    assert!(desktop.route_playlist_picker_arrow(library, 1));
+    assert!(desktop.route_playlist_picker_arrow(library, 1).is_some());
 }
 
 fn playlist_popup_is_visible(desktop: &Desktop) -> bool {

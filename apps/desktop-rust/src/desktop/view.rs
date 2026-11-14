@@ -10,6 +10,7 @@ use crate::session::Session;
 mod appearance;
 mod compact;
 mod library;
+mod playlist_popup;
 mod playlists;
 mod sleeve_image;
 mod source_search_input;

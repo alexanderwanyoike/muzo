@@ -6,7 +6,21 @@ use iced::{
     },
 };
 
-use super::{Message, appearance_focus::LIBRARY, track_editor_focus::reveal_songs_control};
+use super::{
+    Message,
+    appearance_focus::LIBRARY,
+    track_editor_focus::{reveal_scroll_item, reveal_songs_control},
+};
+
+pub(super) const OPTIONS: &str = "track-playlist-options";
+
+pub(super) fn option_id(playlist: &str) -> String {
+    format!("track-playlist-option-{playlist}")
+}
+
+pub(super) fn reveal_option(playlist: &str) -> Task<Message> {
+    operate(reveal_scroll_item(OPTIONS, option_id(playlist))).discard()
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Control {
@@ -58,7 +72,7 @@ impl Control {
 
     pub(super) fn message(self) -> Option<Message> {
         match self {
-            Self::Choice => None,
+            Self::Choice => Some(Message::ToggleTrackPlaylistPopup),
             Self::Add => Some(Message::SubmitPlaylistPicker),
             Self::Cancel => Some(Message::ClosePlaylistPicker),
         }
