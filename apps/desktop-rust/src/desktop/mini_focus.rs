@@ -1,5 +1,19 @@
 use super::{Message, Session};
 
+pub(super) const QUEUE_SCROLL: &str = "mini-queue";
+pub(super) const QUEUE_ROW_HEIGHT: f32 = 34.0;
+pub(super) const QUEUE_ROW_SPACING: f32 = 2.0;
+
+pub(super) fn reveal_track(index: usize) -> iced::Task<Message> {
+    iced::widget::operation::scroll_to(
+        QUEUE_SCROLL,
+        iced::widget::operation::AbsoluteOffset {
+            x: None,
+            y: Some(index as f32 * (QUEUE_ROW_HEIGHT + QUEUE_ROW_SPACING)),
+        },
+    )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Control {
     Library,
@@ -63,7 +77,7 @@ impl Control {
     ) -> bool {
         self.message(session, retry, queue_pending, queue_open)
             .is_some()
-            || (self == Self::Volume && session.is_some_and(|session| session.current().is_some()))
+            || (self == Self::Volume && session.is_some())
     }
 
     pub(super) fn message(

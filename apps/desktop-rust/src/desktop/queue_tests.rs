@@ -204,6 +204,7 @@ fn it_skips_disabled_transport_when_cycling_mini_controls() {
     let mini_id = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
+    let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
 
     assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
     assert!(!desktop.windows.is_mini(mini_id));
@@ -218,7 +219,7 @@ fn it_selects_a_visible_mini_queue_entry_with_tab_and_enter() {
     let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(426.0, 434.0)));
     assert!(desktop.windows.queue_open());
 
-    for _ in 0..4 {
+    for _ in 0..5 {
         let _ = desktop.update(Message::CycleMiniFocus(mini, false));
     }
     let _ = desktop.update(Message::ActivateMiniFocus(mini));

@@ -62,6 +62,7 @@ pub enum Message {
     Seek(f32),
     SeekRelative(i8),
     SetVolume(f32),
+    SetMiniVolume(f32),
     Tick,
     ShowMini,
     ToggleMini(window::Id),
@@ -411,6 +412,10 @@ impl Desktop {
                 session.set_volume(value);
                 Ok(())
             }),
+            Message::SetMiniVolume(value) => {
+                self.mini_focus = Some(MiniControl::Volume);
+                self.update(Message::SetVolume(value))
+            }
             Message::Tick => {
                 if self.pending_track.is_some() || self.failed_track.is_some() {
                     return Task::none();
@@ -455,6 +460,9 @@ impl Desktop {
                                 self.windows.queue_open(),
                             )
                         });
+                    if let Some(MiniControl::Track(index)) = self.mini_focus {
+                        return mini_focus::reveal_track(index);
+                    }
                 }
                 Task::none()
             }
@@ -500,6 +508,11 @@ impl Desktop {
             Message::ShowLibrary => self.windows.show_library(),
             Message::ToggleQueue => {
                 self.error = None;
+                if self.windows.queue_open()
+                    && matches!(self.mini_focus, Some(MiniControl::Track(_)))
+                {
+                    self.mini_focus = Some(MiniControl::Queue);
+                }
                 self.windows.toggle_queue()
             }
             Message::CheckQueueSize(id, generation) => {
@@ -620,6 +633,9 @@ impl Desktop {
         if let Some(session) = &mut self.session {
             session.replace(tracks);
         }
+        if matches!(self.mini_focus, Some(MiniControl::Track(_))) {
+            self.mini_focus = Some(MiniControl::Queue);
+        }
         self.artwork = None;
         self.select_track(index)
     }
@@ -628,6 +644,13 @@ impl Desktop {
         let Some(session) = self.session.as_mut() else {
             return;
         };
+        if let Some(MiniControl::Track(index)) = self.mini_focus {
+            self.mini_focus = Some(
+                session
+                    .index_without_library(index, library)
+                    .map_or(MiniControl::Queue, MiniControl::Track),
+            );
+        }
         self.pending_track = self
             .pending_track
             .and_then(|index| session.index_without_library(index, library));

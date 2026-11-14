@@ -191,13 +191,16 @@ pub(super) fn mini<'a>(
                 || column![text("Queue is empty").size(13).style(muted)],
                 |session| queue_rows(session, focus, true),
             );
-        content = content
-            .push(text("Queue").font(bold()).size(15))
-            .push(scrollable(queue).height(Fill));
+        content = content.push(text("Queue").font(bold()).size(15)).push(
+            scrollable(queue)
+                .id(super::mini_focus::QUEUE_SCROLL)
+                .height(Fill),
+        );
     }
     container(content)
         .padding(14)
         .width(Fill)
+        .height(super::mini_focus::QUEUE_ROW_HEIGHT)
         .height(Fill)
         .into()
 }
@@ -246,7 +249,7 @@ fn queue_rows(
         })
         .into()
     }))
-    .spacing(2)
+    .spacing(super::mini_focus::QUEUE_ROW_SPACING)
 }
 
 fn metadata(track: Option<&Track>, size: u32) -> Element<'_, Message> {
@@ -331,7 +334,11 @@ fn controls(
     let volume = slider(
         0.0..=1.0,
         session.map_or(1.0, Session::volume),
-        Message::SetVolume,
+        if is_mini {
+            Message::SetMiniVolume
+        } else {
+            Message::SetVolume
+        },
     )
     .step(0.01)
     .width(Length::Fixed(60.0));
