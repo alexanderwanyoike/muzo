@@ -1,11 +1,14 @@
 use std::path::PathBuf;
 
 use iced::{
-    Element, Task,
-    widget::{button, row, text},
+    Element, Task, border,
+    widget::{button, row, text, tooltip},
 };
 
-use crate::distribution::{Target, Update, latest};
+use crate::{
+    appearance::Surfaces,
+    distribution::{Target, Update, latest},
+};
 
 use super::Message;
 
@@ -14,6 +17,7 @@ pub enum Status {
     #[default]
     Idle,
     Checking,
+    Current,
     Available(Update),
     Downloading(u8),
     Ready(Update, PathBuf),
@@ -23,9 +27,35 @@ pub enum Status {
 }
 
 impl Status {
+    pub(super) fn from_check(result: Result<Option<Update>, String>) -> Self {
+        match result {
+            Ok(Some(update)) => Self::Available(update),
+            Ok(None) => Self::Current,
+            Err(error) => Self::Error(error),
+        }
+    }
+
+    pub(super) fn can_check(&self) -> bool {
+        matches!(self, Self::Idle | Self::Current | Self::Error(_))
+    }
+
+    pub(super) fn notice_label(&self) -> String {
+        match self {
+            Self::Idle => "Check for updates".into(),
+            Self::Checking => "Checking for updates…".into(),
+            Self::Current => "Up to date".into(),
+            Self::Available(update) => format!("Update available to {}", update.version),
+            Self::Downloading(percent) => format!("Downloading update… {percent}%"),
+            Self::Ready(update, _) => format!("Restart to install v{}", update.version),
+            Self::Confirming(update, _) => format!("Restart to install {}?", update.version),
+            Self::Installing => "Installing update…".into(),
+            Self::Error(_) => "Update failed. Retry".into(),
+        }
+    }
+
     pub(super) fn accepts(&self, incoming: &Self) -> bool {
         match (self, incoming) {
-            (Self::Checking, Self::Idle | Self::Available(_) | Self::Error(_)) => true,
+            (Self::Checking, Self::Current | Self::Available(_) | Self::Error(_)) => true,
             (Self::Downloading(_), Self::Ready(_, _) | Self::Error(_)) => true,
             (Self::Downloading(previous), Self::Downloading(current)) => current >= previous,
             _ => false,
@@ -54,13 +84,7 @@ pub fn check() -> Task<Message> {
             .await
             .map_err(|error| format!("Could not check for updates: {error}"))?
         },
-        |result| {
-            Message::UpdateReceived(match result {
-                Ok(Some(update)) => Status::Available(update),
-                Ok(None) => Status::Idle,
-                Err(error) => Status::Error(error),
-            })
-        },
+        |result| Message::UpdateReceived(Status::from_check(result)),
     )
 }
 
@@ -122,43 +146,74 @@ pub fn launch(
     Ok(())
 }
 
-pub fn view(status: &Status) -> Element<'_, Message> {
-    let summary = match status {
-        Status::Idle => button(text(format!("Muzo {}", env!("CARGO_PKG_VERSION"))).size(11))
-            .on_press_maybe(installed_build().then_some(Message::CheckUpdate)),
-        Status::Checking => button(text("Checking for updates…").size(11)),
-        Status::Available(update) => {
-            let label = if manual_download() {
-                format!("Download installer for {}", update.version)
+pub fn view(status: &Status, surfaces: Surfaces) -> Element<'_, Message> {
+    let label = status.notice_label();
+    let (action, hint) = match status {
+        Status::Idle | Status::Current => (
+            installed_build().then_some(Message::CheckUpdate),
+            "Check for a new Muzo version",
+        ),
+        Status::Available(update) => (
+            Some(Message::DownloadUpdate(update.clone())),
+            if manual_download() {
+                "Download installer"
             } else {
-                format!("Update available to {}", update.version)
-            };
-            button(text(label).size(11)).on_press(Message::DownloadUpdate(update.clone()))
-        }
-        Status::Downloading(percent) => {
-            button(text(format!("Downloading update… {percent}%")).size(11))
-        }
-        Status::Ready(update, path) => button(text("Restart to install").size(11))
-            .on_press(Message::InstallUpdate(update.clone(), path.clone())),
-        Status::Confirming(update, _) => {
+                "Download update"
+            },
+        ),
+        Status::Ready(update, path) => (
+            Some(Message::InstallUpdate(update.clone(), path.clone())),
+            "Your update is ready",
+        ),
+        Status::Error(error) => (Some(Message::CheckUpdate), error.as_str()),
+        Status::Confirming(_, _) => {
             return row![
-                text(format!("Restart to install {}?", update.version)).size(11),
-                button("Later").on_press(Message::CancelInstallUpdate),
-                button("Restart").on_press(Message::ConfirmInstallUpdate),
+                text(label).size(11),
+                pill("Later", Some(Message::CancelInstallUpdate), surfaces),
+                pill("Restart", Some(Message::ConfirmInstallUpdate), surfaces),
             ]
             .spacing(5)
             .align_y(iced::Alignment::Center)
             .into();
         }
-        Status::Installing => button(text("Installing update…").size(11)),
-        Status::Error(error) => {
-            return row![
-                text(error).size(11),
-                button("Retry").on_press(Message::CheckUpdate)
-            ]
-            .spacing(5)
-            .into();
-        }
+        _ => return pill(label, None, surfaces).into(),
     };
-    summary.into()
+    tooltip(
+        pill(label, action, surfaces),
+        text(hint).size(11),
+        tooltip::Position::Top,
+    )
+    .style(super::view::panel)
+    .into()
+}
+
+fn pill<'a>(
+    label: impl Into<String>,
+    action: Option<Message>,
+    surfaces: Surfaces,
+) -> button::Button<'a, Message> {
+    button(text(label.into()).size(10))
+        .height(24)
+        .padding([2, 10])
+        .style(move |theme: &iced::Theme, status| {
+            let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+            button::Style {
+                background: Some(
+                    if hovered {
+                        theme.extended_palette().background.strong.color
+                    } else {
+                        surfaces.raised
+                    }
+                    .into(),
+                ),
+                text_color: if status == button::Status::Disabled {
+                    surfaces.muted
+                } else {
+                    theme.palette().text
+                },
+                border: border::rounded(12).width(1).color(surfaces.line),
+                ..button::Style::default()
+            }
+        })
+        .on_press_maybe(action)
 }

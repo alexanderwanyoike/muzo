@@ -284,11 +284,7 @@ impl Desktop {
                 Task::none()
             }
             Message::CheckUpdate => {
-                if !matches!(
-                    self.update_status,
-                    updates::Status::Idle | updates::Status::Error(_)
-                ) || !updates::installed_build()
-                {
+                if !self.update_status.can_check() || !updates::installed_build() {
                     return Task::none();
                 }
                 self.update_status = updates::Status::Checking;

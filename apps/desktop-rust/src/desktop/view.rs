@@ -167,7 +167,7 @@ fn bold() -> Font {
     }
 }
 
-fn panel(theme: &Theme) -> container::Style {
+pub(super) fn panel(theme: &Theme) -> container::Style {
     let palette = theme.extended_palette();
     container::Style::default()
         .background(palette.background.weak.color)

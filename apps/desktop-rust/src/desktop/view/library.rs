@@ -73,7 +73,8 @@ pub(in crate::desktop) fn library<'a>(
         playback_error(error, retry, false, Message::RetryTrack),
         view,
         container(
-            row![Space::new().width(Fill), updates::view(update)].align_y(Alignment::Center),
+            row![Space::new().width(Fill), updates::view(update, surfaces)]
+                .align_y(Alignment::Center),
         )
         .padding([0, 12])
         .height(34)
