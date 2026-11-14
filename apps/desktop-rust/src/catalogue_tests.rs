@@ -257,3 +257,39 @@ fn it_rejects_invalid_legacy_schema_without_publishing_a_catalogue() {
     assert!(!current.exists());
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_preserves_unchanged_metadata_overrides_in_the_editor() {
+    use crate::catalogue::MetadataOverride;
+    use crate::desktop::library_sources::{CataloguePaths, Operation, run};
+
+    let root = tempfile::tempdir().unwrap();
+    let music = root.path().join("Music");
+    fs::create_dir_all(&music).unwrap();
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+        music.join("tone.mp3"),
+    )
+    .unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let library = run(&paths, Operation::Add(music)).unwrap();
+    let id = &library.tracks[0].id;
+    let catalogue = paths.open().unwrap();
+    catalogue
+        .override_track(
+            id,
+            &MetadataOverride {
+                genre: Some("Ambient".into()),
+                track_number: Some(7),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+    let mut override_values = catalogue.track_overrides(id).unwrap();
+    override_values.title = Some("Edited".into());
+    catalogue.override_track(id, &override_values).unwrap();
+    let overrides = catalogue.track_overrides(id).unwrap();
+    assert_eq!(overrides.genre.as_deref(), Some("Ambient"));
+    assert_eq!(overrides.track_number, Some(7));
+}
