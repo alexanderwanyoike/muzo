@@ -29,6 +29,7 @@ impl LibraryVisibility {
     }
 }
 
+const RESIZE_TOLERANCE: f32 = 1.0;
 const QUEUE_RESIZE_TIMEOUT: Duration = Duration::from_millis(700);
 
 #[derive(Debug, thiserror::Error)]
@@ -174,13 +175,9 @@ impl Windows {
             return;
         }
         if let Some(request) = self.queue_resize {
-            let delta = size.width - request.target.width;
-            let reached = if request.expanded {
-                delta >= -1.0
-            } else {
-                delta <= 1.0
-            };
-            if !reached {
+            if (size.width - request.target.width).abs() > RESIZE_TOLERANCE
+                || (size.height - request.target.height).abs() > RESIZE_TOLERANCE
+            {
                 return;
             }
             self.queue_open = request.expanded;
