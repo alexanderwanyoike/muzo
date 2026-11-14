@@ -152,10 +152,8 @@ fn material_choice(
     ]
     .spacing(8);
     let preview = container(column![
-        container(Space::new())
-            .width(Fill)
-            .height(19)
-            .style(move |_| container::Style::default().background(surfaces.chrome)),
+        crate::desktop::material::chrome(appearance, surfaces, 18),
+        library::line(surfaces),
         row![
             container(sidebar)
                 .padding([11, 6])

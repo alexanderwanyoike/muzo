@@ -2,6 +2,7 @@ mod appearance_focus;
 mod cover;
 mod dropbox_panel;
 pub(crate) mod library_sources;
+pub(crate) mod material;
 mod mini_focus;
 mod row_cover;
 mod sidebar;

@@ -69,7 +69,7 @@ pub(in crate::desktop) fn library<'a>(
     .height(Fill);
 
     column![
-        transport(session, cover, retry, surfaces),
+        transport(session, cover, retry, surfaces, preferences),
         playback_error(error, retry, false, Message::RetryTrack),
         view,
         container(
@@ -89,6 +89,7 @@ fn transport<'a>(
     cover: Option<&image::Handle>,
     retry: bool,
     surfaces: Surfaces,
+    preferences: &Appearance,
 ) -> Element<'a, Message> {
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
@@ -168,22 +169,16 @@ fn transport<'a>(
     .spacing(10)
     .align_y(Alignment::Center);
     let volume = container(volume).align_x(Alignment::End).width(170);
-    let surface = container(
-        row![controls, container(display).center_x(Fill), volume]
-            .spacing(20)
-            .align_y(Alignment::Center),
-    )
-    .padding([0, 24])
-    .center_y(81)
-    .style(move |theme: &Theme| {
-        let gradient = iced::gradient::Linear::new(iced::Radians(std::f32::consts::PI))
-            .add_stop(
-                0.0,
-                compact::tint(surfaces.chrome, theme.palette().background, 0.60),
-            )
-            .add_stop(1.0, surfaces.chrome);
-        container::Style::default().background(gradient)
-    });
+    let surface = iced::widget::stack![
+        crate::desktop::material::chrome(preferences, surfaces, 81),
+        container(
+            row![controls, container(display).center_x(Fill), volume]
+                .spacing(20)
+                .align_y(Alignment::Center)
+        )
+        .padding([0, 24])
+        .center_y(81),
+    ];
     let mini = row![
         Space::new().width(Fill),
         icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini)),
