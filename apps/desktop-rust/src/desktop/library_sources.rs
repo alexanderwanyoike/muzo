@@ -467,6 +467,21 @@ mod tests {
         wait_for_event(&sources.changed);
     }
 
+    #[test]
+    fn it_drops_a_missing_root_registration_without_a_notification() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = root.path().join("library");
+        let mut sources = Sources::new(None);
+        sources.roots = vec![missing.clone()];
+        sources.watcher =
+            Some(notify::recommended_watcher(|_: notify::Result<notify::Event>| {}).unwrap());
+        sources.registered = vec![missing];
+
+        let _ = sources.poll();
+
+        assert!(sources.registered.is_empty());
+    }
+
     #[cfg(target_os = "linux")]
     fn wait_for_event(changed: &AtomicBool) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
