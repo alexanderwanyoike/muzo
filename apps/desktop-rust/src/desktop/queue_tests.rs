@@ -293,3 +293,14 @@ fn it_saves_the_completed_sidebar_resize_even_when_the_library_closes_immediatel
         desktop.sidebar.visible_width(),
     );
 }
+
+#[test]
+fn it_keeps_install_download_progress_when_another_check_arrives() {
+    let (mut desktop, _) = setup();
+    desktop.update_status = updates::Status::Downloading(42);
+
+    let check = desktop.update(Message::CheckUpdate);
+
+    assert_eq!(check.units(), 0);
+    assert!(matches!(desktop.update_status, updates::Status::Downloading(42)));
+}
