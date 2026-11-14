@@ -15,7 +15,17 @@ mod sources;
 
 use super::{Message, library_sources::Sources};
 
-const MUTED: Color = color!(0x7d8a86);
+fn muted(theme: &Theme) -> iced::widget::text::Style {
+    let palette = theme.palette();
+    let mix = |foreground: f32, background: f32| foreground * 0.79 + background * 0.21;
+    iced::widget::text::Style {
+        color: Some(Color::from_rgb(
+            mix(palette.text.r, palette.background.r),
+            mix(palette.text.g, palette.background.g),
+            mix(palette.text.b, palette.background.b),
+        )),
+    }
+}
 
 pub fn library<'a>(
     sources: &'a Sources,
@@ -67,8 +77,8 @@ pub fn library<'a>(
         sources::tracks(snapshot, session.and_then(Session::current), sources.busy())
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
-            text("Title").size(12).color(MUTED).width(Fill),
-            text("Artist").size(12).color(MUTED).width(Fill)
+            text("Title").size(12).style(muted).width(Fill),
+            text("Artist").size(12).style(muted).width(Fill)
         ]
         .padding([5, 10])
         .spacing(8);
@@ -79,7 +89,7 @@ pub fn library<'a>(
             container(
                 text("Open a local audio file to start listening.")
                     .size(14)
-                    .color(MUTED)
+                    .style(muted)
             )
             .center(Fill)
         ]
@@ -174,7 +184,7 @@ pub fn mini<'a>(
         let queue = session
             .filter(|session| !session.tracks().is_empty())
             .map_or_else(
-                || column![text("Queue is empty").size(13).color(MUTED)],
+                || column![text("Queue is empty").size(13).style(muted)],
                 queue_rows,
             );
         content = content
@@ -199,7 +209,7 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
                     .wrapping(text::Wrapping::None),
                 text(track.artist().unwrap_or(""))
                     .size(13)
-                    .color(MUTED)
+                    .style(muted)
                     .width(Fill)
                     .wrapping(text::Wrapping::None),
             ]
@@ -238,7 +248,7 @@ fn metadata(track: Option<&Track>, size: u32) -> Element<'_, Message> {
         metadata = metadata.push(
             text(artist)
                 .size(13)
-                .color(MUTED)
+                .style(muted)
                 .width(Fill)
                 .wrapping(text::Wrapping::None),
         );
@@ -247,7 +257,7 @@ fn metadata(track: Option<&Track>, size: u32) -> Element<'_, Message> {
         metadata = metadata.push(
             text(album)
                 .size(12)
-                .color(MUTED)
+                .style(muted)
                 .width(Fill)
                 .wrapping(text::Wrapping::None),
         );
@@ -293,9 +303,9 @@ fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, 
     )
     .step(0.1);
     let times = row![
-        text(clock(position)).size(11).color(MUTED),
+        text(clock(position)).size(11).style(muted),
         Space::new().width(Fill),
-        text(clock(duration)).size(11).color(MUTED)
+        text(clock(duration)).size(11).style(muted)
     ];
     let volume = slider(
         0.0..=1.0,

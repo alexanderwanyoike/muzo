@@ -11,7 +11,7 @@ use crate::{
     track::Track,
 };
 
-use super::{MUTED, action, bold, panel, selected};
+use super::{action, bold, muted, panel, selected};
 
 pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
     let query = sources.search.trim().to_lowercase();
@@ -57,7 +57,7 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
     .spacing(9);
 
     if sources.busy() {
-        panel_content = panel_content.push(text("Scanning…").size(12).color(MUTED));
+        panel_content = panel_content.push(text("Scanning…").size(12).style(muted));
     }
     if let Some(id) = selected_id {
         let controls = if sources.pending_remove.as_deref() == Some(id) {
@@ -98,9 +98,9 @@ pub fn tracks<'a>(
     busy: bool,
 ) -> iced::widget::Column<'a, Message> {
     let columns = row![
-        text("Title").size(12).color(MUTED).width(Fill),
-        text("Artist").size(12).color(MUTED).width(Fill),
-        text("Plays").size(12).color(MUTED).width(38),
+        text("Title").size(12).style(muted).width(Fill),
+        text("Artist").size(12).style(muted).width(Fill),
+        text("Plays").size(12).style(muted).width(38),
         iced::widget::Space::new().width(145)
     ]
     .padding([5, 10])
@@ -116,10 +116,10 @@ pub fn tracks<'a>(
                     .wrapping(text::Wrapping::None),
                 text(&track.artist)
                     .size(13)
-                    .color(MUTED)
+                    .style(muted)
                     .width(Fill)
                     .wrapping(text::Wrapping::None),
-                text(track.plays).size(12).color(MUTED).width(38),
+                text(track.plays).size(12).style(muted).width(38),
             ]
             .align_y(Alignment::Center)
             .spacing(8),
@@ -163,7 +163,7 @@ pub fn tracks<'a>(
     });
     if snapshot.tracks.is_empty() {
         return column![
-            container(text("No audio files found.").size(14).color(MUTED)).center(Fill)
+            container(text("No audio files found.").size(14).style(muted)).center(Fill)
         ];
     }
     column![columns, scrollable(column(list).spacing(2)).height(Fill)].spacing(5)

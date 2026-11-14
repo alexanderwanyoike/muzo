@@ -8,7 +8,7 @@ use crate::desktop::{
     library_sources::{Operation, Snapshot, Sources},
 };
 
-use super::{MUTED, action, bold, panel, primary, selected};
+use super::{action, bold, muted, panel, primary, selected};
 
 pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
     let entries = sources
@@ -106,7 +106,7 @@ pub fn tracks(snapshot: &Snapshot, busy: bool) -> iced::widget::Column<'_, Messa
         .map_or("Playlist", |item| item.name.as_str());
     let header = text(name).font(bold()).size(18);
     if snapshot.playlist_entries.is_empty() {
-        return column![header, text("Playlist is empty").size(13).color(MUTED)].spacing(9);
+        return column![header, text("Playlist is empty").size(13).style(muted)].spacing(9);
     }
     column![header, scrollable(column(rows).spacing(4)).height(Fill)].spacing(9)
 }
