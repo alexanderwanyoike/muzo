@@ -50,7 +50,7 @@ pub struct Windows {
     queue_open: bool,
     queue_resize: Option<QueueResize>,
     resize_generation: u64,
-    mini_bounds: Size,
+    mini_size: Size,
     library_visibility: LibraryVisibility,
 }
 
@@ -64,7 +64,7 @@ impl Windows {
                 queue_open: false,
                 queue_resize: None,
                 resize_generation: 0,
-                mini_bounds: MINI_SIZE,
+                mini_size: MINI_SIZE,
                 library_visibility: LibraryVisibility::KeepMapped,
             },
             open.discard(),
@@ -90,11 +90,7 @@ impl Windows {
     }
 
     pub(super) fn mini_view(&self) -> (bool, bool, Size) {
-        (
-            self.queue_open,
-            self.queue_pending(),
-            queue_bounds(self.mini_bounds, self.queue_open, QUEUE_WIDTH),
-        )
+        (self.queue_open, self.queue_pending(), self.mini_size)
     }
 
     pub fn queue_open(&self) -> bool {
@@ -105,7 +101,8 @@ impl Windows {
         if self.mini.is_some() {
             return Task::none();
         }
-        let (id, open) = window::open(settings(self.mini_bounds, MINI_MIN));
+        let (id, open) = window::open(settings(MINI_SIZE, MINI_MIN));
+        self.mini_size = MINI_SIZE;
         self.mini = Some(id);
         self.queue_open = false;
         self.queue_resize = None;
@@ -160,7 +157,7 @@ impl Windows {
         let request = QueueResize {
             generation: self.resize_generation,
             expanded,
-            target: queue_bounds(self.mini_bounds, expanded, QUEUE_WIDTH),
+            target: queue_bounds(MINI_SIZE, expanded, QUEUE_WIDTH),
         };
         self.queue_resize = Some(request);
 
@@ -189,11 +186,7 @@ impl Windows {
             self.queue_open = request.expanded;
             self.queue_resize = None;
         }
-        let queue_width = if self.queue_open { QUEUE_WIDTH } else { 0.0 };
-        self.mini_bounds = Size::new(
-            (size.width - queue_width).max(MINI_MIN.width),
-            size.height.max(MINI_MIN.height),
-        );
+        self.mini_size = size;
     }
 
     pub fn resize_timed_out(
@@ -215,7 +208,7 @@ impl Windows {
         }
         self.queue_resize = None;
         let min = queue_bounds(MINI_MIN, self.queue_open, QUEUE_MIN_WIDTH);
-        let bounds = queue_bounds(self.mini_bounds, self.queue_open, QUEUE_WIDTH);
+        let bounds = self.mini_size;
         (
             window::set_min_size(id, Some(min)).chain(window::resize(id, bounds)),
             Err(WindowError::ResizeRejected),
@@ -285,7 +278,7 @@ mod tests {
         let (mut windows, _) = Windows::open();
         let _ = windows.show_mini();
         let id = windows.mini_id().unwrap();
-        assert_eq!(windows.mini_bounds, iced::Size::new(420.0, 560.0));
+        assert_eq!(windows.mini_size, iced::Size::new(420.0, 560.0));
 
         let _ = windows.toggle_queue();
         let expanded = windows.queue_resize.unwrap().target;

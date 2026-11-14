@@ -106,14 +106,21 @@ pub(in crate::desktop) fn mini<'a>(
     } else {
         28.0
     };
-    let body = container(playback)
+    let body = scrollable(
+        container(column![
+            Space::new().height(if tight { 4.0 } else { 14.0 }),
+            playback,
+        ])
         .padding(iced::Padding {
             left: inline,
             right: inline,
             bottom: 20.0,
             top: 0.0,
         })
-        .center(Fill);
+        .center_x(Fill),
+    )
+    .height(Fill)
+    .width(Fill);
     let workspace = if queue_open {
         row![
             queue(session, cover.thumbnail(), focus, surfaces, size.width),
