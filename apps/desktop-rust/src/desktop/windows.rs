@@ -255,7 +255,7 @@ fn settings(size: Size, min: Size) -> window::Settings {
 
 #[cfg(test)]
 mod tests {
-    use super::{LibraryVisibility, MINI_SIZE, QUEUE_HEIGHT, Windows};
+    use super::{LibraryVisibility, MINI_SIZE, Windows};
     use iced::window;
 
     #[test]
@@ -267,9 +267,26 @@ mod tests {
         assert!(!windows.queue_open());
         windows.resized(id, MINI_SIZE);
         assert!(!windows.queue_open());
-        let expanded = iced::Size::new(MINI_SIZE.width, MINI_SIZE.height + QUEUE_HEIGHT);
-        windows.resized(id, expanded);
+        windows.resized(id, iced::Size::new(740.0, 560.0));
         assert!(windows.queue_open());
+    }
+
+    #[test]
+    fn it_matches_electron_compact_and_queue_dimensions() {
+        let (mut windows, _) = Windows::open();
+        let _ = windows.show_mini();
+        let id = windows.mini_id().unwrap();
+        assert_eq!(windows.mini_bounds, iced::Size::new(420.0, 560.0));
+
+        let _ = windows.toggle_queue();
+        let expanded = windows.queue_resize.unwrap().target;
+        assert_eq!(expanded, iced::Size::new(740.0, 560.0));
+        windows.resized(id, expanded);
+        let _ = windows.toggle_queue();
+        assert_eq!(
+            windows.queue_resize.unwrap().target,
+            iced::Size::new(420.0, 560.0)
+        );
     }
 
     #[test]

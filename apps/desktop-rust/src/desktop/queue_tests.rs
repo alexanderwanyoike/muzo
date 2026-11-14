@@ -221,7 +221,7 @@ fn it_selects_a_visible_mini_queue_entry_with_tab_and_enter() {
     let _ = desktop.update(Message::ShowMini);
     let mini = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::ToggleQueue);
-    let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(426.0, 434.0)));
+    let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(740.0, 560.0)));
     assert!(desktop.windows.queue_open());
 
     for _ in 0..5 {
@@ -243,7 +243,7 @@ fn it_scrolls_to_a_focused_row_in_a_long_mini_queue() {
     let _ = desktop.update(Message::ShowMini);
     let mini = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::ToggleQueue);
-    let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(426.0, 434.0)));
+    let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(740.0, 560.0)));
 
     let reveal = desktop.update(Message::CycleMiniFocus(mini, true));
 
@@ -269,7 +269,7 @@ fn it_uses_the_resized_sidebar_in_the_library_without_changing_mini_geometry() {
     assert_eq!(desktop.sidebar.visible_width(), 278.0);
     let _ = desktop.update(Message::ShowMini);
     let window = desktop.windows.mini_id().unwrap();
-    let _ = desktop.update(Message::MiniResized(window, iced::Size::new(426.0, 236.0)));
+    let _ = desktop.update(Message::MiniResized(window, iced::Size::new(420.0, 560.0)));
     assert_eq!(desktop.sidebar.visible_width(), 278.0);
 }
 
