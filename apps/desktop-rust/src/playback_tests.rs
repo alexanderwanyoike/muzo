@@ -176,3 +176,33 @@ fn it_seeks_in_a_single_page_opus_stream_and_stops_at_the_final_granule() {
     assert_eq!(decode(81), continuous[3_888..]);
     assert!(decode(100).is_empty());
 }
+
+#[test]
+fn it_seeks_at_the_exact_offset_when_the_single_page_padding_matches_preskip() {
+    use crate::opus::OpusSource;
+    use std::fs::File;
+
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/chirp-short.opus");
+    let decode = |milliseconds| {
+        OpusSource::open(
+            File::open(&path).unwrap(),
+            Duration::from_millis(milliseconds),
+        )
+        .unwrap()
+        .collect::<Vec<_>>()
+    };
+    let continuous = decode(0);
+    let sought = decode(81);
+    assert_eq!(continuous.len(), 5_136);
+    assert_eq!(sought.len(), 1_248);
+    let average_error = sought
+        .iter()
+        .zip(&continuous[3_888..])
+        .map(|(actual, expected)| (actual - expected).abs())
+        .sum::<f32>()
+        / sought.len() as f32;
+    assert!(
+        average_error < 0.001,
+        "average difference was {average_error}"
+    );
+}

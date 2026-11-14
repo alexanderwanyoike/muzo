@@ -1,5 +1,11 @@
-use std::{fs::File, num::NonZero, time::Duration};
+use std::{
+    fs::File,
+    io::{BufReader, Seek},
+    num::NonZero,
+    time::Duration,
+};
 
+use ogg::reading::PacketReader;
 use rodio::{ChannelCount, SampleRate, Source};
 use ruopus::{OpusDecoder, ogg::OpusHead};
 use symphonia::core::{
@@ -32,7 +38,9 @@ pub struct OpusSource {
 }
 
 impl OpusSource {
-    pub fn open(file: File, position: Duration) -> Result<Self, Error> {
+    pub fn open(mut file: File, position: Duration) -> Result<Self, Error> {
+        let single_page = single_audio_page(&mut file)?;
+        file.rewind()?;
         let stream = MediaSourceStream::new(Box::new(file), MediaSourceStreamOptions::default());
         let options = FormatOptions {
             enable_gapless: true,
@@ -77,7 +85,7 @@ impl OpusSource {
         });
         let gain_db = f32::from(header.output_gain_q8) / GAIN_UNITS_PER_DB;
         // Symphonia can report an end-trimmed first page as a start delay.
-        let use_packet_trims = parameters.delay == Some(u32::from(header.pre_skip));
+        let use_packet_trims = !single_page;
         // RFC 7845 sections 4.6 and 5.1 specify preroll and a signed output gain.
         let preroll_start = position.saturating_sub(SEEK_PREROLL);
         let target_frame = pre_skip.saturating_add(pcm_frame(position));
@@ -126,10 +134,12 @@ impl OpusSource {
             let Ok(mut samples) = self.decoder.decode_packet(&packet.data) else {
                 continue;
             };
-            let frame_samples = usize::try_from(packet.block_dur())
-                .ok()?
-                .checked_mul(channels)?;
-            samples.resize(frame_samples, 0.0);
+            if packet.data.len() == 1 {
+                let frame_samples = usize::try_from(packet.block_dur())
+                    .ok()?
+                    .checked_mul(channels)?;
+                samples.resize(frame_samples, 0.0);
+            }
             self.packet = samples;
             let frames = self.packet.len() / channels;
             let (start, end) = if self.use_packet_trims {
@@ -158,6 +168,25 @@ impl OpusSource {
             }
         }
     }
+}
+
+fn single_audio_page(file: &mut File) -> Result<bool, Error> {
+    let mut packets = PacketReader::new(BufReader::new(file));
+    let mut opus_serial = None;
+    while let Some(packet) = packets
+        .read_packet()
+        .map_err(|_| Error::DecodeError("Could not read the Ogg identification pages"))?
+    {
+        if packet.first_in_stream() && packet.data.starts_with(b"OpusHead") {
+            opus_serial = Some(packet.stream_serial());
+        } else if opus_serial == Some(packet.stream_serial())
+            && !packet.data.starts_with(b"OpusTags")
+            && packet.last_in_page()
+        {
+            return Ok(packet.last_in_stream());
+        }
+    }
+    Ok(false)
 }
 
 fn pcm_frame(time: Duration) -> u64 {
