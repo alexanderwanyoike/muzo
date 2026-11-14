@@ -183,7 +183,10 @@ fn it_drops_a_dropbox_refresh_result_after_the_source_is_removed() {
     desktop.dropbox.refreshing = Some("second".into());
 
     let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first"]))));
-    let _ = desktop.update(Message::DropboxLibraryRefreshed(Err("Stale error".into())));
+    let _ = desktop.update(Message::DropboxLibraryRefreshed(
+        "second".into(),
+        Err(dropbox_panel::RefreshError::Failed("Stale error".into())),
+    ));
 
     assert!(desktop.dropbox.refresh_status.is_none());
     assert!(!desktop.dropbox.busy);

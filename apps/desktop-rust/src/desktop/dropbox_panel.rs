@@ -61,7 +61,7 @@ pub struct Settings {
     auth: Option<Arc<Authorization>>,
     connecting: bool,
     pub(super) refreshing: Option<String>,
-    pub(super) refresh_status: Option<String>,
+    pub(super) refresh_status: Option<(String, String)>,
     next_sync: std::time::Instant,
 }
 
@@ -73,6 +73,14 @@ pub enum Error {
     Catalogue(#[from] CatalogueError),
     #[error("Enter a sync interval from 1 to 60 minutes.")]
     InvalidInterval,
+}
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum RefreshError {
+    #[error("Dropbox authorization needs to be renewed for this account.")]
+    Reconnect { account: String },
+    #[error("{0}")]
+    Failed(String),
 }
 
 impl Default for Settings {
@@ -183,15 +191,18 @@ impl Settings {
             self.busy = true;
             self.refreshing = Some(id.clone());
             self.refresh_status = None;
+            let result_id = id.clone();
             return Task::perform(
                 async move {
-                    tokio::task::spawn_blocking(move || {
-                        refresh_library(&paths, &id).map_err(|error| error.to_string())
-                    })
-                    .await
-                    .map_err(|error| format!("Could not refresh the Dropbox library: {error}"))?
+                    tokio::task::spawn_blocking(move || refresh_library(&paths, &id))
+                        .await
+                        .map_err(|error| {
+                            RefreshError::Failed(format!(
+                                "Could not refresh the Dropbox library: {error}"
+                            ))
+                        })?
                 },
-                Message::DropboxLibraryRefreshed,
+                move |result| Message::DropboxLibraryRefreshed(result_id.clone(), result),
             );
         }
         self.next_sync = std::time::Instant::now()
@@ -241,16 +252,34 @@ impl Settings {
         !self.busy
     }
 
-    pub fn apply_refresh(&mut self, result: Result<(String, usize), String>) {
+    pub fn apply_refresh(
+        &mut self,
+        id: String,
+        result: Option<Result<(String, usize), RefreshError>>,
+    ) {
+        if self.refreshing.as_deref() != Some(&id) {
+            return;
+        }
         self.busy = false;
         self.refreshing = None;
-        self.refresh_status = Some(match result {
+        let Some(result) = result else {
+            return;
+        };
+        let status = match result {
             Ok((name, tracks)) => {
                 let unit = if tracks == 1 { "track" } else { "tracks" };
                 format!("Refreshed {name}: {tracks} {unit}.")
             }
-            Err(error) => error,
-        });
+            Err(error) => {
+                if let RefreshError::Reconnect { account } = &error
+                    && self.snapshot.account.as_ref() == Some(account)
+                {
+                    self.snapshot.reconnect = true;
+                }
+                error.to_string()
+            }
+        };
+        self.refresh_status = Some((id, status));
     }
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
@@ -629,39 +658,51 @@ fn list_library(
     client.list(token, &library.location.to_string_lossy(), true)
 }
 
-fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), Error> {
-    let mut catalogue = paths.open()?;
+fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), RefreshError> {
+    let fail = |error: CatalogueError| RefreshError::Failed(error.to_string());
+    let mut catalogue = paths.open().map_err(fail)?;
     let library = catalogue
-        .libraries()?
+        .libraries()
+        .map_err(fail)?
         .into_iter()
         .find(|library| library.id == id && library.kind == "dropbox")
-        .ok_or(CatalogueError::UnknownFolder)?;
-    let (_, key, refresh) = library_credentials(&catalogue, id)?;
-    let client = Client::new()?;
-    let token = client.refresh(&key, &refresh)?;
-    let entries = list_library(&client, &token.access_token, &library)?;
-    let tracks = catalogue.sync_dropbox(id, &entries)?;
+        .ok_or_else(|| fail(CatalogueError::UnknownFolder))?;
+    let account = catalogue
+        .dropbox_account_for(id)
+        .map_err(fail)?
+        .ok_or_else(|| RefreshError::Failed(DropboxError::Reconnect.to_string()))?;
+    let remote_error = |error: DropboxError| match error {
+        DropboxError::Reconnect | DropboxError::LegacyCredential => RefreshError::Reconnect {
+            account: account.clone(),
+        },
+        other => RefreshError::Failed(other.to_string()),
+    };
+    let (key, refresh) = account_credentials(&catalogue, &account).map_err(remote_error)?;
+    let client = Client::new().map_err(remote_error)?;
+    let token = client.refresh(&key, &refresh).map_err(remote_error)?;
+    let entries = list_library(&client, &token.access_token, &library).map_err(remote_error)?;
+    let tracks = catalogue.sync_dropbox(id, &entries).map_err(fail)?;
     Ok((library.name, tracks))
 }
 
-fn library_credentials(
+fn account_credentials(
     catalogue: &Catalogue,
-    library: &str,
-) -> Result<(String, String, String), Error> {
-    let account = catalogue
-        .dropbox_account_for(library)?
-        .ok_or(DropboxError::Reconnect)?;
+    account: &str,
+) -> Result<(String, String), DropboxError> {
     let key = catalogue
-        .dropbox_client(&account)?
+        .dropbox_client(account)?
         .ok_or(DropboxError::Reconnect)?;
     let refresh =
-        Credentials::read_or_migrate(catalogue, &account)?.ok_or(DropboxError::Reconnect)?;
-    Ok((account, key, refresh))
+        Credentials::read_or_migrate(catalogue, account)?.ok_or(DropboxError::Reconnect)?;
+    Ok((key, refresh))
 }
 
 pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
     let catalogue: Catalogue = paths.open()?;
-    let (account, client_id, refresh) = library_credentials(&catalogue, library)?;
+    let account = catalogue
+        .dropbox_account_for(library)?
+        .ok_or(DropboxError::Reconnect)?;
+    let (client_id, refresh) = account_credentials(&catalogue, &account)?;
     let client = Client::new()?;
     let token = client.refresh(&client_id, &refresh)?;
     Ok(cache::download(
@@ -687,7 +728,13 @@ mod tests {
             ..Default::default()
         };
 
-        settings.apply_refresh(Err(DropboxError::Reconnect.to_string()));
+        settings.refreshing = Some("source".into());
+        settings.apply_refresh(
+            "source".into(),
+            Some(Err(RefreshError::Reconnect {
+                account: "displayed".into(),
+            })),
+        );
 
         assert!(settings.snapshot.reconnect);
     }
@@ -707,7 +754,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(Error::Dropbox(DropboxError::Reconnect))
+            Err(RefreshError::Reconnect { account }) if account == "previous"
         ));
     }
 
