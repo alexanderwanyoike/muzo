@@ -24,3 +24,6 @@ mod catalogue_tests;
 
 #[cfg(test)]
 mod dropbox_tests;
+
+#[cfg(test)]
+mod appearance_tests;
