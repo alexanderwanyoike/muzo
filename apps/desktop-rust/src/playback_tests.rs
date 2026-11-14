@@ -1,0 +1,42 @@
+use std::{num::NonZero, path::Path, time::Duration};
+
+use rodio::mixer;
+
+use crate::playback::Playback;
+
+#[test]
+fn it_plays_real_local_audio_and_can_pause_seek_and_resume() {
+    let (mixer, mut samples) =
+        mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
+    let mut playback = Playback::new(mixer);
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+
+    playback.play(&file).unwrap();
+    assert!(!playback.is_paused());
+    assert!(playback.duration() > Duration::ZERO);
+    assert!(
+        samples
+            .by_ref()
+            .take(4_410)
+            .any(|sample| sample.abs() > 0.001)
+    );
+
+    playback.pause();
+    assert!(playback.is_paused());
+
+    let target = playback.duration() / 2;
+    std::thread::scope(|scope| {
+        let seek = scope.spawn(|| playback.seek(target));
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        while !seek.is_finished() && std::time::Instant::now() < deadline {
+            assert!(samples.next().is_some());
+            std::thread::yield_now();
+        }
+        seek.join().unwrap().unwrap();
+    });
+
+    playback.resume();
+    assert!(!playback.is_paused());
+    samples.by_ref().take(4_410).for_each(drop);
+    assert!(playback.position() >= target);
+}
