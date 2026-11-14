@@ -13,7 +13,6 @@ use crate::{
         library_sources::{Operation, Snapshot, Sources},
     },
     session::Session,
-    track::Track,
 };
 
 use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
@@ -131,12 +130,21 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
     }
-    if let Some(id) = &sources.pending_remove {
+    if let Some(source) = sources.pending_remove.as_ref().and_then(|id| {
+        sources
+            .snapshot
+            .as_ref()?
+            .libraries
+            .iter()
+            .find(|row| &row.id == id)
+    }) {
         body = body.push(
             row![
-                button(text("Remove source").size(10))
+                button(text(format!("Remove {}?", source.name)).size(10))
                     .style(action)
-                    .on_press(Message::SourceOperation(Operation::Remove(id.clone()))),
+                    .on_press(Message::SourceOperation(Operation::Remove(
+                        source.id.clone()
+                    ))),
                 button(text("Cancel").size(10))
                     .style(action)
                     .on_press(Message::CancelSourceRemoval),
@@ -188,11 +196,13 @@ pub fn tracks<'a>(
     surfaces: Surfaces,
 ) -> iced::widget::Column<'a, Message> {
     let playing = session.is_some_and(Session::is_playing);
-    let active_id = session
-        .and_then(Session::current)
-        .and_then(Track::indexed_id);
+    let current = session.and_then(Session::current);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
-        let active = active_id == Some(track.id.as_str());
+        let active = current.is_some_and(|current| {
+            current
+                .indexed_id()
+                .map_or_else(|| current.path() == track.path, |id| id == track.id)
+        });
         let play = super::track_play_button(
             if active && playing {
                 Icon::Pause
@@ -291,7 +301,14 @@ pub fn tracks<'a>(
         .into()
     });
     if snapshot.tracks.is_empty() {
-        return column![library::empty(surfaces)];
+        return column![
+            container(
+                text("No tracks yet. Muzo syncs filesystem libraries automatically.")
+                    .size(13)
+                    .color(surfaces.muted)
+            )
+            .center(Fill)
+        ];
     }
     column![scrollable(column(list)).height(Fill)]
 }

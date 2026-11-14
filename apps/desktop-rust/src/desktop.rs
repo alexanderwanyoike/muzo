@@ -220,7 +220,7 @@ impl Desktop {
             Message::FolderPicked(None) => Task::none(),
             Message::LibraryPage(page) => {
                 self.page = page;
-                self.dropbox.visible = page == LibraryPage::Settings;
+                self.sources.pending_remove = None;
                 self.sources.editing = None;
                 if page == LibraryPage::Playlists
                     && let Some(snapshot) = self.sources.snapshot.as_ref()
@@ -235,12 +235,12 @@ impl Desktop {
             }
             Message::SourceSearch(query) => {
                 self.sources.search = query;
+                self.sources.pending_remove = None;
                 Task::none()
             }
             Message::SourceOperation(operation) => {
                 if matches!(operation, Operation::Select(_)) {
                     self.page = LibraryPage::Songs;
-                    self.dropbox.visible = false;
                 }
                 self.sources.pending_remove = None;
                 self.sources.start(operation)

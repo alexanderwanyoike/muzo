@@ -105,13 +105,23 @@ pub struct Snapshot {
     pub editor: Option<(String, String, Box<[String; 7]>)>,
 }
 
+#[cfg(test)]
 pub(crate) fn run(
     paths: &CataloguePaths,
     operation: Operation,
 ) -> Result<Snapshot, CatalogueError> {
+    run_with_selection(paths, operation, None, None)
+}
+
+fn run_with_selection(
+    paths: &CataloguePaths,
+    operation: Operation,
+    previous_source: Option<String>,
+    previous_playlist: Option<String>,
+) -> Result<Snapshot, CatalogueError> {
     let mut catalogue = paths.open()?;
     let mut warnings = Vec::new();
-    let mut selected_playlist = None;
+    let mut selected_playlist = previous_playlist;
     let mut editor = None;
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
@@ -122,30 +132,30 @@ pub(crate) fn run(
         }
         Operation::Remove(id) => {
             catalogue.remove(&id)?;
-            None
+            previous_source.clone()
         }
         Operation::CreatePlaylist(name) => {
             selected_playlist = Some(catalogue.create_playlist(&name)?.id);
-            None
+            previous_source.clone()
         }
         Operation::SelectPlaylist(id) => {
             selected_playlist = Some(id);
-            None
+            previous_source.clone()
         }
         Operation::AddToPlaylist(id, track) => {
             catalogue.add_to_playlist(&id, &track)?;
             selected_playlist = Some(id);
-            None
+            previous_source.clone()
         }
         Operation::MovePlaylistEntry(id, entry, delta) => {
             catalogue.move_playlist_entry(&id, &entry, delta)?;
             selected_playlist = Some(id);
-            None
+            previous_source.clone()
         }
         Operation::RemovePlaylistEntry(id, entry) => {
             catalogue.remove_playlist_entry(&id, &entry)?;
             selected_playlist = Some(id);
-            None
+            previous_source.clone()
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let edit = catalogue.track_overrides(&id)?;
@@ -191,6 +201,7 @@ pub(crate) fn run(
     };
     let libraries = catalogue.libraries()?;
     let selected = selected
+        .or(previous_source)
         .filter(|id| libraries.iter().any(|source| source.id == *id))
         .or_else(|| {
             libraries
@@ -199,6 +210,9 @@ pub(crate) fn run(
                 .map(|source| source.id.clone())
         });
     let playlists = catalogue.playlists()?;
+    let selected_playlist = selected_playlist
+        .filter(|id| playlists.iter().any(|item| item.id == *id))
+        .or_else(|| playlists.first().map(|item| item.id.clone()));
     let playlist_entries = selected_playlist
         .as_ref()
         .map(|id| catalogue.playlist_entries(id))
@@ -265,12 +279,8 @@ impl Sources {
     }
 
     pub(super) fn reload(&mut self) -> Task<Message> {
-        let selected = self
-            .snapshot
-            .as_ref()
-            .and_then(|snapshot| snapshot.selected.clone());
         self.changed.store(true, Ordering::Release);
-        selected.map_or_else(Task::none, |id| self.start(Operation::Select(id)))
+        Task::none()
     }
 
     pub fn confirm_play_count(&mut self, id: &str, count: u32) {
@@ -308,10 +318,19 @@ impl Sources {
         };
         self.busy = true;
         self.error = None;
+        let selected = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.selected.clone());
+        let playlist = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.selected_playlist.clone());
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
-                    run(&paths, operation).map_err(|error| error.to_string())
+                    run_with_selection(&paths, operation, selected, playlist)
+                        .map_err(|error| error.to_string())
                 })
                 .await
                 .map_err(|error| format!("Could not update the music catalogue: {error}"))?

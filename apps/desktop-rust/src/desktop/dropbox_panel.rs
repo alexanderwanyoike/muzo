@@ -14,7 +14,6 @@ use super::{Message, library_sources::CataloguePaths};
 
 #[derive(Debug, Clone)]
 pub enum Action {
-    Toggle,
     Key(String),
     Code(String),
     Begin,
@@ -45,7 +44,6 @@ pub struct Snapshot {
 }
 
 pub struct Settings {
-    pub visible: bool,
     pub busy: bool,
     pub error: Option<String>,
     pub app_key: String,
@@ -70,7 +68,6 @@ pub enum Error {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            visible: false,
             busy: false,
             error: None,
             app_key: String::new(),
@@ -115,10 +112,6 @@ impl Settings {
                     return Task::none();
                 };
                 action = Action::AddFolders(account.clone(), self.selected_folders.clone());
-            }
-            Action::Toggle => {
-                self.visible = !self.visible;
-                return Task::none();
             }
             Action::Key(value) => {
                 self.app_key = value;
