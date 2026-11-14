@@ -691,3 +691,14 @@ fn it_keeps_the_submitted_playlist_draft_during_a_pending_save() {
     let _ = desktop.update(Message::PlaylistName("Late Evening".into()));
     assert_eq!(desktop.sources.playlist_name, "Late Evening");
 }
+
+#[test]
+fn it_reports_current_after_a_successful_check_without_an_update() {
+    let (mut desktop, _) = setup();
+    desktop.update_status = updates::Status::Checking;
+    let incoming = updates::Status::from_check(Ok(None));
+    let _ = desktop.update(Message::UpdateReceived(incoming));
+
+    assert_eq!(desktop.update_status.notice_label(), "Up to date");
+    assert!(desktop.update_status.can_check());
+}
