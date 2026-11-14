@@ -980,3 +980,12 @@ fn it_requires_positive_track_and_disc_numbers() {
         let _ = desktop.update(Message::EditField(field, String::new()));
     }
 }
+
+#[test]
+fn it_routes_tab_to_the_track_metadata_form_when_editing_in_songs() {
+    let (mut desktop, _) = editing_source();
+
+    let tab = desktop.update(Message::CycleMiniFocus(desktop.windows.library_id(), false));
+
+    assert!(tab.units() > 0);
+}
