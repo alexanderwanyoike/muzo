@@ -18,6 +18,25 @@ use crate::{
 
 use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
 
+#[cfg(test)]
+#[test]
+fn it_finds_a_library_by_its_location_as_well_as_its_name() {
+    let source = crate::catalogue::Library {
+        id: "library".into(),
+        name: "Records".into(),
+        kind: "filesystem".into(),
+        location: "/Music/Archive".into(),
+    };
+
+    assert!(matches_source(&source, "archive"));
+    assert!(matches_source(&source, "records"));
+    assert!(!matches_source(&source, "other"));
+}
+
+fn matches_source(source: &crate::catalogue::Library, query: &str) -> bool {
+    source.name.to_lowercase().contains(query)
+}
+
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let can_edit = sources.folder_editable();
     let can_submit = can_edit && !sources.busy();
@@ -157,7 +176,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .snapshot
         .iter()
         .flat_map(|snapshot| &snapshot.libraries)
-        .filter(|source| source.name.to_lowercase().contains(&query))
+        .filter(|source| matches_source(source, &query))
         .map(|source| {
             let current = selected_id == Some(source.id.as_str());
             let count = sources
