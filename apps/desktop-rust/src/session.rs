@@ -34,6 +34,7 @@ pub struct Session {
     tracks: Vec<Track>,
     current: Option<usize>,
     started: bool,
+    start_generation: u64,
 }
 
 impl Session {
@@ -43,6 +44,7 @@ impl Session {
             tracks: Vec::new(),
             current: None,
             started: false,
+            start_generation: 0,
         }
     }
 
@@ -57,8 +59,34 @@ impl Session {
         self.started = false;
     }
 
+    pub fn remove_library(&mut self, library: &str) {
+        let previous = self.current;
+        let active_removed = self
+            .current()
+            .is_some_and(|track| track.library() == Some(library));
+        let removed_before = previous.map_or(0, |index| {
+            self.tracks
+                .iter()
+                .take(index)
+                .filter(|track| track.library() == Some(library))
+                .count()
+        });
+        self.tracks.retain(|track| track.library() != Some(library));
+        if active_removed {
+            self.current = None;
+            self.playback.reset();
+            self.started = false;
+        } else {
+            self.current = previous.map(|index| index - removed_before);
+        }
+    }
+
     pub fn tracks(&self) -> &[Track] {
         &self.tracks
+    }
+
+    pub fn start_generation(&self) -> u64 {
+        self.start_generation
     }
 
     pub fn current_index(&self) -> Option<usize> {
@@ -79,6 +107,7 @@ impl Session {
         self.playback.reset();
         self.playback.play(track.path())?;
         self.started = true;
+        self.start_generation += 1;
         Ok(())
     }
 

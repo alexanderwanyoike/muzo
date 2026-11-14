@@ -7,6 +7,7 @@ use std::{
 pub struct Track {
     path: PathBuf,
     indexed_id: Option<String>,
+    library: Option<String>,
     remote: Option<(String, String)>,
     title: String,
     artist: Option<String>,
@@ -25,6 +26,7 @@ impl Track {
         Self {
             path,
             indexed_id: None,
+            library: None,
             remote: None,
             title,
             artist,
@@ -53,6 +55,15 @@ impl Track {
         if self.album.is_none() {
             self.album = metadata.album.clone();
         }
+        self
+    }
+
+    pub fn library(&self) -> Option<&str> {
+        self.library.as_deref()
+    }
+
+    pub fn with_library(mut self, library: String) -> Self {
+        self.library = Some(library);
         self
     }
 

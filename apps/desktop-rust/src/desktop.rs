@@ -160,6 +160,22 @@ impl Desktop {
                 self.sources.start(operation)
             }
             Message::SourcesUpdated(result) => {
+                if let (Some(previous), Ok(next)) = (&self.sources.snapshot, &result) {
+                    let removed = previous
+                        .libraries
+                        .iter()
+                        .filter(|old| !next.libraries.iter().any(|source| old.id == source.id));
+                    for source in removed {
+                        self.playback_request += 1;
+                        self.loading_remote = false;
+                        if let Some(session) = &mut self.session {
+                            session.remove_library(&source.id);
+                            if session.current().is_none() {
+                                self.artwork = None;
+                            }
+                        }
+                    }
+                }
                 self.sources.apply(result);
                 Task::none()
             }
@@ -487,7 +503,8 @@ impl Desktop {
                                 track.album,
                                 None,
                             )
-                            .with_indexed_id(track.id);
+                            .with_indexed_id(track.id)
+                            .with_library(track.library_id.clone());
                             if is_remote {
                                 item.with_remote(track.library_id, path)
                             } else {
@@ -577,16 +594,12 @@ impl Desktop {
     ) {
         if let Some(session) = &mut self.session {
             let current = session.current_index();
-            let previous_id = session
-                .current()
-                .and_then(Track::indexed_id)
-                .map(str::to_owned);
+            let before = session.start_generation();
             match operation(session) {
                 Ok(()) => {
                     if let Some(id) = session.current().and_then(Track::indexed_id)
                         && session.is_playing()
-                        && (current != session.current_index()
-                            || previous_id.as_deref() != Some(id))
+                        && before != session.start_generation()
                     {
                         self.sources.queued_plays.push(id.to_owned());
                     }
