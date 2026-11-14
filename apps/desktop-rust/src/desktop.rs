@@ -75,6 +75,8 @@ pub enum Message {
     EditField(MetadataField, String),
     TrackEditorTab(u64, bool, Option<MetadataField>),
     TrackEditorFocusApplied(u64),
+    ActivateTrackEditor,
+    TrackEditorFieldSubmit,
     SaveTrackEdit(bool),
     CloseTrackEdit,
     RemoteTrackReady(u64, Result<Track, String>),
@@ -600,6 +602,16 @@ impl Desktop {
                 next.focus(serial)
             }
             Message::TrackEditorFocusApplied(serial) => self.editor_navigation.finish(serial),
+            Message::ActivateTrackEditor => {
+                let action = self.activate_track_editor();
+                action.chain(self.editor_navigation.advance())
+            }
+            Message::TrackEditorFieldSubmit => {
+                if self.editor_navigation.defer_activation() {
+                    return Task::none();
+                }
+                self.save_track_edit(false)
+            }
             Message::SaveTrackEdit(clear) => self.save_track_edit(clear),
             Message::CloseTrackEdit => {
                 if !self.sources.editor_save_pending() {
@@ -799,8 +811,8 @@ impl Desktop {
                 Task::none()
             }
             Message::ActivateMiniFocus(id) => {
-                if let Some(message) = self.focused_track_editor_action(id) {
-                    return self.update(message);
+                if let Some(task) = self.route_track_editor_activation(id) {
+                    return task;
                 }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
@@ -826,8 +838,8 @@ impl Desktop {
                 Task::none()
             }
             Message::MiniSpace(id) => {
-                if let Some(message) = self.focused_track_editor_action(id) {
-                    return self.update(message);
+                if let Some(task) = self.route_track_editor_activation(id) {
+                    return task;
                 }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
@@ -934,18 +946,30 @@ impl Desktop {
         Task::none()
     }
 
-    fn focused_track_editor_action(&self, id: window::Id) -> Option<Message> {
+    fn route_track_editor_activation(&mut self, id: window::Id) -> Option<Task<Message>> {
         if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
             return None;
         }
         let editor = self.sources.editing.as_ref()?;
-        let focused = editor.action_focus?;
-        if self.sources.editor_save_pending()
-            || (focused != TrackEditorControl::Cancel && self.sources.busy())
-        {
-            return None;
+        if self.editor_navigation.defer_activation() {
+            return Some(Task::none());
         }
-        focused.message()
+        editor.action_focus?;
+        Some(self.activate_track_editor())
+    }
+
+    fn activate_track_editor(&mut self) -> Task<Message> {
+        if self.page != LibraryPage::Songs || self.editor_navigation.focus_pending() {
+            return Task::none();
+        }
+        let Some(editor) = self.sources.editing.as_ref() else {
+            return Task::none();
+        };
+        let message = editor.action_focus.and_then(TrackEditorControl::message);
+        if self.sources.editor_save_pending() {
+            return Task::none();
+        }
+        message.map_or_else(Task::none, |message| self.update(message))
     }
 
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {

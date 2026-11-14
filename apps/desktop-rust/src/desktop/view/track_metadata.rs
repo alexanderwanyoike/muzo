@@ -23,7 +23,7 @@ pub(super) fn editor(
     saving: bool,
     surfaces: Surfaces,
 ) -> iced::widget::Container<'_, Message> {
-    let save = (!busy && !saving).then_some(Message::SaveTrackEdit(false));
+    let can_save = !busy && !saving;
     let field = |field: Field| {
         column![
             text(field.label()).size(11).color(surfaces.muted),
@@ -32,7 +32,7 @@ pub(super) fn editor(
                 .size(11)
                 .padding([8, 9])
                 .on_input_maybe((!saving).then_some(move |value| Message::EditField(field, value)))
-                .on_submit_maybe(save.clone()),
+                .on_submit_maybe(can_save.then_some(Message::TrackEditorFieldSubmit)),
         ]
         .width(Fill)
         .spacing(6)
@@ -48,9 +48,9 @@ pub(super) fn editor(
         )
         .id(kind.id())
     };
-    let mut actions = row![control(Control::Save, "Save metadata", save.is_some())].spacing(8);
+    let mut actions = row![control(Control::Save, "Save metadata", can_save)].spacing(8);
     if editor.overridden {
-        actions = actions.push(control(Control::Clear, "Clear override", save.is_some()));
+        actions = actions.push(control(Control::Clear, "Clear override", can_save));
     }
     let actions = actions.push(control(Control::Cancel, "Cancel", !saving));
     let mut body = column![
