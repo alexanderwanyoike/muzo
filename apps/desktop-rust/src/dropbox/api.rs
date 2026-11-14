@@ -94,6 +94,16 @@ impl Client {
             ("client_id", client_id),
             ("refresh_token", refresh_token),
         ])
+        .map_err(|error| match error {
+            DropboxError::Transport(ref transport)
+                if transport
+                    .status()
+                    .is_some_and(|status| status == 400 || status == 401) =>
+            {
+                DropboxError::Reconnect
+            }
+            other => other,
+        })
     }
 
     fn token(&self, form: &[(&str, &str)]) -> Result<Token, DropboxError> {

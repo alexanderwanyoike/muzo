@@ -26,9 +26,10 @@ pub fn library<'a>(
     ),
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
-    error: Option<&'a str>,
+    playback: (Option<&'a str>, bool),
 ) -> Element<'a, Message> {
     let (preferences, update_status) = settings;
+    let (error, retry) = playback;
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
@@ -107,7 +108,7 @@ pub fn library<'a>(
                             Space::new().width(Fill),
                             icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
                         ],
-                        controls(session),
+                        controls(session, retry),
                     ]
                     .width(Length::Fixed(300.0)),
                 ]
@@ -130,9 +131,10 @@ pub fn mini<'a>(
     session: Option<&'a Session>,
     queue: (bool, bool),
     cover: Option<&image::Handle>,
-    error: Option<&'a str>,
+    playback: (Option<&'a str>, bool),
 ) -> Element<'a, Message> {
     let (queue_open, queue_pending) = queue;
+    let (error, retry) = playback;
     let header = row![
         icon_button(
             Icon::Library,
@@ -154,7 +156,7 @@ pub fn mini<'a>(
     let track = session.and_then(Session::current);
     let playback = row![
         artwork(cover, 126.0),
-        column![metadata(track, 19), controls(session)]
+        column![metadata(track, 19), controls(session, retry)]
             .spacing(10)
             .width(Fill),
     ]
@@ -274,9 +276,9 @@ fn artwork(cover: Option<&image::Handle>, size: f32) -> Element<'static, Message
         .into()
 }
 
-fn controls(session: Option<&Session>) -> iced::widget::Column<'_, Message> {
+fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, Message> {
     let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
-    let available = session.is_some_and(|player| player.current().is_some());
+    let available = retry || session.is_some_and(|player| player.current().is_some());
     let playing = session.is_some_and(Session::is_playing);
     let index = session.and_then(Session::current_index);
     let has_previous = index.is_some_and(|index| index > 0);

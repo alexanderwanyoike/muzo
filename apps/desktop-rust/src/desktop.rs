@@ -81,6 +81,7 @@ pub struct Desktop {
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
     loading_remote: bool,
+    failed_track: Option<usize>,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
 }
@@ -131,6 +132,7 @@ impl Desktop {
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
                 loading_remote: false,
+                failed_track: None,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
             },
@@ -292,8 +294,9 @@ impl Desktop {
                     session.select(index)
                 })
             }
-            Message::RemoteTrackReady(_, _, Err(error)) => {
+            Message::RemoteTrackReady(_, index, Err(error)) => {
                 self.loading_remote = false;
+                self.failed_track = Some(index);
                 self.error = Some(error);
                 Task::none()
             }
@@ -340,7 +343,13 @@ impl Desktop {
                 Task::none()
             }
             Message::Select(index) => self.select_track(index),
-            Message::TogglePlayback => self.transport(Session::toggle),
+            Message::TogglePlayback => {
+                if let Some(index) = self.failed_track {
+                    self.select_track(index)
+                } else {
+                    self.transport(Session::toggle)
+                }
+            }
             Message::Previous => self.move_track(-1),
             Message::Next => self.move_track(1),
             Message::Seek(seconds) => {
@@ -360,7 +369,7 @@ impl Desktop {
                 Ok(())
             }),
             Message::Tick => {
-                if self.loading_remote {
+                if self.loading_remote || self.failed_track.is_some() {
                     return Task::none();
                 }
                 if self.session.as_ref().is_some_and(Session::finished) {
@@ -540,6 +549,7 @@ impl Desktop {
             return Task::none();
         };
         self.loading_remote = false;
+        self.failed_track = None;
         if let Some((library, path)) = track.remote().filter(|_| !track.path().is_file()) {
             let Some(paths) = self.sources.paths() else {
                 return Task::none();
@@ -684,7 +694,7 @@ impl Desktop {
                 self.session.as_ref(),
                 (self.windows.queue_open(), self.windows.queue_pending()),
                 self.artwork.as_ref(),
-                self.error.as_deref(),
+                (self.error.as_deref(), self.failed_track.is_some()),
             )
         } else {
             view::library(
@@ -693,7 +703,7 @@ impl Desktop {
                 (&self.appearance, &self.update_status),
                 self.session.as_ref(),
                 self.artwork.as_ref(),
-                self.error.as_deref(),
+                (self.error.as_deref(), self.failed_track.is_some()),
             )
         }
     }
