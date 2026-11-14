@@ -673,3 +673,21 @@ fn it_clears_the_appearance_choice_when_a_text_entry_captures_a_tap() {
 
     assert_eq!(desktop.appearance.theme, "studio");
 }
+
+#[test]
+fn it_keeps_the_submitted_playlist_draft_during_a_pending_save() {
+    let (mut desktop, _) = setup();
+    let root = tempfile::tempdir().unwrap();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+    let _ = desktop.update(Message::ShowPlaylistForm(true));
+    let _ = desktop.update(Message::PlaylistName("Evening".into()));
+    let _ = desktop.update(Message::CreatePlaylist);
+    let _ = desktop.update(Message::ShowPlaylistForm(false));
+    let _ = desktop.update(Message::PlaylistName("Later".into()));
+    let _ = desktop.update(Message::SourcesUpdated(Err("Cannot write database".into())));
+    assert!(desktop.sources.show_playlist_form);
+    assert_eq!(desktop.sources.playlist_name, "Evening");
+
+    let _ = desktop.update(Message::PlaylistName("Late Evening".into()));
+    assert_eq!(desktop.sources.playlist_name, "Late Evening");
+}
