@@ -30,6 +30,8 @@ pub fn replace_and_launch(
     current: &Path,
     arguments: Vec<OsString>,
 ) -> Result<(), super::UpdateError> {
+    use std::os::unix::process::CommandExt;
+
     let current = std::fs::canonicalize(current)?;
     let parent = current
         .parent()
@@ -43,13 +45,18 @@ pub fn replace_and_launch(
     update.persist(&current).map_err(|error| error.error)?;
     std::process::Command::new(&current)
         .current_dir(parent)
+        .process_group(0)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .args(arguments)
         .env_remove("APPIMAGE")
         .env_remove("APPDIR")
-        .spawn()?;
+        .spawn()
+        .map_err(|source| super::UpdateError::Relaunch {
+            path: current,
+            source,
+        })?;
     Ok(())
 }
 
