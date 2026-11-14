@@ -60,6 +60,8 @@ pub struct Settings {
     selected_folders: Vec<(String, String)>,
     auth: Option<Arc<Authorization>>,
     connecting: bool,
+    pub(super) refreshing: Option<String>,
+    pub(super) refresh_status: Option<String>,
     next_sync: std::time::Instant,
 }
 
@@ -85,6 +87,8 @@ impl Default for Settings {
             selected_folders: Vec::new(),
             auth: None,
             connecting: false,
+            refreshing: None,
+            refresh_status: None,
             next_sync: std::time::Instant::now(),
         }
     }
@@ -175,6 +179,21 @@ impl Settings {
         let Some(paths) = paths else {
             return Task::none();
         };
+        if let Action::SyncLibrary(id) = action {
+            self.busy = true;
+            self.refreshing = Some(id.clone());
+            self.refresh_status = None;
+            return Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        refresh_library(&paths, &id).map_err(|error| error.to_string())
+                    })
+                    .await
+                    .map_err(|error| format!("Could not refresh the Dropbox library: {error}"))?
+                },
+                Message::DropboxLibraryRefreshed,
+            );
+        }
         self.next_sync = std::time::Instant::now()
             + Duration::from_secs(u64::from(self.snapshot.interval.max(1)) * 60);
         self.busy = true;
@@ -219,7 +238,19 @@ impl Settings {
     }
 
     pub fn can_refresh(&self) -> bool {
-        !self.busy && self.snapshot.account.is_some() && !self.snapshot.reconnect
+        !self.busy
+    }
+
+    pub fn apply_refresh(&mut self, result: Result<(String, usize), String>) {
+        self.busy = false;
+        self.refreshing = None;
+        self.refresh_status = Some(match result {
+            Ok((name, tracks)) => {
+                let unit = if tracks == 1 { "track" } else { "tracks" };
+                format!("Refreshed {name}: {tracks} {unit}.")
+            }
+            Err(error) => error,
+        });
     }
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
@@ -544,16 +575,11 @@ fn run(
                 snapshot.folder_error = Some(failures.join("; "));
             }
         }
-        Action::Sync | Action::SyncLibrary(_) => {
-            let selected = match &action {
-                Action::SyncLibrary(id) => Some(id.as_str()),
-                _ => None,
-            };
+        Action::Sync => {
             for library in catalogue
                 .libraries()?
                 .into_iter()
                 .filter(|library| library.kind == "dropbox")
-                .filter(|library| selected.is_none_or(|id| library.id == id))
             {
                 if let Some(owner) = catalogue.dropbox_account_for(&library.id)? {
                     let Some(key) = catalogue.dropbox_client(&owner)? else {
@@ -603,16 +629,39 @@ fn list_library(
     client.list(token, &library.location.to_string_lossy(), true)
 }
 
-pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
-    let catalogue: Catalogue = paths.open()?;
+fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), Error> {
+    let mut catalogue = paths.open()?;
+    let library = catalogue
+        .libraries()?
+        .into_iter()
+        .find(|library| library.id == id && library.kind == "dropbox")
+        .ok_or(CatalogueError::UnknownFolder)?;
+    let (_, key, refresh) = library_credentials(&catalogue, id)?;
+    let client = Client::new()?;
+    let token = client.refresh(&key, &refresh)?;
+    let entries = list_library(&client, &token.access_token, &library)?;
+    let tracks = catalogue.sync_dropbox(id, &entries)?;
+    Ok((library.name, tracks))
+}
+
+fn library_credentials(
+    catalogue: &Catalogue,
+    library: &str,
+) -> Result<(String, String, String), Error> {
     let account = catalogue
         .dropbox_account_for(library)?
         .ok_or(DropboxError::Reconnect)?;
-    let client_id = catalogue
+    let key = catalogue
         .dropbox_client(&account)?
         .ok_or(DropboxError::Reconnect)?;
     let refresh =
-        Credentials::read_or_migrate(&catalogue, &account)?.ok_or(DropboxError::Reconnect)?;
+        Credentials::read_or_migrate(catalogue, &account)?.ok_or(DropboxError::Reconnect)?;
+    Ok((account, key, refresh))
+}
+
+pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
+    let catalogue: Catalogue = paths.open()?;
+    let (account, client_id, refresh) = library_credentials(&catalogue, library)?;
     let client = Client::new()?;
     let token = client.refresh(&client_id, &refresh)?;
     Ok(cache::download(
@@ -639,14 +688,7 @@ mod tests {
             .unwrap();
         catalogue.disconnect_dropbox("previous").unwrap();
 
-        let result = run(
-            &paths,
-            Action::SyncLibrary(library.id),
-            None,
-            "",
-            "5",
-            Snapshot::default(),
-        );
+        let result = refresh_library(&paths, &library.id);
 
         assert!(matches!(
             result,
@@ -658,9 +700,11 @@ mod tests {
     fn it_leaves_the_background_schedule_and_pending_drafts_alone_on_source_refresh() {
         let directory = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(directory.path());
-        let mut settings = Settings::default();
-        settings.code = "pending-code".into();
-        settings.interval = "30".into();
+        let mut settings = Settings {
+            code: "pending-code".into(),
+            interval: "30".into(),
+            ..Default::default()
+        };
         let scheduled = settings.next_sync;
 
         let refresh = settings.update(Action::SyncLibrary("source".into()), Some(paths));

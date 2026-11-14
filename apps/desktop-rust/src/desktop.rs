@@ -46,6 +46,7 @@ pub enum Message {
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
+    DropboxLibraryRefreshed(Result<(String, usize), String>),
     Material(&'static str),
     AppearanceMode(&'static str),
     Accent(&'static str),
@@ -448,6 +449,15 @@ impl Desktop {
                 }
                 self.dropbox.apply(result);
                 self.sources.reload()
+            }
+            Message::DropboxLibraryRefreshed(result) => {
+                let reload = result.is_ok();
+                self.dropbox.apply_refresh(result);
+                if reload {
+                    self.sources.reload()
+                } else {
+                    Task::none()
+                }
             }
             Message::RequestSourceRemoval(id) => {
                 self.sources.pending_remove = Some(id);

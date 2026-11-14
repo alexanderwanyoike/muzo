@@ -10,7 +10,7 @@ use crate::{
     appearance::{Appearance, Surfaces},
     desktop::{
         Message,
-        dropbox_panel::Action,
+        dropbox_panel::{Action, Settings as DropboxSettings},
         library_sources::{Operation, Snapshot, Sources},
     },
     session::Session,
@@ -54,7 +54,7 @@ pub(super) fn indexed_sources<'a>(
     sources: &'a Sources,
     appearance: &Appearance,
     audio: bool,
-    can_refresh_dropbox: bool,
+    dropbox: &'a DropboxSettings,
 ) -> Element<'a, Message> {
     let surfaces = appearance.surfaces();
     let button_style =
@@ -75,7 +75,7 @@ pub(super) fn indexed_sources<'a>(
             Some(Message::SourceOperation(Operation::Refresh(
                 source.id.clone(),
             )))
-        } else if source.kind == "dropbox" && can_refresh_dropbox {
+        } else if source.kind == "dropbox" && dropbox.can_refresh() {
             Some(Message::Dropbox(Action::SyncLibrary(source.id.clone())))
         } else {
             None
@@ -86,9 +86,16 @@ pub(super) fn indexed_sources<'a>(
             Message::RequestSourceRemoval(source.id.clone())
         };
         let mut controls = row![
-            button(text("Refresh").size(11))
-                .style(button_style)
-                .on_press_maybe(refresh.filter(|_| !sources.busy())),
+            button(
+                text(if dropbox.refreshing.as_deref() == Some(&source.id) {
+                    "Refreshing…"
+                } else {
+                    "Refresh"
+                })
+                .size(11)
+            )
+            .style(button_style)
+            .on_press_maybe(refresh.filter(|_| !sources.busy())),
             button(
                 text(if removing {
                     "Confirm removal"
@@ -127,6 +134,9 @@ pub(super) fn indexed_sources<'a>(
             .spacing(14)
             .align_y(Alignment::Center),
         );
+    }
+    if let Some(status) = &dropbox.refresh_status {
+        body = body.push(text(status).size(11).color(surfaces.muted));
     }
     library::settings_section(
         "Indexed sources",

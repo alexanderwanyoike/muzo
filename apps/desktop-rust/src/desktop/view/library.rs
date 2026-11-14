@@ -383,7 +383,7 @@ pub(super) fn settings<'a>(
             sources::folder_form(sources, surfaces),
             preferences,
         ),
-        sources::indexed_sources(sources, preferences, audio, dropbox.can_refresh()),
+        sources::indexed_sources(sources, preferences, audio, dropbox),
     ]
     .spacing(20)
     .width(Fill)
