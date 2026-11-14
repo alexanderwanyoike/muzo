@@ -133,3 +133,13 @@ impl Operation<Option<Field>> for FocusedField {
         Outcome::Some(self.0)
     }
 }
+
+pub(super) fn reveal(_control: Control) -> impl Operation {
+    struct Unmoved;
+    impl Operation for Unmoved {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+    }
+    Unmoved
+}

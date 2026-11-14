@@ -993,3 +993,67 @@ fn it_routes_tab_to_the_track_metadata_form_when_editing_in_songs() {
 
     assert!(tab.units() > 0);
 }
+
+#[test]
+fn it_reveals_the_focused_metadata_action_in_a_short_songs_viewport() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size, Vector,
+        advanced::{
+            Layout, layout,
+            widget::{
+                Id, Operation, Tree,
+                operation::{Outcome, Scrollable},
+            },
+        },
+    };
+
+    #[derive(Default)]
+    struct SongsOffset(f32);
+    impl Operation for SongsOffset {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            offset: Vector,
+            _: &mut dyn Scrollable,
+        ) {
+            if id == Some(&"indexed-songs".into()) {
+                self.0 = offset.y;
+            }
+        }
+    }
+
+    let (mut desktop, track) = editing_source();
+    let snapshot = desktop.sources.snapshot.as_mut().unwrap();
+    for index in 0..9 {
+        let mut earlier = track.clone();
+        earlier.id = format!("previous-{index}");
+        snapshot.tracks.insert(0, earlier);
+    }
+    let _ = desktop.update(Message::TrackEditorTab(
+        track.id,
+        false,
+        Some(MetadataField::Year),
+    ));
+    let mut view = desktop.view(desktop.windows.library_id());
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut tree = Tree::new(&view);
+    let widget = view.as_widget_mut();
+    let size = Size::new(800.0, 600.0);
+    let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(size, size));
+    let layout = Layout::new(&node);
+    let mut reveal = track_editor_focus::reveal(TrackEditorControl::Save);
+    widget.operate(&mut tree, layout, &renderer, &mut reveal);
+    if let Outcome::Chain(mut scroll) = reveal.finish() {
+        widget.operate(&mut tree, layout, &renderer, scroll.as_mut());
+    }
+    let mut offset = SongsOffset::default();
+    widget.operate(&mut tree, layout, &renderer, &mut offset);
+
+    assert!(offset.0 > 0.0);
+}
