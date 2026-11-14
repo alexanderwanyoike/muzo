@@ -1,13 +1,28 @@
 use std::{
     collections::HashMap,
+    ffi::OsString,
     fs,
     io::{self, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 const MANAGED: &str = "X-Muzo-AppImage-Integration";
 const SHORTCUT: &str = "muzo.desktop";
 const CINNAMON: &str = "Muzo.cinnamon-generated.desktop";
+
+pub(crate) fn relaunch_arguments(
+    original_directory: &Path,
+    arguments: impl IntoIterator<Item = OsString>,
+) -> Vec<OsString> {
+    arguments
+        .into_iter()
+        .map(|argument| {
+            original_directory
+                .join(PathBuf::from(argument))
+                .into_os_string()
+        })
+        .collect()
+}
 
 pub fn register(image: &Path, data: &Path) -> io::Result<()> {
     let image = desktop_path(image)?;

@@ -101,6 +101,14 @@ pub fn launch(
     #[cfg(target_os = "linux")]
     {
         if let Some(current) = std::env::var_os("APPIMAGE") {
+            let original_directory = std::env::var_os("OWD")
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+                .map_or_else(std::env::current_dir, Ok)?;
+            let arguments = crate::distribution::appimage::relaunch_arguments(
+                &original_directory,
+                std::env::args_os().skip(1),
+            );
             let current = std::fs::canonicalize(current)?;
             let parent = current
                 .parent()
@@ -117,7 +125,7 @@ pub fn launch(
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
-                .args(std::env::args_os().skip(1))
+                .args(arguments)
                 .env_remove("APPIMAGE")
                 .env_remove("APPDIR")
                 .spawn()?;
