@@ -225,3 +225,33 @@ fn it_selects_a_visible_mini_queue_entry_with_tab_and_enter() {
 
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(1));
 }
+
+#[test]
+fn it_scrolls_to_a_focused_row_in_a_long_mini_queue() {
+    let (mut desktop, track) = setup();
+    desktop
+        .session
+        .as_mut()
+        .unwrap()
+        .extend(std::iter::repeat_n(track, 18));
+    let _ = desktop.update(Message::ShowMini);
+    let mini = desktop.windows.mini_id().unwrap();
+    let _ = desktop.update(Message::ToggleQueue);
+    let _ = desktop.update(Message::MiniResized(mini, iced::Size::new(426.0, 434.0)));
+
+    let reveal = desktop.update(Message::CycleMiniFocus(mini, true));
+
+    assert_eq!(desktop.mini_focus, Some(MiniControl::Track(19)));
+    assert!(reveal.units() > 0);
+}
+
+#[test]
+fn it_rebases_mini_queue_focus_after_a_source_is_removed() {
+    let (mut desktop, _) = setup();
+    desktop.sources.snapshot = Some(snapshot(&["first", "second"]));
+    desktop.mini_focus = Some(MiniControl::Track(1));
+
+    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["second"]))));
+
+    assert_eq!(desktop.mini_focus, Some(MiniControl::Track(0)));
+}
