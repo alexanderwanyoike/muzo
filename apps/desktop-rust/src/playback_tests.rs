@@ -125,3 +125,22 @@ fn it_warms_up_opus_before_emitting_samples_at_a_seek_target() {
     assert_eq!(sought.len(), window);
     assert!(error < 0.003, "average sample difference was {error}");
 }
+
+#[test]
+fn it_seeks_relative_to_the_beginning_of_a_cropped_opus_stream() {
+    use crate::opus::OpusSource;
+    use std::fs::File;
+
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone-cropped.opus");
+    let target = Duration::from_millis(100);
+    let expected: Vec<_> = OpusSource::open(File::open(&path).unwrap(), Duration::ZERO)
+        .unwrap()
+        .skip(4_800)
+        .take(240)
+        .collect();
+    let sought: Vec<_> = OpusSource::open(File::open(path).unwrap(), target)
+        .unwrap()
+        .take(240)
+        .collect();
+    assert_eq!(sought, expected);
+}
