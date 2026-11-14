@@ -1,3 +1,6 @@
+mod local;
+pub use local::MUSIC_EXTENSIONS;
+
 mod migrations;
 
 use std::{
@@ -16,6 +19,16 @@ pub enum CatalogueError {
     Database(#[from] rusqlite::Error),
     #[error("This music catalogue's schema is unsupported.")]
     UnsupportedSchema,
+    #[error("The selected location is not a folder.")]
+    NotDirectory,
+    #[error("This folder is already indexed.")]
+    DuplicateFolder,
+    #[error("This folder source no longer exists.")]
+    UnknownFolder,
+    #[error("A folder or file name cannot be stored as text.")]
+    UnsupportedPath,
+    #[error("Could not read the music folder: {0}")]
+    Walk(#[from] walkdir::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
