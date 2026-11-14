@@ -164,3 +164,54 @@ fn it_imports_electron_metadata_overrides_and_play_events() {
     drop(imported);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_reorders_duplicate_playlist_entries_and_edits_track_catalogue_metadata() {
+    let root = std::env::temp_dir().join(format!("muzo-playlist-{}", uuid::Uuid::new_v4()));
+    let music = root.join("Music");
+    fs::create_dir_all(&music).unwrap();
+    let audio = music.join("tone.mp3");
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    fs::copy(&fixture, &audio).unwrap();
+    let mut catalogue = Catalogue::open(&root.join("muzo.sqlite"), None).unwrap();
+    let library = catalogue.add_folder(&music).unwrap();
+    let track = catalogue.tracks(&library.id).unwrap().remove(0);
+    let playlist = catalogue.create_playlist("A set").unwrap();
+    let first = catalogue.add_to_playlist(&playlist.id, &track.id).unwrap();
+    let second = catalogue.add_to_playlist(&playlist.id, &track.id).unwrap();
+    assert_ne!(first, second);
+    catalogue
+        .move_playlist_entry(&playlist.id, &second, -1)
+        .unwrap();
+    assert_eq!(
+        catalogue.playlist_entries(&playlist.id).unwrap()[0].id,
+        second
+    );
+    catalogue
+        .remove_playlist_entry(&playlist.id, &second)
+        .unwrap();
+    assert_eq!(
+        catalogue.playlist_entries(&playlist.id).unwrap()[0].id,
+        first
+    );
+
+    catalogue
+        .override_track(
+            &track.id,
+            &crate::catalogue::MetadataOverride {
+                title: Some("Side A".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(catalogue.tracks(&library.id).unwrap()[0].title, "Side A");
+    catalogue.record_play(&track.id).unwrap();
+    assert_eq!(catalogue.tracks(&library.id).unwrap()[0].plays, 1);
+    catalogue
+        .override_track(&track.id, &Default::default())
+        .unwrap();
+    assert_eq!(catalogue.tracks(&library.id).unwrap()[0].title, "tone");
+    assert_eq!(fs::read(&fixture).unwrap(), fs::read(&audio).unwrap());
+    drop(catalogue);
+    fs::remove_dir_all(root).unwrap();
+}
