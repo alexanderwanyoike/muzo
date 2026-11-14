@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="231" height="96" viewBox="0 0 231 96">
+  <defs>
+    <pattern id="grain" width="11" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(-2)">
+      <path d="M0 0h1v96H0z" fill="#d3a46b" opacity="0.024"/>
+    </pattern>
+    <pattern id="highlight" width="21" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(2)">
+      <path d="M19 0h2v96h-2z" fill="#000000" opacity="0.063"/>
+    </pattern>
+  </defs>
+  <path d="M0 0h231v96H0z" fill="url(#highlight)"/>
+  <path d="M0 0h231v96H0z" fill="url(#grain)"/>
+</svg>

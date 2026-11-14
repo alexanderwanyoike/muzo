@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="384" height="96" viewBox="0 0 384 96"><defs><pattern id="grain" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M1 0L2 48M13 0L14 48M25 0L26 48M36 0L37 48" stroke="#6a3c19" stroke-opacity=".10" stroke-width="1"/><path d="M20 0L18 48M42 0L40 48" stroke="#fff" stroke-opacity=".15" stroke-width="2"/></pattern></defs><path d="M0 0h384v96H0z" fill="url(#grain)"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="231" height="96" viewBox="0 0 231 96">
+  <defs>
+    <pattern id="grain" width="11" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(-2)">
+      <path d="M0 0h1v96H0z" fill="#6a3c19" opacity="0.031"/>
+    </pattern>
+    <pattern id="highlight" width="21" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(2)">
+      <path d="M19 0h2v96h-2z" fill="#ffffff" opacity="0.071"/>
+    </pattern>
+  </defs>
+  <path d="M0 0h231v96H0z" fill="url(#highlight)"/>
+  <path d="M0 0h231v96H0z" fill="url(#grain)"/>
+</svg>
