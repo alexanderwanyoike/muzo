@@ -610,6 +610,30 @@ mod tests {
     }
 
     #[test]
+    fn it_preserves_whitespace_at_the_end_of_a_real_folder_location() {
+        let root = tempfile::tempdir().unwrap();
+        let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        let folder = root.path().join("Live ");
+        let lookalike = root.path().join("Live");
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::create_dir(&lookalike).unwrap();
+        let _ = desktop.update(Message::FolderPicked(Some(folder.clone())));
+        sources.folder_name = desktop.sources.folder_name;
+        sources.folder_location = desktop.sources.folder_location;
+        let _ = sources.start(Operation::Reload);
+        desktop.sources = sources;
+        desktop.sources.busy = false;
+        desktop.sources.pending.push_back(Operation::Reload);
+        let _ = desktop.update(Message::SubmitFolder);
+
+        let Some(Operation::AddNamedFolder(_, submitted)) = desktop.sources.pending.back() else {
+            panic!("the folder was not submitted");
+        };
+        assert_eq!(submitted, &folder);
+    }
+
+    #[test]
     fn it_starts_queued_source_actions_before_new_arrivals() {
         let root = tempfile::tempdir().unwrap();
         let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
