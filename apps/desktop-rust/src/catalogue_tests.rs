@@ -28,7 +28,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
         ))
         .unwrap();
     database.execute_batch("
-        INSERT INTO libraries VALUES ('library-1', 'Records', 'filesystem', '/music');
+        INSERT INTO libraries VALUES ('library-1', 'Records', 'Filesystem', '/music');
         INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
         VALUES ('track-1', 'library-1', 'Imported song', 'Artist', 60, '/music/a.mp3', 42, 45);
         INSERT INTO playlists VALUES ('playlist-1', 'Collection');
@@ -40,6 +40,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     let catalog = Catalogue::open(&current, Some(&legacy)).unwrap();
     let library = catalog.libraries().unwrap().remove(0);
     assert_eq!(library.name, "Records");
+    assert_eq!(library.kind, "filesystem");
     let track = catalog.tracks(&library.id).unwrap().remove(0);
     assert_eq!(track.id, "track-1");
     assert_eq!(track.title, "Imported song");
@@ -141,7 +142,7 @@ fn it_imports_electron_metadata_overrides_and_play_events() {
         ))
         .unwrap();
     database.execute_batch("PRAGMA user_version = 8; CREATE TABLE electron_migrations (version INTEGER PRIMARY KEY, name TEXT, applied_at_unix_seconds INTEGER);
-        INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'dropbox', '/Cloud');
+        INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'Dropbox', '/Cloud');
         INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, override_title)
             VALUES ('track-1','dropbox-1','Original','Artist',5,'/Cloud/tone.mp3',100,100,'Edited');
         INSERT INTO play_history VALUES ('play-1','dropbox-1','track-1',123);
