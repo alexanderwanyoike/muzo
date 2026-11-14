@@ -1215,3 +1215,73 @@ fn it_keeps_horizontal_arrows_out_of_playback_while_playlist_cancel_is_focused()
 
     assert!(desktop.route_playlist_picker_arrow(library, 1));
 }
+
+fn playlist_popup_is_visible(desktop: &Desktop) -> bool {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size, Vector,
+        advanced::{Layout, layout, widget::Tree},
+    };
+
+    let mut view = desktop.view(desktop.windows.library_id());
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let viewport = Rectangle::with_size(Size::new(1200.0, 800.0));
+    let mut tree = Tree::new(&view);
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, viewport.size()),
+    );
+    widget
+        .overlay(
+            &mut tree,
+            Layout::new(&node),
+            &renderer,
+            &viewport,
+            Vector::ZERO,
+        )
+        .is_some()
+}
+
+#[test]
+fn it_opens_the_playlist_popup_and_confirms_a_keyboard_choice() {
+    let (mut desktop, track) = editing_source();
+    let library = desktop.windows.library_id();
+    desktop.sources.snapshot.as_mut().unwrap().playlists = ["First", "Second"]
+        .into_iter()
+        .map(|name| crate::catalogue::Playlist {
+            id: name.to_lowercase(),
+            name: name.into(),
+        })
+        .collect();
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::ActivateMiniFocus(library));
+
+    assert!(playlist_popup_is_visible(&desktop));
+    let _ = desktop.update(Message::PlaylistPickerVerticalArrow(library, 1));
+    assert_eq!(
+        desktop
+            .sources
+            .playlist_picker
+            .as_ref()
+            .unwrap()
+            .playlist
+            .as_deref(),
+        Some("first")
+    );
+    let _ = desktop.update(Message::ActivateMiniFocus(library));
+
+    assert!(!playlist_popup_is_visible(&desktop));
+    assert_eq!(
+        desktop
+            .sources
+            .playlist_picker
+            .as_ref()
+            .unwrap()
+            .playlist
+            .as_deref(),
+        Some("second")
+    );
+    assert!(!desktop.sources.track_add_pending());
+}
