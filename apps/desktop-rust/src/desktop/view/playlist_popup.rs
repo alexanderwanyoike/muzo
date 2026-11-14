@@ -178,13 +178,14 @@ impl Overlay<Message, Theme, Renderer> for Popup<'_, '_> {
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
     ) {
+        let wheel = matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. }));
         if !cursor.is_over(layout.bounds()) {
             if pressed(event) {
                 shell.publish(Message::DismissTrackPlaylistPopup);
                 shell.capture_event();
                 return;
             }
-            if matches!(event, Event::Mouse(mouse::Event::WheelScrolled { .. })) {
+            if wheel {
                 shell.publish(Message::DismissTrackPlaylistPopup);
                 return;
             }
@@ -199,6 +200,9 @@ impl Overlay<Message, Theme, Renderer> for Popup<'_, '_> {
             shell,
             &layout.bounds(),
         );
+        if wheel {
+            shell.capture_event();
+        }
     }
 
     fn mouse_interaction(
