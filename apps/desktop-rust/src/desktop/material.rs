@@ -177,7 +177,7 @@ mod tests {
         let logical_size = Size::new((tile.width * 3) as f32, 2.0);
         let viewport = Rectangle::with_size(logical_size);
         let mut grain = Grain(&solid);
-        let mut tree = Tree::new(&Element::new(Grain(&solid)));
+        let mut tree = Tree::new(Element::new(Grain(&solid)));
         let node = grain.layout(
             &mut tree,
             &renderer,
