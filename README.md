@@ -118,7 +118,8 @@ CI lists the required system packages.
 | Lint | `yarn lint` |
 | Types | `yarn typecheck` |
 | Tests | `yarn test` |
-| Electron build | `yarn desktop:build` |
+| Rust build | `yarn desktop:build` |
+| Electron reference build | `yarn desktop:legacy:build` |
 | Electron package and distributables | `yarn desktop:package` and `yarn desktop:make` |
 | Website | `yarn site:verify` and `yarn site:build` |
 
