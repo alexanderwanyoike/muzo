@@ -20,11 +20,13 @@ pub(super) fn editor(
         column![
             text(label).size(11).color(surfaces.muted),
             settings_input(&editor.fields[index], surfaces)
+                .size(11)
+                .padding([8, 9])
                 .on_input(move |value| Message::EditField(index, value))
                 .on_submit_maybe(save.clone()),
         ]
         .width(Fill)
-        .spacing(5)
+        .spacing(6)
     };
     let mut actions =
         row![settings_button("Save metadata", surfaces).on_press_maybe(save.clone())].spacing(8);
@@ -51,9 +53,9 @@ pub(super) fn editor(
         .spacing(12),
     )
     .padding(iced::Padding {
-        top: 15.0,
+        top: 17.0,
         left: 35.0,
-        bottom: 15.0,
+        bottom: 18.0,
         ..Default::default()
     })
 }
