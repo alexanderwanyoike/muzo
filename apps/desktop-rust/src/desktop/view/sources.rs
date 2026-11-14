@@ -565,7 +565,8 @@ pub fn tracks<'a>(
             icon_button(
                 Icon::Edit,
                 "Edit track",
-                (!busy).then(|| Message::EditTrack(track.clone()))
+                (!busy && !sources.editor_save_pending())
+                    .then(|| Message::EditTrack(track.clone()))
             ),
             add,
         ]
@@ -576,7 +577,12 @@ pub fn tracks<'a>(
             && editor.track_id == track.id
             && editor.library_id == track.library_id
         {
-            content = content.push(track_metadata::editor(editor, busy, surfaces));
+            content = content.push(track_metadata::editor(
+                editor,
+                busy,
+                sources.editor_save_pending(),
+                surfaces,
+            ));
         }
         column![
             container(content)

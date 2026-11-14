@@ -863,6 +863,7 @@ fn editing_source() -> (Desktop, crate::catalogue::IndexedTrack) {
         library_id: track.library_id.clone(),
         fields: std::array::from_fn(|_| String::new()),
         overridden: false,
+        error: None,
     }));
     (desktop, track)
 }
@@ -896,16 +897,9 @@ fn it_discards_a_metadata_draft_when_switching_sources() {
 #[test]
 fn it_does_not_reopen_the_metadata_editor_after_cancel() {
     let (mut desktop, track) = editing_source();
-    let _ = desktop.update(Message::EditTrack(track));
     let mut returned = desktop.sources.snapshot.clone().unwrap();
-    returned.editor = desktop.sources.editing.take().or_else(|| {
-        Some(Box::new(library_sources::TrackEditor {
-            track_id: "song".into(),
-            library_id: "first".into(),
-            fields: Default::default(),
-            overridden: false,
-        }))
-    });
+    returned.editor = desktop.sources.editing.clone();
+    let _ = desktop.update(Message::EditTrack(track));
     let _ = desktop.update(Message::CloseTrackEdit);
 
     let _ = desktop.update(Message::SourcesUpdated(Ok(returned)));
@@ -933,14 +927,16 @@ fn it_keeps_the_metadata_draft_until_its_queued_save_completes() {
     let directory = tempfile::tempdir().unwrap();
     let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
     sources.editing = desktop.sources.editing.take();
+    sources.snapshot = desktop.sources.snapshot.take();
     desktop.sources = sources;
+    let refreshed = desktop.sources.snapshot.clone().unwrap();
     let _ = desktop.sources.start(Operation::Reload);
     let _ = desktop.sources.start(Operation::Reload);
-    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first", "second"]))));
+    let _ = desktop.update(Message::SourcesUpdated(Ok(refreshed.clone())));
 
     let _ = desktop.update(Message::SaveTrackEdit(false));
     let _ = desktop.sources.poll();
-    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first", "second"]))));
+    let _ = desktop.update(Message::SourcesUpdated(Ok(refreshed)));
 
     assert!(desktop.sources.editing.is_some());
 }

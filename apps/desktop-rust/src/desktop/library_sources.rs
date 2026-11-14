@@ -116,6 +116,7 @@ pub struct TrackEditor {
     pub library_id: String,
     pub fields: [String; 7],
     pub overridden: bool,
+    pub error: Option<String>,
 }
 
 #[cfg(test)]
@@ -211,12 +212,23 @@ fn run_with_selection(
                     number(metadata.year),
                 ],
                 overridden: metadata.overridden,
+                error: None,
             }));
-            Some(library_id)
+            previous_source.clone().or(Some(library_id))
         }
         Operation::EditTrack(id, library_id, edit) => {
-            catalogue.override_track(&id, &edit)?;
-            Some(library_id)
+            let transaction = catalogue.begin_write()?;
+            catalogue.override_library_track(&id, &library_id, &edit)?;
+            let mut snapshot = read_snapshot(
+                &catalogue,
+                previous_source.or(Some(library_id)),
+                selected_playlist,
+                None,
+                warnings,
+            )?;
+            transaction.commit()?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::Reload => previous_source.clone(),
         Operation::Startup | Operation::Reconcile(_, _) => {
@@ -324,7 +336,9 @@ pub(super) struct Sources {
     adding_folder: bool,
     creating_playlist: bool,
     pub editing: Option<Box<TrackEditor>>,
-    pub saving_editor: bool,
+    pending_editor: Option<(String, String)>,
+    loading_editor: bool,
+    saving_editor: bool,
     busy: bool,
     changed: Arc<AtomicBool>,
     roots_changed: Arc<AtomicBool>,
@@ -351,6 +365,8 @@ impl Sources {
             adding_folder: false,
             creating_playlist: false,
             editing: None,
+            pending_editor: None,
+            loading_editor: false,
             saving_editor: false,
             busy: false,
             changed: Arc::new(AtomicBool::new(false)),
@@ -407,6 +423,30 @@ impl Sources {
                 .any(|operation| matches!(operation, Operation::AddNamedFolder(_, _)))
     }
 
+    pub fn editor_save_pending(&self) -> bool {
+        self.saving_editor
+            || self
+                .pending
+                .iter()
+                .any(|operation| matches!(operation, Operation::EditTrack(..)))
+    }
+
+    pub fn open_editor(&mut self, track: IndexedTrack) -> Task<Message> {
+        if self.busy() || self.editor_save_pending() {
+            return Task::none();
+        }
+        self.close_editor();
+        self.pending_editor = Some((track.id.clone(), track.library_id.clone()));
+        self.start(Operation::LoadTrackEditor(track.id, track.library_id))
+    }
+
+    pub fn close_editor(&mut self) {
+        self.pending_editor = None;
+        self.editing = None;
+        self.pending
+            .retain(|operation| !matches!(operation, Operation::LoadTrackEditor(..)));
+    }
+
     pub fn folder_editable(&self) -> bool {
         !self.choosing_folder && !self.folder_save_pending()
     }
@@ -424,6 +464,8 @@ impl Sources {
             return Task::none();
         };
         self.busy = true;
+        self.loading_editor = matches!(operation, Operation::LoadTrackEditor(..));
+        self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
         self.error = None;
@@ -452,11 +494,18 @@ impl Sources {
         self.busy = false;
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
+        let saving_editor = std::mem::take(&mut self.saving_editor);
+        let loading_editor = std::mem::take(&mut self.loading_editor);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
-                self.saving_editor = false;
-                self.error = Some(error);
+                if saving_editor {
+                    if let Some(editor) = &mut self.editing {
+                        editor.error = Some(error);
+                    }
+                } else if !loading_editor || self.pending_editor.take().is_some() {
+                    self.error = Some(error);
+                }
                 return;
             }
         };
@@ -485,13 +534,26 @@ impl Sources {
         } else {
             self.retry_watch_roots();
         }
-        if let Some(editor) = snapshot.editor.take() {
+        if let Some(editor) = snapshot.editor.take()
+            && self
+                .pending_editor
+                .take()
+                .is_some_and(|(id, library)| id == editor.track_id && library == editor.library_id)
+            && snapshot.selected.as_deref() == Some(editor.library_id.as_str())
+        {
             self.editing = Some(editor);
         }
-        if self.saving_editor {
+        if saving_editor
+            || self.editing.as_ref().is_some_and(|editor| {
+                snapshot.selected.as_deref() != Some(editor.library_id.as_str())
+                    || !snapshot
+                        .tracks
+                        .iter()
+                        .any(|track| track.id == editor.track_id)
+            })
+        {
             self.editing = None;
         }
-        self.saving_editor = false;
         self.snapshot = Some(snapshot);
     }
 

@@ -293,7 +293,7 @@ impl Desktop {
                 self.page = page;
                 self.appearance_focus = None;
                 self.sources.pending_remove = None;
-                self.sources.editing = None;
+                self.sources.close_editor();
                 Task::none()
             }
             Message::OpenSourceSettings => {
@@ -312,8 +312,17 @@ impl Desktop {
                 )
             }
             Message::SourceOperation(operation) => {
-                if matches!(operation, Operation::Select(_)) {
+                if let Operation::Select(id) = &operation {
                     self.page = LibraryPage::Songs;
+                    if self
+                        .sources
+                        .snapshot
+                        .as_ref()
+                        .and_then(|snapshot| snapshot.selected.as_ref())
+                        != Some(id)
+                    {
+                        self.sources.close_editor();
+                    }
                 }
                 self.sources.pending_remove = None;
                 self.sources.start(operation)
@@ -541,10 +550,11 @@ impl Desktop {
                     self.sources.playlist_name.clone(),
                 ))
             }
-            Message::EditTrack(track) => self
-                .sources
-                .start(Operation::LoadTrackEditor(track.id, track.library_id)),
+            Message::EditTrack(track) => self.sources.open_editor(track),
             Message::EditField(index, value) => {
+                if self.sources.editor_save_pending() {
+                    return Task::none();
+                }
                 if let Some(editor) = &mut self.sources.editing
                     && let Some(field) = editor.fields.get_mut(index)
                 {
@@ -554,7 +564,9 @@ impl Desktop {
             }
             Message::SaveTrackEdit(clear) => self.save_track_edit(clear),
             Message::CloseTrackEdit => {
-                self.sources.editing = None;
+                if !self.sources.editor_save_pending() {
+                    self.sources.close_editor();
+                }
                 Task::none()
             }
             Message::RemoteTrackReady(request, result) => {
@@ -871,46 +883,43 @@ impl Desktop {
     }
 
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {
-        let Some(editor) = self.sources.editing.as_ref() else {
+        if self.sources.busy() || self.sources.editor_save_pending() {
+            return Task::none();
+        }
+        let Some(editor) = self.sources.editing.as_mut() else {
             return Task::none();
         };
         let non_empty = |index: usize| {
             let value = editor.fields[index].trim();
             (!value.is_empty()).then(|| value.to_owned())
         };
-        let mut edit = crate::catalogue::MetadataOverride::default();
-        if !clear {
-            let values: Result<Vec<_>, _> = [3, 4, 6]
-                .into_iter()
-                .map(|index| {
-                    non_empty(index)
-                        .map(|value| value.parse::<u32>())
-                        .transpose()
-                })
-                .collect();
-            let Ok(values) = values else {
-                self.sources.error = Some("Track, disc and year must be whole numbers.".into());
+        let number = |index| {
+            non_empty(index)
+                .map(|value| value.parse::<i64>())
+                .transpose()
+        };
+        let edit = if clear {
+            crate::catalogue::MetadataOverride::default()
+        } else {
+            let (Ok(track_number), Ok(disc_number), Ok(year)) = (number(3), number(4), number(6))
+            else {
+                editor.error = Some("Track, disc and year must be whole numbers.".into());
                 return Task::none();
             };
-            edit = crate::catalogue::MetadataOverride {
+            crate::catalogue::MetadataOverride {
                 title: non_empty(0),
                 artist: non_empty(1),
                 album: non_empty(2),
-                track_number: values[0],
-                disc_number: values[1],
+                track_number,
+                disc_number,
                 genre: non_empty(5),
-                year: values[2],
-            };
-        }
-        if self.sources.busy() {
-            return Task::none();
-        }
-        self.sources.saving_editor = true;
-        self.sources.start(Operation::EditTrack(
-            editor.track_id.clone(),
-            editor.library_id.clone(),
-            edit,
-        ))
+                year,
+            }
+        };
+        editor.error = None;
+        let operation =
+            Operation::EditTrack(editor.track_id.clone(), editor.library_id.clone(), edit);
+        self.sources.start(operation)
     }
 
     fn play_indexed(&mut self, selection: CatalogueSelection<'_>) -> Task<Message> {

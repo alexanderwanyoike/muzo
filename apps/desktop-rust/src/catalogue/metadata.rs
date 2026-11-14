@@ -10,10 +10,10 @@ pub struct MetadataOverride {
     pub title: Option<String>,
     pub artist: Option<String>,
     pub album: Option<String>,
-    pub track_number: Option<u32>,
-    pub disc_number: Option<u32>,
+    pub track_number: Option<i64>,
+    pub disc_number: Option<i64>,
     pub genre: Option<String>,
-    pub year: Option<u32>,
+    pub year: Option<i64>,
 }
 
 pub(crate) struct TrackMetadata {
@@ -92,6 +92,23 @@ impl Catalogue {
             return Err(CatalogueError::UnknownTrack);
         }
         Ok(())
+    }
+
+    pub(crate) fn override_library_track(
+        &self,
+        id: &str,
+        library_id: &str,
+        change: &MetadataOverride,
+    ) -> Result<(), CatalogueError> {
+        let correct_library: bool = self.database.query_row(
+            "SELECT EXISTS(SELECT 1 FROM tracks WHERE id=?1 AND library_id=?2)",
+            [id, library_id],
+            |row| row.get(0),
+        )?;
+        if !correct_library {
+            return Err(CatalogueError::UnknownTrack);
+        }
+        self.override_track(id, change)
     }
 
     pub fn record_play(&self, track_id: &str) -> Result<(), CatalogueError> {
