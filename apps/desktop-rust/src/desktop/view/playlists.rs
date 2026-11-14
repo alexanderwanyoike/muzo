@@ -30,8 +30,8 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
         let active = snapshot.and_then(|snapshot| snapshot.selected_playlist.as_deref())
             == Some(playlist.id.as_str());
         let count = snapshot
-            .filter(|_| active)
-            .map(|snapshot| snapshot.playlist_entries.len().to_string());
+            .and_then(|snapshot| snapshot.playlist_counts.get(&playlist.id).copied())
+            .map(|count| count.to_string());
         button(
             row![
                 icon_tinted(Icon::Queue, move |theme| if active {

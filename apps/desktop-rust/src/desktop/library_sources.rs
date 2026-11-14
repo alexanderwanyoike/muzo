@@ -99,6 +99,8 @@ pub struct Snapshot {
     pub libraries: Vec<Library>,
     pub selected: Option<String>,
     pub tracks: Vec<IndexedTrack>,
+    pub track_counts: std::collections::HashMap<String, u64>,
+    pub playlist_counts: std::collections::HashMap<String, u64>,
     pub covers: super::row_cover::Covers,
     pub warnings: Vec<String>,
     pub playlists: Vec<Playlist>,
@@ -237,6 +239,8 @@ fn run_with_selection(
         ),
     );
     Ok(Snapshot {
+        track_counts: catalogue.track_counts()?,
+        playlist_counts: catalogue.playlist_counts()?,
         covers,
         libraries,
         selected,

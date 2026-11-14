@@ -33,8 +33,8 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
             let count = sources
                 .snapshot
                 .as_ref()
-                .filter(|_| current)
-                .map(|snapshot| format!("{} tracks", snapshot.tracks.len()));
+                .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied())
+                .map(|count| format!("{count} {}", if count == 1 { "track" } else { "tracks" }));
             row![
                 button(
                     row![

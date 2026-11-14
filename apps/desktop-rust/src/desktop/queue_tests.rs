@@ -28,6 +28,8 @@ fn snapshot(ids: &[&str]) -> Snapshot {
         selected: None,
         tracks: vec![],
         covers: Default::default(),
+        track_counts: Default::default(),
+        playlist_counts: Default::default(),
         warnings: vec![],
         playlists: vec![],
         selected_playlist: None,

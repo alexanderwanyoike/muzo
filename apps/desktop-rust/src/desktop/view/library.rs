@@ -226,7 +226,7 @@ fn navigation<'a>(
     let tracks = sources
         .snapshot
         .as_ref()
-        .map_or(0, |snapshot| snapshot.tracks.len());
+        .map_or(0, |snapshot| snapshot.track_counts.values().sum());
     let heading = container(
         column![
             text("Muzo").size(19).font(bold()),

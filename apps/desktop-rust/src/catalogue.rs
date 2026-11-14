@@ -98,6 +98,28 @@ impl Catalogue {
         Ok(libraries)
     }
 
+    pub(crate) fn track_counts(
+        &self,
+    ) -> Result<std::collections::HashMap<String, u64>, CatalogueError> {
+        let mut query = self.database.prepare(
+            "SELECT l.id, COUNT(t.id) FROM libraries l LEFT JOIN tracks t ON t.library_id=l.id GROUP BY l.id",
+        )?;
+        Ok(query
+            .query_map([], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?
+            .collect::<Result<_, _>>()?)
+    }
+
+    pub(crate) fn playlist_counts(
+        &self,
+    ) -> Result<std::collections::HashMap<String, u64>, CatalogueError> {
+        let mut query = self.database.prepare(
+            "SELECT p.id, COUNT(e.id) FROM playlists p LEFT JOIN playlist_entries e ON e.playlist_id=p.id GROUP BY p.id",
+        )?;
+        Ok(query
+            .query_map([], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?
+            .collect::<Result<_, _>>()?)
+    }
+
     pub fn tracks(&self, library_id: &str) -> Result<Vec<IndexedTrack>, CatalogueError> {
         let mut statement = self.database.prepare(
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
