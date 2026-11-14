@@ -120,3 +120,20 @@ fn settings(size: Size, min: Size) -> window::Settings {
         ..Default::default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::LibraryVisibility;
+
+    #[test]
+    fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
+        assert_eq!(
+            LibraryVisibility::for_wayland(true),
+            LibraryVisibility::KeepMapped
+        );
+        assert_eq!(
+            LibraryVisibility::for_wayland(false),
+            LibraryVisibility::MinimizeAndRestore
+        );
+    }
+}
