@@ -256,3 +256,14 @@ fn it_rebases_mini_queue_focus_after_a_source_is_removed() {
 
     assert_eq!(desktop.mini_focus, Some(MiniControl::Track(0)));
 }
+
+#[test]
+fn it_uses_the_resized_sidebar_in_the_library_without_changing_mini_geometry() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::ResizeSidebar(0.39));
+    assert_eq!(desktop.sidebar.visible_width(), 316.0);
+    let _ = desktop.update(Message::ShowMini);
+    let window = desktop.windows.mini_id().unwrap();
+    let _ = desktop.update(Message::MiniResized(window, iced::Size::new(426.0, 236.0)));
+    assert_eq!(desktop.sidebar.visible_width(), 316.0);
+}
