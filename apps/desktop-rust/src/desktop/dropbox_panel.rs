@@ -324,14 +324,26 @@ fn run(
     if matches!(action, Action::Disconnect) {
         return Ok(snapshot);
     }
-    let Some(refresh) = Credentials::read_or_migrate(&catalogue, &account)? else {
-        snapshot.reconnect = true;
-        return Ok(snapshot);
+    let refresh = match Credentials::read_or_migrate(&catalogue, &account) {
+        Ok(Some(refresh)) => refresh,
+        Ok(None) | Err(DropboxError::LegacyCredential) => {
+            snapshot.reconnect = true;
+            return Ok(snapshot);
+        }
+        Err(error) => return Err(error.into()),
     };
 
+    let refresh_current = || client.refresh(&app_key, &refresh);
     match action {
         Action::Browse(path) => {
-            let token = client.refresh(&app_key, &refresh)?;
+            let token = match refresh_current() {
+                Ok(token) => token,
+                Err(DropboxError::Reconnect) => {
+                    snapshot.reconnect = true;
+                    return Ok(snapshot);
+                }
+                Err(error) => return Err(error.into()),
+            };
             snapshot.folders = client
                 .list(&token.access_token, &path, false)?
                 .into_iter()
@@ -341,7 +353,14 @@ fn run(
             snapshot.path = path;
         }
         Action::Add(path, name) => {
-            let token = client.refresh(&app_key, &refresh)?;
+            let token = match refresh_current() {
+                Ok(token) => token,
+                Err(DropboxError::Reconnect) => {
+                    snapshot.reconnect = true;
+                    return Ok(snapshot);
+                }
+                Err(error) => return Err(error.into()),
+            };
             let entries = client.list(&token.access_token, &path, true)?;
             let library = catalogue.add_dropbox(&account, &path, &name)?;
             catalogue.sync_dropbox(&library.id, &entries)?;
@@ -359,7 +378,15 @@ fn run(
                     let Some(refresh) = Credentials::read_or_migrate(&catalogue, &owner)? else {
                         continue;
                     };
-                    let token = client.refresh(&key, &refresh)?;
+                    let token = match client.refresh(&key, &refresh) {
+                        Ok(token) => token,
+                        Err(DropboxError::Reconnect) if owner == account => {
+                            snapshot.reconnect = true;
+                            continue;
+                        }
+                        Err(DropboxError::Reconnect) => continue,
+                        Err(error) => return Err(error.into()),
+                    };
                     let entries = list_library(&client, &token.access_token, &library)?;
                     catalogue.sync_dropbox(&library.id, &entries)?;
                 }
