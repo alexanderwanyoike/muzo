@@ -1,5 +1,6 @@
 mod dropbox_panel;
 pub(crate) mod library_sources;
+mod mini_focus;
 mod updates;
 mod view;
 mod windows;
@@ -67,6 +68,8 @@ pub enum Message {
     LibraryVisibilityChecked(window::Id, bool),
     ShowLibrary,
     ToggleQueue,
+    CycleMiniFocus(window::Id, bool),
+    ActivateMiniFocus(window::Id),
     CloseRequested(window::Id),
     MiniResized(window::Id, iced::Size),
     CheckQueueSize(window::Id, u64),
@@ -84,6 +87,7 @@ pub struct Desktop {
     playback_request: u64,
     pending_track: Option<usize>,
     failed_track: Option<usize>,
+    mini_focus: Option<mini_focus::Control>,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
 }
@@ -144,6 +148,7 @@ impl Desktop {
                 playback_request: 0,
                 pending_track: None,
                 failed_track: None,
+                mini_focus: None,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
             },
@@ -422,10 +427,43 @@ impl Desktop {
                 if self.windows.is_mini(id) {
                     self.windows.show_library()
                 } else {
+                    self.mini_focus = None;
                     self.windows.show_mini()
                 }
             }
-            Message::ShowMini => self.windows.show_mini(),
+            Message::ShowMini => {
+                self.mini_focus = None;
+                self.windows.show_mini()
+            }
+            Message::CycleMiniFocus(id, backwards) => {
+                if self.windows.is_mini(id) {
+                    self.mini_focus =
+                        mini_focus::Control::next(self.mini_focus, backwards, |control| {
+                            control
+                                .message(
+                                    self.session.as_ref(),
+                                    self.failed_track.is_some(),
+                                    self.windows.queue_pending(),
+                                )
+                                .is_some()
+                        });
+                }
+                Task::none()
+            }
+            Message::ActivateMiniFocus(id) => {
+                if self.windows.is_mini(id)
+                    && let Some(message) = self.mini_focus.and_then(|control| {
+                        control.message(
+                            self.session.as_ref(),
+                            self.failed_track.is_some(),
+                            self.windows.queue_pending(),
+                        )
+                    })
+                {
+                    return self.update(message);
+                }
+                Task::none()
+            }
             Message::MiniOpened(id) => self.windows.mini_opened(id),
             Message::LibraryVisibilityChecked(id, wayland) => {
                 self.windows.library_visibility_checked(id, wayland)
@@ -696,6 +734,10 @@ impl Desktop {
                 };
                 use iced::keyboard::{Key, key::Named};
                 match (key.as_ref(), modifiers.command()) {
+                    (Key::Named(Named::Tab), false) => {
+                        Some(Message::CycleMiniFocus(id, modifiers.shift()))
+                    }
+                    (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id)),
                     (Key::Named(Named::Space), false) => Some(Message::TogglePlayback),
                     (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
                     (Key::Named(Named::ArrowLeft), false) => Some(Message::SeekRelative(-5)),
@@ -728,6 +770,7 @@ impl Desktop {
                 (self.windows.queue_open(), self.windows.queue_pending()),
                 self.artwork.as_ref(),
                 (self.error.as_deref(), self.failed_track.is_some()),
+                self.mini_focus,
             )
         } else {
             view::library(

@@ -74,6 +74,11 @@ impl Windows {
         self.mini == Some(id)
     }
 
+    #[cfg(test)]
+    pub(super) fn mini_id(&self) -> Option<window::Id> {
+        self.mini
+    }
+
     pub fn queue_open(&self) -> bool {
         self.queue_open
     }

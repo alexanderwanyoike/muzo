@@ -108,7 +108,7 @@ pub fn library<'a>(
             ]
             .spacing(16),
             error_line(sources.error.as_deref()),
-            playback_error(error, retry),
+            playback_error(error, retry, false),
             container(
                 row![
                     artwork(cover, 54.0),
@@ -118,7 +118,7 @@ pub fn library<'a>(
                             Space::new().width(Fill),
                             icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
                         ],
-                        controls(session, retry),
+                        controls(session, retry, None),
                     ]
                     .width(Length::Fixed(300.0)),
                 ]
@@ -137,36 +137,40 @@ pub fn library<'a>(
     .into()
 }
 
-pub fn mini<'a>(
+pub(super) fn mini<'a>(
     session: Option<&'a Session>,
     queue: (bool, bool),
     cover: Option<&image::Handle>,
     playback: (Option<&'a str>, bool),
+    focus: Option<super::mini_focus::Control>,
 ) -> Element<'a, Message> {
+    use super::mini_focus::Control;
     let (queue_open, queue_pending) = queue;
     let (error, retry) = playback;
     let header = row![
-        icon_button(
+        focusable_icon(
             Icon::Library,
             "Return to library",
-            Some(Message::ShowLibrary)
+            Some(Message::ShowLibrary),
+            focus == Some(Control::Library),
         ),
         Space::new().width(Fill),
-        icon_button(
+        focusable_icon(
             Icon::Queue,
             if queue_open {
                 "Hide queue"
             } else {
                 "Show queue"
             },
-            (!queue_pending).then_some(Message::ToggleQueue)
+            (!queue_pending).then_some(Message::ToggleQueue),
+            focus == Some(Control::Queue),
         ),
     ]
     .align_y(Alignment::Center);
     let track = session.and_then(Session::current);
     let playback = row![
         artwork(cover, 126.0),
-        column![metadata(track, 19), controls(session, retry)]
+        column![metadata(track, 19), controls(session, retry, focus)]
             .spacing(10)
             .width(Fill),
     ]
@@ -176,7 +180,7 @@ pub fn mini<'a>(
     let mut content = column![
         header,
         container(playback).width(Fill).padding(12).style(panel),
-        playback_error(error, retry),
+        playback_error(error, retry, focus == Some(Control::Retry)),
     ]
     .spacing(8);
 
@@ -286,7 +290,12 @@ fn artwork(cover: Option<&image::Handle>, size: f32) -> Element<'static, Message
         .into()
 }
 
-fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, Message> {
+fn controls(
+    session: Option<&Session>,
+    retry: bool,
+    focus: Option<super::mini_focus::Control>,
+) -> iced::widget::Column<'_, Message> {
+    use super::mini_focus::Control;
     let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
     let available = retry || session.is_some_and(|player| player.current().is_some());
     let playing = session.is_some_and(Session::is_playing);
@@ -315,17 +324,24 @@ fn controls(session: Option<&Session>, retry: bool) -> iced::widget::Column<'_, 
     .step(0.01)
     .width(Length::Fixed(60.0));
     let transport = row![
-        icon_button(
+        focusable_icon(
             Icon::Previous,
             "Previous track",
-            has_previous.then_some(Message::Previous)
+            has_previous.then_some(Message::Previous),
+            focus == Some(Control::Previous),
         ),
-        icon_button(
+        focusable_icon(
             if playing { Icon::Pause } else { Icon::Play },
             if playing { "Pause" } else { "Play" },
-            available.then_some(Message::TogglePlayback)
+            available.then_some(Message::TogglePlayback),
+            focus == Some(Control::Playback),
         ),
-        icon_button(Icon::Next, "Next track", has_next.then_some(Message::Next)),
+        focusable_icon(
+            Icon::Next,
+            "Next track",
+            has_next.then_some(Message::Next),
+            focus == Some(Control::Next),
+        ),
         Space::new().width(Fill),
         icon(Icon::Volume),
         volume,
@@ -348,13 +364,13 @@ fn error_line(error: Option<&str>) -> Element<'_, Message> {
     }
 }
 
-fn playback_error(error: Option<&str>, retry: bool) -> Element<'_, Message> {
+fn playback_error(error: Option<&str>, retry: bool, focused: bool) -> Element<'_, Message> {
     if retry {
         row![
             error_line(error),
             button(text("Retry track").size(12))
                 .padding([2, 6])
-                .style(action)
+                .style(move |theme, status| focus_ring(action(theme, status), theme, focused))
                 .on_press(Message::RetryTrack),
         ]
         .align_y(Alignment::Center)
@@ -440,6 +456,15 @@ fn icon_button(
     label: &'static str,
     message: Option<Message>,
 ) -> Element<'static, Message> {
+    focusable_icon(icon_kind, label, message, false)
+}
+
+fn focusable_icon(
+    icon_kind: Icon,
+    label: &'static str,
+    message: Option<Message>,
+    focused: bool,
+) -> Element<'static, Message> {
     let prominent = matches!(icon_kind, Icon::Play | Icon::Pause) && message.is_some();
     let active = message.is_some();
     let style = if prominent { primary } else { action };
@@ -456,13 +481,21 @@ fn icon_button(
     tooltip(
         button(glyph)
             .padding([6, 8])
-            .style(style)
+            .style(move |theme, status| focus_ring(style(theme, status), theme, focused && active))
             .on_press_maybe(message),
         text(label).size(12),
         tooltip::Position::FollowCursor,
     )
     .style(panel)
     .into()
+}
+
+fn focus_ring(mut style: button::Style, theme: &Theme, focused: bool) -> button::Style {
+    if focused {
+        style.border.width = 2.0;
+        style.border.color = theme.extended_palette().background.base.text;
+    }
+    style
 }
 
 fn icon(kind: Icon) -> Element<'static, Message> {

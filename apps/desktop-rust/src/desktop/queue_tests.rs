@@ -203,6 +203,7 @@ fn it_skips_disabled_transport_when_cycling_mini_controls() {
     let _ = desktop.update(Message::ShowMini);
     let mini_id = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
+    let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
 
     assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
     assert!(!desktop.windows.is_mini(mini_id));
