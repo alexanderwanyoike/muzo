@@ -107,18 +107,18 @@ impl Catalogue {
     }
 }
 
-struct ScannedFile {
-    path: String,
-    size: i64,
-    mtime: i64,
-    title: String,
-    artist: String,
-    album: Option<String>,
-    seconds: i64,
-    track: Option<u32>,
-    disc: Option<u32>,
-    genre: Option<String>,
-    year: Option<u32>,
+pub(super) struct ScannedFile {
+    pub(super) path: String,
+    pub(super) size: i64,
+    pub(super) mtime: i64,
+    pub(super) title: String,
+    pub(super) artist: String,
+    pub(super) album: Option<String>,
+    pub(super) seconds: i64,
+    pub(super) track: Option<u32>,
+    pub(super) disc: Option<u32>,
+    pub(super) genre: Option<String>,
+    pub(super) year: Option<u32>,
 }
 
 fn walk(folder: &Path) -> Result<Vec<ScannedFile>, CatalogueError> {
@@ -191,7 +191,7 @@ fn read_file(path: PathBuf) -> Result<ScannedFile, CatalogueError> {
     })
 }
 
-fn reconcile(
+pub(super) fn reconcile(
     transaction: &Transaction<'_>,
     library: &str,
     files: &[ScannedFile],

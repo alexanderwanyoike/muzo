@@ -1,3 +1,4 @@
+mod dropbox;
 mod local;
 pub use local::MUSIC_EXTENSIONS;
 

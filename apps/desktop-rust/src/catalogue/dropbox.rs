@@ -1,0 +1,173 @@
+use std::{
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use rusqlite::{OptionalExtension, TransactionBehavior::Immediate, params};
+use uuid::Uuid;
+
+use crate::dropbox::Entry;
+
+use super::{
+    Catalogue, CatalogueError, Library, MUSIC_EXTENSIONS,
+    local::{ScannedFile, reconcile},
+};
+
+impl Catalogue {
+    pub fn save_dropbox_account(
+        &self,
+        account: &str,
+        client_id: &str,
+    ) -> Result<(), CatalogueError> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| duration.as_secs() as i64);
+        self.database.execute(
+            "INSERT INTO dropbox_accounts (account_id, client_id, encrypted_access_token,
+              encrypted_refresh_token, access_token_expires_at_unix_seconds, connected_at_unix_seconds)
+              VALUES (?1, ?2, '', '', 0, ?3)
+              ON CONFLICT(account_id) DO UPDATE SET client_id=excluded.client_id,
+              encrypted_access_token='', encrypted_refresh_token='', connected_at_unix_seconds=excluded.connected_at_unix_seconds",
+            params![account, client_id, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn latest_dropbox(&self) -> Result<Option<(String, String)>, CatalogueError> {
+        Ok(self.database.query_row(
+            "SELECT account_id, client_id FROM dropbox_accounts ORDER BY connected_at_unix_seconds DESC, rowid DESC LIMIT 1",
+            [], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional()?)
+    }
+
+    pub fn dropbox_client(&self, account: &str) -> Result<Option<String>, CatalogueError> {
+        Ok(self
+            .database
+            .query_row(
+                "SELECT client_id FROM dropbox_accounts WHERE account_id=?1",
+                [account],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn dropbox_account_for(&self, library: &str) -> Result<Option<String>, CatalogueError> {
+        Ok(self
+            .database
+            .query_row(
+                "SELECT account_id FROM dropbox_library_accounts WHERE library_id=?1",
+                [library],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn disconnect_dropbox(&self, account: &str) -> Result<(), CatalogueError> {
+        self.database.execute(
+            "DELETE FROM dropbox_accounts WHERE account_id=?1",
+            [account],
+        )?;
+        Ok(())
+    }
+
+    pub fn add_dropbox(
+        &mut self,
+        account: &str,
+        path: &str,
+        name: &str,
+    ) -> Result<Library, CatalogueError> {
+        let transaction = self.database.transaction_with_behavior(Immediate)?;
+        let duplicate: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM libraries l JOIN dropbox_library_accounts a ON a.library_id=l.id
+             WHERE a.account_id=?1 AND lower(l.location)=lower(?2))",
+            params![account, path], |row| row.get(0),
+        )?;
+        if duplicate {
+            return Err(CatalogueError::DuplicateFolder);
+        }
+        let library = Library {
+            id: Uuid::new_v4().to_string(),
+            name: name.to_owned(),
+            kind: "dropbox".into(),
+            location: PathBuf::from(path),
+        };
+        transaction.execute(
+            "INSERT INTO libraries VALUES (?1, ?2, 'dropbox', ?3)",
+            params![library.id, name, path],
+        )?;
+        transaction.execute(
+            "INSERT INTO dropbox_library_accounts VALUES (?1, ?2)",
+            params![library.id, account],
+        )?;
+        transaction.commit()?;
+        Ok(library)
+    }
+
+    pub fn sync_dropbox(
+        &mut self,
+        library: &str,
+        entries: &[Entry],
+    ) -> Result<usize, CatalogueError> {
+        let files: Vec<_> = entries
+            .iter()
+            .filter_map(|entry| {
+                let path = entry.path().filter(|path| path.starts_with('/'))?;
+                let name = Path::new(&entry.name);
+                if entry.kind != "file"
+                    || !name.extension().is_some_and(|extension| {
+                        MUSIC_EXTENSIONS
+                            .iter()
+                            .any(|audio| extension.eq_ignore_ascii_case(audio))
+                    })
+                {
+                    return None;
+                }
+                Some(ScannedFile {
+                    path: path.into(),
+                    size: entry.size.unwrap_or_default(),
+                    mtime: 0,
+                    title: name
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into_owned(),
+                    artist: String::new(),
+                    album: None,
+                    seconds: 0,
+                    track: None,
+                    disc: None,
+                    genre: None,
+                    year: None,
+                })
+            })
+            .collect();
+        let transaction = self.database.transaction_with_behavior(Immediate)?;
+        let exists: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM dropbox_library_accounts WHERE library_id=?1)",
+            [library],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            return Err(CatalogueError::UnknownFolder);
+        }
+        reconcile(&transaction, library, &files)?;
+        transaction.commit()?;
+        Ok(files.len())
+    }
+
+    pub fn dropbox_interval(&self) -> Result<u16, CatalogueError> {
+        Ok(self.database.query_row(
+            "SELECT interval_minutes FROM dropbox_sync_settings WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?)
+    }
+
+    pub fn set_dropbox_interval(&self, minutes: u16) -> Result<(), CatalogueError> {
+        self.database.execute(
+            "UPDATE dropbox_sync_settings SET interval_minutes=?1 WHERE singleton=1",
+            [minutes.clamp(1, 60)],
+        )?;
+        Ok(())
+    }
+}
