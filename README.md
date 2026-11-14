@@ -95,13 +95,17 @@ the app; the desktop window remains opaque. Your choices are saved between sessi
 Found something that feels off? [Open an issue](https://github.com/alexanderwanyoike/muzo/issues)
 with your operating system, Muzo version and what happened. Screenshots are welcome.
 
-Muzo is built with Electron, React and TypeScript. To work on it, install
+The native Muzo desktop uses Rust and Iced. Install Rust 1.95 or newer,
 Node.js 22.12 or newer and Yarn Classic 1.22.22 or newer, then run:
 
 ```sh
 yarn install
 yarn desktop:dev
 ```
+
+On Debian and Ubuntu, install the ALSA, Wayland and xkbcommon development
+packages (`libasound2-dev`, `libwayland-dev` and `libxkbcommon-dev`).
+Use `yarn desktop:legacy` to launch the Electron comparison client.
 
 Linux development and native tests need Electron's GTK/audio runtime dependencies
 and Xvfb. CI lists the required system packages.
