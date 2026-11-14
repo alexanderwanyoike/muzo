@@ -54,9 +54,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libfuse2t64 file
       - run: rustup toolchain install 1.95 --profile minimal
-      - run: yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8
+      - name: Install Cargo Packager
+        run: |
+          yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8 --root "$RUNNER_TEMP/muzo-packager"
+          "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" --version
       - run: yarn exec cargo -- +1.95 build --locked --release
-      - run: yarn exec cargo -- +1.95 packager --config Packager.toml --formats ${{ matrix.format }}
+      - run: yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats ${{ matrix.format }}
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
       - run: yarn exec cargo -- +1.95 run --locked --release --bin name-installer out/rust-distribution
