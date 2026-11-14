@@ -369,20 +369,20 @@ pub(super) fn settings<'a>(
     let surfaces = preferences.surfaces();
     let body = column![
         appearance::controls(preferences, focus),
-        container(dropbox.view())
+        container(settings_section(
+            "Dropbox",
+            "Choose the folders you want in your music collection.",
+            dropbox.view(surfaces).into(),
+            preferences,
+        ))
             .id(crate::desktop::settings_scroll::SOURCE_SETUP)
             .width(Fill),
-        container(
-            column![
-                text("Library folders").size(13).font(bold()),
-                text("Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.").size(11).color(surfaces.muted),
-                sources::folder_form(sources, surfaces),
-            ]
-            .spacing(12)
-        )
-        .padding(20)
-        .width(Fill)
-        .style(move |_| framed(surfaces.raised, surfaces, 4)),
+        settings_section(
+            "Library folders",
+            "Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.",
+            sources::folder_form(sources, surfaces),
+            preferences,
+        ),
         sources::indexed_sources(sources, preferences, audio, dropbox.can_refresh()),
     ]
     .spacing(20)
@@ -393,6 +393,35 @@ pub(super) fn settings<'a>(
             .id(crate::desktop::appearance_focus::SCROLL)
             .height(Fill)
     ]
+}
+
+pub(super) fn settings_section<'a>(
+    title: &'static str,
+    description: &'static str,
+    body: Element<'a, Message>,
+    appearance: &Appearance,
+) -> Element<'a, Message> {
+    let surfaces = appearance.surfaces();
+    let header = container(
+        column![
+            text(title).size(13).font(bold()),
+            text(description).size(11).color(surfaces.muted)
+        ]
+        .spacing(5),
+    )
+    .padding([16, 20])
+    .width(Fill);
+    let header = iced::widget::stack![header]
+        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
+        .clip(true);
+    container(column![
+        header,
+        line(surfaces),
+        container(body).padding(20).width(Fill)
+    ])
+    .width(Fill)
+    .style(move |_| framed(surfaces.raised, surfaces, 4))
+    .into()
 }
 
 pub(super) fn line(surfaces: Surfaces) -> Element<'static, Message> {
@@ -443,6 +472,36 @@ pub(super) fn bordered_button(
         border: border::rounded(5).width(1).color(surfaces.line),
         ..action(theme, status)
     }
+}
+
+pub(in crate::desktop) fn settings_button(
+    label: &str,
+    surfaces: Surfaces,
+) -> button::Button<'_, Message> {
+    button(text(label).size(13))
+        .height(31)
+        .padding([5, 11])
+        .style(move |theme, status| bordered_button(theme, status, surfaces))
+}
+
+pub(in crate::desktop) fn settings_input(
+    value: &str,
+    surfaces: Surfaces,
+) -> iced::widget::TextInput<'_, Message> {
+    use iced::widget::text_input;
+
+    text_input("", value)
+        .size(13)
+        .padding([6, 9])
+        .style(move |theme, status| {
+            let mut style = text_input::default(theme, status);
+            style.background = surfaces.raised.into();
+            style.border.radius = 4.0.into();
+            if !matches!(status, text_input::Status::Focused { .. }) {
+                style.border.color = surfaces.line;
+            }
+            style
+        })
 }
 
 #[cfg(test)]

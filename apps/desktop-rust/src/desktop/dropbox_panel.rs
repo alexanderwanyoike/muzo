@@ -6,11 +6,16 @@ use iced::{
 };
 
 use crate::{
+    appearance::Surfaces,
     catalogue::{Catalogue, CatalogueError, Library},
     dropbox::{Authorization, Client, Credentials, DropboxError, Entry, cache},
 };
 
-use super::{Message, library_sources::CataloguePaths};
+use super::{
+    Message,
+    library_sources::CataloguePaths,
+    view::{settings_button, settings_input},
+};
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -138,7 +143,11 @@ impl Settings {
             return Task::none();
         }
         if matches!(action, Action::Begin) {
-            return match Authorization::new(&self.app_key).and_then(|authorization| {
+            let key = self.app_key.trim();
+            if key.is_empty() {
+                return Task::none();
+            }
+            return match Authorization::new(key).and_then(|authorization| {
                 let url = authorization.url()?;
                 self.auth = Some(Arc::new(authorization));
                 Ok(url)
@@ -227,37 +236,61 @@ impl Settings {
         }
     }
 
-    pub fn view(&self) -> iced::widget::Column<'_, Message> {
-        let mut inner = column![text("Dropbox").size(19)];
+    pub fn view(&self, surfaces: Surfaces) -> iced::widget::Column<'_, Message> {
+        let mut inner = column![].spacing(14);
         let msg = Message::Dropbox;
-        if let Some(account) = &self.snapshot.account {
+        if self.snapshot.account.is_some() {
             inner = inner.push(
                 text(if self.snapshot.reconnect {
                     "Reconnect Dropbox"
                 } else {
-                    account
+                    "Connected to Dropbox."
                 })
                 .size(13),
             );
         }
         if self.snapshot.account.is_none() || self.snapshot.reconnect || self.auth.is_some() {
-            inner = inner.push(
-                row![
-                    text_input("Dropbox app key", &self.app_key)
-                        .on_input(move |value| msg(Action::Key(value))),
-                    button("Connect Dropbox")
-                        .on_press_maybe((!self.busy).then(|| msg(Action::Begin))),
-                ]
-                .spacing(7),
-            );
+            inner = inner
+                .push(
+                    column![
+                        text("Dropbox app key").size(11).color(surfaces.muted),
+                        settings_input(&self.app_key, surfaces).on_input_maybe(
+                            (!self.busy && self.auth.is_none())
+                                .then_some(move |value| msg(Action::Key(value)))
+                        ),
+                    ]
+                    .spacing(6),
+                )
+                .push(
+                    settings_button(
+                        if self.auth.is_some() {
+                            "Restart authorization"
+                        } else {
+                            "Connect Dropbox"
+                        },
+                        surfaces,
+                    )
+                    .on_press_maybe(
+                        (!self.busy && !self.app_key.trim().is_empty())
+                            .then_some(msg(Action::Begin)),
+                    ),
+                );
         }
         if self.auth.is_some() {
             inner = inner.push(
-                row![
-                    text_input("Authorization code", &self.code)
+                column![
+                    text("Approve access in your browser, then paste the authorization code here.")
+                        .size(11),
+                    text("Authorization code").size(11).color(surfaces.muted),
+                    settings_input(&self.code, surfaces)
                         .secure(true)
-                        .on_input(move |value| msg(Action::Code(value))),
-                    button("Connect").on_press_maybe((!self.busy).then(|| msg(Action::Connect))),
+                        .on_input_maybe(
+                            (!self.busy).then_some(move |value| msg(Action::Code(value)))
+                        ),
+                    settings_button("Finish connecting", surfaces).on_press_maybe(
+                        (!self.busy && !self.code.trim().is_empty())
+                            .then_some(msg(Action::Connect))
+                    ),
                 ]
                 .spacing(7),
             );
@@ -333,7 +366,7 @@ impl Settings {
         if let Some(error) = &self.error {
             inner = inner.push(text(error).size(12));
         }
-        inner.spacing(10)
+        inner.width(iced::Fill)
     }
 
     fn folder_checkbox(&self, path: &str, name: &str) -> iced::widget::Checkbox<'_, Message> {

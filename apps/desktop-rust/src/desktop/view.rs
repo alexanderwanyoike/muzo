@@ -29,6 +29,7 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
 }
 
 pub(super) use library::library;
+pub(super) use library::{settings_button, settings_input};
 
 fn library_content<'a>(
     sources: &'a Sources,

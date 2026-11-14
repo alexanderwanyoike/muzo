@@ -21,33 +21,29 @@ use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, librar
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let can_edit = sources.folder_editable();
     let can_submit = can_edit && !sources.busy();
-    let browse = button(text("Browse").size(11))
-        .style(move |theme, status| library::bordered_button(theme, status, surfaces))
+    let browse = library::settings_button("Browse", surfaces)
         .on_press_maybe(can_edit.then_some(Message::AddFolder));
-    let name = text_input("", &sources.folder_name)
-        .size(12)
+    let name = library::settings_input(&sources.folder_name, surfaces)
         .on_input_maybe(can_edit.then_some(Message::FolderName))
         .on_submit_maybe(can_submit.then_some(Message::SubmitFolder));
-    let location = text_input("", &sources.folder_location)
-        .size(12)
+    let location = library::settings_input(&sources.folder_location, surfaces)
         .on_input_maybe(can_edit.then_some(Message::FolderLocation))
         .on_submit_maybe(can_submit.then_some(Message::SubmitFolder));
     column![
-        column![text("Name").size(11).color(surfaces.muted), name].spacing(4),
+        column![text("Name").size(11).color(surfaces.muted), name].spacing(6),
         column![
             text("Location").size(11).color(surfaces.muted),
             row![location, browse].spacing(8).align_y(Alignment::Center),
         ]
-        .spacing(4),
-        button(
-            text(if sources.folder_save_pending() {
+        .spacing(6),
+        library::settings_button(
+            if sources.folder_save_pending() {
                 "Adding…"
             } else {
                 "Add library"
-            })
-            .size(12)
+            },
+            surfaces,
         )
-        .style(move |theme, status| library::bordered_button(theme, status, surfaces))
         .on_press_maybe(can_submit.then_some(Message::SubmitFolder)),
     ]
     .spacing(14)
