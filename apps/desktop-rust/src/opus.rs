@@ -13,6 +13,9 @@ use symphonia::core::{
 
 const RATE: SampleRate = NonZero::new(48_000).unwrap();
 const MAX_FRAME_SAMPLES_PER_CHANNEL: usize = 5_760;
+const SEEK_PREROLL: Duration = Duration::from_millis(80);
+const OUTPUT_GAIN_BYTES: std::ops::Range<usize> = 16..18;
+const GAIN_UNITS_PER_DB: f32 = 256.0;
 
 pub struct OpusSource {
     format: Box<dyn FormatReader>,
@@ -24,6 +27,7 @@ pub struct OpusSource {
     cursor: usize,
     end: usize,
     discard_frames: u64,
+    output_gain: f32,
 }
 
 impl OpusSource {
@@ -57,17 +61,31 @@ impl OpusSource {
             .time_base
             .zip(parameters.n_frames)
             .map(|(base, frames)| Duration::from(base.calc_time(frames)));
-        let discard_frames = if position.is_zero() {
-            0
+        let gain_db = parameters
+            .extra_data
+            .as_deref()
+            .and_then(|header| header.get(OUTPUT_GAIN_BYTES))
+            .and_then(|gain| gain.try_into().ok())
+            .map_or(0.0, |gain| {
+                f32::from(i16::from_le_bytes(gain)) / GAIN_UNITS_PER_DB
+            });
+        // RFC 7845 sections 4.6 and 5.1 specify preroll and a signed output gain.
+        let preroll_start = position.saturating_sub(SEEK_PREROLL);
+        let target_frame = |time: Duration| {
+            let seconds = time.as_secs().saturating_mul(u64::from(RATE.get()));
+            seconds + u64::from(time.subsec_nanos()) * u64::from(RATE.get()) / 1_000_000_000
+        };
+        let discard_frames = if preroll_start.is_zero() {
+            target_frame(position)
         } else {
             let seek = format.seek(
                 SeekMode::Accurate,
                 SeekTo::Time {
-                    time: position.into(),
+                    time: preroll_start.into(),
                     track_id: Some(track_id),
                 },
             )?;
-            seek.required_ts.saturating_sub(seek.actual_ts)
+            target_frame(position).saturating_sub(seek.actual_ts)
         };
         let decoder = OpusDecoder::new(RATE.get(), usize::from(channels.get()))
             .map_err(|_| Error::Unsupported("Could not initialize Opus decoding"))?;
@@ -82,6 +100,7 @@ impl OpusSource {
             cursor: 0,
             end: 0,
             discard_frames,
+            output_gain: 10.0_f32.powf(gain_db / 20.0),
         })
     }
 
@@ -118,7 +137,7 @@ impl Iterator for OpusSource {
         if self.cursor >= self.end {
             self.refill()?;
         }
-        let sample = self.packet[self.cursor];
+        let sample = self.packet[self.cursor] * self.output_gain;
         self.cursor += 1;
         Some(sample)
     }
