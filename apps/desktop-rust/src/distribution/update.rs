@@ -50,6 +50,11 @@ pub enum UpdateError {
     Network(#[from] reqwest::Error),
     #[error("Could not save the update: {0}")]
     Io(#[from] std::io::Error),
+    #[error("The update was installed. Reopen {path} to finish. {source}")]
+    Relaunch {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }
 
 pub fn update_for(
