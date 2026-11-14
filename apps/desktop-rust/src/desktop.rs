@@ -198,28 +198,7 @@ impl Desktop {
                     local
                 }
             }
-            Message::Dropbox(action) => {
-                if matches!(action, dropbox_panel::Action::Disconnect) && !self.dropbox.busy {
-                    self.playback_request += 1;
-                    self.failed_track = None;
-                    self.pending_track = None;
-                    if let (Some(session), Some(snapshot)) =
-                        (&mut self.session, &self.sources.snapshot)
-                    {
-                        for source in snapshot
-                            .libraries
-                            .iter()
-                            .filter(|source| source.kind == "dropbox")
-                        {
-                            session.remove_library(&source.id);
-                        }
-                        if session.current().is_none() {
-                            self.artwork = None;
-                        }
-                    }
-                }
-                self.dropbox.update(action, self.sources.paths())
-            }
+            Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
             Message::AppImageIntegration(result) => {
                 if let Err(error) = result {
                     self.error = Some(error);
@@ -292,7 +271,12 @@ impl Desktop {
                 self.appearance.accent = accent;
                 self.save_appearance()
             }
-            Message::DropboxReady(result) => {
+            Message::DropboxReady(mut result) => {
+                if let Ok(snapshot) = &mut result {
+                    for library in std::mem::take(&mut snapshot.disconnected_libraries) {
+                        self.remove_queued_library(&library);
+                    }
+                }
                 self.dropbox.apply(result);
                 self.sources.reload()
             }

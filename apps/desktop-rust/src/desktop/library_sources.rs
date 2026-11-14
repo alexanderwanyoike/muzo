@@ -399,6 +399,7 @@ impl Sources {
     fn retry_watch_roots(&mut self) {
         let roots = self.roots.clone();
         if self.roots_changed.swap(false, Ordering::AcqRel)
+            || self.registered.iter().any(|root| !root.is_dir())
             || (self.watcher.is_none() && !roots.is_empty())
         {
             self.install_watcher(&roots);
@@ -465,6 +466,21 @@ mod tests {
 
         std::fs::write(library.join("Track.mp3"), "fixture").unwrap();
         wait_for_event(&sources.changed);
+    }
+
+    #[test]
+    fn it_drops_a_missing_root_registration_without_a_notification() {
+        let root = tempfile::tempdir().unwrap();
+        let missing = root.path().join("library");
+        let mut sources = Sources::new(None);
+        sources.roots = vec![missing.clone()];
+        sources.watcher =
+            Some(notify::recommended_watcher(|_: notify::Result<notify::Event>| {}).unwrap());
+        sources.registered = vec![missing];
+
+        let _ = sources.poll();
+
+        assert!(sources.registered.is_empty());
     }
 
     #[cfg(target_os = "linux")]

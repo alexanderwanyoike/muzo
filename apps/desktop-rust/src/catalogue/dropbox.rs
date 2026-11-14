@@ -70,6 +70,15 @@ impl Catalogue {
         Ok(())
     }
 
+    pub fn dropbox_libraries_for(&self, account: &str) -> Result<Vec<String>, CatalogueError> {
+        let mut query = self
+            .database
+            .prepare("SELECT library_id FROM dropbox_library_accounts WHERE account_id=?1")?;
+        Ok(query
+            .query_map([account], |row| row.get(0))?
+            .collect::<Result<_, _>>()?)
+    }
+
     pub fn add_dropbox(
         &mut self,
         account: &str,
