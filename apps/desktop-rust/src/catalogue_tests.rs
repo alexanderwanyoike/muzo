@@ -291,6 +291,46 @@ fn it_preserves_unchanged_metadata_overrides_in_the_editor() {
 }
 
 #[test]
+fn it_opens_the_editor_with_effective_tags_and_saved_overrides() {
+    use crate::desktop::library_sources::{CataloguePaths, Operation, run};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    drop(paths.open().unwrap());
+    let database = Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database.execute(
+        "INSERT INTO libraries (id, name, kind, location) VALUES ('source','Records','Dropbox','/Records')",
+        [],
+    ).unwrap();
+    database.execute(
+        "INSERT INTO tracks (id,library_id,title,artist,album,track_number,disc_number,genre,year,
+         duration_seconds,file_path,file_size,file_mtime,override_artist,override_track_number)
+         VALUES ('song','source','Silt and Light','Artist','Field Recordings',2,1,'Ambient',2020,
+         120,'/Records/track.mp3',100,1,'Mara Vale',7)",
+        [],
+    ).unwrap();
+
+    let snapshot = run(
+        &paths,
+        Operation::LoadTrackEditor("song".into(), "source".into()),
+    )
+    .unwrap();
+    let (_, _, fields) = snapshot.editor.unwrap();
+    assert_eq!(
+        *fields,
+        [
+            "Silt and Light",
+            "Mara Vale",
+            "Field Recordings",
+            "7",
+            "1",
+            "Ambient",
+            "2020"
+        ]
+    );
+}
+
+#[test]
 fn it_keeps_the_custom_name_when_indexing_a_filesystem_source() {
     let root = tempfile::tempdir().unwrap();
     let folder = root.path().join("raw-folder-name");
