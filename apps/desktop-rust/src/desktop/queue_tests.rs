@@ -312,3 +312,27 @@ fn it_keeps_install_download_progress_when_another_check_arrives() {
         updates::Status::Downloading(42)
     ));
 }
+
+#[test]
+fn it_can_reopen_cached_catalogue_artwork_without_the_original_audio() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    let media = root.path().join("music");
+    std::fs::create_dir(&media).unwrap();
+    let file = media.join("song.mp3");
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../desktop/electron/infrastructure/metadata/fixtures/embedded-cover.mp3");
+    std::fs::copy(fixture, &file).unwrap();
+    let library = catalogue.add_folder(&media).unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let item = Track::new(file.clone(), row.title, None, None, None)
+        .with_indexed_id(row.id)
+        .with_library(library.id);
+
+    let first = prepare_local_track(Some(&paths), item.clone());
+    assert!(first.artwork().is_some());
+    std::fs::remove_file(file).unwrap();
+    let reopened = prepare_local_track(Some(&paths), item);
+    assert_eq!(reopened.artwork(), first.artwork());
+}
