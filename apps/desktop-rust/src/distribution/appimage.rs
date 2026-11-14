@@ -24,6 +24,35 @@ pub(crate) fn relaunch_arguments(
         .collect()
 }
 
+pub fn replace_and_launch(
+    expected: &super::Update,
+    installer: &Path,
+    current: &Path,
+    arguments: Vec<OsString>,
+) -> Result<(), super::UpdateError> {
+    let current = std::fs::canonicalize(current)?;
+    let parent = current
+        .parent()
+        .ok_or_else(|| std::io::Error::other("AppImage directory unavailable"))?;
+    let mut update = tempfile::NamedTempFile::new_in(parent)?;
+    expected.verify_and_copy(installer, update.as_file_mut())?;
+    update
+        .as_file()
+        .set_permissions(std::fs::metadata(&current)?.permissions())?;
+    update.as_file().sync_all()?;
+    update.persist(&current).map_err(|error| error.error)?;
+    std::process::Command::new(&current)
+        .current_dir(parent)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .args(arguments)
+        .env_remove("APPIMAGE")
+        .env_remove("APPDIR")
+        .spawn()?;
+    Ok(())
+}
+
 pub fn register(image: &Path, data: &Path) -> io::Result<()> {
     let image = desktop_path(image)?;
     desktop_path(data)?;
