@@ -2,7 +2,7 @@
   "name": "muzo",
   "version": "0.0.6",
   "private": true,
-  "description": "Muzo - a desktop music player built with Electron. Multiple libraries, playlists, recursive folder sync.",
+  "description": "Muzo - a native desktop music player with libraries, playlists and recursive folder sync.",
   "license": "MIT",
   "packageManager": "yarn@1.22.22",
   "workspaces": [
@@ -16,7 +16,8 @@
   },
   "scripts": {
     "desktop": "yarn workspace @muzo/desktop",
-    "desktop:dev": "yarn workspace @muzo/desktop electron:dev",
+    "desktop:dev": "yarn workspace @muzo/desktop-rust dev",
+    "desktop:legacy": "yarn workspace @muzo/desktop electron:dev",
     "desktop:vite": "yarn workspace @muzo/desktop dev",
     "desktop:build": "yarn workspace @muzo/desktop build",
     "desktop:package": "yarn workspace @muzo/desktop package",
