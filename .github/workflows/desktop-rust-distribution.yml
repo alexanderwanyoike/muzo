@@ -80,7 +80,8 @@ jobs:
           cp ../desktop-rust/target/release/muzo-desktop.exe "$payload/muzo.exe"
           cp -R assets/licenses "$payload/resources/licenses"
           version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' ../desktop-rust/Packager.toml)
-          yarn exec electron-builder -- --prepackaged "$payload" --win nsis --x64 \
+          builder=$(node -p 'require.resolve("electron-builder/cli.js")')
+          node "$builder" --prepackaged "$payload" --win nsis --x64 \
             --config electron-builder.config.json \
             --config.extraMetadata.version="$version" \
             --config.directories.output=../desktop-rust/out/rust-distribution --publish never
