@@ -103,6 +103,7 @@ pub struct Desktop {
     sidebar_revision: u64,
     plays_pending: usize,
     close_after_history: Option<window::Id>,
+    install_after_history: bool,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
 }
@@ -178,6 +179,7 @@ impl Desktop {
                 sidebar_revision: 0,
                 plays_pending: 0,
                 close_after_history: None,
+                install_after_history: false,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
             },
@@ -292,6 +294,14 @@ impl Desktop {
                     return Task::none();
                 };
                 let (update, path) = (update.clone(), path.clone());
+                if self.plays_pending > 0 {
+                    self.install_after_history = true;
+                    return Task::none();
+                }
+                self.install_after_history = false;
+                if self.sidebar_revision != 0 {
+                    self.persist_sidebar(self.sidebar.preferred_width());
+                }
                 self.update_status = updates::Status::Installing;
                 Task::perform(
                     async move {
@@ -598,12 +608,16 @@ impl Desktop {
                     Err(error) => {
                         self.error = Some(error);
                         self.close_after_history = None;
+                        self.install_after_history = false;
                     }
                 }
                 if self.plays_pending == 0
                     && let Some(window) = self.close_after_history.take()
                 {
                     return self.update(Message::CloseRequested(window));
+                }
+                if self.plays_pending == 0 && self.install_after_history {
+                    return self.update(Message::ConfirmInstallUpdate);
                 }
                 Task::none()
             }
