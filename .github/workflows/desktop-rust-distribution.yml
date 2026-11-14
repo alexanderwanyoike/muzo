@@ -101,42 +101,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8 --root "$RUNNER_TEMP/muzo-packager"
-          "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" --version
-      - run: yarn exec cargo -- +1.95 build --locked --release
-      - run: yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats appimage
-        if: runner.os == 'Linux'
-        env:
-          APPIMAGE_EXTRACT_AND_RUN: "1"
-      - name: Package the macOS app and disk image
-        if: runner.os == 'macOS'
-        run: |
-          set -euo pipefail
-          yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats app
-          stage=$(mktemp -d "$RUNNER_TEMP/muzo-dmg.XXXXXX")
-          trap 'rm -rf "$stage"' EXIT
-          ditto out/rust-distribution/Muzo.app "$stage/Muzo.app"
-          ln -s /Applications "$stage/Applications"
-          hdiutil create -format UDZO -volname Muzo -srcfolder "$stage" out/rust-distribution/Muzo.dmg
-      - name: Install the existing Windows packaging dependencies
-        if: runner.os == 'Windows'
+          echo "$RUNNER_TEMP/muzo-packager/bin" >> "$GITHUB_PATH"
+      - run: yarn install --frozen-lockfile
         working-directory: .
-        run: yarn install --frozen-lockfile
-      - name: Package the Rust payload with the existing Windows installer identity
-        if: runner.os == 'Windows'
-        working-directory: apps/desktop
+      - name: Build the native installer
+        working-directory: .
         env:
-          MUZO_VERSION: ${{ needs.context.outputs.version }}
-        run: |
-          payload="$RUNNER_TEMP/muzo-rust-payload"
-          mkdir -p "$payload/resources"
-          cp ../desktop-rust/target/release/muzo-desktop.exe "$payload/muzo.exe"
-          cp -R assets/licenses "$payload/resources/licenses"
-          builder=$(node -p 'require.resolve("electron-builder/cli.js")')
-          node "$builder" --prepackaged "$payload" --win nsis --x64 \
-            --config electron-builder.config.json \
-            --config.extraMetadata.version="$MUZO_VERSION" \
-            --config.directories.output=../desktop-rust/out/rust-distribution --publish never
-      - run: yarn exec cargo -- +1.95 run --locked --release --bin name-installer out/rust-distribution
+          RUSTUP_TOOLCHAIN: "1.95"
+        run: yarn desktop:package --target ${{ matrix.label }}
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
