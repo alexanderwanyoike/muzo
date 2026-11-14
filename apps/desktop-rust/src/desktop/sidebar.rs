@@ -5,6 +5,7 @@ pub(super) const SPLITTER_WIDTH: f32 = 1.0;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Resize {
+    Viewport(f32),
     Preview(f32),
     Commit,
     Cancel,
@@ -37,6 +38,10 @@ impl Sidebar {
 
     pub(super) fn resize(&mut self, action: Resize) -> Option<SidebarWidth> {
         match action {
+            Resize::Viewport(width) => {
+                self.layout_width(width);
+                None
+            }
             Resize::Preview(requested) => {
                 self.preview = Some(SidebarWidth::new(requested));
                 None

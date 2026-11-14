@@ -973,8 +973,6 @@ impl Desktop {
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
                     self.windows.resized(id, size);
-                } else if self.windows.is_library(id) {
-                    self.sidebar.layout_width(size.width);
                 }
                 Task::none()
             }

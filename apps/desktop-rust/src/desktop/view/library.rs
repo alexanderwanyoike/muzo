@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use iced::{
     Alignment, Element, Fill, Length, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, slider, text},
+    widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
 };
 
 use crate::{
@@ -35,15 +35,11 @@ pub(in crate::desktop) fn library<'a>(
     let (error, retry) = playback;
     let surfaces = preferences.surfaces();
     let width = sidebar.visible_width();
-    let view = row![
+    let panes = row![
         container(navigation(sources, page, session, cover, preferences))
             .width(width)
             .height(Fill),
-        Element::new(Divider {
-            sidebar_width: width,
-            line: surfaces.line,
-            ink: preferences.accent_ink(),
-        }),
+        Space::new().width(sidebar::SPLITTER_WIDTH),
         column![
             toolbar(sources, page, surfaces),
             error_line(sources.error.as_deref()),
@@ -55,6 +51,17 @@ pub(in crate::desktop) fn library<'a>(
     ]
     .width(Fill)
     .height(Fill);
+    let divider = row![
+        Space::new().width(width),
+        Element::new(Divider {
+            sidebar_width: width,
+            line: surfaces.line,
+            ink: preferences.accent_ink(),
+        }),
+    ]
+    .width(Fill)
+    .height(Fill);
+    let view = stack![panes, divider].width(Fill).height(Fill);
 
     let content = column![
         transport(session, cover, retry, surfaces, preferences),

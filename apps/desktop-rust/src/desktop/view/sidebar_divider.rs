@@ -111,6 +111,10 @@ impl Widget<Message, Theme, Renderer> for Divider {
         shell: &mut Shell<'_, Message>,
         _: &Rectangle,
     ) {
+        if let Event::Window(window::Event::Resized(size)) = event {
+            shell.publish(Message::ResizeSidebar(Resize::Viewport(size.width)));
+            return;
+        }
         let state = tree.state.downcast_mut::<State>();
         let area = hit_area(layout.bounds());
         let hovered = cursor.is_over(area);
