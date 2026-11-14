@@ -299,6 +299,27 @@ mod tests {
     }
 
     #[test]
+    fn it_uses_the_original_size_on_mode_changes_after_manual_resizing() {
+        let (mut windows, _) = Windows::open();
+        let _ = windows.show_mini();
+        let id = windows.mini_id().unwrap();
+        windows.resized(id, iced::Size::new(405.0, 515.0));
+
+        let _ = windows.toggle_queue();
+        let expanded = windows.queue_resize.unwrap().target;
+        assert_eq!(expanded, iced::Size::new(740.0, 560.0));
+        windows.resized(id, expanded);
+        windows.resized(id, iced::Size::new(640.0, 480.0));
+        assert_eq!(windows.mini_view().2, iced::Size::new(640.0, 480.0));
+
+        let _ = windows.toggle_queue();
+        assert_eq!(
+            windows.queue_resize.unwrap().target,
+            iced::Size::new(420.0, 560.0)
+        );
+    }
+
+    #[test]
     fn it_starts_the_library_at_the_original_size() {
         assert_eq!(super::LIBRARY_SIZE, iced::Size::new(1200.0, 800.0));
         assert_eq!(super::LIBRARY_MIN, iced::Size::new(800.0, 600.0));
