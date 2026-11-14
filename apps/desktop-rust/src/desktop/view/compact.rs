@@ -12,7 +12,7 @@ use super::{
     playback_error,
 };
 use crate::desktop::{
-    cover::Cover,
+    cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
     mini_focus::{Control, QUEUE_ROW_HEIGHT, QUEUE_ROW_SPACING, QUEUE_SCROLL},
     row_cover::{Covers, DirectCovers},
 };
@@ -85,12 +85,18 @@ pub(in crate::desktop) fn mini<'a>(
 
     let playback = column![
         sleeve(
-            cover.thumbnail(),
+            cover.sleeve(),
             track.is_some(),
-            if tight { 170.0 } else { 240.0 },
+            if tight { 170.0 } else { SLEEVE_EDGE as f32 },
             surfaces
         ),
-        Space::new().height(if tight { 10 } else { 16 }),
+        Space::new().height(if cover.sleeve().is_some() {
+            0
+        } else if tight {
+            10
+        } else {
+            16
+        }),
         metadata,
         Space::new().height(if tight { 14 } else { 20 }),
         transport(session, retry, focus, surfaces, tight),
@@ -116,7 +122,7 @@ pub(in crate::desktop) fn mini<'a>(
         .padding(iced::Padding {
             left: inline,
             right: inline,
-            bottom: 20.0,
+            bottom: if cover.sleeve().is_some() { 0.0 } else { 20.0 },
             top: 0.0,
         })
         .center_x(Fill),
@@ -160,14 +166,19 @@ fn sleeve(
     edge: f32,
     surfaces: Surfaces,
 ) -> Element<'static, Message> {
-    let inner: Element<'static, Message> = if let Some(thumbnail) = thumbnail {
-        image(thumbnail.clone())
-            .content_fit(ContentFit::Cover)
-            .width(edge - 2.0)
-            .height(edge - 2.0)
-            .border_radius(7)
-            .into()
-    } else if playing {
+    if let Some(thumbnail) = thumbnail {
+        let scale = edge / SLEEVE_EDGE as f32;
+        let pad = SLEEVE_PAD * scale;
+        let full = edge + pad * 2.0;
+        let cover = iced::widget::pin(image(thumbnail.clone()).width(full).height(full))
+            .position(iced::Point::new(0.0, -pad))
+            .width(full)
+            .height(edge + pad);
+        return stack![Space::new().width(full).height(edge + pad)]
+            .push(cover)
+            .into();
+    }
+    let inner: Element<'static, Message> = if playing {
         icon_tinted(Icon::Disc, move |_| surfaces.muted)
             .width(44)
             .height(44)
