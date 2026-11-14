@@ -9,7 +9,9 @@ use std::{
 use iced::Task;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::catalogue::{Catalogue, CatalogueError, IndexedTrack, Library};
+use crate::catalogue::{
+    Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
+};
 
 use super::Message;
 
@@ -46,7 +48,14 @@ pub enum Operation {
     Select(String),
     Refresh(String),
     Remove(String),
-    Reconcile(Option<String>),
+    Reconcile(Option<String>, Option<String>),
+    CreatePlaylist(String),
+    SelectPlaylist(String),
+    AddToPlaylist(String, String),
+    MovePlaylistEntry(String, String, i8),
+    RemovePlaylistEntry(String, String),
+    EditTrack(String, String, MetadataOverride),
+    RecordPlays(Vec<String>, Option<String>, Option<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -55,6 +64,9 @@ pub struct Snapshot {
     pub selected: Option<String>,
     pub tracks: Vec<IndexedTrack>,
     pub warnings: Vec<String>,
+    pub playlists: Vec<Playlist>,
+    pub selected_playlist: Option<String>,
+    pub playlist_entries: Vec<PlaylistEntry>,
 }
 
 pub(crate) fn run(
@@ -63,6 +75,7 @@ pub(crate) fn run(
 ) -> Result<Snapshot, CatalogueError> {
     let mut catalogue = Catalogue::open(&paths.current, Some(&paths.legacy))?;
     let mut warnings = Vec::new();
+    let mut selected_playlist = None;
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
         Operation::Select(id) => Some(id),
@@ -74,7 +87,41 @@ pub(crate) fn run(
             catalogue.remove(&id)?;
             None
         }
-        Operation::Startup | Operation::Reconcile(_) => {
+        Operation::CreatePlaylist(name) => {
+            selected_playlist = Some(catalogue.create_playlist(&name)?.id);
+            None
+        }
+        Operation::SelectPlaylist(id) => {
+            selected_playlist = Some(id);
+            None
+        }
+        Operation::AddToPlaylist(id, track) => {
+            catalogue.add_to_playlist(&id, &track)?;
+            selected_playlist = Some(id);
+            None
+        }
+        Operation::MovePlaylistEntry(id, entry, delta) => {
+            catalogue.move_playlist_entry(&id, &entry, delta)?;
+            selected_playlist = Some(id);
+            None
+        }
+        Operation::RemovePlaylistEntry(id, entry) => {
+            catalogue.remove_playlist_entry(&id, &entry)?;
+            selected_playlist = Some(id);
+            None
+        }
+        Operation::EditTrack(id, library_id, edit) => {
+            catalogue.override_track(&id, &edit)?;
+            Some(library_id)
+        }
+        Operation::RecordPlays(ids, selection, playlist) => {
+            for id in ids {
+                catalogue.record_play(&id)?;
+            }
+            selected_playlist = playlist;
+            selection
+        }
+        Operation::Startup | Operation::Reconcile(_, _) => {
             for source in catalogue
                 .libraries()?
                 .into_iter()
@@ -85,7 +132,10 @@ pub(crate) fn run(
                 }
             }
             match operation {
-                Operation::Reconcile(selected) => selected,
+                Operation::Reconcile(selected, playlist) => {
+                    selected_playlist = playlist;
+                    selected
+                }
                 _ => None,
             }
         }
@@ -99,6 +149,12 @@ pub(crate) fn run(
                 .find(|source| source.kind == "filesystem")
                 .map(|source| source.id.clone())
         });
+    let playlists = catalogue.playlists()?;
+    let playlist_entries = selected_playlist
+        .as_ref()
+        .map(|id| catalogue.playlist_entries(id))
+        .transpose()?
+        .unwrap_or_default();
     let tracks = selected
         .as_ref()
         .map(|id| catalogue.tracks(id))
@@ -109,6 +165,9 @@ pub(crate) fn run(
         selected,
         tracks,
         warnings,
+        playlists,
+        selected_playlist,
+        playlist_entries,
     })
 }
 
@@ -118,6 +177,9 @@ pub(super) struct Sources {
     pub search: String,
     pub pending_remove: Option<String>,
     pub error: Option<String>,
+    pub playlist_name: String,
+    pub editing: Option<(String, String, Box<[String; 7]>)>,
+    pub queued_plays: Vec<String>,
     busy: bool,
     changed: Arc<AtomicBool>,
     watcher: Option<RecommendedWatcher>,
@@ -132,6 +194,9 @@ impl Sources {
             search: String::new(),
             pending_remove: None,
             error: None,
+            playlist_name: String::new(),
+            editing: None,
+            queued_plays: Vec::new(),
             busy: false,
             changed: Arc::new(AtomicBool::new(false)),
             watcher: None,
@@ -185,14 +250,25 @@ impl Sources {
     }
 
     pub fn poll(&mut self) -> Task<Message> {
-        if self.busy || !self.changed.swap(false, Ordering::AcqRel) {
+        if self.busy {
             return Task::none();
         }
-        self.start(Operation::Reconcile(
-            self.snapshot
-                .as_ref()
-                .and_then(|snapshot| snapshot.selected.clone()),
-        ))
+        let selected = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.selected.clone());
+        let playlist = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.selected_playlist.clone());
+        if !self.queued_plays.is_empty() {
+            let ids = std::mem::take(&mut self.queued_plays);
+            return self.start(Operation::RecordPlays(ids, selected, playlist));
+        }
+        if !self.changed.swap(false, Ordering::AcqRel) {
+            return Task::none();
+        }
+        self.start(Operation::Reconcile(selected, playlist))
     }
 
     fn install_watcher(&mut self, roots: &[PathBuf]) {

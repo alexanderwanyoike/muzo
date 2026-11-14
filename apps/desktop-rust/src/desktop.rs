@@ -30,6 +30,13 @@ pub enum Message {
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
+    PlayPlaylist(usize),
+    PlaylistName(String),
+    CreatePlaylist,
+    EditTrack(crate::catalogue::IndexedTrack),
+    EditField(usize, String),
+    SaveTrackEdit(bool),
+    CloseTrackEdit,
     IndexedQueueReady(usize, Result<Vec<Track>, String>),
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
@@ -136,7 +143,45 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 Task::none()
             }
-            Message::PlayIndexed(index) => self.play_indexed(index),
+            Message::PlayIndexed(index) => self.play_indexed(index, false),
+            Message::PlayPlaylist(index) => self.play_indexed(index, true),
+            Message::PlaylistName(name) => {
+                self.sources.playlist_name = name;
+                Task::none()
+            }
+            Message::CreatePlaylist => {
+                let name = std::mem::take(&mut self.sources.playlist_name);
+                self.sources.start(Operation::CreatePlaylist(name))
+            }
+            Message::EditTrack(track) => {
+                self.sources.editing = Some((
+                    track.id,
+                    track.library_id,
+                    Box::new([
+                        track.title,
+                        track.artist,
+                        track.album.unwrap_or_default(),
+                        String::new(),
+                        String::new(),
+                        String::new(),
+                        String::new(),
+                    ]),
+                ));
+                Task::none()
+            }
+            Message::EditField(index, value) => {
+                if let Some((_, _, fields)) = &mut self.sources.editing
+                    && let Some(field) = fields.get_mut(index)
+                {
+                    *field = value;
+                }
+                Task::none()
+            }
+            Message::SaveTrackEdit(clear) => self.save_track_edit(clear),
+            Message::CloseTrackEdit => {
+                self.sources.editing = None;
+                Task::none()
+            }
             Message::IndexedQueueReady(index, Ok(tracks)) => {
                 self.artwork = None;
                 self.transport(|session| {
@@ -246,14 +291,61 @@ impl Desktop {
         }
     }
 
-    fn play_indexed(&self, index: usize) -> Task<Message> {
+    fn save_track_edit(&mut self, clear: bool) -> Task<Message> {
+        let Some((id, library, fields)) = self.sources.editing.as_ref() else {
+            return Task::none();
+        };
+        let non_empty = |index: usize| {
+            let value = fields[index].trim();
+            (!value.is_empty()).then(|| value.to_owned())
+        };
+        let mut edit = crate::catalogue::MetadataOverride::default();
+        if !clear {
+            let values: Result<Vec<_>, _> = [3, 4, 6]
+                .into_iter()
+                .map(|index| {
+                    non_empty(index)
+                        .map(|value| value.parse::<u32>())
+                        .transpose()
+                })
+                .collect();
+            let Ok(values) = values else {
+                self.sources.error = Some("Track, disc and year must be whole numbers.".into());
+                return Task::none();
+            };
+            edit = crate::catalogue::MetadataOverride {
+                title: non_empty(0),
+                artist: non_empty(1),
+                album: non_empty(2),
+                track_number: values[0],
+                disc_number: values[1],
+                genre: non_empty(5),
+                year: values[2],
+            };
+        }
+        let task = self
+            .sources
+            .start(Operation::EditTrack(id.clone(), library.clone(), edit));
+        self.sources.editing = None;
+        task
+    }
+
+    fn play_indexed(&self, index: usize, playlist: bool) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
-        if index >= snapshot.tracks.len() || self.session.is_none() {
+        let tracks = if playlist {
+            snapshot
+                .playlist_entries
+                .iter()
+                .filter_map(|entry| entry.track.clone())
+                .collect()
+        } else {
+            snapshot.tracks.clone()
+        };
+        if index >= tracks.len() || self.session.is_none() {
             return Task::none();
         }
-        let tracks = snapshot.tracks.clone();
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
@@ -272,6 +364,7 @@ impl Desktop {
                                     .and_then(Track::artwork)
                                     .map(std::sync::Arc::from),
                             )
+                            .with_indexed_id(track.id)
                         })
                         .collect()
                 })
@@ -297,8 +390,19 @@ impl Desktop {
     ) {
         if let Some(session) = &mut self.session {
             let current = session.current_index();
+            let previous_id = session
+                .current()
+                .and_then(Track::indexed_id)
+                .map(str::to_owned);
             match operation(session) {
                 Ok(()) => {
+                    if let Some(id) = session.current().and_then(Track::indexed_id)
+                        && session.is_playing()
+                        && (current != session.current_index()
+                            || previous_id.as_deref() != Some(id))
+                    {
+                        self.sources.queued_plays.push(id.to_owned());
+                    }
                     if clear_on_success || current != session.current_index() {
                         self.error = None;
                     }

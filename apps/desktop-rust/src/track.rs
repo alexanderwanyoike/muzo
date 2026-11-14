@@ -6,6 +6,7 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct Track {
     path: PathBuf,
+    indexed_id: Option<String>,
     title: String,
     artist: Option<String>,
     album: Option<String>,
@@ -22,11 +23,21 @@ impl Track {
     ) -> Self {
         Self {
             path,
+            indexed_id: None,
             title,
             artist,
             album,
             artwork,
         }
+    }
+
+    pub fn indexed_id(&self) -> Option<&str> {
+        self.indexed_id.as_deref()
+    }
+
+    pub fn with_indexed_id(mut self, id: String) -> Self {
+        self.indexed_id = Some(id);
+        self
     }
 
     pub fn path(&self) -> &Path {

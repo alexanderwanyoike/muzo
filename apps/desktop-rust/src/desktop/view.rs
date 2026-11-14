@@ -10,6 +10,7 @@ use iced::{
 
 use crate::{session::Session, track::Track};
 
+mod playlists;
 mod sources;
 
 use super::{Message, library_sources::Sources};
@@ -56,12 +57,20 @@ pub fn library<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let body = if let Some(snapshot) = sources
+    let body = if let Some((_, _, fields)) = &sources.editing {
+        playlists::edit(fields, sources.busy())
+    } else if let Some(snapshot) = sources
+        .snapshot
+        .as_ref()
+        .filter(|snapshot| snapshot.selected_playlist.is_some())
+    {
+        playlists::tracks(snapshot, sources.busy())
+    } else if let Some(snapshot) = sources
         .snapshot
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(snapshot, session.and_then(Session::current))
+        sources::tracks(snapshot, session.and_then(Session::current), sources.busy())
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).color(MUTED).width(Fill),

@@ -52,6 +52,7 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
             .size(13)
             .on_input(Message::SourceSearch),
         scrollable(column(source_rows).spacing(2)).height(Fill),
+        super::playlists::sidebar(sources),
     ]
     .spacing(9);
 
@@ -94,17 +95,20 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
 pub fn tracks<'a>(
     snapshot: &'a Snapshot,
     current: Option<&Track>,
+    busy: bool,
 ) -> iced::widget::Column<'a, Message> {
     let columns = row![
         text("Title").size(12).color(MUTED).width(Fill),
-        text("Artist").size(12).color(MUTED).width(Fill)
+        text("Artist").size(12).color(MUTED).width(Fill),
+        text("Plays").size(12).color(MUTED).width(38),
+        iced::widget::Space::new().width(145)
     ]
     .padding([5, 10])
     .spacing(8);
     let playing_path = current.map(Track::path);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
         let active = playing_path == Some(track.path.as_path());
-        button(
+        let play = button(
             row![
                 text(&track.title)
                     .size(14)
@@ -115,6 +119,7 @@ pub fn tracks<'a>(
                     .color(MUTED)
                     .width(Fill)
                     .wrapping(text::Wrapping::None),
+                text(track.plays).size(12).color(MUTED).width(38),
             ]
             .align_y(Alignment::Center)
             .spacing(8),
@@ -132,7 +137,39 @@ pub fn tracks<'a>(
             Message::TogglePlayback
         } else {
             Message::PlayIndexed(index)
-        })
+        });
+        let add = iced::widget::pick_list(
+            snapshot
+                .playlists
+                .iter()
+                .map(|playlist| playlist.name.clone())
+                .collect::<Vec<_>>(),
+            None::<String>,
+            |name| {
+                snapshot
+                    .playlists
+                    .iter()
+                    .find(|playlist| playlist.name == name)
+                    .map_or(Message::CloseTrackEdit, |playlist| {
+                        Message::SourceOperation(Operation::AddToPlaylist(
+                            playlist.id.clone(),
+                            track.id.clone(),
+                        ))
+                    })
+            },
+        )
+        .placeholder("Add to playlist")
+        .text_size(11)
+        .width(115);
+        row![
+            play,
+            button(text("Edit").size(11))
+                .style(action)
+                .on_press_maybe((!busy).then(|| Message::EditTrack(track.clone()))),
+            add
+        ]
+        .align_y(Alignment::Center)
+        .spacing(5)
         .into()
     });
     if snapshot.tracks.is_empty() {
