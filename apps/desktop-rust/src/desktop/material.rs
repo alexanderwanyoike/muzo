@@ -160,6 +160,47 @@ mod tests {
 
     use super::*;
 
+    fn walnut_pixels(drawable: bool) -> Vec<u8> {
+        let logical_size = Size::new(480.0, 64.0);
+        let viewport = Rectangle::with_size(logical_size);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        if drawable {
+            let mut grain = Grain(&WALNUT);
+            let mut tree = Tree::new(&Element::new(Grain(&WALNUT)));
+            let node = grain.layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(logical_size, logical_size),
+            );
+            grain.draw(
+                &tree,
+                &mut renderer,
+                &Theme::Light,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &viewport,
+            );
+        }
+        renderer.screenshot(Size::new(600, 80), 1.25, Color::WHITE)
+    }
+
+    #[test]
+    fn it_does_not_leave_a_bare_walnut_column_at_fractional_scale() {
+        let off = walnut_pixels(false);
+        let grain = walnut_pixels(true);
+        let row_width = 600 * 4;
+        let changed = |x: usize| {
+            grain
+                .chunks_exact(row_width)
+                .zip(off.chunks_exact(row_width))
+                .any(|(painted, blank)| painted[x * 4..x * 4 + 4] != blank[x * 4..x * 4 + 4])
+        };
+
+        assert!(changed(576));
+        assert!(changed(577));
+    }
+
     fn chrome_pixels(width: u32, mode: &str) -> Vec<u8> {
         let appearance = Appearance {
             theme: "walnut".into(),
