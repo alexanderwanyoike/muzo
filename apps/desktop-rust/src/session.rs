@@ -47,6 +47,9 @@ impl Session {
     }
 
     pub fn select(&mut self, index: usize) -> Result<(), SessionError> {
+        if self.current == Some(index) && self.started {
+            return Ok(());
+        }
         let track = self.tracks.get(index).ok_or(SessionError::MissingEntry)?;
         self.current = Some(index);
         self.started = false;
