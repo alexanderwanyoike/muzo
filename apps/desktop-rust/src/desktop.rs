@@ -192,7 +192,28 @@ impl Desktop {
                     local
                 }
             }
-            Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
+            Message::Dropbox(action) => {
+                if matches!(action, dropbox_panel::Action::Disconnect) && !self.dropbox.busy {
+                    self.playback_request += 1;
+                    self.failed_track = None;
+                    self.loading_remote = false;
+                    if let (Some(session), Some(snapshot)) =
+                        (&mut self.session, &self.sources.snapshot)
+                    {
+                        for source in snapshot
+                            .libraries
+                            .iter()
+                            .filter(|source| source.kind == "dropbox")
+                        {
+                            session.remove_library(&source.id);
+                        }
+                        if session.current().is_none() {
+                            self.artwork = None;
+                        }
+                    }
+                }
+                self.dropbox.update(action, self.sources.paths())
+            }
             Message::CheckUpdate => {
                 self.update_status = updates::Status::Checking;
                 updates::check()

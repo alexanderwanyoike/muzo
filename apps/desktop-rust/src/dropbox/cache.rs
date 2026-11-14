@@ -8,6 +8,8 @@ use sha2::{Digest, Sha256};
 
 use super::{Client, DropboxError};
 
+static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 const AUDIO_CACHE_BYTES: u64 = 1024 * 1024 * 1024;
 
 pub fn download(
@@ -34,6 +36,9 @@ pub fn download(
     if copied > AUDIO_CACHE_BYTES {
         return Err(DropboxError::CacheLimit);
     }
+    let _publish = CACHE_LOCK
+        .lock()
+        .map_err(|_| std::io::Error::other("Dropbox audio cache is unavailable"))?;
     let mut existing = fs::read_dir(root)?
         .filter_map(Result::ok)
         .filter(|entry| !entry.file_name().to_string_lossy().starts_with('.'))

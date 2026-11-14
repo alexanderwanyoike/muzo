@@ -133,8 +133,21 @@ impl Settings {
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
-                    run(&paths, action, auth.as_deref(), &code, &interval, old)
-                        .map_err(|error| error.to_string())
+                    match run(
+                        &paths,
+                        action,
+                        auth.as_deref(),
+                        &code,
+                        &interval,
+                        old.clone(),
+                    ) {
+                        Ok(snapshot) => Ok(snapshot),
+                        Err(Error::Dropbox(DropboxError::Reconnect)) => Ok(Snapshot {
+                            reconnect: true,
+                            ..old
+                        }),
+                        Err(error) => Err(error.to_string()),
+                    }
                 })
                 .await
                 .map_err(|error| format!("Dropbox request failed: {error}"))?
