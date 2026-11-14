@@ -9,7 +9,7 @@ use iced::{
 use crate::{
     appearance::{Appearance, Surfaces},
     desktop::{
-        LibraryPage, Message,
+        Message,
         library_sources::{Operation, Snapshot, Sources},
     },
     session::Session,
@@ -149,7 +149,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         border: border::rounded(0),
         ..action(theme, status)
     })
-    .on_press(Message::LibraryPage(LibraryPage::Settings));
+    .on_press(Message::OpenSourceSettings);
     let add = stack![
         crate::desktop::material::chrome(appearance, surfaces, 32),
         add

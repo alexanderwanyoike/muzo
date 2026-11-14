@@ -5,6 +5,7 @@ pub(crate) mod library_sources;
 pub(crate) mod material;
 mod mini_focus;
 mod row_cover;
+mod settings_scroll;
 mod sidebar;
 pub use mini_focus::Control as MiniControl;
 mod updates;
@@ -37,6 +38,7 @@ pub enum Message {
     FolderLocation(String),
     SubmitFolder,
     SourceSearch(String),
+    OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, String>),
@@ -272,6 +274,10 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 self.sources.editing = None;
                 Task::none()
+            }
+            Message::OpenSourceSettings => {
+                let _ = self.update(Message::LibraryPage(LibraryPage::Settings));
+                settings_scroll::reveal_sources()
             }
             Message::SourceSearch(query) => {
                 self.sources.search = query;

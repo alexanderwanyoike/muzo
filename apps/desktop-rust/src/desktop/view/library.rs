@@ -379,7 +379,9 @@ pub(super) fn settings<'a>(
         });
     let body = column![
         appearance::controls(preferences, focus),
-        dropbox.view(),
+        container(dropbox.view())
+            .id(crate::desktop::settings_scroll::SOURCE_SETUP)
+            .width(Fill),
         container(
             column![
                 text("Library folders").size(13).font(bold()),
