@@ -54,7 +54,7 @@ jobs:
       - run: rustup toolchain install 1.95 --profile minimal
       - run: yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8
       - run: yarn exec cargo -- +1.95 build --locked --release
-      - run: yarn exec cargo -- +1.95 packager --release --formats ${{ matrix.format }}
+      - run: yarn exec cargo -- +1.95 packager --config Packager.toml --formats ${{ matrix.format }}
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
       - run: yarn exec cargo -- +1.95 run --locked --release --bin name-installer out/rust-distribution

@@ -1,3 +1,5 @@
+name = "muzo-desktop"
+binaries-dir = "target/release"
 product-name = "Muzo"
 identifier = "com.muzo.desktop"
 version = "0.0.6"
