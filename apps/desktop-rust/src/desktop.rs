@@ -963,7 +963,7 @@ fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -
     {
         eprintln!("Could not cache Dropbox track metadata: {error}");
     }
-    let track = track.with_audio(local, &metadata);
+    let track = track.with_audio(local, &metadata).without_artwork();
     cache_artwork(Some(paths), track, || {
         metadata.artwork().map(<[u8]>::to_vec)
     })

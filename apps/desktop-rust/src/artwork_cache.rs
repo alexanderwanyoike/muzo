@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Cursor, Write},
+    io::{self, Cursor, Read, Write},
     path::{Path, PathBuf},
     sync::Mutex,
     time::SystemTime,
@@ -15,6 +15,8 @@ const COVER_EDGE: u32 = 384;
 const MAX_ARTWORK_EDGE: u32 = 8192;
 const DIGEST_BYTES: usize = 32;
 const ENTRY_EXT: &str = "cover";
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+const MAX_CACHE_RECORD: u64 = 1_048_576;
 static PUBLISH: Mutex<()> = Mutex::new(());
 
 pub struct Revision(String);
@@ -43,29 +45,50 @@ impl ArtworkCache {
         read: impl FnOnce() -> Option<Vec<u8>>,
     ) -> Option<Vec<u8>> {
         let target = self.directory.join(format!("{}.{ENTRY_EXT}", revision.0));
-        if let Ok(cached) = fs::read(&target)
-            && let Some((digest, bytes)) = cached.split_at_checked(DIGEST_BYTES)
-            && Sha256::digest(bytes).as_slice() == digest
-        {
-            let _ = fs::File::options()
-                .write(true)
-                .open(&target)
-                .and_then(|file| file.set_modified(SystemTime::now()));
-            return (!bytes.is_empty()).then(|| bytes.to_vec());
+        if let Some(cached) = self.lookup(revision) {
+            return Some(cached);
         }
-
-        let cover = read().as_deref().and_then(thumbnail);
-        if let Err(error) = self.store(&target, cover.as_deref().unwrap_or_default()) {
+        let cover = thumbnail(&read()?)?;
+        if let Err(error) = self.store(&target, &cover) {
             eprintln!("Could not cache album artwork: {error}");
         }
-        cover
+        Some(cover)
+    }
+
+    pub fn lookup(&self, revision: &Revision) -> Option<Vec<u8>> {
+        let target = self.directory.join(format!("{}.{ENTRY_EXT}", revision.0));
+        let mut record = Vec::new();
+        fs::File::open(&target)
+            .ok()?
+            .take(MAX_CACHE_RECORD + 1)
+            .read_to_end(&mut record)
+            .ok()?;
+        if record.len() as u64 > MAX_CACHE_RECORD {
+            return None;
+        }
+        let (digest, bytes) = record.split_at_checked(DIGEST_BYTES)?;
+        if !bytes.starts_with(PNG_SIGNATURE) || Sha256::digest(bytes).as_slice() != digest {
+            return None;
+        }
+        let _ = fs::File::options()
+            .write(true)
+            .open(&target)
+            .and_then(|file| file.set_modified(SystemTime::now()));
+        Some(bytes.to_vec())
     }
 
     fn store(&self, path: &Path, bytes: &[u8]) -> io::Result<()> {
         let _guard = PUBLISH
             .lock()
             .map_err(|_| io::Error::other("Artwork cache unavailable"))?;
-        fs::create_dir_all(&self.directory)?;
+        let mut directory = fs::DirBuilder::new();
+        directory.recursive(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            directory.mode(0o700);
+        }
+        directory.create(&self.directory)?;
         let mut file = tempfile::NamedTempFile::new_in(&self.directory)?;
         file.write_all(&Sha256::digest(bytes))?;
         file.write_all(bytes)?;
