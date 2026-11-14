@@ -950,3 +950,33 @@ fn it_clears_the_metadata_validation_error_when_cancelling() {
 
     assert!(desktop.sources.error.is_none());
 }
+
+#[test]
+fn it_reports_a_metadata_write_error_after_leaving_songs() {
+    let (mut desktop, _) = editing_source();
+    let directory = tempfile::tempdir().unwrap();
+    let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    sources.editing = desktop.sources.editing.take();
+    desktop.sources = sources;
+    let _ = desktop.update(Message::SaveTrackEdit(false));
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+
+    let _ = desktop.update(Message::SourcesUpdated(Err("Cannot write metadata".into())));
+
+    assert_eq!(
+        desktop.sources.error.as_deref(),
+        Some("Cannot write metadata")
+    );
+}
+
+#[test]
+fn it_requires_positive_track_and_disc_numbers() {
+    let (mut desktop, _) = editing_source();
+
+    for (field, value) in [(3, "0"), (4, "-1")] {
+        let _ = desktop.update(Message::EditField(field, value.into()));
+        let _ = desktop.update(Message::SaveTrackEdit(false));
+        assert!(desktop.sources.editing.as_ref().unwrap().error.is_some());
+        let _ = desktop.update(Message::EditField(field, String::new()));
+    }
+}

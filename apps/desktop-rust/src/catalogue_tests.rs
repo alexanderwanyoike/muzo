@@ -332,6 +332,44 @@ fn it_opens_the_editor_with_effective_tags_and_saved_overrides() {
 }
 
 #[test]
+fn it_opens_and_clears_a_fractional_override_from_an_electron_catalogue() {
+    use crate::desktop::library_sources::{CataloguePaths, Operation, run};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    drop(paths.open().unwrap());
+    let database = Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database.execute_batch(
+        "INSERT INTO libraries (id, name, kind, location) VALUES ('source','Records','Dropbox','/Records');
+         INSERT INTO tracks (id,library_id,title,artist,duration_seconds,file_path,file_size,file_mtime,override_year)
+         VALUES ('song','source','Song','Artist',120,'/Records/track.mp3',100,1,1979.5);",
+    ).unwrap();
+    let snapshot = run(
+        &paths,
+        Operation::LoadTrackEditor("song".into(), "source".into()),
+    )
+    .unwrap();
+    let editor = snapshot.editor.unwrap();
+    assert!(editor.overridden);
+    assert_eq!(editor.fields[6], "1979.5");
+
+    run(
+        &paths,
+        Operation::EditTrack("song".into(), "source".into(), Default::default()),
+    )
+    .unwrap();
+    assert!(
+        paths
+            .open()
+            .unwrap()
+            .track_overrides("song")
+            .unwrap()
+            .year
+            .is_none()
+    );
+}
+
+#[test]
 fn it_keeps_the_custom_name_when_indexing_a_filesystem_source() {
     let root = tempfile::tempdir().unwrap();
     let folder = root.path().join("raw-folder-name");
