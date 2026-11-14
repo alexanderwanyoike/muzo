@@ -592,3 +592,26 @@ mod navigation_tests {
         assert_eq!(catalogue.playlist_entries(&target).unwrap().len(), 1);
     }
 }
+
+#[cfg(test)]
+mod artwork_tests {
+    use super::*;
+
+    #[test]
+    fn it_prepares_bounded_cover_art_for_an_unplayed_catalogued_song() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("songs");
+        std::fs::create_dir(&source).unwrap();
+        std::fs::copy(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/embedded-cover.mp3"),
+            source.join("covered.mp3"),
+        )
+        .unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+
+        let snapshot = run(&paths, Operation::Add(source)).unwrap();
+        let row = &snapshot.tracks[0];
+        assert!(snapshot.covers.get(&row.id).is_some());
+        assert_eq!(row.plays, 0);
+    }
+}
