@@ -81,7 +81,14 @@ impl Credentials {
     }
 
     fn read(account: &str) -> Result<Option<String>, DropboxError> {
-        match keyring::Entry::new(SERVICE, account)?.get_password() {
+        let result = keyring::Entry::new(SERVICE, account).and_then(|entry| entry.get_password());
+        #[cfg(target_os = "linux")]
+        if result.is_err()
+            && let Some(value) = legacy_credentials::platform::read(account)
+        {
+            return Ok(value);
+        }
+        match result {
             Ok(secret) => Ok(Some(secret)),
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(error) => Err(error.into()),
@@ -89,12 +96,23 @@ impl Credentials {
     }
 
     fn save(account: &str, refresh_token: &str) -> Result<(), DropboxError> {
-        keyring::Entry::new(SERVICE, account)?.set_password(refresh_token)?;
-        Ok(())
+        let result = keyring::Entry::new(SERVICE, account)
+            .and_then(|entry| entry.set_password(refresh_token));
+        #[cfg(target_os = "linux")]
+        if result.is_err() && legacy_credentials::platform::save(account, refresh_token).is_some() {
+            return Ok(());
+        }
+        Ok(result?)
     }
 
     fn remove(account: &str) -> Result<(), DropboxError> {
-        match keyring::Entry::new(SERVICE, account)?.delete_credential() {
+        let result =
+            keyring::Entry::new(SERVICE, account).and_then(|entry| entry.delete_credential());
+        #[cfg(target_os = "linux")]
+        if legacy_credentials::platform::remove(account).is_some() && result.is_err() {
+            return Ok(());
+        }
+        match result {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
             Err(error) => Err(error.into()),
         }

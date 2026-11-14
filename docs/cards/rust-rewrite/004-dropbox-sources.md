@@ -10,3 +10,12 @@
 
 This port uses Dropbox's documented PKCE and offline token flow, the folder
 listing cursor APIs, and the native credential facilities provided by Keyring.
+
+The legacy importer follows Electron 43's synchronous OSCrypt formats and
+[desktop identity](../../adr/0006-stable-desktop-storage-identity.md).
+[Electron's Chromium patch](https://github.com/electron/electron/blob/v43.0.0/patches/chromium/revert_oscrypt_remove_sync_backend.patch)
+documents the Linux Secret Service and KWallet namespaces and CBC derivation.
+[Electron's native initialization](https://github.com/electron/electron/blob/v43.0.0/shell/browser/electron_browser_main_parts.cc)
+sets the macOS Keychain identity and Windows Local State. The Rust side stores the
+migrated token in native secure storage and clears ciphertext from the copied
+catalogue only after that write succeeds.

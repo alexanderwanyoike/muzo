@@ -34,15 +34,15 @@ fn decrypt_cbc(
 
 #[cfg(target_os = "linux")]
 #[path = "legacy_credentials/linux.rs"]
-mod platform;
+pub(super) mod platform;
 
 #[cfg(target_os = "macos")]
 #[path = "legacy_credentials/macos.rs"]
-mod platform;
+pub(super) mod platform;
 
 #[cfg(target_os = "windows")]
 #[path = "legacy_credentials/windows.rs"]
-mod platform;
+pub(super) mod platform;
 
 #[cfg(all(test, target_os = "linux"))]
 mod tests {
