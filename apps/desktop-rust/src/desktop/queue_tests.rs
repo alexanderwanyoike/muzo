@@ -500,6 +500,16 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
     assert!(!session.is_playing());
     assert!(desktop.pending_track.is_none());
 
+    desktop
+        .sources
+        .snapshot
+        .as_mut()
+        .unwrap()
+        .playlist_entries
+        .retain(|entry| entry.id != "second");
+    let _ = desktop.update(Message::PlayPlaylist("second".into()));
+    assert!(!desktop.session.as_ref().unwrap().is_playing());
+
     let _ = desktop.update(Message::PlayPlaylist("missing".into()));
     assert_eq!(desktop.session.as_ref().unwrap().start_generation(), before);
 }
