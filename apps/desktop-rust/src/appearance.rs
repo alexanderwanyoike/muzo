@@ -68,6 +68,10 @@ impl Appearance {
         surfaces::for_material(&self.theme, self.mode == "dark")
     }
 
+    pub(crate) fn accent_ink(&self) -> iced::Color {
+        palette::accent_ink(&self.accent, self.mode == "dark")
+    }
+
     fn valid(&self) -> bool {
         MATERIALS.iter().any(|(id, _)| *id == self.theme)
             && MODES.iter().any(|(id, _)| *id == self.mode)

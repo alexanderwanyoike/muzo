@@ -67,3 +67,21 @@ fn accent_color(id: &str, dark: bool) -> Color {
         _ => color!(0x3563a7),
     }
 }
+
+pub(super) fn accent_ink(id: &str, dark: bool) -> Color {
+    match (id, dark) {
+        ("glow-green", false) => color!(0x08692c),
+        ("glow-cyan", false) => color!(0x005f6d),
+        ("glow-blue", false) => color!(0x104f9f),
+        ("glow-violet", false) => color!(0x5d2ba8),
+        ("glow-pink", false) => color!(0x92205f),
+        ("glow-orange", false) => color!(0x8a3e00),
+        ("glow-green", true) => color!(0x42ed83),
+        ("glow-cyan", true) => color!(0x42e9ff),
+        ("glow-blue", true) => color!(0x7dbaff),
+        ("glow-violet", true) => color!(0xc5a6ff),
+        ("glow-pink", true) => color!(0xff8ece),
+        ("glow-orange", true) => color!(0xffb36b),
+        _ => accent_color(id, dark),
+    }
+}

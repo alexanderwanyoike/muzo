@@ -17,6 +17,7 @@ const ACTIVE_LINE_WIDTH: f32 = 3.0;
 pub(super) struct Divider {
     pub sidebar_width: f32,
     pub line: Color,
+    pub ink: Color,
 }
 
 #[derive(Default)]
@@ -181,7 +182,7 @@ impl Widget<Message, Theme, Renderer> for Divider {
         &self,
         tree: &Tree,
         renderer: &mut Renderer,
-        theme: &Theme,
+        _: &Theme,
         _: &renderer::Style,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
@@ -191,7 +192,7 @@ impl Widget<Message, Theme, Renderer> for Divider {
         let state = tree.state.downcast_ref::<State>();
         let active = state.drag.is_some() || cursor.is_over(hit_area(bounds));
         let (width, color) = if active {
-            (ACTIVE_LINE_WIDTH, theme.palette().primary)
+            (ACTIVE_LINE_WIDTH, self.ink)
         } else {
             (bounds.width, self.line)
         };

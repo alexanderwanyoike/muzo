@@ -42,6 +42,7 @@ pub(in crate::desktop) fn library<'a>(
         Element::new(Divider {
             sidebar_width: width,
             line: surfaces.line,
+            ink: preferences.accent_ink(),
         }),
         column![
             toolbar(sources, page, surfaces),
