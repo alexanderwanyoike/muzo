@@ -636,3 +636,26 @@ mod artwork_tests {
         assert_eq!(row.plays, 0);
     }
 }
+
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+
+    #[test]
+    fn it_reports_track_counts_for_selected_and_unselected_sources() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+        let first = directory.path().join("first");
+        let second = directory.path().join("second");
+        for folder in [&first, &second] {
+            std::fs::create_dir(folder).unwrap();
+            std::fs::copy(&fixture, folder.join("tone.mp3")).unwrap();
+            run(&paths, Operation::Add(folder.clone())).unwrap();
+        }
+        let snapshot = run(&paths, Operation::Startup).unwrap();
+        assert_eq!(snapshot.tracks.len(), 1);
+        assert_eq!(snapshot.track_counts.values().sum::<u64>(), 2);
+        assert_eq!(snapshot.track_counts.len(), 2);
+    }
+}
