@@ -38,5 +38,12 @@ xdotool mousemove --window "$mini" 30 29 click 1
 sleep .5
 geometry "$library" > library-after
 capture "$library" "$3/rust-library-restored.png"
+xdotool key ctrl+m
+keyboard_mini=$(visible "Mini player")
+xdotool key ctrl+q
+sleep 1
+xdotool key Escape
+visible "^Muzo$" >/dev/null
+if xdotool search --onlyvisible --name "Mini player" >/dev/null; then exit 1; fi
 diff -u library-before library-after
 test "$(sed -n 's/^HEIGHT=//p' mini-queue)" -gt "$(sed -n 's/^HEIGHT=//p' mini-before)"
