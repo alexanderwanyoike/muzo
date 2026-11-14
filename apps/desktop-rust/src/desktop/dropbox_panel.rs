@@ -26,6 +26,7 @@ pub enum Action {
     Interval(String),
     SaveInterval,
     Sync,
+    SyncLibrary(String),
     OpenAuthorization(String),
 }
 
@@ -188,6 +189,10 @@ impl Settings {
 
     pub fn due(&self) -> bool {
         !self.busy && std::time::Instant::now() >= self.next_sync
+    }
+
+    pub fn can_refresh(&self) -> bool {
+        !self.busy && self.snapshot.account.is_some() && !self.snapshot.reconnect
     }
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
@@ -481,11 +486,16 @@ fn run(
                 snapshot.folder_error = Some(failures.join("; "));
             }
         }
-        Action::Sync | Action::Connect => {
+        Action::Sync | Action::Connect | Action::SyncLibrary(_) => {
+            let selected = match &action {
+                Action::SyncLibrary(id) => Some(id.as_str()),
+                _ => None,
+            };
             for library in catalogue
                 .libraries()?
                 .into_iter()
                 .filter(|library| library.kind == "dropbox")
+                .filter(|library| selected.is_none_or(|id| library.id == id))
             {
                 if let Some(owner) = catalogue.dropbox_account_for(&library.id)? {
                     let Some(key) = catalogue.dropbox_client(&owner)? else {

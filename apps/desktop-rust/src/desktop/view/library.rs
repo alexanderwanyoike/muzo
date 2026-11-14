@@ -367,16 +367,6 @@ pub(super) fn settings<'a>(
     focus: Option<crate::desktop::appearance_focus::Choice>,
 ) -> iced::widget::Column<'a, Message> {
     let surfaces = preferences.surfaces();
-    let refresh = sources
-        .snapshot
-        .as_ref()
-        .and_then(|snapshot| snapshot.selected.as_ref())
-        .filter(|_| !sources.busy())
-        .map(|id| {
-            Message::SourceOperation(super::super::library_sources::Operation::Refresh(
-                id.clone(),
-            ))
-        });
     let body = column![
         appearance::controls(preferences, focus),
         container(dropbox.view())
@@ -393,24 +383,7 @@ pub(super) fn settings<'a>(
         .padding(20)
         .width(Fill)
         .style(move |_| framed(surfaces.raised, surfaces, 4)),
-        container(
-            column![
-                text("Indexed sources").size(13).font(bold()),
-                row![
-                    button(text("Open files").size(13))
-                        .style(move |theme, status| bordered_button(theme, status, surfaces))
-                        .on_press_maybe(audio.then_some(Message::OpenFiles)),
-                    button(text("Refresh").size(13))
-                        .style(move |theme, status| bordered_button(theme, status, surfaces))
-                        .on_press_maybe(refresh),
-                ]
-                .spacing(8),
-            ]
-            .spacing(12)
-        )
-        .padding(16)
-        .width(Fill)
-        .style(move |_| framed(surfaces.raised, surfaces, 5)),
+        sources::indexed_sources(sources, preferences, audio, dropbox.can_refresh()),
     ]
     .spacing(20)
     .width(Fill)

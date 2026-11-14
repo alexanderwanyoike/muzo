@@ -10,6 +10,7 @@ use crate::{
     appearance::{Appearance, Surfaces},
     desktop::{
         Message,
+        dropbox_panel::Action,
         library_sources::{Operation, Snapshot, Sources},
     },
     session::Session,
@@ -50,6 +51,110 @@ pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, 
         .on_press_maybe(can_submit.then_some(Message::SubmitFolder)),
     ]
     .spacing(14)
+    .into()
+}
+
+pub(super) fn indexed_sources<'a>(
+    sources: &'a Sources,
+    appearance: &Appearance,
+    audio: bool,
+    can_refresh_dropbox: bool,
+) -> Element<'a, Message> {
+    let surfaces = appearance.surfaces();
+    let heading = container(
+        column![
+            text("Indexed sources").size(13).font(bold()),
+            text(
+                "Manual refresh is a fallback for recovery. Normal listening does not require it."
+            )
+            .size(11)
+            .color(surfaces.muted),
+        ]
+        .spacing(5),
+    )
+    .padding([16, 20])
+    .width(Fill);
+    let heading = stack![heading]
+        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
+        .clip(true);
+    let button_style =
+        move |theme: &Theme, status| library::bordered_button(theme, status, surfaces);
+    let mut body = column![
+        button(text("Open files").size(12))
+            .style(button_style)
+            .on_press_maybe(audio.then_some(Message::OpenFiles))
+    ]
+    .spacing(12);
+    for source in sources
+        .snapshot
+        .iter()
+        .flat_map(|snapshot| &snapshot.libraries)
+    {
+        let removing = sources.pending_remove.as_deref() == Some(&source.id);
+        let refresh = if source.kind == "filesystem" {
+            Some(Message::SourceOperation(Operation::Refresh(
+                source.id.clone(),
+            )))
+        } else if source.kind == "dropbox" && can_refresh_dropbox {
+            Some(Message::Dropbox(Action::SyncLibrary(source.id.clone())))
+        } else {
+            None
+        };
+        let remove = if removing {
+            Message::SourceOperation(Operation::Remove(source.id.clone()))
+        } else {
+            Message::RequestSourceRemoval(source.id.clone())
+        };
+        let mut controls = row![
+            button(text("Refresh").size(11))
+                .style(button_style)
+                .on_press_maybe(refresh.filter(|_| !sources.busy())),
+            button(
+                text(if removing {
+                    "Confirm removal"
+                } else {
+                    "Remove"
+                })
+                .size(11)
+            )
+            .style(button_style)
+            .on_press_maybe((!sources.busy()).then_some(remove)),
+        ]
+        .spacing(8);
+        if removing {
+            controls = controls.push(
+                button(text("Cancel").size(11))
+                    .style(button_style)
+                    .on_press(Message::CancelSourceRemoval),
+            );
+        }
+        body = body.push(library::line(surfaces)).push(
+            row![
+                column![
+                    text(&source.name)
+                        .size(12)
+                        .font(bold())
+                        .wrapping(text::Wrapping::WordOrGlyph),
+                    text(source.location.to_string_lossy())
+                        .size(11)
+                        .color(surfaces.muted)
+                        .wrapping(text::Wrapping::WordOrGlyph),
+                ]
+                .spacing(4)
+                .width(Fill),
+                controls,
+            ]
+            .spacing(14)
+            .align_y(Alignment::Center),
+        );
+    }
+    container(column![
+        heading,
+        library::line(surfaces),
+        container(body).padding(20).width(Fill)
+    ])
+    .width(Fill)
+    .style(move |_| library::framed(surfaces.raised, surfaces, 4))
     .into()
 }
 
