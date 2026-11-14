@@ -38,6 +38,7 @@ pub fn theme() -> Theme {
 
 pub fn library<'a>(
     sources: &'a Sources,
+    dropbox: &'a super::dropbox_panel::Settings,
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     error: Option<&'a str>,
@@ -45,6 +46,10 @@ pub fn library<'a>(
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
+        button(text("Dropbox").size(14))
+            .padding([7, 14])
+            .style(action)
+            .on_press(Message::Dropbox(super::dropbox_panel::Action::Toggle)),
         button(text("Add folder").size(14))
             .padding([7, 14])
             .style(action)
@@ -57,7 +62,9 @@ pub fn library<'a>(
     .align_y(Alignment::Center)
     .spacing(10);
 
-    let body = if let Some((_, _, fields)) = &sources.editing {
+    let body = if dropbox.visible {
+        dropbox.view()
+    } else if let Some((_, _, fields)) = &sources.editing {
         playlists::edit(fields, sources.busy())
     } else if let Some(snapshot) = sources
         .snapshot

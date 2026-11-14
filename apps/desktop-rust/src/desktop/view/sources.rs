@@ -23,7 +23,7 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
         .snapshot
         .iter()
         .flat_map(|snapshot| &snapshot.libraries)
-        .filter(|source| source.kind == "filesystem" && source.name.to_lowercase().contains(&query))
+        .filter(|source| source.name.to_lowercase().contains(&query))
         .map(|source| {
             let current = selected_id == Some(source.id.as_str());
             let label = text(&source.name)

@@ -1,3 +1,4 @@
+mod dropbox_panel;
 pub(crate) mod library_sources;
 mod view;
 mod windows;
@@ -27,6 +28,8 @@ pub enum Message {
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, String>),
     SourceWatchTick,
+    Dropbox(dropbox_panel::Action),
+    DropboxReady(Result<dropbox_panel::Snapshot, String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
@@ -37,7 +40,7 @@ pub enum Message {
     EditField(usize, String),
     SaveTrackEdit(bool),
     CloseTrackEdit,
-    IndexedQueueReady(usize, Result<Vec<Track>, String>),
+    IndexedQueueReady(u64, usize, Result<Vec<Track>, String>),
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
@@ -66,6 +69,8 @@ pub struct Desktop {
     error: Option<String>,
     artwork: Option<image::Handle>,
     sources: Sources,
+    dropbox: dropbox_panel::Settings,
+    playback_request: u64,
 }
 
 impl Desktop {
@@ -104,6 +109,8 @@ impl Desktop {
                 error,
                 artwork: None,
                 sources: Sources::new(None),
+                dropbox: dropbox_panel::Settings::default(),
+                playback_request: 0,
             },
             open,
         )
@@ -134,7 +141,22 @@ impl Desktop {
                 self.sources.apply(result);
                 Task::none()
             }
-            Message::SourceWatchTick => self.sources.poll(),
+            Message::SourceWatchTick => {
+                let local = self.sources.poll();
+                if self.dropbox.due() {
+                    let remote = self
+                        .dropbox
+                        .update(dropbox_panel::Action::Sync, self.sources.paths());
+                    Task::batch([local, remote])
+                } else {
+                    local
+                }
+            }
+            Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
+            Message::DropboxReady(result) => {
+                self.dropbox.apply(result);
+                self.sources.reload()
+            }
             Message::RequestSourceRemoval(id) => {
                 self.sources.pending_remove = Some(id);
                 Task::none()
@@ -182,14 +204,17 @@ impl Desktop {
                 self.sources.editing = None;
                 Task::none()
             }
-            Message::IndexedQueueReady(index, Ok(tracks)) => {
+            Message::IndexedQueueReady(request, _, _) if request != self.playback_request => {
+                Task::none()
+            }
+            Message::IndexedQueueReady(_, index, Ok(tracks)) => {
                 self.artwork = None;
                 self.transport(|session| {
                     session.replace(tracks);
                     session.select(index)
                 })
             }
-            Message::IndexedQueueReady(_, Err(error)) => {
+            Message::IndexedQueueReady(_, _, Err(error)) => {
                 self.error = Some(error);
                 Task::none()
             }
@@ -330,7 +355,7 @@ impl Desktop {
         task
     }
 
-    fn play_indexed(&self, index: usize, playlist: bool) -> Task<Message> {
+    fn play_indexed(&mut self, index: usize, playlist: bool) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
@@ -346,32 +371,64 @@ impl Desktop {
         if index >= tracks.len() || self.session.is_none() {
             return Task::none();
         }
+        let remote_libraries: std::collections::HashSet<_> = snapshot
+            .libraries
+            .iter()
+            .filter(|library| library.kind == "dropbox")
+            .map(|library| library.id.clone())
+            .collect();
+        let paths = self.sources.paths();
+        self.playback_request += 1;
+        let request = self.playback_request;
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
+                    let track_for_entry =
+                        |(position, track): (usize, crate::catalogue::IndexedTrack)| {
+                            let remote = remote_libraries.contains(&track.library_id);
+                            let (path, cover) = if remote && position == index {
+                                let paths = paths.as_ref().ok_or_else(|| {
+                                    "Could not locate the Dropbox cache.".to_owned()
+                                })?;
+                                let local = dropbox_panel::remote_audio(
+                                    paths,
+                                    &track.library_id,
+                                    &track.path.to_string_lossy(),
+                                )
+                                .map_err(|error| error.to_string())?;
+                                (local.clone(), Some(read_track(local)))
+                            } else if remote {
+                                (PathBuf::new(), None)
+                            } else {
+                                (
+                                    track.path.clone(),
+                                    (position == index).then(|| read_track(track.path)),
+                                )
+                            };
+                            Ok::<_, String>(
+                                Track::new(
+                                    path,
+                                    track.title,
+                                    Some(track.artist),
+                                    track.album,
+                                    cover
+                                        .as_ref()
+                                        .and_then(Track::artwork)
+                                        .map(std::sync::Arc::from),
+                                )
+                                .with_indexed_id(track.id),
+                            )
+                        };
                     tracks
                         .into_iter()
                         .enumerate()
-                        .map(|(position, track)| {
-                            let cover = (position == index).then(|| read_track(track.path.clone()));
-                            Track::new(
-                                track.path,
-                                track.title,
-                                Some(track.artist),
-                                track.album,
-                                cover
-                                    .as_ref()
-                                    .and_then(Track::artwork)
-                                    .map(std::sync::Arc::from),
-                            )
-                            .with_indexed_id(track.id)
-                        })
-                        .collect()
+                        .map(track_for_entry)
+                        .collect::<Result<Vec<_>, _>>()
                 })
                 .await
-                .map_err(|error| format!("Could not load the indexed tracks: {error}"))
+                .map_err(|error| format!("Could not load the indexed tracks: {error}"))?
             },
-            move |result| Message::IndexedQueueReady(index, result),
+            move |result| Message::IndexedQueueReady(request, index, result),
         )
     }
 
@@ -476,6 +533,7 @@ impl Desktop {
         } else {
             view::library(
                 &self.sources,
+                &self.dropbox,
                 self.session.as_ref(),
                 self.artwork.as_ref(),
                 self.error.as_deref(),

@@ -29,6 +29,14 @@ impl CataloguePaths {
         }
     }
 
+    pub(crate) fn open(&self) -> Result<Catalogue, CatalogueError> {
+        Catalogue::open(&self.current, Some(&self.legacy))
+    }
+
+    pub(crate) fn dropbox_cache(&self) -> PathBuf {
+        self.current.with_file_name("dropbox-audio-rust")
+    }
+
     pub(crate) fn from_environment() -> Option<Self> {
         let data = std::env::var_os("MUZO_DATA_DIR")
             .filter(|path| !path.is_empty())
@@ -199,6 +207,19 @@ impl Sources {
             watcher: None,
             roots: Vec::new(),
         }
+    }
+
+    pub(super) fn paths(&self) -> Option<CataloguePaths> {
+        self.paths.clone()
+    }
+
+    pub(super) fn reload(&mut self) -> Task<Message> {
+        let selected = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.selected.clone());
+        self.changed.store(true, Ordering::Release);
+        selected.map_or_else(Task::none, |id| self.start(Operation::Select(id)))
     }
 
     pub fn busy(&self) -> bool {
