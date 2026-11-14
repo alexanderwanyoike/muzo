@@ -23,9 +23,7 @@ fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     let current = root.join("current.sqlite");
     let database = Connection::open(&legacy).unwrap();
     database
-        .execute_batch(include_str!(
-            "../../desktop/electron/infrastructure/sqlite/fixtures/legacy-tauri-v5.sql"
-        ))
+        .execute_batch(include_str!("../tests/fixtures/legacy-tauri-v5.sql"))
         .unwrap();
     database.execute_batch("
         INSERT INTO libraries VALUES ('library-1', 'Records', 'Filesystem', '/music');
@@ -126,20 +124,18 @@ fn it_imports_electron_metadata_overrides_and_play_events() {
     let current = root.join("muzo-rust.sqlite");
     let database = Connection::open(&legacy).unwrap();
     database
-        .execute_batch(include_str!(
-            "../../desktop/electron/infrastructure/sqlite/fixtures/legacy-tauri-v5.sql"
-        ))
-        .unwrap();
-    database.execute_batch(include_str!("../../desktop/electron/infrastructure/sqlite/migrations/0006-create-dropbox-accounts.sql")).unwrap();
-    database
-        .execute_batch(include_str!(
-            "../../desktop/electron/infrastructure/sqlite/migrations/0007-dropbox-client-id.sql"
-        ))
+        .execute_batch(include_str!("../tests/fixtures/legacy-tauri-v5.sql"))
         .unwrap();
     database
         .execute_batch(include_str!(
-            "../../desktop/electron/infrastructure/sqlite/migrations/0008-dropbox-library-sync.sql"
+            "../migrations/0006-create-dropbox-accounts.sql"
         ))
+        .unwrap();
+    database
+        .execute_batch(include_str!("../migrations/0007-dropbox-client-id.sql"))
+        .unwrap();
+    database
+        .execute_batch(include_str!("../migrations/0008-dropbox-library-sync.sql"))
         .unwrap();
     database.execute_batch("PRAGMA user_version = 8; CREATE TABLE electron_migrations (version INTEGER PRIMARY KEY, name TEXT, applied_at_unix_seconds INTEGER);
         INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'Dropbox', '/Cloud');

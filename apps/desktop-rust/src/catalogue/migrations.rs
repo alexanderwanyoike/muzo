@@ -3,30 +3,14 @@ use rusqlite::Connection;
 use super::CatalogueError;
 
 const MIGRATIONS: [&str; 9] = [
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0001-create-libraries.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0002-create-tracks.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0003-track-metadata-overrides.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0004-create-playlists.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0005-create-play-history.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0006-create-dropbox-accounts.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0007-dropbox-client-id.sql"
-    ),
-    include_str!(
-        "../../../desktop/electron/infrastructure/sqlite/migrations/0008-dropbox-library-sync.sql"
-    ),
+    include_str!("../../migrations/0001-create-libraries.sql"),
+    include_str!("../../migrations/0002-create-tracks.sql"),
+    include_str!("../../migrations/0003-track-metadata-overrides.sql"),
+    include_str!("../../migrations/0004-create-playlists.sql"),
+    include_str!("../../migrations/0005-create-play-history.sql"),
+    include_str!("../../migrations/0006-create-dropbox-accounts.sql"),
+    include_str!("../../migrations/0007-dropbox-client-id.sql"),
+    include_str!("../../migrations/0008-dropbox-library-sync.sql"),
     "ALTER TABLE dropbox_accounts ADD COLUMN credential_store TEXT
      CHECK (credential_store IN ('keyring', 'kwallet'));",
 ];

@@ -321,8 +321,8 @@ fn it_can_reopen_cached_catalogue_artwork_without_the_original_audio() {
     let media = root.path().join("music");
     std::fs::create_dir(&media).unwrap();
     let file = media.join("song.mp3");
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../desktop/electron/infrastructure/metadata/fixtures/embedded-cover.mp3");
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/embedded-cover.mp3");
     std::fs::copy(fixture, &file).unwrap();
     let library = catalogue.add_folder(&media).unwrap();
     let row = catalogue.tracks(&library.id).unwrap().remove(0);
