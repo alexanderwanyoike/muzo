@@ -5,6 +5,7 @@ on:
     paths:
       - "apps/desktop-rust/**"
       - "apps/desktop/assets/icons/muzo-window.png"
+      - "apps/desktop/assets/icons/muzo.ico"
       - ".github/workflows/desktop-rust.yml"
   push:
     branches: [epic/rust-rewrite, dev, main]
