@@ -167,7 +167,12 @@ pub fn view(status: &Status, surfaces: Surfaces) -> Element<'_, Message> {
         ),
         Status::Error(error) => {
             return row![
-                text(error).size(10).color(surfaces.muted),
+                text(error)
+                    .size(10)
+                    .color(surfaces.muted)
+                    .align_x(iced::Right)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .width(iced::Fill),
                 pill(label, Some(Message::CheckUpdate), surfaces),
             ]
             .spacing(8)
@@ -240,17 +245,17 @@ mod tests {
         let surfaces = crate::appearance::Appearance::default().surfaces();
         let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
         let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
-        let width = |reason| {
-            let status = Status::Error(reason);
-            let mut element = view(&status, surfaces);
-            let mut tree = Tree::new(&element);
-            element
-                .as_widget_mut()
-                .layout(&mut tree, &renderer, &limits)
-                .size()
-                .width
-        };
-        assert!(width("Connection closed during the download".into()) > width("Offline".into()));
+        let status = Status::Error("Connection closed during the download".into());
+        let mut element = view(&status, surfaces);
+        let mut tree = Tree::new(&element);
+        let node = element
+            .as_widget_mut()
+            .layout(&mut tree, &renderer, &limits);
+        let detail = iced::advanced::Layout::new(&node)
+            .children()
+            .next()
+            .unwrap();
+        assert!(detail.bounds().width > 120.0);
     }
 
     #[test]

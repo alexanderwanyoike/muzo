@@ -76,9 +76,7 @@ pub(in crate::desktop) fn library<'a>(
             row![Space::new().width(Fill), updates::view(update, surfaces)]
                 .align_y(Alignment::Center),
         )
-        .padding([0, 12])
-        .height(34)
-        .center_y(34)
+        .padding([5, 12])
         .style(move |_| container::Style::default().background(surfaces.chrome)),
     ];
 
