@@ -101,7 +101,7 @@ impl Session {
         (self.playback.position(), self.playback.duration())
     }
 
-    pub fn seek(&self, value: Duration) -> Result<(), SessionError> {
+    pub fn seek(&mut self, value: Duration) -> Result<(), SessionError> {
         self.playback.seek(value)?;
         Ok(())
     }

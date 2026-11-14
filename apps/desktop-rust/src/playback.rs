@@ -1,4 +1,9 @@
-use std::{fs::File, io, path::Path, time::Duration};
+use std::{
+    fs::File,
+    io,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use rodio::{Decoder, Player, Source, decoder::DecoderError, mixer::Mixer, source::SeekError};
 
@@ -18,6 +23,8 @@ pub struct Playback {
     mixer: Mixer,
     player: Option<Player>,
     duration: Duration,
+    offset: Duration,
+    source_path: Option<PathBuf>,
     volume: f32,
 }
 
@@ -27,23 +34,41 @@ impl Playback {
             mixer,
             player: None,
             duration: Duration::ZERO,
+            offset: Duration::ZERO,
+            source_path: None,
             volume: 1.0,
         }
     }
 
     pub fn play(&mut self, path: &Path) -> Result<(), PlaybackError> {
-        let decoded = Decoder::try_from(File::open(path)?)?;
+        self.start(path, Duration::ZERO, false)?;
+        self.source_path = Some(path.to_owned());
+        Ok(())
+    }
+
+    fn start(&mut self, path: &Path, offset: Duration, paused: bool) -> Result<(), PlaybackError> {
+        let mut decoded = Decoder::try_from(File::open(path)?)?;
+        let duration = decoded.total_duration().unwrap_or_default();
+        if !offset.is_zero() {
+            decoded.try_seek(offset)?;
+        }
         let player = Player::connect_new(&self.mixer);
+        if paused {
+            player.pause();
+        }
         player.set_volume(self.volume);
-        self.duration = decoded.total_duration().unwrap_or_default();
         player.append(decoded);
         self.player = Some(player);
+        self.duration = duration;
+        self.offset = offset;
         Ok(())
     }
 
     pub fn reset(&mut self) {
         self.player = None;
         self.duration = Duration::ZERO;
+        self.offset = Duration::ZERO;
+        self.source_path = None;
     }
 
     pub fn is_finished(&self) -> bool {
@@ -66,7 +91,9 @@ impl Playback {
     }
 
     pub fn position(&self) -> Duration {
-        self.player.as_ref().map_or(Duration::ZERO, Player::get_pos)
+        self.player
+            .as_ref()
+            .map_or(Duration::ZERO, |player| self.offset + player.get_pos())
     }
 
     pub fn is_paused(&self) -> bool {
@@ -85,9 +112,15 @@ impl Playback {
         }
     }
 
-    pub fn seek(&self, target: Duration) -> Result<(), PlaybackError> {
-        if let Some(player) = &self.player {
-            player.try_seek(target.min(self.duration))?;
+    pub fn seek(&mut self, target: Duration) -> Result<(), PlaybackError> {
+        if let Some(path) = self.source_path.clone() {
+            let target = if self.duration.is_zero() {
+                target
+            } else {
+                target.min(self.duration)
+            };
+            // A device callback may stop at EOF before consuming Player::try_seek.
+            self.start(&path, target, self.is_paused())?;
         }
         Ok(())
     }
