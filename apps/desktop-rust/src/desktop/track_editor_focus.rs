@@ -129,13 +129,18 @@ impl Control {
 pub(super) struct Navigation {
     serial: u64,
     active: Option<u64>,
-    queued: VecDeque<bool>,
+    queued: VecDeque<KeyboardAction>,
+}
+
+enum KeyboardAction {
+    Tab(bool),
+    Activate,
 }
 
 impl Navigation {
     pub(super) fn request(&mut self, backwards: bool) -> Task<Message> {
         if self.active.is_some() {
-            self.queued.push_back(backwards);
+            self.queued.push_back(KeyboardAction::Tab(backwards));
             return Task::none();
         }
         self.serial += 1;
@@ -154,9 +159,27 @@ impl Navigation {
             return Task::none();
         }
         self.active = None;
-        self.queued
-            .pop_front()
-            .map_or_else(Task::none, |direction| self.request(direction))
+        self.advance()
+    }
+
+    pub(super) fn defer_activation(&mut self) -> bool {
+        if self.active.is_none() && self.queued.is_empty() {
+            return false;
+        }
+        self.queued.push_back(KeyboardAction::Activate);
+        true
+    }
+
+    pub(super) fn focus_pending(&self) -> bool {
+        self.active.is_some()
+    }
+
+    pub(super) fn advance(&mut self) -> Task<Message> {
+        match self.queued.pop_front() {
+            Some(KeyboardAction::Tab(backwards)) => self.request(backwards),
+            Some(KeyboardAction::Activate) => Task::done(Message::ActivateTrackEditor),
+            None => Task::none(),
+        }
     }
 
     pub(super) fn reset(&mut self) {
