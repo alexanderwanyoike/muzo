@@ -76,3 +76,19 @@ fn it_stays_paused_after_seeking_an_ended_track_and_resumes_from_that_position()
             .any(|sample| sample.abs() > 0.001)
     );
 }
+
+#[test]
+fn it_removes_a_sources_queue_entries_and_stops_its_current_audio() {
+    let (mixer, _output) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
+    let audio = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let mut session = Session::new(Playback::new(mixer));
+    session.extend([
+        read_track(audio.clone()).with_library("removed".into()),
+        read_track(audio).with_library("kept".into()),
+    ]);
+    session.select(0).unwrap();
+    session.remove_library("removed");
+    assert!(!session.is_playing());
+    assert!(session.current().is_none());
+    assert_eq!(session.tracks().len(), 1);
+}
