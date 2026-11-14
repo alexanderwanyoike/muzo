@@ -108,8 +108,8 @@ pub enum Message {
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
-    ActivateMiniFocus(window::Id),
-    MiniSpace(window::Id),
+    ActivateMiniFocus(window::Id, bool),
+    MiniSpace(window::Id, bool),
     MiniArrow(window::Id, i8),
     PlaylistPickerVerticalArrow(window::Id, i8),
     ClickMiniControl(MiniControl),
@@ -858,8 +858,8 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::ActivateMiniFocus(id) => {
-                if let Some(task) = self.route_playlist_picker_activation(id) {
+            Message::ActivateMiniFocus(id, repeat) => {
+                if let Some(task) = self.route_playlist_picker_activation(id, repeat) {
                     return task;
                 }
                 if let Some(task) = self.route_track_editor_activation(id) {
@@ -888,8 +888,8 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::MiniSpace(id) => {
-                if let Some(task) = self.route_playlist_picker_activation(id) {
+            Message::MiniSpace(id, repeat) => {
+                if let Some(task) = self.route_playlist_picker_activation(id, repeat) {
                     return task;
                 }
                 if let Some(task) = self.route_track_editor_activation(id) {
@@ -899,10 +899,10 @@ impl Desktop {
                     && self.page == LibraryPage::Settings
                     && self.appearance_focus.is_some()
                 {
-                    return self.update(Message::ActivateMiniFocus(id));
+                    return self.update(Message::ActivateMiniFocus(id, repeat));
                 }
                 if self.windows.is_mini(id) && self.mini_focus.is_some() {
-                    self.update(Message::ActivateMiniFocus(id))
+                    self.update(Message::ActivateMiniFocus(id, repeat))
                 } else {
                     self.update(Message::TogglePlayback)
                 }
@@ -1033,11 +1033,18 @@ impl Desktop {
         Some(next.reveal())
     }
 
-    fn route_playlist_picker_activation(&mut self, id: window::Id) -> Option<Task<Message>> {
+    fn route_playlist_picker_activation(
+        &mut self,
+        id: window::Id,
+        repeat: bool,
+    ) -> Option<Task<Message>> {
         if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
             return None;
         }
         let picker = self.sources.playlist_picker.as_ref()?;
+        if repeat && picker.focus == Some(playlist_picker_focus::Control::Choice) {
+            return Some(Task::none());
+        }
         let message = picker
             .focus
             .and_then(playlist_picker_focus::Control::message);
@@ -1493,15 +1500,17 @@ fn input_message(
     if status == iced::event::Status::Captured {
         return None;
     }
-    let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = event
+    let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+        key, modifiers, repeat, ..
+    }) = event
     else {
         return None;
     };
     use iced::keyboard::{Key, key::Named};
     match (key.as_ref(), modifiers.command()) {
         (Key::Named(Named::Tab), false) => Some(Message::CycleMiniFocus(id, modifiers.shift())),
-        (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id)),
-        (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id)),
+        (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id, repeat)),
+        (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id, repeat)),
         (Key::Named(Named::Escape), false) => Some(Message::EscapePressed(id)),
         (Key::Named(Named::ArrowLeft), false) => Some(Message::MiniArrow(id, -1)),
         (Key::Named(Named::ArrowRight), false) => Some(Message::MiniArrow(id, 1)),

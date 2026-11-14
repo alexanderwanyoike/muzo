@@ -242,7 +242,7 @@ fn it_can_expand_the_mini_queue_from_the_keyboard() {
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
 
-    assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
+    assert!(desktop.update(Message::ActivateMiniFocus(mini_id, false)).units() > 0);
     assert!(desktop.windows.queue_pending());
 }
 
@@ -255,7 +255,7 @@ fn it_skips_disabled_transport_when_cycling_mini_controls() {
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
 
-    assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
+    assert!(desktop.update(Message::ActivateMiniFocus(mini_id, false)).units() > 0);
     assert!(!desktop.windows.is_mini(mini_id));
 }
 
@@ -271,7 +271,7 @@ fn it_selects_a_visible_mini_queue_entry_with_tab_and_enter() {
     for _ in 0..5 {
         let _ = desktop.update(Message::CycleMiniFocus(mini, false));
     }
-    let _ = desktop.update(Message::ActivateMiniFocus(mini));
+    let _ = desktop.update(Message::ActivateMiniFocus(mini, false));
 
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(1));
 }
@@ -678,7 +678,7 @@ fn it_can_choose_the_next_appearance_material_with_tab_and_space() {
     let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
-    let _ = desktop.update(Message::MiniSpace(library));
+    let _ = desktop.update(Message::MiniSpace(library, false));
 
     assert_eq!(desktop.appearance.theme, "pulse");
 }
@@ -691,7 +691,7 @@ fn it_activates_the_material_clicked_after_keyboard_navigation() {
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
     let _ = desktop.update(Message::Material("walnut"));
-    let _ = desktop.update(Message::MiniSpace(library));
+    let _ = desktop.update(Message::MiniSpace(library, false));
 
     assert_eq!(desktop.appearance.theme, "walnut");
 }
@@ -710,7 +710,7 @@ fn it_clears_the_appearance_choice_when_a_text_entry_captures_a_tap() {
     if let Some(message) = input_message(tap, iced::event::Status::Captured, library) {
         let _ = desktop.update(message);
     }
-    let _ = desktop.update(Message::ActivateMiniFocus(library));
+    let _ = desktop.update(Message::ActivateMiniFocus(library, false));
 
     assert_eq!(desktop.appearance.theme, "studio");
 }
@@ -1140,7 +1140,7 @@ fn it_does_not_activate_an_old_metadata_button_while_tab_is_moving_focus() {
     desktop.sources.editing.as_mut().unwrap().action_focus = Some(TrackEditorControl::Cancel);
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
 
-    let _ = desktop.update(Message::ActivateMiniFocus(library));
+    let _ = desktop.update(Message::ActivateMiniFocus(library, false));
 
     assert!(desktop.sources.editing.is_some());
 }
@@ -1158,7 +1158,7 @@ fn it_keeps_space_on_an_unavailable_metadata_action_out_of_playback() {
     let _ = desktop.update(Message::Select(0));
     assert!(desktop.session.as_ref().unwrap().is_playing());
 
-    let _ = desktop.update(Message::MiniSpace(library));
+    let _ = desktop.update(Message::MiniSpace(library, false));
 
     assert!(desktop.session.as_ref().unwrap().is_playing());
 }
@@ -1201,7 +1201,7 @@ fn it_keeps_space_from_pausing_music_while_the_playlist_picker_is_open() {
     let _ = desktop.update(Message::Select(0));
     let _ = desktop.update(Message::OpenPlaylistPicker(track));
 
-    let _ = desktop.update(Message::MiniSpace(library));
+    let _ = desktop.update(Message::MiniSpace(library, false));
 
     assert!(desktop.session.as_ref().unwrap().is_playing());
 }
@@ -1256,7 +1256,7 @@ fn it_opens_the_playlist_popup_and_confirms_a_keyboard_choice() {
         .collect();
     let _ = desktop.update(Message::OpenPlaylistPicker(track));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
-    let _ = desktop.update(Message::ActivateMiniFocus(library));
+    let _ = desktop.update(Message::ActivateMiniFocus(library, false));
 
     assert!(playlist_popup_is_visible(&desktop));
     let _ = desktop.update(Message::PlaylistPickerVerticalArrow(library, 1));
@@ -1270,7 +1270,7 @@ fn it_opens_the_playlist_popup_and_confirms_a_keyboard_choice() {
             .as_deref(),
         Some("first")
     );
-    let _ = desktop.update(Message::ActivateMiniFocus(library));
+    let _ = desktop.update(Message::ActivateMiniFocus(library, false));
 
     assert!(!playlist_popup_is_visible(&desktop));
     assert_eq!(
