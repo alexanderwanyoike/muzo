@@ -37,6 +37,7 @@ public static class MuzoWindows
     [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr window);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr window);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(
         IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
@@ -161,7 +162,7 @@ try {
     $restored = Wait-MuzoWindow 'the restored library' {
         param($window)
         $window -eq $library -and [MuzoWindows]::IsZoomed($window) -and
-            (Get-WindowBounds $window).Equals($libraryBounds)
+            (Get-WindowBounds $window).Equals($libraryBounds) -and ![MuzoWindows]::IsWindow($mini)
     }
     Save-MuzoWindow $restored 'windows-library-restored'
     Write-Host 'Verified the Windows compact window, queue expansion and collapse, and maximized library restoration.'
