@@ -234,3 +234,30 @@ fn client() -> Result<Client, reqwest::Error> {
 fn valid_hex(value: &str, length: usize) -> bool {
     value.len() == length && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
+
+#[cfg(test)]
+mod publication_tests {
+    use super::*;
+
+    #[test]
+    fn it_rejects_an_update_when_the_published_assets_omit_an_installer() {
+        let version = "0.1.0";
+        let mut release = Latest {
+            tag_name: format!("v{version}"),
+            draft: false,
+            prerelease: false,
+            assets: Vec::new(),
+        };
+        for name in required_assets(version) {
+            release.assets.push(PublishedAsset {
+                browser_download_url: format!("{RELEASE_ROOT}/download/v{version}/{name}"),
+                name,
+            });
+        }
+        assert!(release.complete(version));
+        release
+            .assets
+            .retain(|asset| asset.name != filename(version, Target::LinuxX64));
+        assert!(!release.complete(version));
+    }
+}
