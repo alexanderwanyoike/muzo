@@ -114,6 +114,7 @@ pub struct Desktop {
     error: Option<String>,
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
+    queue_covers: row_cover::Covers,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
@@ -192,6 +193,7 @@ impl Desktop {
                 error,
                 cover: Cover::default(),
                 direct_covers: Default::default(),
+                queue_covers: Default::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
@@ -456,10 +458,19 @@ impl Desktop {
                     return Task::none();
                 };
                 match result {
-                    Ok(track) => self.transport(|session| {
-                        session.replace_track(index, track)?;
-                        session.select(index)
-                    }),
+                    Ok(track) => {
+                        if self.queue_covers.len() < row_cover::ROW_LIMIT
+                            && let Some(id) = track.indexed_id()
+                            && !self.queue_covers.contains_key(id)
+                            && let Some(handle) = track.artwork().and_then(row_cover::row_handle)
+                        {
+                            self.queue_covers.insert(id.to_owned(), handle);
+                        }
+                        self.transport(|session| {
+                            session.replace_track(index, track)?;
+                            session.select(index)
+                        })
+                    }
                     Err(error) => {
                         self.failed_track = Some(index);
                         if self.session.as_ref().and_then(Session::current).is_none() {
@@ -501,7 +512,9 @@ impl Desktop {
                     && !files.tracks.is_empty()
                 {
                     let first = session.tracks().len();
-                    self.direct_covers.extend(files.covers);
+                    let remaining = row_cover::ROW_LIMIT.saturating_sub(self.direct_covers.len());
+                    self.direct_covers
+                        .extend(files.covers.into_iter().take(remaining));
                     session.extend(files.tracks);
                     if session.current().is_none() {
                         return self.transport(|session| session.select(first));
@@ -826,7 +839,7 @@ impl Desktop {
             .filter(|library| library.kind == "dropbox")
             .map(|library| library.id.clone())
             .collect();
-        let tracks = tracks
+        let tracks: Vec<_> = tracks
             .into_iter()
             .map(|(track, entry)| {
                 let is_remote = remote_libraries.contains(&track.library_id);
@@ -850,6 +863,14 @@ impl Desktop {
                 } else {
                     item
                 }
+            })
+            .collect();
+        self.direct_covers.clear();
+        self.queue_covers = tracks
+            .iter()
+            .filter_map(|track: &Track| {
+                let id = track.indexed_id()?;
+                Some((id.to_owned(), snapshot.covers.get(id)?.clone()))
             })
             .collect();
         if let Some(session) = &mut self.session {
@@ -1073,14 +1094,7 @@ impl Desktop {
             view::mini(
                 self.session.as_ref(),
                 self.windows.mini_view(),
-                (
-                    &self.cover,
-                    self.sources
-                        .snapshot
-                        .as_ref()
-                        .map(|snapshot| &snapshot.covers),
-                    &self.direct_covers,
-                ),
+                (&self.cover, Some(&self.queue_covers), &self.direct_covers),
                 self.appearance.surfaces(),
                 (self.error.as_deref(), self.failed_track.is_some()),
                 self.mini_focus,

@@ -15,7 +15,7 @@ use crate::{
 use super::CataloguePaths;
 
 const ROW_EDGE: u32 = 48;
-const ROW_LIMIT: usize = 512;
+pub(super) const ROW_LIMIT: usize = 512;
 
 pub type Covers = HashMap<String, Handle>;
 pub type DirectCovers = HashMap<PathBuf, Handle>;
@@ -58,8 +58,12 @@ pub(super) fn indexed<'a>(
         .collect();
     let cache = ArtworkCache::new(paths.artwork_cache());
     let mut covers = Covers::new();
-    for track in tracks.into_iter().take(ROW_LIMIT) {
-        if covers.contains_key(&track.id) {
+    let mut visited = HashSet::new();
+    for track in tracks {
+        if covers.len() >= ROW_LIMIT {
+            break;
+        }
+        if !visited.insert(&track.id) {
             continue;
         }
         let Ok(revision) = catalogue.artwork_revision(&track.library_id, &track.id) else {
@@ -79,7 +83,7 @@ pub(super) fn indexed<'a>(
     covers
 }
 
-fn row_handle(bytes: &[u8]) -> Option<Handle> {
+pub(super) fn row_handle(bytes: &[u8]) -> Option<Handle> {
     let pixels = decode_cover(bytes)?
         .thumbnail(ROW_EDGE, ROW_EDGE)
         .into_rgba8();

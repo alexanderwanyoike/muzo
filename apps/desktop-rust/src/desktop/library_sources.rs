@@ -228,16 +228,16 @@ fn run_with_selection(
         .map(|id| catalogue.tracks(id))
         .transpose()?
         .unwrap_or_default();
-    let covers = super::row_cover::indexed(
+    let playlist_covers = super::row_cover::indexed(
         paths,
         &catalogue,
         &libraries,
-        tracks.iter().chain(
-            playlist_entries
-                .iter()
-                .filter_map(|entry| entry.track.as_ref()),
-        ),
+        playlist_entries
+            .iter()
+            .filter_map(|entry| entry.track.as_ref()),
     );
+    let mut covers = super::row_cover::indexed(paths, &catalogue, &libraries, &tracks);
+    covers.extend(playlist_covers);
     Ok(Snapshot {
         track_counts: catalogue.track_counts()?,
         playlist_counts: catalogue.playlist_counts()?,
