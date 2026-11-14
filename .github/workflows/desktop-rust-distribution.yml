@@ -8,6 +8,8 @@ on:
       - "apps/desktop/assets/licenses/**"
       - "apps/desktop/electron-builder.config.json"
       - "apps/desktop/package.json"
+      - "packages/distribution/**"
+      - "package.json"
       - "yarn.lock"
       - ".github/workflows/desktop-rust-distribution.yml"
   workflow_dispatch:
@@ -20,7 +22,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      sourceCommit: ${{ steps.release.outputs.sourceCommit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - name: Resolve matching native release versions
+        id: release
+        run: yarn release:context --native --github-output "$GITHUB_OUTPUT"
+
   package:
+    needs: context
     strategy:
       fail-fast: false
       matrix:
@@ -86,16 +109,17 @@ jobs:
       - name: Package the Rust payload with the existing Windows installer identity
         if: runner.os == 'Windows'
         working-directory: apps/desktop
+        env:
+          MUZO_VERSION: ${{ needs.context.outputs.version }}
         run: |
           payload="$RUNNER_TEMP/muzo-rust-payload"
           mkdir -p "$payload/resources"
           cp ../desktop-rust/target/release/muzo-desktop.exe "$payload/muzo.exe"
           cp -R assets/licenses "$payload/resources/licenses"
-          version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' ../desktop-rust/Packager.toml)
           builder=$(node -p 'require.resolve("electron-builder/cli.js")')
           node "$builder" --prepackaged "$payload" --win nsis --x64 \
             --config electron-builder.config.json \
-            --config.extraMetadata.version="$version" \
+            --config.extraMetadata.version="$MUZO_VERSION" \
             --config.directories.output=../desktop-rust/out/rust-distribution --publish never
       - run: yarn exec cargo -- +1.95 run --locked --release --bin name-installer out/rust-distribution
       - name: Verify Linux AppImage
@@ -164,7 +188,7 @@ jobs:
           if-no-files-found: error
 
   assemble:
-    needs: package
+    needs: [context, package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -181,16 +205,11 @@ jobs:
           pattern: muzo-rust-*
           path: release-input
           merge-multiple: true
-      - name: Resolve matching native release versions
-        id: context
-        env:
-          MUZO_SOURCE_COMMIT: ${{ github.sha }}
-        run: yarn release:context --native --source-commit "$MUZO_SOURCE_COMMIT" --github-output "$GITHUB_OUTPUT"
       - name: Assemble and verify the existing release contract
         env:
-          MUZO_VERSION: ${{ steps.context.outputs.version }}
-          MUZO_TAG: ${{ steps.context.outputs.tag }}
-          MUZO_SOURCE_COMMIT: ${{ steps.context.outputs.sourceCommit }}
+          MUZO_VERSION: ${{ needs.context.outputs.version }}
+          MUZO_TAG: ${{ needs.context.outputs.tag }}
+          MUZO_SOURCE_COMMIT: ${{ needs.context.outputs.sourceCommit }}
         run: |
           set -euo pipefail
           yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "$MUZO_VERSION" --tag "$MUZO_TAG" --source-commit "$MUZO_SOURCE_COMMIT"
