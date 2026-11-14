@@ -67,7 +67,13 @@ function Wait-MuzoWindow([string] $Stage, [scriptblock] $Match, [switch] $Activa
         }
         Start-Sleep -Milliseconds $windowPollMilliseconds
     }
-    throw "Timed out waiting for $Stage. Foreground window $window belongs to process $owner."
+    $details = "Foreground window $window belongs to process $owner."
+    $client = [MuzoWindows+Rect]::new()
+    if ($owner -eq $application.Id -and [MuzoWindows]::GetClientRect($window, [ref] $client)) {
+        $details += " Its client area is $($client.Right) by $($client.Bottom) pixels."
+        $details += " Maximized $([MuzoWindows]::IsZoomed($window)), minimized $([MuzoWindows]::IsIconic($window))."
+    }
+    throw "Timed out waiting for $Stage. $details"
 }
 
 function Send-MuzoKeys([IntPtr] $Window, [string] $Keys) {
@@ -154,10 +160,11 @@ try {
     Save-MuzoWindow $expanded 'windows-mini-queue'
 
     Send-MuzoKeys $mini '^q'
-    $null = Wait-MuzoWindow 'the collapsed mini player queue' {
+    $collapsed = Wait-MuzoWindow 'the collapsed mini player queue' {
         param($window)
         $window -eq $mini -and (Test-ClientSize $window $miniWidth $miniHeight)
     }
+    Save-MuzoWindow $collapsed 'windows-mini-collapsed'
     Send-MuzoKeys $mini '{ESC}'
     $restored = Wait-MuzoWindow 'the restored library' {
         param($window)
