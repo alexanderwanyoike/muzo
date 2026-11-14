@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, appearance, bold, clock, compact, error_line, icon_button, icon_tinted,
-    library_content, playback_error, playlists, sources,
+    Icon, action, appearance, bold, clock, compact, control_opacity, error_line, icon_button,
+    icon_tinted, library_content, playback_error, playlists, sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -194,15 +194,10 @@ fn transport<'a>(
 }
 
 fn chrome_play(playing: bool, enabled: bool) -> Element<'static, Message> {
-    let glyph = icon_tinted(
-        if playing { Icon::Pause } else { Icon::Play },
-        move |theme| {
-            theme
-                .palette()
-                .text
-                .scale_alpha(if enabled { 1.0 } else { 0.4 })
-        },
-    )
+    let glyph = icon_tinted(if playing { Icon::Pause } else { Icon::Play }, |theme| {
+        theme.palette().text
+    })
+    .opacity(control_opacity(enabled))
     .width(26)
     .height(26);
     button(container(glyph).center(34))

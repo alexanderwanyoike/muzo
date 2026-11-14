@@ -258,12 +258,10 @@ fn focusable_icon(
         if prominent {
             theme.extended_palette().primary.base.text
         } else {
-            theme
-                .palette()
-                .text
-                .scale_alpha(if active { 1.0 } else { 0.4 })
+            theme.palette().text
         }
-    });
+    })
+    .opacity(control_opacity(active));
     tooltip(
         button(glyph)
             .padding([6, 8])
@@ -274,6 +272,10 @@ fn focusable_icon(
     )
     .style(panel)
     .into()
+}
+
+fn control_opacity(enabled: bool) -> f32 {
+    if enabled { 1.0 } else { 0.4 }
 }
 
 fn track_play_button(
