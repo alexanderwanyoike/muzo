@@ -1193,3 +1193,25 @@ fn it_changes_the_focused_playlist_choice_with_the_arrow_keys() {
     );
     assert!(!desktop.sources.track_add_pending());
 }
+
+#[test]
+fn it_keeps_space_from_pausing_music_while_the_playlist_picker_is_open() {
+    let (mut desktop, track) = editing_source();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::Select(0));
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+
+    let _ = desktop.update(Message::MiniSpace(library));
+
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+}
+
+#[test]
+fn it_keeps_horizontal_arrows_out_of_playback_while_playlist_cancel_is_focused() {
+    let (mut desktop, track) = editing_source();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+    let _ = desktop.update(Message::CycleMiniFocus(library, true));
+
+    assert!(desktop.route_playlist_picker_arrow(library, 1));
+}
