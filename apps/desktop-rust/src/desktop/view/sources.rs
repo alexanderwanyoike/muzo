@@ -231,10 +231,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             .into()
         })
         .collect();
-    let libraries = sources
-        .snapshot
-        .as_ref()
-        .map_or(0, |snapshot| snapshot.libraries.len());
+    let libraries = source_count(sources);
     let heading = container(
         row![
             icon_tinted(Icon::Folder, move |_| surfaces.muted)
@@ -242,7 +239,9 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                 .height(14),
             text("Sources").size(11).font(bold()),
             Space::new().width(Fill),
-            text(libraries).size(9).color(surfaces.muted),
+            text(libraries.map_or_else(String::new, |count| count.to_string()))
+                .size(9)
+                .color(surfaces.muted),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -275,7 +274,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         add
     ];
     let mut body = column![heading, library::line(surfaces)];
-    if libraries != 0 {
+    if let Some(libraries) = libraries.filter(|count| *count != 0) {
         body = body.push(source_search(sources, surfaces));
         if !sources.search.is_empty() {
             body = body.push(
@@ -290,7 +289,9 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         body = body.push(library::line(surfaces));
     }
     let list: Element<'_, Message> = match (libraries, matching) {
-        (0, _) => source_search_empty("No libraries yet. Add one in Settings.", surfaces).into(),
+        (None | Some(0), _) => {
+            source_search_empty("No libraries yet. Add one in Settings.", surfaces).into()
+        }
         (_, 0) => source_search_empty("No sources match your search.", surfaces).into(),
         _ => column(source_rows).into(),
     };
@@ -326,6 +327,24 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .width(Fill)
         .height(Fill)
         .into()
+}
+
+fn source_count(sources: &Sources) -> Option<usize> {
+    Some(
+        sources
+            .snapshot
+            .as_ref()
+            .map_or(0, |snapshot| snapshot.libraries.len()),
+    )
+}
+
+#[cfg(test)]
+#[test]
+fn it_does_not_report_zero_libraries_before_loading_the_catalogue() {
+    let mut sources = Sources::new(None);
+    assert_eq!(source_count(&sources), None);
+    sources.apply(Err("Could not open catalogue".into()));
+    assert_eq!(source_count(&sources), None);
 }
 
 fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
