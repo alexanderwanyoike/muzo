@@ -3,7 +3,7 @@ pub mod appimage;
 mod update;
 pub use update::{Artifact, Release, Update, UpdateError, latest, update_for};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Target {
     LinuxX64,
     WindowsX64,
@@ -12,6 +12,22 @@ pub enum Target {
 }
 
 impl Target {
+    pub(super) const ALL: [Self; 4] = [
+        Self::LinuxX64,
+        Self::WindowsX64,
+        Self::MacArm64,
+        Self::MacX64,
+    ];
+
+    pub(super) fn manifest_identity(self) -> (&'static str, &'static str) {
+        match self {
+            Self::LinuxX64 => ("linux", "x64"),
+            Self::WindowsX64 => ("windows", "x64"),
+            Self::MacArm64 => ("macos", "arm64"),
+            Self::MacX64 => ("macos", "x64"),
+        }
+    }
+
     pub fn current() -> Option<Self> {
         match (std::env::consts::OS, std::env::consts::ARCH) {
             ("linux", "x86_64") => Some(Self::LinuxX64),

@@ -61,24 +61,34 @@ pub fn update_for(
     let version = parse(&release.version)?;
     if release.schema_version != 1
         || release.tag != format!("v{version}")
+        || !version.pre.is_empty()
+        || !version.build.is_empty()
         || !valid_hex(&release.source_commit, 40)
     {
         return Err(UpdateError::InvalidManifest);
     }
-    if installed >= version {
-        return Ok(None);
-    }
-
-    let expected = filename(&release.version, target);
-    let mut matching = release
-        .artifacts
-        .into_iter()
-        .filter(|asset| asset.name == expected);
-    let asset = matching.next().ok_or(UpdateError::InvalidManifest)?;
-    if matching.next().is_some() || asset.size == 0 || !valid_hex(&asset.sha256, 64) {
+    if release.artifacts.len() != Target::ALL.len() {
         return Err(UpdateError::InvalidManifest);
     }
-    Ok(Some(Update { version, asset }))
+    let mut selected = None;
+    for required in Target::ALL {
+        let (platform, arch) = required.manifest_identity();
+        let expected = filename(&release.version, required);
+        let Some(asset) = release.artifacts.iter().find(|asset| {
+            asset.name == expected
+                && asset.platform == platform
+                && asset.arch == arch
+                && asset.size > 0
+                && valid_hex(&asset.sha256, 64)
+        }) else {
+            return Err(UpdateError::InvalidManifest);
+        };
+        if required == target {
+            selected = Some(asset.clone());
+        }
+    }
+    let asset = selected.ok_or(UpdateError::InvalidManifest)?;
+    Ok((installed < version).then_some(Update { version, asset }))
 }
 
 impl Update {

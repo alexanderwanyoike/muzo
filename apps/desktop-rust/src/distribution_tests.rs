@@ -27,7 +27,9 @@ fn it_selects_the_installer_and_checksum_for_the_current_target() {
        "schemaVersion":1,"tag":"v0.0.7","version":"0.0.7","sourceCommit":"0000000000000000000000000000000000000000",
        "artifacts":[
          {"name":"Muzo-0.0.7-linux-x64.AppImage","platform":"linux","arch":"x64","size":12,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
-         {"name":"Muzo-0.0.7-windows-x64-setup.exe","platform":"windows","arch":"x64","size":42,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
+         {"name":"Muzo-0.0.7-windows-x64-setup.exe","platform":"windows","arch":"x64","size":42,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+         {"name":"Muzo-0.0.7-macos-arm64.dmg","platform":"macos","arch":"arm64","size":20,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+         {"name":"Muzo-0.0.7-macos-x64.dmg","platform":"macos","arch":"x64","size":21,"sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
        ]
     }"#).unwrap();
     let update = update_for("0.0.6", Target::WindowsX64, release)
