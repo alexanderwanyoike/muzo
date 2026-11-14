@@ -9,7 +9,7 @@ use iced::{
 
 use crate::appearance::sidebar::{SidebarWidth, load_or_import, save};
 
-use super::{CataloguePaths, Desktop, Message, Sources, input_message};
+use super::{CataloguePaths, Desktop, LibraryPage, Sources, input_message};
 
 const VIEW_WIDTH: f32 = 800.0;
 const DRAG_HEIGHT: f32 = 260.0;
@@ -36,9 +36,13 @@ impl Library {
     }
 
     fn input(&mut self, event: Event, x: f32) {
+        self.batch(&[event], Point::new(x, DRAG_HEIGHT));
+    }
+
+    fn batch(&mut self, events: &[Event], cursor: Point) {
         let id = self.desktop.windows.library_id();
         let mut messages = Vec::new();
-        let status = {
+        {
             let mut view = self.desktop.view(id);
             let widget = view.as_widget_mut();
             self.tree.diff(&*widget);
@@ -48,20 +52,24 @@ impl Library {
                 &self.renderer,
                 &layout::Limits::new(bounds.size(), bounds.size()),
             );
-            let mut shell = Shell::new(&mut messages);
-            widget.update(
-                &mut self.tree,
-                &event,
-                Layout::new(&node),
-                mouse::Cursor::Available(Point::new(x, DRAG_HEIGHT)),
-                &self.renderer,
-                &mut clipboard::Null,
-                &mut shell,
-                &bounds,
-            );
-            shell.event_status()
-        };
-        messages.extend(input_message(event, status, id));
+            for event in events {
+                let status = {
+                    let mut shell = Shell::new(&mut messages);
+                    widget.update(
+                        &mut self.tree,
+                        event,
+                        Layout::new(&node),
+                        mouse::Cursor::Available(cursor),
+                        &self.renderer,
+                        &mut clipboard::Null,
+                        &mut shell,
+                        &bounds,
+                    );
+                    shell.event_status()
+                };
+                messages.extend(input_message(event.clone(), status, id));
+            }
+        }
         for message in messages {
             let _ = self.desktop.update(message);
         }
@@ -90,10 +98,10 @@ impl Library {
 
     fn resize(&mut self, width: f32) {
         self.width = width;
-        let _ = self.desktop.update(Message::MiniResized(
-            self.desktop.windows.library_id(),
-            Size::new(width, 600.0),
-        ));
+        self.input(
+            Event::Window(iced::window::Event::Resized(Size::new(width, 600.0))),
+            0.0,
+        );
     }
 }
 
@@ -138,10 +146,7 @@ fn it_restores_the_preferred_sidebar_width_after_cancelling_a_narrow_drag() {
     );
     library.release();
     assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
-    let id = library.desktop.windows.library_id();
-    let _ = library
-        .desktop
-        .update(Message::MiniResized(id, Size::new(1200.0, 800.0)));
+    library.resize(1200.0);
 
     assert_eq!(library.desktop.sidebar.visible_width(), 340.0);
     assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), saved);
@@ -267,6 +272,58 @@ fn it_tracks_the_initiating_finger_and_cancels_when_touch_is_lost() {
         library.desktop.sidebar.preferred_width(),
         SidebarWidth::new(340.0)
     );
+}
+
+#[test]
+fn it_uses_the_latest_window_width_when_resize_and_release_share_a_batch() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let mut library = Library::new(paths.clone());
+    let target = Point::new(310.5, DRAG_HEIGHT);
+    library.input(
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        279.5,
+    );
+    library.input(
+        Event::Mouse(mouse::Event::CursorMoved { position: target }),
+        target.x,
+    );
+
+    library.batch(
+        &[
+            Event::Window(iced::window::Event::Resized(Size::new(1200.0, 600.0))),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        target,
+    );
+
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(310.0)
+    );
+}
+
+#[test]
+fn it_keeps_a_batched_divider_drag_from_activating_the_navigation_under_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    let divider = Point::new(279.5, 230.0);
+    let over_navigation = Point::new(245.5, divider.y);
+
+    library.batch(
+        &[
+            Event::Mouse(mouse::Event::CursorMoved { position: divider }),
+            Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+            Event::Mouse(mouse::Event::CursorMoved {
+                position: over_navigation,
+            }),
+            Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+        over_navigation,
+    );
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 245.0);
+    assert_eq!(library.desktop.page, LibraryPage::Songs);
 }
 
 #[test]
