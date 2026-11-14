@@ -11,6 +11,7 @@ iced = { version = "0.14.0", default-features = false, features = ["tiny-skia", 
 lofty = "0.25.5"
 rfd = "0.18.0"
 rodio = { version = "0.22.2", default-features = false, features = ["playback", "flac", "mp3", "mp4", "vorbis", "wav"] }
+thiserror = "2.0.21"
 
 [lib]
 path = "src/lib.rs"

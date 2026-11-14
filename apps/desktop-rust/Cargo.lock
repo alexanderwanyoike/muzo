@@ -2064,6 +2064,7 @@ dependencies = [
  "lofty",
  "rfd",
  "rodio",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
