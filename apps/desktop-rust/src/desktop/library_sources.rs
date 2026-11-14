@@ -327,6 +327,14 @@ impl Sources {
         self.busy
     }
 
+    pub fn playlist_save_pending(&self) -> bool {
+        self.creating_playlist
+            || self
+                .pending
+                .iter()
+                .any(|operation| matches!(operation, Operation::CreatePlaylist(_)))
+    }
+
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
         if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);

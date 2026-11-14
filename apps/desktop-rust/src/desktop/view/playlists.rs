@@ -122,23 +122,22 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     }
     rows = rows.push(column(entries));
     let footer: Element<'_, Message> = if sources.show_playlist_form {
+        let can_edit = !sources.playlist_save_pending();
+        let can_submit = can_edit && !sources.busy() && !sources.playlist_name.trim().is_empty();
         container(
             column![
                 text_input("Playlist name", &sources.playlist_name)
                     .id("new-playlist-name")
                     .size(11)
-                    .on_input(Message::PlaylistName)
-                    .on_submit(Message::CreatePlaylist),
+                    .on_input_maybe(can_edit.then_some(Message::PlaylistName))
+                    .on_submit_maybe(can_submit.then_some(Message::CreatePlaylist)),
                 row![
                     button(text("Create playlist").size(11))
                         .style(action)
-                        .on_press_maybe(
-                            (!sources.busy() && !sources.playlist_name.trim().is_empty())
-                                .then_some(Message::CreatePlaylist)
-                        ),
+                        .on_press_maybe(can_submit.then_some(Message::CreatePlaylist)),
                     button(text("Cancel").size(11))
                         .style(action)
-                        .on_press(Message::ShowPlaylistForm(false)),
+                        .on_press_maybe(can_edit.then_some(Message::ShowPlaylistForm(false))),
                 ]
                 .spacing(6)
             ]

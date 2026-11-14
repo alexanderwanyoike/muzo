@@ -430,6 +430,9 @@ impl Desktop {
                 Task::none()
             }
             Message::ShowPlaylistForm(visible) => {
+                if self.sources.playlist_save_pending() {
+                    return Task::none();
+                }
                 self.sources.show_playlist_form = visible;
                 if visible {
                     return iced::widget::operation::focus("new-playlist-name");
@@ -438,11 +441,16 @@ impl Desktop {
                 Task::none()
             }
             Message::PlaylistName(name) => {
-                self.sources.playlist_name = name;
+                if !self.sources.playlist_save_pending() {
+                    self.sources.playlist_name = name;
+                }
                 Task::none()
             }
             Message::CreatePlaylist => {
-                if self.sources.busy() || self.sources.playlist_name.trim().is_empty() {
+                if self.sources.busy()
+                    || self.sources.playlist_save_pending()
+                    || self.sources.playlist_name.trim().is_empty()
+                {
                     return Task::none();
                 }
                 self.sources.start(Operation::CreatePlaylist(
