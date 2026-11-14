@@ -1102,3 +1102,33 @@ fn it_opens_the_playlist_picker_inline_even_without_a_playlist() {
     assert!(labels.iter().any(|label| label == "Song"));
     assert!(!labels.iter().any(|label| label == "Save metadata"));
 }
+
+#[test]
+fn it_retains_the_playlist_choice_after_cancelling_a_track_add() {
+    let (mut desktop, track) = editing_source();
+    desktop.sources.snapshot.as_mut().unwrap().playlists = vec![
+        crate::catalogue::Playlist {
+            id: "first".into(),
+            name: "First".into(),
+        },
+        crate::catalogue::Playlist {
+            id: "second".into(),
+            name: "Second".into(),
+        },
+    ];
+    let _ = desktop.update(Message::OpenPlaylistPicker(track.clone()));
+    let _ = desktop.update(Message::ChooseTrackPlaylist("second".into()));
+    let _ = desktop.update(Message::ClosePlaylistPicker);
+    let _ = desktop.update(Message::OpenPlaylistPicker(track));
+
+    assert_eq!(
+        desktop
+            .sources
+            .playlist_picker
+            .as_ref()
+            .unwrap()
+            .playlist
+            .as_deref(),
+        Some("second")
+    );
+}
