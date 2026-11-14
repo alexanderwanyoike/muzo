@@ -175,22 +175,9 @@ impl Desktop {
                 let name = std::mem::take(&mut self.sources.playlist_name);
                 self.sources.start(Operation::CreatePlaylist(name))
             }
-            Message::EditTrack(track) => {
-                self.sources.editing = Some((
-                    track.id,
-                    track.library_id,
-                    Box::new([
-                        track.title,
-                        track.artist,
-                        track.album.unwrap_or_default(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                        String::new(),
-                    ]),
-                ));
-                Task::none()
-            }
+            Message::EditTrack(track) => self
+                .sources
+                .start(Operation::LoadTrackEditor(track.id, track.library_id)),
             Message::EditField(index, value) => {
                 if let Some((_, _, fields)) = &mut self.sources.editing
                     && let Some(field) = fields.get_mut(index)
@@ -348,11 +335,12 @@ impl Desktop {
                 year: values[2],
             };
         }
-        let task = self
-            .sources
-            .start(Operation::EditTrack(id.clone(), library.clone(), edit));
-        self.sources.editing = None;
-        task
+        if self.sources.busy() {
+            return Task::none();
+        }
+        self.sources.saving_editor = true;
+        self.sources
+            .start(Operation::EditTrack(id.clone(), library.clone(), edit))
     }
 
     fn play_indexed(&mut self, index: usize, playlist: bool) -> Task<Message> {

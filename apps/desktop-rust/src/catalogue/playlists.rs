@@ -9,6 +9,12 @@ pub struct Playlist {
     pub name: String,
 }
 
+impl std::fmt::Display for Playlist {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.name.fmt(formatter)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaylistEntry {
     pub id: String,

@@ -138,29 +138,18 @@ pub fn tracks<'a>(
         } else {
             Message::PlayIndexed(index)
         });
-        let add = iced::widget::pick_list(
-            snapshot
-                .playlists
-                .iter()
-                .map(|playlist| playlist.name.clone())
-                .collect::<Vec<_>>(),
-            None::<String>,
-            |name| {
-                snapshot
-                    .playlists
-                    .iter()
-                    .find(|playlist| playlist.name == name)
-                    .map_or(Message::CloseTrackEdit, |playlist| {
-                        Message::SourceOperation(Operation::AddToPlaylist(
-                            playlist.id.clone(),
-                            track.id.clone(),
-                        ))
-                    })
-            },
-        )
-        .placeholder("Add to playlist")
-        .text_size(11)
-        .width(115);
+        let options = if busy {
+            Vec::new()
+        } else {
+            snapshot.playlists.clone()
+        };
+        let add =
+            iced::widget::pick_list(options, None::<crate::catalogue::Playlist>, |playlist| {
+                Message::SourceOperation(Operation::AddToPlaylist(playlist.id, track.id.clone()))
+            })
+            .placeholder("Add to playlist")
+            .text_size(11)
+            .width(115);
         row![
             play,
             button(text("Edit").size(11))

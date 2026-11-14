@@ -17,6 +17,25 @@ pub struct MetadataOverride {
 }
 
 impl Catalogue {
+    pub fn track_overrides(&self, id: &str) -> Result<MetadataOverride, CatalogueError> {
+        Ok(self.database.query_row(
+            "SELECT override_title, override_artist, override_album, override_track_number,
+                    override_disc_number, override_genre, override_year FROM tracks WHERE id=?1",
+            [id],
+            |row| {
+                Ok(MetadataOverride {
+                    title: row.get(0)?,
+                    artist: row.get(1)?,
+                    album: row.get(2)?,
+                    track_number: row.get(3)?,
+                    disc_number: row.get(4)?,
+                    genre: row.get(5)?,
+                    year: row.get(6)?,
+                })
+            },
+        )?)
+    }
+
     pub fn override_track(
         &self,
         id: &str,

@@ -60,6 +60,7 @@ pub enum Operation {
     MovePlaylistEntry(String, String, i8),
     RemovePlaylistEntry(String, String),
     EditTrack(String, String, MetadataOverride),
+    LoadTrackEditor(String, String),
     RecordPlays(Vec<String>, Option<String>, Option<String>),
 }
 
@@ -72,15 +73,17 @@ pub struct Snapshot {
     pub playlists: Vec<Playlist>,
     pub selected_playlist: Option<String>,
     pub playlist_entries: Vec<PlaylistEntry>,
+    pub editor: Option<(String, String, Box<[String; 7]>)>,
 }
 
 pub(crate) fn run(
     paths: &CataloguePaths,
     operation: Operation,
 ) -> Result<Snapshot, CatalogueError> {
-    let mut catalogue = Catalogue::open(&paths.current, Some(&paths.legacy))?;
+    let mut catalogue = paths.open()?;
     let mut warnings = Vec::new();
     let mut selected_playlist = None;
+    let mut editor = None;
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
         Operation::Select(id) => Some(id),
@@ -114,6 +117,25 @@ pub(crate) fn run(
             catalogue.remove_playlist_entry(&id, &entry)?;
             selected_playlist = Some(id);
             None
+        }
+        Operation::LoadTrackEditor(id, library_id) => {
+            let edit = catalogue.track_overrides(&id)?;
+            let field =
+                |value: Option<u32>| value.map_or_else(String::new, |value| value.to_string());
+            editor = Some((
+                id,
+                library_id.clone(),
+                Box::new([
+                    edit.title.unwrap_or_default(),
+                    edit.artist.unwrap_or_default(),
+                    edit.album.unwrap_or_default(),
+                    field(edit.track_number),
+                    field(edit.disc_number),
+                    edit.genre.unwrap_or_default(),
+                    field(edit.year),
+                ]),
+            ));
+            Some(library_id)
         }
         Operation::EditTrack(id, library_id, edit) => {
             catalogue.override_track(&id, &edit)?;
@@ -173,6 +195,7 @@ pub(crate) fn run(
         playlists,
         selected_playlist,
         playlist_entries,
+        editor,
     })
 }
 
@@ -185,6 +208,7 @@ pub(super) struct Sources {
     pub playlist_name: String,
     pub editing: Option<(String, String, Box<[String; 7]>)>,
     pub queued_plays: Vec<String>,
+    pub saving_editor: bool,
     busy: bool,
     changed: Arc<AtomicBool>,
     watcher: Option<RecommendedWatcher>,
@@ -202,6 +226,7 @@ impl Sources {
             playlist_name: String::new(),
             editing: None,
             queued_plays: Vec::new(),
+            saving_editor: false,
             busy: false,
             changed: Arc::new(AtomicBool::new(false)),
             watcher: None,
@@ -249,6 +274,7 @@ impl Sources {
         let snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
+                self.saving_editor = false;
                 self.error = Some(error);
                 return;
             }
@@ -264,6 +290,13 @@ impl Sources {
             self.install_watcher(&roots);
             self.roots = roots;
         }
+        if let Some(fields) = snapshot.editor.clone() {
+            self.editing = Some(fields);
+        }
+        if self.saving_editor {
+            self.editing = None;
+        }
+        self.saving_editor = false;
         self.snapshot = Some(snapshot);
     }
 
