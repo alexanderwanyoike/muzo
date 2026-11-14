@@ -31,7 +31,7 @@ fn kwallet_password() -> Option<Vec<u8>> {
     for daemon in ["kwalletd6", "kwalletd5", "kwalletd"] {
         let proxy = connection.with_proxy(
             format!("org.kde.{daemon}"),
-            format!("/{daemon}"),
+            format!("/modules/{daemon}"),
             Duration::from_secs(3),
         );
         let Ok((wallet,)) =

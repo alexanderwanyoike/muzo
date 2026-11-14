@@ -292,8 +292,7 @@ fn run(
         let (Some(account), Some(refresh)) = (token.account_id, token.refresh_token) else {
             return Err(DropboxError::InvalidAccount.into());
         };
-        Credentials::save(&account, &refresh)?;
-        catalogue.save_dropbox_account(&account, auth.client_id())?;
+        Credentials::connect(&catalogue, &account, auth.client_id(), &refresh)?;
     }
     if let Action::SaveInterval = &action {
         let minutes = interval
@@ -310,10 +309,7 @@ fn run(
     if let Some((account, _)) = &current
         && matches!(action, Action::Disconnect)
     {
-        let affected = catalogue.dropbox_libraries_for(account)?;
-        Credentials::remove(account)?;
-        catalogue.disconnect_dropbox(account)?;
-        snapshot.disconnected_libraries = affected;
+        snapshot.disconnected_libraries = Credentials::disconnect(&catalogue, account)?;
         snapshot.folders.clear();
         snapshot.path.clear();
     }
