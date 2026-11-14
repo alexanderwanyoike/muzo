@@ -38,6 +38,7 @@ it.each([
       const distribution = new URL(".", import.meta.url);
       const scripts = [
         "native-package-cli.ts",
+        "native-package-output.ts",
         "release-context.ts",
         "release-versions.ts",
         "release-contract.ts",

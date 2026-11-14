@@ -1,13 +1,5 @@
 import { execFile } from "node:child_process";
-import {
-  cp,
-  mkdir,
-  mkdtemp,
-  rename,
-  rm,
-  stat,
-  symlink,
-} from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, stat, symlink } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -18,6 +10,7 @@ import {
   type ReleaseTarget,
 } from "./release-contract";
 import { releaseVersion } from "./release-context";
+import { publishNativePackage } from "./native-package-output";
 import { readReleaseVersions } from "./release-versions";
 import {
   distributionFailure,
@@ -30,9 +23,9 @@ const native = fileURLToPath(
 );
 const legacy = fileURLToPath(new URL("../../apps/desktop/", import.meta.url));
 const packageFiles = {
-  linux: ["latest-linux.yml"],
-  windows: ["latest.yml"],
-  macos: [],
+  linux: "latest-linux.yml",
+  windows: "latest.yml",
+  macos: undefined,
 } as const;
 const hostPlatforms = new Map<NodeJS.Platform, ReleaseTarget["platform"]>([
   ["linux", "linux"],
@@ -226,10 +219,11 @@ async function packageNative(): Promise<DistributionResult<string>> {
           "storage",
           "The expected native installer was not produced.",
         );
-      await Promise.all(
-        [...packageFiles[target.platform], name].map((file) =>
-          rename(join(stage, file), join(output, file)),
-        ),
+      await publishNativePackage(
+        stage,
+        output,
+        name,
+        packageFiles[target.platform],
       );
       return { ok: true, value: join(output, name) };
     } finally {
