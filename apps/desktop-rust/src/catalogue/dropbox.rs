@@ -150,9 +150,61 @@ impl Catalogue {
         if !exists {
             return Err(CatalogueError::UnknownFolder);
         }
+        let mut fields = transaction.prepare(
+            "SELECT file_path,title,artist,album,duration_seconds,track_number,disc_number,genre,year
+             FROM tracks WHERE library_id=?1"
+        )?;
+        let prior = fields
+            .query_map([library], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    (
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, Option<String>>(3)?,
+                        row.get::<_, i64>(4)?,
+                        row.get::<_, Option<u32>>(5)?,
+                        row.get::<_, Option<u32>>(6)?,
+                        row.get::<_, Option<String>>(7)?,
+                        row.get::<_, Option<u32>>(8)?,
+                    ),
+                ))
+            })?
+            .collect::<Result<std::collections::HashMap<_, _>, _>>()?;
+        drop(fields);
+        let mut files = files;
+        for file in &mut files {
+            if let Some((title, artist, album, seconds, track, disc, genre, year)) =
+                prior.get(&file.path)
+            {
+                file.title.clone_from(title);
+                file.artist.clone_from(artist);
+                file.album.clone_from(album);
+                file.seconds = *seconds;
+                file.track = *track;
+                file.disc = *disc;
+                file.genre.clone_from(genre);
+                file.year = *year;
+            }
+        }
         reconcile(&transaction, library, &files)?;
         transaction.commit()?;
         Ok(files.len())
+    }
+
+    pub fn cache_dropbox_metadata(
+        &self,
+        id: &str,
+        title: &str,
+        artist: Option<&str>,
+        album: Option<&str>,
+    ) -> Result<(), CatalogueError> {
+        self.database.execute(
+            "UPDATE tracks SET title=?2, artist=COALESCE(?3, artist), album=COALESCE(?4, album)
+             WHERE id=?1 AND EXISTS (SELECT 1 FROM dropbox_library_accounts WHERE library_id=tracks.library_id)",
+            params![id, title, artist, album],
+        )?;
+        Ok(())
     }
 
     pub fn dropbox_interval(&self) -> Result<u16, CatalogueError> {
