@@ -299,6 +299,12 @@ mod tests {
     }
 
     #[test]
+    fn it_starts_the_library_at_the_original_size() {
+        assert_eq!(super::LIBRARY_SIZE, iced::Size::new(1200.0, 800.0));
+        assert_eq!(super::LIBRARY_MIN, iced::Size::new(800.0, 600.0));
+    }
+
+    #[test]
     fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
         assert_eq!(
             LibraryVisibility::for_wayland(true),
