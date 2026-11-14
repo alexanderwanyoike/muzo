@@ -176,6 +176,23 @@ fn it_keeps_current_audio_until_dropbox_disconnect_succeeds() {
 }
 
 #[test]
+fn it_drops_a_dropbox_refresh_result_after_the_source_is_removed() {
+    let (mut desktop, _) = setup();
+    desktop.sources.snapshot = Some(snapshot(&["first", "second"]));
+    desktop.dropbox.busy = true;
+    desktop.dropbox.refreshing = Some("second".into());
+
+    let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["first"]))));
+    let _ = desktop.update(Message::DropboxLibraryRefreshed(
+        "second".into(),
+        Err(dropbox_panel::RefreshError::Failed("Stale error".into())),
+    ));
+
+    assert!(desktop.dropbox.refresh_status.is_none());
+    assert!(!desktop.dropbox.busy);
+}
+
+#[test]
 fn it_ignores_late_audio_from_a_disconnected_dropbox_account() {
     let (mut desktop, remote_audio) = setup();
     desktop.pending_track = Some(0);

@@ -46,7 +46,7 @@ pub enum Message {
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
-    DropboxLibraryRefreshed(Result<(String, usize), String>),
+    DropboxLibraryRefreshed(String, Result<(String, usize), dropbox_panel::RefreshError>),
     Material(&'static str),
     AppearanceMode(&'static str),
     Accent(&'static str),
@@ -320,6 +320,14 @@ impl Desktop {
                         .map(|source| source.id.clone())
                         .collect();
                     for library in removed {
+                        if self
+                            .dropbox
+                            .refresh_status
+                            .as_ref()
+                            .is_some_and(|(source, _)| *source == library)
+                        {
+                            self.dropbox.refresh_status = None;
+                        }
                         self.remove_queued_library(&library);
                     }
                 }
@@ -450,9 +458,12 @@ impl Desktop {
                 self.dropbox.apply(result);
                 self.sources.reload()
             }
-            Message::DropboxLibraryRefreshed(result) => {
-                let reload = result.is_ok();
-                self.dropbox.apply_refresh(result);
+            Message::DropboxLibraryRefreshed(id, result) => {
+                let exists = self.sources.snapshot.as_ref().is_some_and(|snapshot| {
+                    snapshot.libraries.iter().any(|library| library.id == id)
+                });
+                let reload = exists && result.is_ok();
+                self.dropbox.apply_refresh(id, exists.then_some(result));
                 if reload {
                     self.sources.reload()
                 } else {

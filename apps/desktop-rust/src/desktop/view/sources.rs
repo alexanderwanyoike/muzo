@@ -135,7 +135,7 @@ pub(super) fn indexed_sources<'a>(
             .align_y(Alignment::Center),
         );
     }
-    if let Some(status) = &dropbox.refresh_status {
+    if let Some((_, status)) = &dropbox.refresh_status {
         body = body.push(text(status).size(11).color(surfaces.muted));
     }
     library::settings_section(
