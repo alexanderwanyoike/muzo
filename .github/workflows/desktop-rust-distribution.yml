@@ -63,17 +63,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            format: appimage
             label: linux-x64
           - os: windows-latest
-            format: nsis
             label: windows-x64
           - os: macos-15
-            format: dmg
             label: macos-arm64
             macho: arm64
           - os: macos-15-intel
-            format: dmg
             label: macos-x64
             macho: x86_64
     runs-on: ${{ matrix.os }}
