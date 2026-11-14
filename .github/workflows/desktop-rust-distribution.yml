@@ -65,10 +65,20 @@ jobs:
           yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8 --root "$RUNNER_TEMP/muzo-packager"
           "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" --version
       - run: yarn exec cargo -- +1.95 build --locked --release
-      - run: yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats ${{ matrix.format }}
-        if: runner.os != 'Windows'
+      - run: yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats appimage
+        if: runner.os == 'Linux'
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
+      - name: Package the macOS app and disk image
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats app
+          stage=$(mktemp -d "$RUNNER_TEMP/muzo-dmg.XXXXXX")
+          trap 'rm -rf "$stage"' EXIT
+          ditto out/rust-distribution/Muzo.app "$stage/Muzo.app"
+          ln -s /Applications "$stage/Applications"
+          hdiutil create -format UDZO -volname Muzo -srcfolder "$stage" out/rust-distribution/Muzo.dmg
       - name: Install the existing Windows packaging dependencies
         if: runner.os == 'Windows'
         working-directory: .
