@@ -34,7 +34,6 @@ pub(super) fn picker<'a>(
         )
         .text_size(11)
         .padding([7, 9])
-        .width(115)
         .style(move |theme, status| {
             let mut style = pick_list::default(theme, status);
             style.background = surfaces.raised.into();
