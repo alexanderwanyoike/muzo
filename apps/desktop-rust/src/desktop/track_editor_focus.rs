@@ -1,12 +1,14 @@
+use std::collections::VecDeque;
+
 use iced::{
     Rectangle, Task, Vector,
     advanced::widget::{
         Id, Operation, operate,
         operation::{
             Outcome,
-            focusable::{Focusable, focus, unfocus},
+            focusable::Focusable,
             scope,
-            scrollable::{AbsoluteOffset, Scrollable, scroll_to},
+            scrollable::{AbsoluteOffset, Scrollable},
         },
     },
 };
@@ -113,19 +115,54 @@ impl Control {
         }
     }
 
-    pub(super) fn focus(self) -> Task<Message> {
-        let focus = if let Self::Input(field) = self {
-            operate(scope(LIBRARY.into(), focus::<()>(field.id().into()))).discard()
-        } else {
-            operate(scope(LIBRARY.into(), unfocus::<()>())).discard()
+    pub(super) fn focus(self, serial: u64) -> Task<Message> {
+        let change = FocusControl {
+            control: self,
+            serial,
+            reveal: reveal(self),
         };
-        focus.chain(operate(reveal(self)).discard())
+        operate(scope(LIBRARY.into(), change)).map(Message::TrackEditorFocusApplied)
     }
 }
 
-pub(super) fn observe(track: String, backwards: bool) -> Task<Message> {
-    operate(scope(LIBRARY.into(), FocusedField::default()))
-        .map(move |field| Message::TrackEditorTab(track.clone(), backwards, field))
+#[derive(Default)]
+pub(super) struct Navigation {
+    serial: u64,
+    active: Option<u64>,
+    queued: VecDeque<bool>,
+}
+
+impl Navigation {
+    pub(super) fn request(&mut self, backwards: bool) -> Task<Message> {
+        if self.active.is_some() {
+            self.queued.push_back(backwards);
+            return Task::none();
+        }
+        self.serial += 1;
+        let serial = self.serial;
+        self.active = Some(serial);
+        operate(scope(LIBRARY.into(), FocusedField::default()))
+            .map(move |field| Message::TrackEditorTab(serial, backwards, field))
+    }
+
+    pub(super) fn is_active(&self, serial: u64) -> bool {
+        self.active == Some(serial)
+    }
+
+    pub(super) fn finish(&mut self, serial: u64) -> Task<Message> {
+        if !self.is_active(serial) {
+            return Task::none();
+        }
+        self.active = None;
+        self.queued
+            .pop_front()
+            .map_or_else(Task::none, |direction| self.request(direction))
+    }
+
+    pub(super) fn reset(&mut self) {
+        self.active = None;
+        self.queued.clear();
+    }
 }
 
 #[derive(Default)]
@@ -149,7 +186,81 @@ impl Operation<Option<Field>> for FocusedField {
     }
 }
 
-pub(super) fn reveal(control: Control) -> impl Operation {
+struct FocusControl {
+    control: Control,
+    serial: u64,
+    reveal: RevealControl,
+}
+
+impl Operation<u64> for FocusControl {
+    fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation<u64>)) {
+        visit(self);
+    }
+
+    fn container(&mut self, id: Option<&Id>, bounds: Rectangle) {
+        self.reveal.container(id, bounds);
+    }
+
+    fn focusable(&mut self, id: Option<&Id>, bounds: Rectangle, state: &mut dyn Focusable) {
+        self.reveal.focusable(id, bounds, state);
+        if matches!(self.control, Control::Input(_)) && id == Some(&self.reveal.target) {
+            state.focus();
+        } else {
+            state.unfocus();
+        }
+    }
+
+    fn scrollable(
+        &mut self,
+        id: Option<&Id>,
+        bounds: Rectangle,
+        content: Rectangle,
+        offset: Vector,
+        state: &mut dyn Scrollable,
+    ) {
+        self.reveal.scrollable(id, bounds, content, offset, state);
+    }
+
+    fn finish(&self) -> Outcome<u64> {
+        let Some(offset) = self.reveal.offset() else {
+            return Outcome::Some(self.serial);
+        };
+        Outcome::Chain(Box::new(ApplyScroll {
+            offset,
+            serial: self.serial,
+        }))
+    }
+}
+
+struct ApplyScroll {
+    offset: AbsoluteOffset<Option<f32>>,
+    serial: u64,
+}
+
+impl Operation<u64> for ApplyScroll {
+    fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation<u64>)) {
+        visit(self);
+    }
+
+    fn scrollable(
+        &mut self,
+        id: Option<&Id>,
+        _: Rectangle,
+        _: Rectangle,
+        _: Vector,
+        state: &mut dyn Scrollable,
+    ) {
+        if id == Some(&SONGS_SCROLL.into()) {
+            state.scroll_to(self.offset);
+        }
+    }
+
+    fn finish(&self) -> Outcome<u64> {
+        Outcome::Some(self.serial)
+    }
+}
+
+pub(super) fn reveal(control: Control) -> RevealControl {
     RevealControl {
         target: control.id().into(),
         viewport: None,
@@ -157,7 +268,7 @@ pub(super) fn reveal(control: Control) -> impl Operation {
     }
 }
 
-struct RevealControl {
+pub(super) struct RevealControl {
     target: Id,
     viewport: Option<(Rectangle, f32)>,
     bounds: Option<Rectangle>,
@@ -191,10 +302,22 @@ impl Operation for RevealControl {
         }
     }
 
+    #[cfg(test)]
     fn finish(&self) -> Outcome<()> {
-        let Some((target, (viewport, offset))) = self.bounds.zip(self.viewport) else {
-            return Outcome::None;
-        };
+        self.offset().map_or(Outcome::None, |offset| {
+            Outcome::Chain(Box::new(
+                iced::advanced::widget::operation::scrollable::scroll_to(
+                    SONGS_SCROLL.into(),
+                    offset,
+                ),
+            ))
+        })
+    }
+}
+
+impl RevealControl {
+    fn offset(&self) -> Option<AbsoluteOffset<Option<f32>>> {
+        let (target, (viewport, offset)) = self.bounds.zip(self.viewport)?;
         let top = target.y - FOCUS_MARGIN;
         let bottom = target.y + target.height + FOCUS_MARGIN;
         let y = if top < viewport.y + offset {
@@ -202,14 +325,11 @@ impl Operation for RevealControl {
         } else if bottom > viewport.y + viewport.height + offset {
             bottom - viewport.y - viewport.height
         } else {
-            return Outcome::None;
+            return None;
         };
-        Outcome::Chain(Box::new(scroll_to(
-            SONGS_SCROLL.into(),
-            AbsoluteOffset {
-                x: None,
-                y: Some(y.max(0.0)),
-            },
-        )))
+        Some(AbsoluteOffset {
+            x: None,
+            y: Some(y.max(0.0)),
+        })
     }
 }

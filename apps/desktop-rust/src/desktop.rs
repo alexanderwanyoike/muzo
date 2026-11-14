@@ -73,7 +73,8 @@ pub enum Message {
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
     EditField(MetadataField, String),
-    TrackEditorTab(String, bool, Option<MetadataField>),
+    TrackEditorTab(u64, bool, Option<MetadataField>),
+    TrackEditorFocusApplied(u64),
     SaveTrackEdit(bool),
     CloseTrackEdit,
     RemoteTrackReady(u64, Result<Track, String>),
@@ -134,6 +135,7 @@ pub struct Desktop {
     pending_track: Option<usize>,
     failed_track: Option<usize>,
     mini_focus: Option<mini_focus::Control>,
+    editor_navigation: track_editor_focus::Navigation,
     sidebar: sidebar::Sidebar,
     page: LibraryPage,
     appearance_focus: Option<appearance_focus::Choice>,
@@ -214,6 +216,7 @@ impl Desktop {
                 pending_track: None,
                 failed_track: None,
                 mini_focus: None,
+                editor_navigation: Default::default(),
                 sidebar: sidebar::Sidebar::default(),
                 page: LibraryPage::default(),
                 appearance_focus: None,
@@ -296,6 +299,7 @@ impl Desktop {
                 self.page = page;
                 self.appearance_focus = None;
                 self.sources.pending_remove = None;
+                self.editor_navigation.reset();
                 self.sources.close_editor();
                 Task::none()
             }
@@ -324,6 +328,7 @@ impl Desktop {
                         .and_then(|snapshot| snapshot.selected.as_ref())
                         != Some(id)
                     {
+                        self.editor_navigation.reset();
                         self.sources.close_editor();
                     }
                 }
@@ -467,6 +472,7 @@ impl Desktop {
                     && let Some(editor) = &mut self.sources.editing
                 {
                     editor.action_focus = None;
+                    self.editor_navigation.reset();
                 }
                 if self.windows.is_library(id) {
                     self.appearance_focus = None;
@@ -558,7 +564,10 @@ impl Desktop {
                     self.sources.playlist_name.clone(),
                 ))
             }
-            Message::EditTrack(track) => self.sources.open_editor(track),
+            Message::EditTrack(track) => {
+                self.editor_navigation.reset();
+                self.sources.open_editor(track)
+            }
             Message::EditField(field, value) => {
                 if self.sources.editor_save_pending() {
                     return Task::none();
@@ -568,17 +577,17 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::TrackEditorTab(track, backwards, field) => {
+            Message::TrackEditorTab(serial, backwards, field) => {
+                if !self.editor_navigation.is_active(serial) {
+                    return Task::none();
+                }
                 if self.page != LibraryPage::Songs || self.sources.editor_save_pending() {
+                    self.editor_navigation.reset();
                     return Task::none();
                 }
                 let can_save = !self.sources.busy();
-                let Some(editor) = self
-                    .sources
-                    .editing
-                    .as_mut()
-                    .filter(|editor| editor.track_id == track)
-                else {
+                let Some(editor) = self.sources.editing.as_mut() else {
+                    self.editor_navigation.reset();
                     return Task::none();
                 };
                 let next = TrackEditorControl::next(
@@ -588,11 +597,13 @@ impl Desktop {
                     can_save && editor.overridden,
                 );
                 editor.action_focus = next.message().map(|_| next);
-                next.focus()
+                next.focus(serial)
             }
+            Message::TrackEditorFocusApplied(serial) => self.editor_navigation.finish(serial),
             Message::SaveTrackEdit(clear) => self.save_track_edit(clear),
             Message::CloseTrackEdit => {
                 if !self.sources.editor_save_pending() {
+                    self.editor_navigation.reset();
                     self.sources.close_editor();
                 }
                 Task::none()
@@ -757,9 +768,9 @@ impl Desktop {
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Songs
                     && !self.sources.editor_save_pending()
-                    && let Some(editor) = &self.sources.editing
+                    && self.sources.editing.is_some()
                 {
-                    return track_editor_focus::observe(editor.track_id.clone(), backwards);
+                    return self.editor_navigation.request(backwards);
                 }
                 if self.windows.is_library(id) && self.page == LibraryPage::Settings {
                     let next = appearance_focus::Choice::next(self.appearance_focus, backwards);
