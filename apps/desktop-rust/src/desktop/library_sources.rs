@@ -89,7 +89,6 @@ pub enum Operation {
     CreatePlaylist(String),
     SelectPlaylist(String),
     AddToPlaylist(String, String),
-    AddPickedTrack(String, String, String),
     MovePlaylistEntry(String, String, i8),
     RemovePlaylistEntry(String, String),
     EditTrack(String, String, MetadataOverride),
@@ -128,6 +127,12 @@ pub(super) struct PlaylistPicker {
     pub title: String,
     pub playlist: Option<String>,
     pub error: Option<String>,
+}
+
+struct PlaylistAddition {
+    playlist: String,
+    track: String,
+    title: String,
 }
 
 #[cfg(test)]
@@ -191,12 +196,7 @@ fn run_with_selection(
             selected_playlist = Some(id);
             previous_source.clone()
         }
-        Operation::AddToPlaylist(id, track) => {
-            catalogue.add_to_playlist(&id, &track)?;
-            selected_playlist = selected_playlist.or(Some(id));
-            previous_source.clone()
-        }
-        Operation::AddPickedTrack(playlist, track, _) => {
+        Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
             catalogue.insert_playlist_entry(&playlist, &track)?;
             let mut snapshot = read_snapshot(
@@ -363,7 +363,7 @@ pub(super) struct Sources {
     pub playlist_picker: Option<PlaylistPicker>,
     pub playlist_message: Option<String>,
     last_playlist_choice: Option<String>,
-    adding_track: Option<(String, String, String)>,
+    adding_track: Option<PlaylistAddition>,
     pending_editor: Option<(String, String)>,
     loading_editor: bool,
     saving_editor: bool,
@@ -523,7 +523,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::AddPickedTrack(..)))
+                .any(|operation| matches!(operation, Operation::AddToPlaylist(..)))
     }
 
     pub fn submit_playlist_picker(&mut self) -> Task<Message> {
@@ -537,8 +537,7 @@ impl Sources {
             return Task::none();
         };
         picker.error = None;
-        let operation =
-            Operation::AddPickedTrack(playlist, picker.track_id.clone(), picker.title.clone());
+        let operation = Operation::AddToPlaylist(playlist, picker.track_id.clone());
         self.start(operation)
     }
 
@@ -559,8 +558,17 @@ impl Sources {
             return Task::none();
         };
         self.busy = true;
-        if let Operation::AddPickedTrack(playlist, track, title) = &operation {
-            self.adding_track = Some((playlist.clone(), track.clone(), title.clone()));
+        if let Operation::AddToPlaylist(playlist, track) = &operation
+            && let Some(picker) = self
+                .playlist_picker
+                .as_ref()
+                .filter(|picker| picker.track_id == *track)
+        {
+            self.adding_track = Some(PlaylistAddition {
+                playlist: playlist.clone(),
+                track: track.clone(),
+                title: picker.title.clone(),
+            });
         }
         self.loading_editor = matches!(operation, Operation::LoadTrackEditor(..));
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
@@ -598,11 +606,11 @@ impl Sources {
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
-                if let Some((_, track, _)) = adding_track {
+                if let Some(adding_track) = adding_track {
                     match self
                         .playlist_picker
                         .as_mut()
-                        .filter(|draft| draft.track_id == track)
+                        .filter(|draft| draft.track_id == adding_track.track)
                     {
                         Some(draft) => draft.error = Some(error),
                         None => self.error = Some(error),
@@ -664,16 +672,19 @@ impl Sources {
         {
             self.editing = None;
         }
-        if let Some((playlist, track, title)) = adding_track
+        if let Some(addition) = adding_track
             && self
                 .playlist_picker
                 .as_ref()
-                .is_some_and(|draft| draft.track_id == track)
-            && let Some(playlist) = snapshot.playlists.iter().find(|item| item.id == playlist)
+                .is_some_and(|draft| draft.track_id == addition.track)
+            && let Some(playlist) = snapshot
+                .playlists
+                .iter()
+                .find(|item| item.id == addition.playlist)
         {
             self.playlist_picker = None;
             self.last_playlist_choice = None;
-            self.playlist_message = Some(format!("Added {title} to {}.", playlist.name));
+            self.playlist_message = Some(format!("Added {} to {}.", addition.title, playlist.name));
         }
         if let Some(draft) = self.playlist_picker.as_mut() {
             if snapshot.selected.as_ref() != Some(&draft.library_id)
