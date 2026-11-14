@@ -233,3 +233,33 @@ fn it_persists_the_native_credential_store_for_each_dropbox_account() {
     catalogue.disconnect_dropbox("first").unwrap();
     assert_eq!(catalogue.dropbox_credential_store("first").unwrap(), None);
 }
+
+#[test]
+fn it_invalidates_artwork_when_dropbox_replaces_a_file_with_the_same_size() {
+    use crate::{artwork_cache::ArtworkCache, catalogue::Catalogue};
+    let root = tempfile::tempdir().unwrap();
+    let mut catalogue = Catalogue::open(&root.path().join("muzo-rust.sqlite"), None).unwrap();
+    catalogue.save_dropbox_account("account", "app").unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let mut entry: crate::dropbox::Entry = serde_json::from_str(
+        r#"{".tag":"file","name":"Track.mp3","path_display":"/Music/Track.mp3","size":48,"rev":"initial"}"#,
+    ).unwrap();
+    catalogue
+        .sync_dropbox(&library.id, std::slice::from_ref(&entry))
+        .unwrap();
+    let id = catalogue.tracks(&library.id).unwrap().remove(0).id;
+    let cache = ArtworkCache::new(root.path().join("covers"));
+    let first = catalogue.artwork_revision(&library.id, &id).unwrap();
+    assert!(
+        cache
+            .get_or_read(&first, || Some(
+                include_bytes!("../../desktop/assets/icons/muzo.png").to_vec()
+            ))
+            .is_some()
+    );
+
+    entry.rev = Some("updated".into());
+    catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
+    let latest = catalogue.artwork_revision(&library.id, &id).unwrap();
+    assert!(cache.get_or_read(&latest, || None).is_none());
+}
