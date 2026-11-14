@@ -754,3 +754,48 @@ fn it_opens_and_reveals_source_setup_from_the_sidebar() {
     assert_eq!(desktop.page, LibraryPage::Settings);
     assert_eq!(reveal.units(), 1);
 }
+
+#[test]
+fn it_lists_every_indexed_source_and_location_in_settings() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout,
+            widget::{Operation, Tree},
+        },
+    };
+
+    #[derive(Default)]
+    struct Labels(Vec<String>);
+
+    impl Operation for Labels {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn text(&mut self, _: Option<&iced::advanced::widget::Id>, _: Rectangle, label: &str) {
+            self.0.push(label.into());
+        }
+    }
+
+    let (mut desktop, _) = setup();
+    let mut sources = snapshot(&["Records", "Field recordings"]);
+    sources.libraries[0].location = PathBuf::from("/fixtures/records");
+    sources.libraries[1].location = PathBuf::from("/fixtures/field recordings");
+    desktop.sources.snapshot = Some(sources);
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let mut view = desktop.view(desktop.windows.library_id());
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut tree = Tree::new(&view);
+    let size = Size::new(1200.0, 800.0);
+    let widget = view.as_widget_mut();
+    let layout = widget.layout(&mut tree, &renderer, &layout::Limits::new(size, size));
+    let mut labels = Labels::default();
+    widget.operate(&mut tree, Layout::new(&layout), &renderer, &mut labels);
+    for location in ["/fixtures/records", "/fixtures/field recordings"] {
+        assert!(
+            labels.0.iter().any(|label| label == location),
+            "missing {location}"
+        );
+    }
+}
