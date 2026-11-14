@@ -198,7 +198,7 @@ try {
         try { $data.Delete($true) } catch { $_ }
     )
     foreach ($cleanupError in $cleanupErrors) {
-        Write-Warning $cleanupError.Exception.Message
+        Write-Warning $cleanupError.Exception.Message -WarningAction Continue
     }
     if (!$testFailed -and $cleanupErrors.Count) { throw 'Could not clean up after the Muzo smoke test.' }
 }
