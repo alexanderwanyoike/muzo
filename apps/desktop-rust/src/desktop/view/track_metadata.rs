@@ -5,10 +5,17 @@ use iced::{
 
 use crate::{
     appearance::Surfaces,
-    desktop::{Message, library_sources::TrackEditor},
+    desktop::{
+        Message,
+        library_sources::TrackEditor,
+        track_editor_focus::{Control, Field},
+    },
 };
 
-use super::library::{settings_button, settings_input};
+use super::{
+    focus_ring,
+    library::{bordered_button, settings_button, settings_input},
+};
 
 pub(super) fn editor(
     editor: &TrackEditor,
@@ -17,35 +24,47 @@ pub(super) fn editor(
     surfaces: Surfaces,
 ) -> iced::widget::Container<'_, Message> {
     let save = (!busy && !saving).then_some(Message::SaveTrackEdit(false));
-    let field = |index: usize, label| {
+    let field = |field: Field| {
         column![
-            text(label).size(11).color(surfaces.muted),
-            settings_input(&editor.fields[index], surfaces)
+            text(field.label()).size(11).color(surfaces.muted),
+            settings_input(&editor.fields[field.index()], surfaces)
+                .id(field.id())
                 .size(11)
                 .padding([8, 9])
-                .on_input_maybe((!saving).then_some(move |value| Message::EditField(index, value)))
+                .on_input_maybe((!saving).then_some(move |value| Message::EditField(field, value)))
                 .on_submit_maybe(save.clone()),
         ]
         .width(Fill)
         .spacing(6)
     };
+    let control = |kind, label| {
+        let focused = editor.action_focus == Some(kind);
+        settings_button(label, surfaces).style(move |theme, status| {
+            focus_ring(bordered_button(theme, status, surfaces), theme, focused)
+        })
+    };
     let mut actions =
-        row![settings_button("Save metadata", surfaces).on_press_maybe(save.clone())].spacing(8);
+        row![control(Control::Save, "Save metadata").on_press_maybe(save.clone())].spacing(8);
     if editor.overridden {
         actions = actions.push(
-            settings_button("Clear override", surfaces)
+            control(Control::Clear, "Clear override")
                 .on_press_maybe((!busy && !saving).then_some(Message::SaveTrackEdit(true))),
         );
     }
     let actions = actions.push(
-        settings_button("Cancel", surfaces)
+        control(Control::Cancel, "Cancel")
             .on_press_maybe((!saving).then_some(Message::CloseTrackEdit)),
     );
     let mut body = column![
-        row![field(0, "Title"), field(1, "Artist"), field(2, "Album")].spacing(12),
-        row![field(3, "Track"), field(4, "Disc"), field(5, "Genre")].spacing(12),
         row![
-            field(6, "Year"),
+            field(Field::Title),
+            field(Field::Artist),
+            field(Field::Album)
+        ]
+        .spacing(12),
+        row![field(Field::Track), field(Field::Disc), field(Field::Genre)].spacing(12),
+        row![
+            field(Field::Year),
             Space::new().width(Fill),
             Space::new().width(Fill)
         ]

@@ -132,6 +132,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         fields: Default::default(),
         overridden: false,
         error: None,
+        action_focus: None,
     }));
     let dropbox = super::dropbox_panel::Settings::default();
     let preferences = crate::appearance::Appearance::default();

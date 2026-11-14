@@ -864,6 +864,7 @@ fn editing_source() -> (Desktop, crate::catalogue::IndexedTrack) {
         fields: std::array::from_fn(|_| String::new()),
         overridden: false,
         error: None,
+        action_focus: None,
     }));
     (desktop, track)
 }
@@ -914,7 +915,7 @@ fn it_allows_saving_a_metadata_edit_with_a_signed_year() {
     let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
     sources.editing = desktop.sources.editing.take();
     desktop.sources = sources;
-    let _ = desktop.update(Message::EditField(6, "-120".into()));
+    let _ = desktop.update(Message::EditField(MetadataField::Year, "-120".into()));
 
     let save = desktop.update(Message::SaveTrackEdit(false));
 
@@ -944,7 +945,10 @@ fn it_keeps_the_metadata_draft_until_its_queued_save_completes() {
 #[test]
 fn it_clears_the_metadata_validation_error_when_cancelling() {
     let (mut desktop, _) = editing_source();
-    let _ = desktop.update(Message::EditField(3, "not a number".into()));
+    let _ = desktop.update(Message::EditField(
+        MetadataField::Track,
+        "not a number".into(),
+    ));
     let _ = desktop.update(Message::SaveTrackEdit(false));
     let _ = desktop.update(Message::CloseTrackEdit);
 
@@ -973,7 +977,7 @@ fn it_reports_a_metadata_write_error_after_leaving_songs() {
 fn it_requires_positive_track_and_disc_numbers() {
     let (mut desktop, _) = editing_source();
 
-    for (field, value) in [(3, "0"), (4, "-1")] {
+    for (field, value) in [(MetadataField::Track, "0"), (MetadataField::Disc, "-1")] {
         let _ = desktop.update(Message::EditField(field, value.into()));
         let _ = desktop.update(Message::SaveTrackEdit(false));
         assert!(desktop.sources.editing.as_ref().unwrap().error.is_some());

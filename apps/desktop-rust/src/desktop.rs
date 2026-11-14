@@ -8,6 +8,7 @@ mod row_cover;
 mod settings_scroll;
 mod sidebar;
 pub use mini_focus::Control as MiniControl;
+mod track_editor_focus;
 mod updates;
 mod view;
 mod windows;
@@ -26,6 +27,7 @@ use crate::{
 
 use cover::Cover;
 use library_sources::{CataloguePaths, Operation, Snapshot, Sources};
+use track_editor_focus::{Control as TrackEditorControl, Field as MetadataField};
 use windows::Windows;
 
 #[derive(Debug, Clone)]
@@ -70,7 +72,8 @@ pub enum Message {
     ShowPlaylistForm(bool),
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
-    EditField(usize, String),
+    EditField(MetadataField, String),
+    TrackEditorTab(String, bool, Option<MetadataField>),
     SaveTrackEdit(bool),
     CloseTrackEdit,
     RemoteTrackReady(u64, Result<Track, String>),
@@ -460,6 +463,11 @@ impl Desktop {
                 self.save_appearance()
             }
             Message::AppearancePointerPressed(id) => {
+                if self.windows.is_library(id)
+                    && let Some(editor) = &mut self.sources.editing
+                {
+                    editor.action_focus = None;
+                }
                 if self.windows.is_library(id) {
                     self.appearance_focus = None;
                 }
@@ -551,16 +559,36 @@ impl Desktop {
                 ))
             }
             Message::EditTrack(track) => self.sources.open_editor(track),
-            Message::EditField(index, value) => {
+            Message::EditField(field, value) => {
                 if self.sources.editor_save_pending() {
                     return Task::none();
                 }
-                if let Some(editor) = &mut self.sources.editing
-                    && let Some(field) = editor.fields.get_mut(index)
-                {
-                    *field = value;
+                if let Some(editor) = &mut self.sources.editing {
+                    editor.fields[field.index()] = value;
                 }
                 Task::none()
+            }
+            Message::TrackEditorTab(track, backwards, field) => {
+                if self.page != LibraryPage::Songs || self.sources.editor_save_pending() {
+                    return Task::none();
+                }
+                let can_save = !self.sources.busy();
+                let Some(editor) = self
+                    .sources
+                    .editing
+                    .as_mut()
+                    .filter(|editor| editor.track_id == track)
+                else {
+                    return Task::none();
+                };
+                let next = TrackEditorControl::next(
+                    field.map(TrackEditorControl::Input).or(editor.action_focus),
+                    backwards,
+                    can_save,
+                    can_save && editor.overridden,
+                );
+                editor.action_focus = next.message().map(|_| next);
+                next.focus()
             }
             Message::SaveTrackEdit(clear) => self.save_track_edit(clear),
             Message::CloseTrackEdit => {
@@ -726,6 +754,13 @@ impl Desktop {
                 self.windows.show_mini()
             }
             Message::CycleMiniFocus(id, backwards) => {
+                if self.windows.is_library(id)
+                    && self.page == LibraryPage::Songs
+                    && !self.sources.editor_save_pending()
+                    && let Some(editor) = &self.sources.editing
+                {
+                    return track_editor_focus::observe(editor.track_id.clone(), backwards);
+                }
                 if self.windows.is_library(id) && self.page == LibraryPage::Settings {
                     let next = appearance_focus::Choice::next(self.appearance_focus, backwards);
                     self.appearance_focus = Some(next);
@@ -753,6 +788,9 @@ impl Desktop {
                 Task::none()
             }
             Message::ActivateMiniFocus(id) => {
+                if let Some(message) = self.focused_track_editor_action(id) {
+                    return self.update(message);
+                }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
                     && let Some(choice) = self.appearance_focus
@@ -777,6 +815,9 @@ impl Desktop {
                 Task::none()
             }
             Message::MiniSpace(id) => {
+                if let Some(message) = self.focused_track_editor_action(id) {
+                    return self.update(message);
+                }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
                     && self.appearance_focus.is_some()
@@ -882,6 +923,13 @@ impl Desktop {
         Task::none()
     }
 
+    fn focused_track_editor_action(&self, id: window::Id) -> Option<Message> {
+        if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
+            return None;
+        }
+        self.sources.editing.as_ref()?.action_focus?.message()
+    }
+
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {
         if self.sources.busy() || self.sources.editor_save_pending() {
             return Task::none();
@@ -889,8 +937,8 @@ impl Desktop {
         let Some(editor) = self.sources.editing.as_mut() else {
             return Task::none();
         };
-        let non_empty = |index: usize| {
-            let value = editor.fields[index].trim();
+        let non_empty = |field: MetadataField| {
+            let value = editor.fields[field.index()].trim();
             (!value.is_empty()).then(|| value.to_owned())
         };
         let number = |index| {
@@ -901,8 +949,11 @@ impl Desktop {
         let edit = if clear {
             crate::catalogue::MetadataOverride::default()
         } else {
-            let (Ok(track_number), Ok(disc_number), Ok(year)) = (number(3), number(4), number(6))
-            else {
+            let (Ok(track_number), Ok(disc_number), Ok(year)) = (
+                number(MetadataField::Track),
+                number(MetadataField::Disc),
+                number(MetadataField::Year),
+            ) else {
                 editor.error = Some("Track, disc and year must be whole numbers.".into());
                 return Task::none();
             };
@@ -915,12 +966,12 @@ impl Desktop {
                 return Task::none();
             }
             crate::catalogue::MetadataOverride {
-                title: non_empty(0),
-                artist: non_empty(1),
-                album: non_empty(2),
+                title: non_empty(MetadataField::Title),
+                artist: non_empty(MetadataField::Artist),
+                album: non_empty(MetadataField::Album),
                 track_number,
                 disc_number,
-                genre: non_empty(5),
+                genre: non_empty(MetadataField::Genre),
                 year,
             }
         };

@@ -16,7 +16,7 @@ use crate::catalogue::{
     Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
 };
 
-use super::Message;
+use super::{Message, track_editor_focus::Control};
 
 #[derive(Clone)]
 pub(crate) struct CataloguePaths {
@@ -117,6 +117,7 @@ pub struct TrackEditor {
     pub fields: [String; 7],
     pub overridden: bool,
     pub error: Option<String>,
+    pub action_focus: Option<Control>,
 }
 
 #[cfg(test)]
@@ -211,6 +212,7 @@ fn run_with_selection(
                 ],
                 overridden: metadata.overridden,
                 error: None,
+                action_focus: None,
             }));
             previous_source.clone().or(Some(library_id))
         }
