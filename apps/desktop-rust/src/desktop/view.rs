@@ -14,6 +14,7 @@ mod playlists;
 mod sleeve_image;
 mod source_search_input;
 mod sources;
+mod track_metadata;
 
 use super::{Message, library_sources::Sources};
 
@@ -46,9 +47,6 @@ fn library_content<'a>(
     if page == LibraryPage::Settings {
         return library::settings(preferences, dropbox, sources, session.is_some(), focus);
     }
-    if let Some((_, _, fields)) = &sources.editing {
-        return playlists::edit(fields, sources.busy());
-    }
     if page == LibraryPage::Playlists {
         let Some(snapshot) = sources
             .snapshot
@@ -70,13 +68,7 @@ fn library_content<'a>(
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(
-            snapshot,
-            session,
-            cover,
-            sources.busy(),
-            preferences.surfaces(),
-        )
+        sources::tracks(snapshot, session, cover, sources, preferences.surfaces())
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),

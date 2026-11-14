@@ -16,7 +16,9 @@ use crate::{
     session::Session,
 };
 
-use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
+use super::{
+    Icon, action, bold, clock, compact, icon_button, icon_tinted, library, track_metadata,
+};
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
 
@@ -473,9 +475,10 @@ pub fn tracks<'a>(
     snapshot: &'a Snapshot,
     session: Option<&Session>,
     cover: Option<&image::Handle>,
-    busy: bool,
+    sources: &'a Sources,
     surfaces: Surfaces,
 ) -> iced::widget::Column<'a, Message> {
+    let busy = sources.busy();
     let playing = session.is_some_and(Session::is_playing);
     let current = session.and_then(Session::current);
     let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
@@ -568,9 +571,16 @@ pub fn tracks<'a>(
         ]
         .spacing(8)
         .align_y(Alignment::Center);
+        let mut content = column![container(body).center_y(59)];
+        if let Some((id, library, fields)) = &sources.editing
+            && id == &track.id
+            && library == &track.library_id
+        {
+            content = content.push(track_metadata::editor(fields, busy, surfaces));
+        }
         column![
-            container(body)
-                .center_y(59)
+            container(content)
+                .width(Fill)
                 .padding([0, 24])
                 .style(move |theme: &Theme| {
                     let base = theme.palette().background;

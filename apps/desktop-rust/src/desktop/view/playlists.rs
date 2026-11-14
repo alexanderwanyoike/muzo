@@ -13,10 +13,7 @@ use crate::{
     track::Track,
 };
 
-use super::{
-    Icon, action, bold, compact, icon_button, icon_tinted, library, panel, primary,
-    track_play_button,
-};
+use super::{Icon, action, bold, compact, icon_button, icon_tinted, library, track_play_button};
 
 pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let query = sources.playlist_search.trim().to_lowercase();
@@ -332,47 +329,4 @@ pub fn tracks<'a>(
             .padding([26, 24])
             .height(Fill)
     ]
-}
-
-pub fn edit(fields: &[String; 7], busy: bool) -> iced::widget::Column<'_, Message> {
-    let labels = [
-        "Title",
-        "Artist",
-        "Album",
-        "Track number",
-        "Disc number",
-        "Genre",
-        "Year",
-    ];
-    let fields = column(labels.into_iter().zip(fields.iter()).enumerate().map(
-        |(index, (label, value))| {
-            row![
-                text(label).size(13).width(95),
-                text_input(label, value)
-                    .size(13)
-                    .on_input(move |value| Message::EditField(index, value))
-            ]
-            .align_y(Alignment::Center)
-            .spacing(10)
-            .into()
-        },
-    ))
-    .spacing(7);
-    column![
-        text("Edit track").font(bold()).size(18),
-        scrollable(container(fields).style(panel).padding(10)).height(Fill),
-        row![
-            button(text("Save").size(13))
-                .style(primary)
-                .on_press_maybe((!busy).then_some(Message::SaveTrackEdit(false))),
-            button(text("Clear overrides").size(13))
-                .style(action)
-                .on_press_maybe((!busy).then_some(Message::SaveTrackEdit(true))),
-            button(text("Cancel").size(13))
-                .style(action)
-                .on_press(Message::CloseTrackEdit)
-        ]
-        .spacing(8),
-    ]
-    .spacing(8)
 }
