@@ -21,55 +21,55 @@ use super::{
 pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let query = sources.playlist_search.trim().to_lowercase();
     let snapshot = sources.snapshot.as_ref();
-    let entries = snapshot
+    let matches = snapshot
         .into_iter()
         .flat_map(|snapshot| &snapshot.playlists)
-        .filter(|playlist| playlist.name.to_lowercase().contains(&query))
-        .map(|playlist| {
-            let active = snapshot.and_then(|snapshot| snapshot.selected_playlist.as_deref())
-                == Some(playlist.id.as_str());
-            let count = snapshot
-                .filter(|_| active)
-                .map(|snapshot| snapshot.playlist_entries.len().to_string());
-            button(
-                row![
-                    icon_tinted(Icon::Queue, move |theme| if active {
-                        theme.palette().primary
-                    } else {
-                        surfaces.muted
-                    })
-                    .width(15)
-                    .height(15),
-                    text(&playlist.name)
-                        .size(11)
-                        .font(bold())
-                        .width(Fill)
-                        .wrapping(text::Wrapping::None),
-                    text(count.unwrap_or_default())
-                        .size(9)
-                        .color(surfaces.muted),
-                ]
-                .spacing(8)
-                .align_y(Alignment::Center),
-            )
-            .height(32)
-            .padding([5, 8])
-            .width(Fill)
-            .style(move |theme, status| {
-                let mut style = action(theme, status);
-                if active {
-                    style.background =
-                        Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into());
-                }
-                style
-            })
-            .on_press_maybe(
-                (!sources.busy()).then(|| {
-                    Message::SourceOperation(Operation::SelectPlaylist(playlist.id.clone()))
-                }),
-            )
-            .into()
-        });
+        .filter(|playlist| playlist.name.to_lowercase().contains(&query));
+    let match_count = matches.clone().count();
+    let entries = matches.map(|playlist| {
+        let active = snapshot.and_then(|snapshot| snapshot.selected_playlist.as_deref())
+            == Some(playlist.id.as_str());
+        let count = snapshot
+            .filter(|_| active)
+            .map(|snapshot| snapshot.playlist_entries.len().to_string());
+        button(
+            row![
+                icon_tinted(Icon::Queue, move |theme| if active {
+                    theme.palette().primary
+                } else {
+                    surfaces.muted
+                })
+                .width(15)
+                .height(15),
+                text(&playlist.name)
+                    .size(11)
+                    .font(bold())
+                    .width(Fill)
+                    .wrapping(text::Wrapping::None),
+                text(count.unwrap_or_default())
+                    .size(9)
+                    .color(surfaces.muted),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .height(32)
+        .padding([5, 8])
+        .width(Fill)
+        .style(move |theme, status| {
+            let mut style = action(theme, status);
+            if active {
+                style.background =
+                    Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into());
+            }
+            style
+        })
+        .on_press_maybe(
+            (!sources.busy())
+                .then(|| Message::SourceOperation(Operation::SelectPlaylist(playlist.id.clone()))),
+        )
+        .into()
+    });
     let heading = container(
         row![
             icon_tinted(Icon::Queue, move |_| surfaces.muted)
@@ -87,13 +87,40 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     .padding([0, 10])
     .center_y(32)
     .style(move |_| container::Style::default().background(surfaces.chrome));
+    let clear = (!query.is_empty()).then(|| Message::PlaylistSearch(String::new()));
     let search = container(
-        text_input("Search playlists", &sources.playlist_search)
-            .size(11)
-            .padding([8, 9])
-            .on_input(Message::PlaylistSearch),
+        row![
+            text_input("Search playlists", &sources.playlist_search)
+                .size(11)
+                .padding([8, 9])
+                .on_input(Message::PlaylistSearch),
+            icon_button(Icon::Close, "Clear search", clear),
+        ]
+        .align_y(Alignment::Center),
     )
     .padding(8);
+    let mut rows = column![];
+    if !query.is_empty() {
+        rows = rows.push(
+            container(
+                text(format!("{match_count} matches"))
+                    .size(10)
+                    .color(surfaces.muted),
+            )
+            .padding([3, 9]),
+        );
+        if match_count == 0 {
+            rows = rows.push(
+                container(
+                    text("No playlists match your search.")
+                        .size(11)
+                        .color(surfaces.muted),
+                )
+                .padding([5, 9]),
+            );
+        }
+    }
+    rows = rows.push(column(entries));
     let footer: Element<'_, Message> = if sources.show_playlist_form {
         container(
             column![
@@ -143,7 +170,7 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
         library::line(surfaces),
         search,
         library::line(surfaces),
-        scrollable(column(entries)).height(Fill),
+        scrollable(rows).height(Fill),
         library::line(surfaces),
         footer,
     ])
@@ -202,6 +229,14 @@ pub fn tracks<'a>(
                 ]
                 .spacing(4)
                 .width(Fill),
+                text(
+                    entry
+                        .track
+                        .as_ref()
+                        .map_or(String::new(), |track| format!("{} plays", track.plays))
+                )
+                .size(10)
+                .color(surfaces.muted),
                 track_play_button(
                     if active && playing {
                         Icon::Pause

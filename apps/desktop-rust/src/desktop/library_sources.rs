@@ -258,6 +258,7 @@ pub(super) struct Sources {
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
+    creating_playlist: bool,
     pub editing: Option<(String, String, Box<[String; 7]>)>,
     pub saving_editor: bool,
     busy: bool,
@@ -280,6 +281,7 @@ impl Sources {
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
+            creating_playlist: false,
             editing: None,
             saving_editor: false,
             busy: false,
@@ -334,6 +336,7 @@ impl Sources {
             return Task::none();
         };
         self.busy = true;
+        self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.error = None;
         let selected = self
             .snapshot
@@ -358,6 +361,7 @@ impl Sources {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
+        let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -366,6 +370,11 @@ impl Sources {
                 return;
             }
         };
+        if creating_playlist {
+            self.show_playlist_form = false;
+            self.playlist_name.clear();
+            self.playlist_search.clear();
+        }
         if let Some(previous) = &self.snapshot {
             preserve_play_counts(&mut snapshot, previous);
         }

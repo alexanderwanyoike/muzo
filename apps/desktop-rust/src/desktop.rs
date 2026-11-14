@@ -428,9 +428,9 @@ impl Desktop {
                 if self.sources.busy() || self.sources.playlist_name.trim().is_empty() {
                     return Task::none();
                 }
-                let name = std::mem::take(&mut self.sources.playlist_name);
-                self.sources.show_playlist_form = false;
-                self.sources.start(Operation::CreatePlaylist(name))
+                self.sources.start(Operation::CreatePlaylist(
+                    self.sources.playlist_name.clone(),
+                ))
             }
             Message::EditTrack(track) => self
                 .sources
