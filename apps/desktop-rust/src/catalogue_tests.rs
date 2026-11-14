@@ -165,3 +165,18 @@ fn it_imports_electron_metadata_overrides_and_play_events() {
     drop(imported);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_rejects_invalid_legacy_schema_without_publishing_a_catalogue() {
+    let root = std::env::temp_dir().join(format!("muzo-invalid-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&root).unwrap();
+    let legacy = root.join("muzo.sqlite");
+    let current = root.join("muzo-rust.sqlite");
+    let database = Connection::open(&legacy).unwrap();
+    database.pragma_update(None, "user_version", 8).unwrap();
+    drop(database);
+
+    assert!(Catalogue::open(&current, Some(&legacy)).is_err());
+    assert!(!current.exists());
+    fs::remove_dir_all(root).unwrap();
+}
