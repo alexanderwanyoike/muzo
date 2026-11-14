@@ -194,7 +194,9 @@ mod tests {
         let cursor = mouse::Cursor::Available(Point::new(160.0, 45.0));
         widget.update(
             &mut tree,
-            &Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now())),
+            &Event::Window(iced::window::Event::RedrawRequested(
+                iced::time::Instant::now(),
+            )),
             Layout::new(&node),
             cursor,
             &renderer,

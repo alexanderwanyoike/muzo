@@ -1501,7 +1501,10 @@ fn input_message(
         return None;
     }
     let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
-        key, modifiers, repeat, ..
+        key,
+        modifiers,
+        repeat,
+        ..
     }) = event
     else {
         return None;

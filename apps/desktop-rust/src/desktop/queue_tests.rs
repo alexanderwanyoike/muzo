@@ -242,7 +242,12 @@ fn it_can_expand_the_mini_queue_from_the_keyboard() {
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
 
-    assert!(desktop.update(Message::ActivateMiniFocus(mini_id, false)).units() > 0);
+    assert!(
+        desktop
+            .update(Message::ActivateMiniFocus(mini_id, false))
+            .units()
+            > 0
+    );
     assert!(desktop.windows.queue_pending());
 }
 
@@ -255,7 +260,12 @@ fn it_skips_disabled_transport_when_cycling_mini_controls() {
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
     let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
 
-    assert!(desktop.update(Message::ActivateMiniFocus(mini_id, false)).units() > 0);
+    assert!(
+        desktop
+            .update(Message::ActivateMiniFocus(mini_id, false))
+            .units()
+            > 0
+    );
     assert!(!desktop.windows.is_mini(mini_id));
 }
 
