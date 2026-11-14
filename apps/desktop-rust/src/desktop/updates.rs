@@ -15,7 +15,7 @@ pub enum Status {
     Idle,
     Checking,
     Available(Update),
-    Downloading,
+    Downloading(u8),
     Ready(Update, PathBuf),
     Installing,
     Error(String),
@@ -44,23 +44,32 @@ pub fn check() -> Task<Message> {
 }
 
 pub fn download(update: Update, directory: PathBuf) -> Task<Message> {
-    let expected = update.clone();
-    Task::perform(
-        async move {
-            tokio::task::spawn_blocking(move || {
-                update
-                    .download(&directory)
-                    .map_err(|error| error.to_string())
-            })
-            .await
-            .map_err(|error| format!("Could not download the update: {error}"))?
-        },
-        move |result| {
-            Message::UpdateReceived(match result {
-                Ok(path) => Status::Ready(expected.clone(), path),
-                Err(error) => Status::Error(error),
-            })
-        },
+    Task::run(
+        iced::stream::channel(
+            8,
+            move |output: iced::futures::channel::mpsc::Sender<Status>| async move {
+                use iced::futures::SinkExt;
+
+                let mut output = output;
+                let worker_output = output.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    let mut output = worker_output;
+                    let result = update.download(&directory, |percentage| {
+                        let _ = output.try_send(Status::Downloading(percentage));
+                    });
+                    match result {
+                        Ok(path) => Status::Ready(update, path),
+                        Err(error) => Status::Error(error.to_string()),
+                    }
+                })
+                .await
+                .unwrap_or_else(|error| {
+                    Status::Error(format!("Could not download the update: {error}"))
+                });
+                let _ = output.send(result).await;
+            },
+        ),
+        Message::UpdateReceived,
     )
 }
 
@@ -108,7 +117,9 @@ pub fn view(status: &Status) -> Element<'_, Message> {
             button(text(format!("Muzo {} available", update.version)).size(11))
                 .on_press(Message::DownloadUpdate(update.clone()))
         }
-        Status::Downloading => button(text("Downloading update…").size(11)),
+        Status::Downloading(percent) => {
+            button(text(format!("Downloading update… {percent}%")).size(11))
+        }
         Status::Ready(update, path) => button(text("Restart to install").size(11))
             .on_press(Message::InstallUpdate(update.clone(), path.clone())),
         Status::Installing => button(text("Installing update…").size(11)),

@@ -132,16 +132,31 @@ impl Update {
         format!("{RELEASE_ROOT}/tag/v{}", self.version)
     }
 
-    pub fn download(&self, directory: &Path) -> Result<PathBuf, UpdateError> {
-        fs::create_dir_all(directory)?;
-        let mut temporary = tempfile::NamedTempFile::new_in(directory)?;
-        let mut body = client()?
+    pub fn download(
+        &self,
+        directory: &Path,
+        progress: impl FnMut(u8),
+    ) -> Result<PathBuf, UpdateError> {
+        let body = client()?
             .get(self.download_url()?)
             .send()?
             .error_for_status()?;
+        self.persist_download(directory, body, progress)
+    }
+
+    pub(crate) fn persist_download(
+        &self,
+        directory: &Path,
+        mut body: impl Read,
+        mut progress: impl FnMut(u8),
+    ) -> Result<PathBuf, UpdateError> {
+        fs::create_dir_all(directory)?;
+        let mut temporary = tempfile::NamedTempFile::new_in(directory)?;
         let mut digest = Sha256::new();
         let mut remaining = self.asset.size;
         let mut buffer = [0u8; 32 * 1024];
+        let mut last_reported = 0;
+        progress(0);
         loop {
             let read = body.read(&mut buffer)?;
             if read == 0 {
@@ -152,6 +167,14 @@ impl Update {
                 .ok_or(UpdateError::Integrity)?;
             digest.update(&buffer[..read]);
             temporary.write_all(&buffer[..read])?;
+            if self.asset.size != 0 {
+                let downloaded = u128::from(self.asset.size - remaining);
+                let percent = (downloaded * 100 / u128::from(self.asset.size)).min(99) as u8;
+                if percent != last_reported {
+                    last_reported = percent;
+                    progress(percent);
+                }
+            }
         }
         if remaining != 0
             || !format!("{:x}", digest.finalize()).eq_ignore_ascii_case(&self.asset.sha256)
@@ -161,6 +184,7 @@ impl Update {
         temporary.as_file().sync_all()?;
         let path = directory.join(&self.asset.name);
         temporary.persist(&path).map_err(|error| error.error)?;
+        progress(100);
         Ok(path)
     }
 }

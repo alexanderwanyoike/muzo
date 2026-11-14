@@ -62,14 +62,7 @@ pub(super) fn library<'a>(
 
     let layout = iced::widget::pane_grid(&sidebar.grid, |_, pane, _| {
         let body: Element<'_, Message> = match pane {
-            super::sidebar::Pane::Sidebar => column![
-                sources::sidebar(sources),
-                super::updates::view(update_status)
-            ]
-            .spacing(5)
-            .width(Fill)
-            .height(Fill)
-            .into(),
+            super::sidebar::Pane::Sidebar => sources::sidebar(sources),
             super::sidebar::Pane::Content => {
                 library_content(sources, dropbox, preferences, session)
                     .width(Fill)
@@ -109,8 +102,13 @@ pub(super) fn library<'a>(
             .style(panel)
             .padding(12)
             .width(Fill),
+            row![
+                Space::new().width(Fill),
+                super::updates::view(update_status),
+            ]
+            .width(Fill),
         ]
-        .spacing(16),
+        .spacing(12),
     )
     .padding(super::sidebar::LIBRARY_PADDING)
     .height(Fill)

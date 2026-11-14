@@ -258,7 +258,7 @@ impl Desktop {
                     return Task::none();
                 }
                 if let Some(paths) = self.sources.paths() {
-                    self.update_status = updates::Status::Downloading;
+                    self.update_status = updates::Status::Downloading(0);
                     return updates::download(update, paths.update_cache());
                 }
                 Task::none()
