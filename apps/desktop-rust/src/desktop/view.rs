@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use iced::{
     Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
-    theme::Palette,
     widget::{
         Space, button, column, container, image, row, scrollable, slider, svg, text, tooltip,
     },
@@ -10,35 +9,18 @@ use iced::{
 
 use crate::{session::Session, track::Track};
 
+mod appearance;
 mod playlists;
 mod sources;
 
 use super::{Message, library_sources::Sources};
 
-const BACKGROUND: Color = color!(0x202321);
-const PANEL: Color = color!(0x292d2a);
-const TEXT: Color = color!(0xecefe9);
-const MUTED: Color = color!(0xa9b4aa);
-const ACCENT: Color = color!(0xbad6aa);
-const INK: Color = color!(0x1e2e1e);
-
-pub fn theme() -> Theme {
-    Theme::custom(
-        "Studio",
-        Palette {
-            background: BACKGROUND,
-            text: TEXT,
-            primary: ACCENT,
-            success: ACCENT,
-            warning: color!(0xf6dca1),
-            danger: color!(0xf6aca1),
-        },
-    )
-}
+const MUTED: Color = color!(0x7d8a86);
 
 pub fn library<'a>(
     sources: &'a Sources,
     dropbox: &'a super::dropbox_panel::Settings,
+    preferences: &'a crate::appearance::Appearance,
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     error: Option<&'a str>,
@@ -46,7 +28,7 @@ pub fn library<'a>(
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
-        button(text("Dropbox").size(14))
+        button(text("Settings").size(14))
             .padding([7, 14])
             .style(action)
             .on_press(Message::Dropbox(super::dropbox_panel::Action::Toggle)),
@@ -63,7 +45,7 @@ pub fn library<'a>(
     .spacing(10);
 
     let body = if dropbox.visible {
-        dropbox.view()
+        column![appearance::controls(preferences), dropbox.view()].spacing(22)
     } else if let Some((_, _, fields)) = &sources.editing {
         playlists::edit(fields, sources.busy())
     } else if let Some(snapshot) = sources
@@ -349,47 +331,52 @@ fn bold() -> Font {
     }
 }
 
-fn panel(_: &Theme) -> container::Style {
+fn panel(theme: &Theme) -> container::Style {
+    let palette = theme.extended_palette();
     container::Style::default()
-        .background(PANEL)
-        .border(border::rounded(10).color(color!(0x3b423c)).width(1))
+        .background(palette.background.weak.color)
+        .border(
+            border::rounded(10)
+                .color(palette.background.strong.color)
+                .width(1),
+        )
 }
-
-fn action(_: &Theme, status: button::Status) -> button::Style {
+fn action(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
     button::Style {
         background: match status {
-            button::Status::Hovered | button::Status::Pressed => Some(color!(0x3b443d).into()),
+            button::Status::Hovered | button::Status::Pressed => {
+                Some(palette.background.strong.color.into())
+            }
             _ => None,
         },
         text_color: if status == button::Status::Disabled {
-            MUTED.scale_alpha(0.48)
+            palette.background.base.text.scale_alpha(0.45)
         } else {
-            TEXT
+            palette.background.base.text
         },
         border: border::rounded(6),
         ..Default::default()
     }
 }
-
 fn selected(theme: &Theme, status: button::Status) -> button::Style {
+    let pair = theme.extended_palette().primary.weak;
     button::Style {
-        background: Some(color!(0x374338).into()),
-        text_color: ACCENT,
+        background: Some(pair.color.into()),
+        text_color: pair.text,
         ..action(theme, status)
     }
 }
-
 fn primary(theme: &Theme, status: button::Status) -> button::Style {
+    let palette = theme.extended_palette();
+    let pair = if status == button::Status::Hovered {
+        palette.primary.strong
+    } else {
+        palette.primary.base
+    };
     button::Style {
-        background: Some(
-            if status == button::Status::Hovered {
-                color!(0xd2e8c7)
-            } else {
-                ACCENT
-            }
-            .into(),
-        ),
-        text_color: INK,
+        background: Some(pair.color.into()),
+        text_color: pair.text,
         ..action(theme, status)
     }
 }
@@ -412,24 +399,19 @@ fn icon_button(
     label: &'static str,
     message: Option<Message>,
 ) -> Element<'static, Message> {
-    let icon_color = if message.is_some() {
-        TEXT
-    } else {
-        MUTED.scale_alpha(0.4)
-    };
-    let style = if matches!(icon_kind, Icon::Play | Icon::Pause) && message.is_some() {
-        primary
-    } else {
-        action
-    };
-    let glyph = icon_tinted(
-        icon_kind,
-        if matches!(icon_kind, Icon::Play | Icon::Pause) && message.is_some() {
-            INK
+    let prominent = matches!(icon_kind, Icon::Play | Icon::Pause) && message.is_some();
+    let active = message.is_some();
+    let style = if prominent { primary } else { action };
+    let glyph = icon_tinted(icon_kind, move |theme| {
+        if prominent {
+            theme.extended_palette().primary.base.text
         } else {
-            icon_color
-        },
-    );
+            theme
+                .palette()
+                .text
+                .scale_alpha(if active { 1.0 } else { 0.4 })
+        }
+    });
     tooltip(
         button(glyph)
             .padding([6, 8])
@@ -443,10 +425,10 @@ fn icon_button(
 }
 
 fn icon(kind: Icon) -> Element<'static, Message> {
-    icon_tinted(kind, MUTED).into()
+    icon_tinted(kind, |theme| theme.palette().text.scale_alpha(0.68)).into()
 }
 
-fn icon_tinted(kind: Icon, color: Color) -> svg::Svg<'static> {
+fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg<'static> {
     let path = match kind {
         Icon::Library => "<path d='M4 10V4h6M20 14v6h-6M4 4l6 6m10 10-6-6'/>",
         Icon::Mini => "<path d='M4 7V4h16v16h-3M4 12h9v8H4z'/>",
@@ -466,5 +448,7 @@ fn icon_tinted(kind: Icon, color: Color) -> svg::Svg<'static> {
     svg(svg::Handle::from_memory(markup.into_bytes()))
         .width(18)
         .height(18)
-        .style(move |_, _| svg::Style { color: Some(color) })
+        .style(move |theme, _| svg::Style {
+            color: Some(tint(theme)),
+        })
 }

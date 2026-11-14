@@ -30,6 +30,9 @@ pub enum Message {
     SourceWatchTick,
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
+    Material(String),
+    AppearanceMode(String),
+    Accent(String),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
@@ -73,6 +76,7 @@ pub struct Desktop {
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
     loading_remote: bool,
+    appearance: crate::appearance::Appearance,
 }
 
 impl Desktop {
@@ -86,6 +90,12 @@ impl Desktop {
         let (mut desktop, open) = Self::with_session(session);
         desktop.output = output.ok();
         desktop.sources = Sources::new(CataloguePaths::from_environment());
+        if let Some(path) = desktop.sources.paths().map(|paths| paths.appearance()) {
+            match crate::appearance::load(&path) {
+                Ok(appearance) => desktop.appearance = appearance,
+                Err(error) => desktop.error = Some(error.to_string()),
+            }
+        }
         let load_sources = desktop.sources.start(Operation::Startup);
         let files = std::env::args_os().skip(1).map(PathBuf::from).collect();
         (
@@ -114,6 +124,7 @@ impl Desktop {
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
                 loading_remote: false,
+                appearance: crate::appearance::Appearance::default(),
             },
             open,
         )
@@ -156,6 +167,18 @@ impl Desktop {
                 }
             }
             Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
+            Message::Material(material) => {
+                self.appearance.theme = material;
+                self.save_appearance()
+            }
+            Message::AppearanceMode(mode) => {
+                self.appearance.mode = mode;
+                self.save_appearance()
+            }
+            Message::Accent(accent) => {
+                self.appearance.accent = accent;
+                self.save_appearance()
+            }
             Message::DropboxReady(result) => {
                 self.dropbox.apply(result);
                 self.sources.reload()
@@ -332,6 +355,15 @@ impl Desktop {
                 Task::none()
             }
         }
+    }
+
+    fn save_appearance(&mut self) -> Task<Message> {
+        if let Some(path) = self.sources.paths().map(|paths| paths.appearance())
+            && let Err(error) = crate::appearance::save(&path, &self.appearance)
+        {
+            self.error = Some(error.to_string());
+        }
+        Task::none()
     }
 
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {
@@ -594,6 +626,7 @@ impl Desktop {
             view::library(
                 &self.sources,
                 &self.dropbox,
+                &self.appearance,
                 self.session.as_ref(),
                 self.artwork.as_ref(),
                 self.error.as_deref(),
@@ -602,7 +635,7 @@ impl Desktop {
     }
 
     pub fn theme(&self, _id: window::Id) -> Theme {
-        view::theme()
+        self.appearance.theme()
     }
 
     #[cfg(test)]
