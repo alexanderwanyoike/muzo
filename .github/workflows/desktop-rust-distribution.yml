@@ -152,7 +152,7 @@ jobs:
       - name: Assemble and verify the existing release contract
         run: |
           version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' apps/desktop-rust/Packager.toml)
-          yarn release:assemble --input release-input --output release-set --version "$version" --tag "v$version" --source-commit "$(git rev-parse HEAD)"
+          yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "$version" --tag "v$version" --source-commit "$(git rev-parse HEAD)"
           cd release-set
           sha256sum --check SHA256SUMS
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
