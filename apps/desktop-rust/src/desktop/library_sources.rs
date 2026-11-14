@@ -33,6 +33,10 @@ impl CataloguePaths {
         Catalogue::open(&self.current, Some(&self.legacy))
     }
 
+    pub(crate) fn update_cache(&self) -> PathBuf {
+        self.current.with_file_name("updates-rust")
+    }
+
     pub(crate) fn appearance(&self) -> PathBuf {
         self.current.with_file_name("appearance-rust.json")
     }

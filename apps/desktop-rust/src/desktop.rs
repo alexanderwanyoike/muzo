@@ -1,5 +1,6 @@
 mod dropbox_panel;
 pub(crate) mod library_sources;
+mod updates;
 mod view;
 mod windows;
 
@@ -33,6 +34,10 @@ pub enum Message {
     Material(String),
     AppearanceMode(String),
     Accent(String),
+    CheckUpdate,
+    UpdateReceived(updates::Status),
+    DownloadUpdate(crate::distribution::Update),
+    InstallUpdate(PathBuf),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
@@ -77,6 +82,7 @@ pub struct Desktop {
     playback_request: u64,
     loading_remote: bool,
     appearance: crate::appearance::Appearance,
+    update_status: updates::Status,
 }
 
 impl Desktop {
@@ -102,6 +108,7 @@ impl Desktop {
             desktop,
             open.chain(Task::batch([
                 load_sources,
+                auto_update(),
                 Task::done(Message::FilesPicked(files)),
             ])),
         )
@@ -125,6 +132,7 @@ impl Desktop {
                 playback_request: 0,
                 loading_remote: false,
                 appearance: crate::appearance::Appearance::default(),
+                update_status: updates::Status::Idle,
             },
             open,
         )
@@ -167,6 +175,36 @@ impl Desktop {
                 }
             }
             Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
+            Message::CheckUpdate => {
+                self.update_status = updates::Status::Checking;
+                updates::check()
+            }
+            Message::UpdateReceived(status) => {
+                self.update_status = status;
+                Task::none()
+            }
+            Message::DownloadUpdate(update) => {
+                if cfg!(target_os = "macos")
+                    || (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_none())
+                {
+                    if let Err(error) = open::that_detached(update.release_page()) {
+                        self.update_status = updates::Status::Error(error.to_string());
+                    }
+                    return Task::none();
+                }
+                if let Some(paths) = self.sources.paths() {
+                    self.update_status = updates::Status::Downloading;
+                    return updates::download(update, paths.update_cache());
+                }
+                Task::none()
+            }
+            Message::InstallUpdate(path) => match updates::launch(&path) {
+                Ok(()) => iced::exit(),
+                Err(error) => {
+                    self.update_status = updates::Status::Error(error.to_string());
+                    Task::none()
+                }
+            },
             Message::Material(material) => {
                 self.appearance.theme = material;
                 self.save_appearance()
@@ -626,7 +664,7 @@ impl Desktop {
             view::library(
                 &self.sources,
                 &self.dropbox,
-                &self.appearance,
+                (&self.appearance, &self.update_status),
                 self.session.as_ref(),
                 self.artwork.as_ref(),
                 self.error.as_deref(),
@@ -642,5 +680,15 @@ impl Desktop {
     pub fn now_playing(&self) -> Option<(usize, Duration)> {
         let session = self.session.as_ref()?;
         Some((session.current_index()?, session.observe().0))
+    }
+}
+
+fn auto_update() -> Task<Message> {
+    if (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some())
+        || (cfg!(any(target_os = "windows", target_os = "macos")) && !cfg!(debug_assertions))
+    {
+        Task::done(Message::CheckUpdate)
+    } else {
+        Task::none()
     }
 }

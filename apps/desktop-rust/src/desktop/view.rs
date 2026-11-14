@@ -20,11 +20,15 @@ const MUTED: Color = color!(0x7d8a86);
 pub fn library<'a>(
     sources: &'a Sources,
     dropbox: &'a super::dropbox_panel::Settings,
-    preferences: &'a crate::appearance::Appearance,
+    settings: (
+        &'a crate::appearance::Appearance,
+        &'a super::updates::Status,
+    ),
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     error: Option<&'a str>,
 ) -> Element<'a, Message> {
+    let (preferences, update_status) = settings;
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
@@ -83,7 +87,15 @@ pub fn library<'a>(
     container(
         column![
             header,
-            row![sources::sidebar(sources), body.width(Fill).height(Fill)].spacing(16),
+            row![
+                column![
+                    sources::sidebar(sources),
+                    super::updates::view(update_status)
+                ]
+                .spacing(5),
+                body.width(Fill).height(Fill)
+            ]
+            .spacing(16),
             error_line(sources.error.as_deref()),
             error_line(error),
             container(
