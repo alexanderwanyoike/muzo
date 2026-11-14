@@ -536,3 +536,53 @@ fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
 
     assert!(desktop.cover.background().is_none());
 }
+
+#[test]
+fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
+    let (mut desktop, audio) = setup();
+    let mut playlist = snapshot(&[]);
+    playlist.selected_playlist = Some("playlist".into());
+    let indexed = crate::catalogue::IndexedTrack {
+        id: "song".into(),
+        title: audio.title().into(),
+        artist: "Artist".into(),
+        album: None,
+        path: audio.path().into(),
+        plays: 0,
+        duration_seconds: 3,
+        library_id: "local-library".into(),
+    };
+    playlist.playlist_entries = vec![
+        crate::catalogue::PlaylistEntry {
+            id: "unavailable".into(),
+            track: None,
+        },
+        crate::catalogue::PlaylistEntry {
+            id: "first".into(),
+            track: Some(indexed.clone()),
+        },
+        crate::catalogue::PlaylistEntry {
+            id: "second".into(),
+            track: Some(indexed),
+        },
+    ];
+    desktop.sources.snapshot = Some(playlist);
+    let _ = desktop.update(Message::PlayPlaylist("first".into()));
+    let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
+    let _ = desktop.update(Message::RemoteTrackReady(
+        desktop.playback_request,
+        Ok(ready),
+    ));
+    let generation = desktop.session.as_ref().unwrap().start_generation();
+
+    let _ = desktop.update(Message::StartPlaylist("playlist".into()));
+    assert_eq!(desktop.pending_track, Some(0));
+    let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
+    let _ = desktop.update(Message::RemoteTrackReady(
+        desktop.playback_request,
+        Ok(ready),
+    ));
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.start_generation(), generation + 1);
+    assert_eq!(session.current().unwrap().playlist_entry(), Some("first"));
+}
