@@ -386,10 +386,7 @@ pub(super) fn settings<'a>(
             ))
         });
     let body = column![
-        container(appearance::controls(preferences))
-            .padding(16)
-            .width(Fill)
-            .style(move |_| framed(surfaces.raised, surfaces, 5)),
+        appearance::controls(preferences),
         container(
             column![
                 text("Sources").size(16).font(bold()),
@@ -413,9 +410,10 @@ pub(super) fn settings<'a>(
         .width(Fill)
         .style(move |_| framed(surfaces.raised, surfaces, 5)),
     ]
-    .spacing(16)
+    .spacing(20)
+    .width(Fill)
     .max_width(850);
-    column![scrollable(container(body).padding(26).width(Fill)).height(Fill)]
+    column![scrollable(container(body).padding([24, 28]).center_x(Fill)).height(Fill)]
 }
 
 pub(super) fn line(surfaces: Surfaces) -> Element<'static, Message> {
