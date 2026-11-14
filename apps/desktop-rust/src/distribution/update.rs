@@ -13,6 +13,7 @@ use sha2::{Digest, Sha256};
 use super::{Target, filename};
 
 const RELEASE_ROOT: &str = "https://github.com/alexanderwanyoike/muzo/releases";
+const MAX_SAFE_RELEASE_SIZE: u64 = 9_007_199_254_740_991;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,6 +80,7 @@ pub fn update_for(
                 && asset.platform == platform
                 && asset.arch == arch
                 && asset.size > 0
+                && asset.size <= MAX_SAFE_RELEASE_SIZE
                 && valid_hex(&asset.sha256, 64)
         }) else {
             return Err(UpdateError::InvalidManifest);
@@ -192,6 +194,43 @@ impl Update {
 #[derive(Deserialize)]
 struct Latest {
     tag_name: String,
+    draft: bool,
+    prerelease: bool,
+    assets: Vec<PublishedAsset>,
+}
+
+#[derive(Deserialize)]
+struct PublishedAsset {
+    name: String,
+    browser_download_url: String,
+}
+
+fn required_assets(version: &str) -> impl Iterator<Item = String> + '_ {
+    Target::ALL
+        .into_iter()
+        .map(move |target| filename(version, target))
+        .chain([
+            format!("muzo-{version}-release.json"),
+            "SHA256SUMS".into(),
+            "latest.yml".into(),
+            "latest-linux.yml".into(),
+        ])
+}
+
+impl Latest {
+    fn complete(&self, version: &str) -> bool {
+        !self.draft
+            && !self.prerelease
+            && self.tag_name == format!("v{version}")
+            && required_assets(version).all(|name| {
+                let url = format!("{RELEASE_ROOT}/download/v{version}/{name}");
+                self.assets
+                    .iter()
+                    .filter(|asset| asset.name == name && asset.browser_download_url == url)
+                    .count()
+                    == 1
+            })
+    }
 }
 
 pub fn latest(installed: &str, target: Target) -> Result<Option<Update>, UpdateError> {
@@ -209,6 +248,9 @@ pub fn latest(installed: &str, target: Target) -> Result<Option<Update>, UpdateE
     let installed_version = Version::parse(installed).map_err(|_| UpdateError::InvalidManifest)?;
     if parsed <= installed_version {
         return Ok(None);
+    }
+    if !latest.complete(version) {
+        return Err(UpdateError::InvalidManifest);
     }
     let manifest: Release = client
         .get(format!(
@@ -232,7 +274,10 @@ fn client() -> Result<Client, reqwest::Error> {
 }
 
 fn valid_hex(value: &str, length: usize) -> bool {
-    value.len() == length && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+    value.len() == length
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 #[cfg(test)]
