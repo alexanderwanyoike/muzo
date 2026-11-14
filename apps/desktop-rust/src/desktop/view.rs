@@ -313,18 +313,26 @@ fn icon(kind: Icon) -> Element<'static, Message> {
 
 fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg<'static> {
     let path = match kind {
-        Icon::Library => "<path d='M8 3H3v5m18 8v5h-5M3 3l7 7m11 11-7-7'/>",
-        Icon::Mini => "<path d='M4 7V4h16v16h-3M4 12h9v8H4z'/>",
+        Icon::Library => "<path d='M15 3h6v6m0-6-7 7M3 21l7-7m-1 7H3v-6'/>",
+        Icon::Mini => "<path d='m14 10 7-7m-1 7h-6V4M3 21l7-7m-6 0h6v6'/>",
         Icon::Queue => {
             "<path d='M9 18H3m9-6H3m13-6H3m18 4v8m0-8-5 1'/><circle cx='19' cy='18' r='2'/>"
         }
         Icon::Disc => {
             "<circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='2'/><path d='M7 10a5 5 0 0 1 3-3m4 10a5 5 0 0 0 3-3'/>"
         }
-        Icon::Play => "<path d='m8 5 12 7-12 7z' fill='black'/>",
-        Icon::Pause => "<path d='M9 5v14m6-14v14' stroke-width='3'/>",
-        Icon::Previous => "<path d='M5 5v14m14-14L8 12l11 7z' fill='black'/>",
-        Icon::Next => "<path d='M19 5v14M5 5l11 7-11 7z' fill='black'/>",
+        Icon::Play => {
+            "<path d='M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z' fill='black' stroke-width='1.4'/>"
+        }
+        Icon::Pause => {
+            "<g fill='black' stroke-width='1.4'><rect x='14' y='3' width='5' height='18' rx='1'/><rect x='5' y='3' width='5' height='18' rx='1'/></g>"
+        }
+        Icon::Previous => {
+            "<path d='M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z' fill='black' stroke-width='1.4'/><path d='M3 20V4' stroke-width='1.4'/>"
+        }
+        Icon::Next => {
+            "<path d='M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z' fill='black' stroke-width='1.4'/><path d='M21 4v16' stroke-width='1.4'/>"
+        }
         Icon::Settings => {
             "<path d='M4 7h16M4 17h16'/><circle cx='8' cy='7' r='2' fill='white'/><circle cx='16' cy='17' r='2' fill='white'/>"
         }

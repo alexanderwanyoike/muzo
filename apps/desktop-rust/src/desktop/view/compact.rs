@@ -12,8 +12,8 @@ use crate::{
 };
 
 use super::{
-    Icon, Message, action, bold, clock, focus_ring, focusable_icon, icon, icon_tinted,
-    playback_error,
+    Icon, Message, action, bold, clock, control_opacity, focus_ring, focusable_icon, icon,
+    icon_tinted, playback_error,
 };
 use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
@@ -286,15 +286,10 @@ fn play_button(
     focused: bool,
     surfaces: Surfaces,
 ) -> Element<'static, Message> {
-    let glyph = icon_tinted(
-        if playing { Icon::Pause } else { Icon::Play },
-        move |theme| {
-            theme
-                .palette()
-                .text
-                .scale_alpha(if available { 1.0 } else { 0.4 })
-        },
-    )
+    let glyph = icon_tinted(if playing { Icon::Pause } else { Icon::Play }, |theme| {
+        theme.palette().text
+    })
+    .opacity(control_opacity(available))
     .width(26)
     .height(26);
     button(container(glyph).center(48))
