@@ -249,6 +249,24 @@ mod tests {
 
     #[test]
     fn it_dismisses_the_playlist_popup_when_scrolling_outside_it() {
+        let (captured, messages) = scroll_at(Point::new(240.0, 80.0));
+
+        assert!(!captured);
+        assert!(matches!(
+            messages.as_slice(),
+            [Message::DismissTrackPlaylistPopup]
+        ));
+    }
+
+    #[test]
+    fn it_keeps_scroll_inside_the_playlist_popup_even_at_its_edge() {
+        let (captured, messages) = scroll_at(Point::new(40.5, 80.0));
+
+        assert!(captured);
+        assert!(messages.is_empty());
+    }
+
+    fn scroll_at(position: Point) -> (bool, Vec<Message>) {
         let mut content = iced::widget::space().height(80).into();
         let mut tree = Tree::new(&content);
         let renderer = Renderer::new(iced::Font::DEFAULT, iced::Pixels(16.0));
@@ -258,7 +276,7 @@ mod tests {
             anchor: Rectangle::new(Point::new(40.0, 40.0), Size::new(160.0, 28.0)),
         };
         let node = popup.layout(&renderer, Size::new(400.0, 400.0));
-        let cursor = mouse::Cursor::Available(Point::new(240.0, 80.0));
+        let cursor = mouse::Cursor::Available(position);
         let wheel = Event::Mouse(mouse::Event::WheelScrolled {
             delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
         });
@@ -273,10 +291,6 @@ mod tests {
             &mut shell,
         );
 
-        assert!(!shell.is_event_captured());
-        assert!(matches!(
-            messages.as_slice(),
-            [Message::DismissTrackPlaylistPopup]
-        ));
+        (shell.is_event_captured(), messages)
     }
 }
