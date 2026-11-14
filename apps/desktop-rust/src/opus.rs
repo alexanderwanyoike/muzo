@@ -35,7 +35,7 @@ impl OpusSource {
         };
         let mut format = symphonia::default::get_probe()
             .format(
-                &Hint::new().with_extension("opus"),
+                Hint::new().with_extension("opus"),
                 stream,
                 &options,
                 &MetadataOptions::default(),
