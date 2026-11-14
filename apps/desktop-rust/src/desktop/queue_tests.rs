@@ -604,3 +604,28 @@ fn it_keeps_the_new_playlist_name_when_saving_fails() {
     assert_eq!(desktop.sources.playlist_name, "After Hours");
     assert_eq!(desktop.sources.playlist_search, "Other");
 }
+
+#[test]
+fn it_clears_direct_covers_when_catalogue_playback_replaces_the_queue() {
+    let (mut desktop, audio) = setup();
+    let mut source = snapshot(&[]);
+    source.tracks = vec![crate::catalogue::IndexedTrack {
+        id: "catalogue-song".into(),
+        title: audio.title().into(),
+        artist: "".into(),
+        album: None,
+        path: audio.path().into(),
+        plays: 0,
+        duration_seconds: 1,
+        library_id: "library".into(),
+    }];
+    desktop.sources.snapshot = Some(source);
+    desktop.direct_covers.insert(
+        PathBuf::from("previous.mp3"),
+        iced::widget::image::Handle::from_rgba(1, 1, vec![0, 0, 0, 255]),
+    );
+
+    let _ = desktop.update(Message::PlayIndexed(0));
+
+    assert!(desktop.direct_covers.is_empty());
+}
