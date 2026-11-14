@@ -7,3 +7,6 @@ mod playback_tests;
 
 #[cfg(test)]
 mod session_tests;
+
+#[cfg(test)]
+mod track_tests;
