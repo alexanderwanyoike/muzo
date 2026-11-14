@@ -9,7 +9,7 @@ Close any running Muzo development process before switching. From the repository
 ```sh
 git switch codex/test-all-desktop-work
 yarn install
-yarn desktop:dev
+yarn desktop:legacy
 ```
 
 A full restart is required for new main-process IPC commands. The browser-only

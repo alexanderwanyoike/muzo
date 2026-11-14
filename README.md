@@ -107,24 +107,26 @@ On Debian and Ubuntu, install the ALSA, Wayland and xkbcommon development
 packages (`libasound2-dev`, `libwayland-dev` and `libxkbcommon-dev`).
 Use `yarn desktop:legacy` to launch the Electron comparison client.
 
-Linux development and native tests need Electron's GTK/audio runtime dependencies
-and Xvfb. CI lists the required system packages.
+The legacy Linux desktop checks use Electron's GTK/audio dependencies and Xvfb.
+CI lists the required system packages.
 
 | Check | Command |
 | --- | --- |
-| Formatting | `yarn format:check` |
+| Rust checks | `yarn workspace @muzo/desktop-rust format:check`, `native:lint`, `native:test` |
+| Rust release build | `yarn workspace @muzo/desktop-rust build` |
+| JavaScript formatting | `yarn format:check` |
 | Lint | `yarn lint` |
 | Types | `yarn typecheck` |
 | Tests | `yarn test` |
-| Desktop build | `yarn desktop:build` |
-| Package and distributables | `yarn desktop:package` and `yarn desktop:make` |
+| Electron build | `yarn desktop:build` |
+| Electron package and distributables | `yarn desktop:package` and `yarn desktop:make` |
 | Website | `yarn site:verify` and `yarn site:build` |
 
 Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev`
 to `main`. We use merge commits and preserve the red, green and refactor commits.
 See [AGENTS.md](./AGENTS.md) for the engineering conventions.
 
-- [Desktop smoke tests](./docs/testing/desktop-ui-smoke-test.md)
+- [Electron comparison smoke tests](./docs/testing/desktop-ui-smoke-test.md)
 - [Native packaging and releases](./docs/distribution.md)
 - [Project site](./docs/project-site.md)
 - [Planned and completed work](./docs/cards)

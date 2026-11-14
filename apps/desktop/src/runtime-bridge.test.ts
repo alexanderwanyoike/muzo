@@ -25,7 +25,7 @@ describe("runtime bridge", () => {
 
   it("fails clearly when the desktop runtime is missing", async () => {
     await expect(invokeCommand("ping", { input: true })).rejects.toThrow(
-      "Muzo desktop runtime is not available",
+      "Muzo desktop runtime is not available. Start the app with yarn desktop:legacy.",
     );
   });
 
