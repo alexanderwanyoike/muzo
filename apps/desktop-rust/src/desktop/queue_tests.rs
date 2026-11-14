@@ -400,3 +400,26 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
     assert!(desktop.artwork.is_some());
     assert_eq!(desktop.error.as_deref(), Some("Offline"));
 }
+
+#[test]
+fn it_does_not_regress_a_committed_play_count_when_an_older_snapshot_arrives() {
+    let (mut desktop, _) = setup();
+    let mut older = snapshot(&["first"]);
+    let row = crate::catalogue::IndexedTrack {
+        id: "track".into(),
+        title: "Track".into(),
+        artist: String::new(),
+        album: None,
+        path: PathBuf::from("track.mp3"),
+        plays: 0,
+        library_id: "first".into(),
+    };
+    older.tracks.push(row);
+    let mut newer = older.clone();
+    newer.tracks[0].plays = 1;
+    desktop.sources.snapshot = Some(newer);
+
+    let _ = desktop.update(Message::SourcesUpdated(Ok(older)));
+
+    assert_eq!(desktop.sources.snapshot.unwrap().tracks[0].plays, 1);
+}
