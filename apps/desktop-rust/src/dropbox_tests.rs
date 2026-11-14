@@ -263,3 +263,43 @@ fn it_invalidates_artwork_when_dropbox_replaces_a_file_with_the_same_size() {
     let latest = catalogue.artwork_revision(&library.id, &id).unwrap();
     assert!(cache.get_or_read(&latest, || None).is_none());
 }
+
+#[test]
+fn it_rolls_back_a_dropbox_source_if_the_initial_track_index_cannot_be_written() {
+    use crate::{catalogue::Catalogue, dropbox::Entry};
+
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("catalogue.sqlite");
+    let mut catalogue = Catalogue::open(&path, None).unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let database = rusqlite::Connection::open(&path).unwrap();
+    database
+        .execute_batch(
+            "CREATE TRIGGER fail_initial_track BEFORE INSERT ON tracks
+             WHEN NEW.title = 'Broken'
+             BEGIN SELECT RAISE(ABORT, 'index write failed'); END;",
+        )
+        .unwrap();
+    let valid: Entry = serde_json::from_str(
+        r#"{".tag":"file","name":"A.mp3","path_display":"/Music/A.mp3"}"#,
+    )
+    .unwrap();
+    let invalid: Entry = serde_json::from_str(
+        r#"{".tag":"file","name":"Broken.mp3","path_display":"/Music/Broken.mp3"}"#,
+    )
+    .unwrap();
+
+    let error = catalogue
+        .add_dropbox_indexed("account", "/Music", "Music", &[valid.clone(), invalid])
+        .unwrap_err();
+    assert!(error.to_string().contains("index write failed"));
+    let reopened = Catalogue::open(&path, None).unwrap();
+    assert!(reopened.libraries().unwrap().is_empty());
+    assert!(reopened.dropbox_libraries_for("account").unwrap().is_empty());
+    let library = catalogue
+        .add_dropbox_indexed("account", "/Music", "Music", &[valid])
+        .unwrap();
+    assert_eq!(reopened.tracks(&library.id).unwrap().len(), 1);
+}
