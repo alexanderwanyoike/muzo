@@ -305,7 +305,12 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 Task::none()
             }
-            Message::ClearSourceSearch => Task::none(),
+            Message::ClearSourceSearch => {
+                let _ = self.update(Message::SourceSearch(String::new()));
+                iced::advanced::widget::operate(
+                    iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
+                )
+            }
             Message::SourceOperation(operation) => {
                 if matches!(operation, Operation::Select(_)) {
                     self.page = LibraryPage::Songs;

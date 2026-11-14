@@ -18,6 +18,8 @@ use crate::{
 
 use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
 
+pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
+
 #[cfg(test)]
 #[test]
 fn it_finds_a_library_by_its_location_as_well_as_its_name() {
@@ -177,7 +179,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .snapshot
         .as_ref()
         .and_then(|snapshot| snapshot.selected.as_deref());
-    let source_rows = sources
+    let source_rows: Vec<Element<'_, Message>> = sources
         .snapshot
         .iter()
         .flat_map(|snapshot| &snapshot.libraries)
@@ -227,7 +229,8 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             ]
             .align_y(Alignment::Center)
             .into()
-        });
+        })
+        .collect();
     let libraries = sources
         .snapshot
         .as_ref()
@@ -250,14 +253,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         crate::desktop::material::chrome(appearance, surfaces, 32),
         heading
     ];
-    let search = container(
-        text_input("Search sources", &sources.search)
-            .size(11)
-            .padding([8, 9])
-            .style(move |theme, status| search_style(theme, status, surfaces))
-            .on_input(Message::SourceSearch),
-    )
-    .padding(8);
+    let matching = source_rows.len();
     let add = button(
         row![
             text("+").size(16).color(surfaces.muted),
@@ -278,13 +274,27 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         crate::desktop::material::chrome(appearance, surfaces, 32),
         add
     ];
-    let mut body = column![
-        heading,
-        library::line(surfaces),
-        search,
-        library::line(surfaces),
-        scrollable(column(source_rows)).height(Fill),
-    ];
+    let mut body = column![heading, library::line(surfaces)];
+    if libraries != 0 {
+        body = body.push(source_search(sources, surfaces));
+        if !sources.search.is_empty() {
+            body = body.push(
+                container(
+                    text(format!("{matching} of {libraries} sources"))
+                        .size(10)
+                        .color(surfaces.muted),
+                )
+                .padding([1, 9]),
+            );
+        }
+        body = body.push(library::line(surfaces));
+    }
+    let list: Element<'_, Message> = match (libraries, matching) {
+        (0, _) => source_search_empty("No libraries yet. Add one in Settings.", surfaces).into(),
+        (_, 0) => source_search_empty("No sources match your search.", surfaces).into(),
+        _ => column(source_rows).into(),
+    };
+    body = body.push(scrollable(list).height(Fill));
     if sources.busy() {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
@@ -316,6 +326,40 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .width(Fill)
         .height(Fill)
         .into()
+}
+
+fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+    let input = text_input("Search sources", &sources.search)
+        .id(SOURCE_SEARCH)
+        .size(11)
+        .padding(iced::Padding {
+            left: 27.0,
+            right: 28.0,
+            top: 8.0,
+            bottom: 8.0,
+        })
+        .style(move |theme, status| search_style(theme, status, surfaces))
+        .on_input(Message::SourceSearch);
+    let glyph = icon_tinted(Icon::Search, move |_| surfaces.muted)
+        .width(13)
+        .height(13);
+    let mut field = stack![input, container(glyph).padding([8, 8])];
+    if !sources.search.is_empty() {
+        let clear = icon_button(
+            Icon::Close,
+            "Clear source search",
+            Some(Message::ClearSourceSearch),
+        );
+        field = field.push(container(clear).width(Fill).align_x(Alignment::End));
+    }
+    container(field).padding(8).into()
+}
+
+fn source_search_empty(
+    label: &'static str,
+    surfaces: Surfaces,
+) -> iced::widget::Container<'static, Message> {
+    container(text(label).size(11).color(surfaces.muted)).padding([12, 10])
 }
 
 fn search_style(
