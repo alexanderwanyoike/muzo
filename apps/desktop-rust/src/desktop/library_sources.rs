@@ -91,7 +91,6 @@ pub enum Operation {
     RemovePlaylistEntry(String, String),
     EditTrack(String, String, MetadataOverride),
     LoadTrackEditor(String, String),
-    RecordPlays(Vec<String>, Option<String>, Option<String>),
 }
 
 #[derive(Debug, Clone)]
@@ -171,13 +170,6 @@ pub(crate) fn run(
             catalogue.override_track(&id, &edit)?;
             Some(library_id)
         }
-        Operation::RecordPlays(ids, selection, playlist) => {
-            for id in ids {
-                catalogue.record_play(&id)?;
-            }
-            selected_playlist = playlist;
-            selection
-        }
         Operation::Startup | Operation::Reconcile(_, _) => {
             for source in catalogue
                 .libraries()?
@@ -237,7 +229,6 @@ pub(super) struct Sources {
     pub error: Option<String>,
     pub playlist_name: String,
     pub editing: Option<(String, String, Box<[String; 7]>)>,
-    pub queued_plays: Vec<String>,
     pub saving_editor: bool,
     busy: bool,
     changed: Arc<AtomicBool>,
@@ -258,7 +249,6 @@ impl Sources {
             error: None,
             playlist_name: String::new(),
             editing: None,
-            queued_plays: Vec::new(),
             saving_editor: false,
             busy: false,
             changed: Arc::new(AtomicBool::new(false)),
@@ -281,6 +271,28 @@ impl Sources {
             .and_then(|snapshot| snapshot.selected.clone());
         self.changed.store(true, Ordering::Release);
         selected.map_or_else(Task::none, |id| self.start(Operation::Select(id)))
+    }
+
+    pub fn record_play(&mut self, id: &str) -> Result<(), CatalogueError> {
+        let Some(paths) = self.paths.as_ref() else {
+            return Ok(());
+        };
+        paths.open()?.record_play(id)?;
+        if let Some(snapshot) = &mut self.snapshot {
+            for track in &mut snapshot.tracks {
+                if track.id == id {
+                    track.plays = track.plays.saturating_add(1);
+                }
+            }
+            for entry in &mut snapshot.playlist_entries {
+                if let Some(track) = &mut entry.track
+                    && track.id == id
+                {
+                    track.plays = track.plays.saturating_add(1);
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn busy(&self) -> bool {
@@ -362,10 +374,6 @@ impl Sources {
             .snapshot
             .as_ref()
             .and_then(|snapshot| snapshot.selected_playlist.clone());
-        if !self.queued_plays.is_empty() {
-            let ids = std::mem::take(&mut self.queued_plays);
-            return self.start(Operation::RecordPlays(ids, selected, playlist));
-        }
         if !self.changed.swap(false, Ordering::AcqRel) {
             return Task::none();
         }

@@ -810,14 +810,15 @@ impl Desktop {
             let before = session.start_generation();
             match operation(session) {
                 Ok(()) => {
+                    if clear_on_success || current != session.current_index() {
+                        self.error = None;
+                    }
                     if let Some(id) = session.current().and_then(Track::indexed_id)
                         && session.is_playing()
                         && before != session.start_generation()
+                        && let Err(error) = self.sources.record_play(id)
                     {
-                        self.sources.queued_plays.push(id.to_owned());
-                    }
-                    if clear_on_success || current != session.current_index() {
-                        self.error = None;
+                        self.error = Some(error.to_string());
                     }
                 }
                 Err(error) => self.error = Some(error.to_string()),
