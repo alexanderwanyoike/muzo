@@ -66,3 +66,23 @@ fn it_rejects_a_download_modified_before_installation() {
     std::fs::write(installer.path(), b"bad!").unwrap();
     assert!(update.verify(installer.path()).is_err());
 }
+
+#[test]
+fn it_rejects_an_update_with_mismatched_platform_metadata() {
+    use crate::distribution::{Artifact, Release, update_for};
+    let release = Release {
+        schema_version: 1,
+        tag: "v0.0.7".into(),
+        version: "0.0.7".into(),
+        source_commit: "a".repeat(40),
+        artifacts: vec![Artifact {
+            name: filename("0.0.7", Target::LinuxX64),
+            platform: "windows".into(),
+            arch: "x64".into(),
+            size: 12,
+            sha256: "a".repeat(64),
+        }],
+    };
+
+    assert!(update_for("0.0.6", Target::LinuxX64, release).is_err());
+}
