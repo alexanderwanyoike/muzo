@@ -129,6 +129,7 @@ $previousDpi = [IntPtr]::Zero
 $testFailed = $false
 try {
     $previousDpi = [MuzoWindows]::SetThreadDpiAwarenessContext([IntPtr] [MuzoWindows]::DpiAwarenessContextPerMonitorAwareV2)
+    if ($previousDpi -eq [IntPtr]::Zero) { throw 'Could not set the capture thread DPI awareness.' }
     New-Item -ItemType Directory -Force -Path $Screenshots | Out-Null
     $recording = Join-Path $data.FullName 'Local track.mp3'
     Copy-Item (Join-Path $PSScriptRoot '../fixtures/tone.mp3') $recording
@@ -177,17 +178,18 @@ try {
     $testFailed = $true
     throw
 } finally {
-    try {
+    $cleanupErrors = @(
+        try { Stop-MuzoProcess $application } catch { $_ }
         try {
-            Stop-MuzoProcess $application
-        } finally {
-            if ($previousDpi -ne [IntPtr]::Zero) {
-                [void] [MuzoWindows]::SetThreadDpiAwarenessContext($previousDpi)
+            if ($previousDpi -ne [IntPtr]::Zero -and
+                [MuzoWindows]::SetThreadDpiAwarenessContext($previousDpi) -eq [IntPtr]::Zero) {
+                throw 'Could not restore the capture thread DPI awareness.'
             }
-            $data.Delete($true)
-        }
-    } catch {
-        if (!$testFailed) { throw }
-        Write-Warning "Could not clean up after the Muzo smoke test. $($_.Exception.Message)"
+        } catch { $_ }
+        try { $data.Delete($true) } catch { $_ }
+    )
+    foreach ($cleanupError in $cleanupErrors) {
+        Write-Warning $cleanupError.Exception.Message
     }
+    if (!$testFailed -and $cleanupErrors.Count) { throw 'Could not clean up after the Muzo smoke test.' }
 }
