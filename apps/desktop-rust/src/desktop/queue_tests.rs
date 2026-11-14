@@ -365,3 +365,38 @@ fn it_saves_a_successful_play_before_the_next_background_poll() {
         1
     );
 }
+
+#[test]
+fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let entry = serde_json::from_str(
+        r#"{".tag":"file","name":"Track.mp3","path_display":"/Music/Track.mp3","size":48,"rev":"1"}"#,
+    ).unwrap();
+    catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let revision = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
+        .get_or_read(&revision, || {
+            Some(include_bytes!("../../../desktop/assets/icons/muzo.png").to_vec())
+        })
+        .unwrap();
+    let (mut desktop, _) = setup();
+    let track = Track::new(PathBuf::new(), row.title, None, None, None)
+        .with_indexed_id(row.id)
+        .with_library(library.id.clone())
+        .with_remote(library.id, "/Music/Track.mp3".into());
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+    desktop.sources = Sources::new(Some(paths));
+    let _ = desktop.update(Message::Select(0));
+    let request = desktop.playback_request;
+    let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
+
+    assert!(desktop.artwork.is_some());
+    assert_eq!(desktop.error.as_deref(), Some("Offline"));
+}

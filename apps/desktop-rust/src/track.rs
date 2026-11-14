@@ -63,6 +63,11 @@ impl Track {
         self
     }
 
+    pub(crate) fn without_artwork(mut self) -> Self {
+        self.artwork = None;
+        self
+    }
+
     pub fn library(&self) -> Option<&str> {
         self.library.as_deref()
     }
