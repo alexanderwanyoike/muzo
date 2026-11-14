@@ -144,3 +144,14 @@ fn it_seeks_relative_to_the_beginning_of_a_cropped_opus_stream() {
         .collect();
     assert_eq!(sought, expected);
 }
+
+#[test]
+fn it_decodes_the_entire_opus_stream_without_trailing_or_preskip_samples() {
+    use crate::opus::OpusSource;
+    use std::fs::File;
+
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.opus");
+    let track = OpusSource::open(File::open(path).unwrap(), Duration::ZERO).unwrap();
+
+    assert_eq!(track.count(), 96_000);
+}
