@@ -20,3 +20,6 @@ mod desktop_tests;
 
 #[cfg(test)]
 mod catalogue_tests;
+
+#[cfg(test)]
+mod dropbox_tests;
