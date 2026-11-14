@@ -57,3 +57,21 @@ fn it_can_seek_before_the_output_device_pulls_its_first_sample() {
     assert_eq!(position.unwrap(), target);
     worker.join().unwrap();
 }
+
+#[test]
+fn it_plays_and_seeks_ogg_opus() {
+    let (mixer, mut samples) =
+        mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(48_000).unwrap());
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.opus");
+    let mut playback = Playback::new(mixer);
+    playback.play(&file).unwrap();
+    let target = playback.duration() / 2;
+    assert!(target > Duration::ZERO);
+    playback.seek(target).unwrap();
+    assert!(
+        samples
+            .by_ref()
+            .take(4096)
+            .any(|sample| sample.abs() > 0.001)
+    );
+}
