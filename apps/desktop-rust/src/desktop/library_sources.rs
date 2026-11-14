@@ -616,14 +616,11 @@ mod tests {
     }
 
     #[test]
-    fn it_preserves_whitespace_at_the_end_of_a_real_folder_location() {
+    fn it_preserves_whitespace_at_the_end_of_the_chosen_folder_location() {
         let root = tempfile::tempdir().unwrap();
         let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
         desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
         let folder = root.path().join("Live ");
-        let lookalike = root.path().join("Live");
-        std::fs::create_dir(&folder).unwrap();
-        std::fs::create_dir(&lookalike).unwrap();
         let _ = desktop.update(Message::AddFolder);
         let _ = desktop.update(Message::FolderPicked(Some(folder.clone())));
         desktop.sources.pending.push_back(Operation::Reload);
