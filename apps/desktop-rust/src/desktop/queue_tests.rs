@@ -641,3 +641,16 @@ fn it_can_choose_the_next_appearance_material_with_tab_and_space() {
 
     assert_eq!(desktop.appearance.theme, "pulse");
 }
+
+#[test]
+fn it_activates_the_material_clicked_after_keyboard_navigation() {
+    let (mut desktop, _) = setup();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::Material("walnut".into()));
+    let _ = desktop.update(Message::MiniSpace(library));
+
+    assert_eq!(desktop.appearance.theme, "walnut");
+}
