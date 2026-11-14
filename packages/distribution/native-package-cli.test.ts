@@ -1,5 +1,13 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -25,6 +33,7 @@ it("rejects version drift before starting Cargo or the native packager", async (
     const scripts = [
       "native-package-cli.ts",
       "release-context.ts",
+      "release-versions.ts",
       "release-contract.ts",
       "distribution-result.ts",
     ];
@@ -45,6 +54,14 @@ it("rejects version drift before starting Cargo or the native packager", async (
         ),
       ),
     ]);
+    const dependency = createRequire(import.meta.url).resolve("smol-toml");
+    const nodeModules = join(fixture, "node_modules");
+    await mkdir(nodeModules);
+    await symlink(
+      join(dependency, "..", ".."),
+      join(nodeModules, "smol-toml"),
+      "junction",
+    );
     const packager = join(fixture, "apps/desktop-rust/Packager.toml");
     const config = await readFile(packager, "utf8");
     await writeFile(
@@ -63,9 +80,7 @@ it("rejects version drift before starting Cargo or the native packager", async (
         env: { ...process.env, PATH: "" },
       },
     );
-    await expect(command).rejects.toMatchObject({
-      stderr: expect.stringContaining("versions must match"),
-    });
+    await expect(command).rejects.toThrow(/versions must match/);
   } finally {
     await rm(fixture, { recursive: true, force: true });
   }

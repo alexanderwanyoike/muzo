@@ -19,10 +19,14 @@ export interface ReleaseContext {
   tag: string;
   sourceCommit: string;
 }
-export function releaseContext(
-  input: ReleaseContextInput,
-): DistributionResult<ReleaseContext> {
-  const { rootVersion, desktopVersion, native, sourceCommit, tag } = input;
+export function releaseVersion({
+  rootVersion,
+  desktopVersion,
+  native,
+}: Omit<
+  ReleaseContextInput,
+  "sourceCommit" | "tag"
+>): DistributionResult<string> {
   if (
     native !== undefined &&
     [native.workspace, native.binary, native.packager].some(
@@ -33,11 +37,23 @@ export function releaseContext(
       "invalidRelease",
       "The native workspace, Cargo and Packager versions must match the root version.",
     );
+  if (!isStableReleaseVersion(rootVersion) || rootVersion !== desktopVersion)
+    return distributionFailure(
+      "invalidRelease",
+      "Root and desktop versions must match a stable release version.",
+    );
+  return { ok: true, value: rootVersion };
+}
+
+export function releaseContext(
+  input: ReleaseContextInput,
+): DistributionResult<ReleaseContext> {
+  const version = releaseVersion(input);
+  if (!version.ok) return version;
+  const { sourceCommit, tag } = input;
   if (
-    !isStableReleaseVersion(rootVersion) ||
-    rootVersion !== desktopVersion ||
     !isReleaseSourceCommit(sourceCommit) ||
-    (tag !== undefined && tag !== `v${rootVersion}`)
+    (tag !== undefined && tag !== `v${version.value}`)
   )
     return distributionFailure(
       "invalidRelease",
@@ -45,6 +61,6 @@ export function releaseContext(
     );
   return {
     ok: true,
-    value: { version: rootVersion, tag: `v${rootVersion}`, sourceCommit },
+    value: { version: version.value, tag: `v${version.value}`, sourceCommit },
   };
 }

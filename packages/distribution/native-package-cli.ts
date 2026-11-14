@@ -12,7 +12,13 @@ import { basename, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs, promisify } from "node:util";
-import { RELEASE_TARGETS, type ReleaseTarget } from "./release-contract";
+import {
+  RELEASE_TARGETS,
+  releaseAssetName,
+  type ReleaseTarget,
+} from "./release-contract";
+import { releaseVersion } from "./release-context";
+import { readReleaseVersions } from "./release-versions";
 import {
   distributionFailure,
   type DistributionResult,
@@ -54,6 +60,7 @@ async function run(
 
 async function buildPayload(
   target: ReleaseTarget,
+  version: string,
   binaries: string,
   stage: string,
 ) {
@@ -77,6 +84,7 @@ async function buildPayload(
         "--x64",
         "--config",
         "electron-builder.config.json",
+        `--config.extraMetadata.version=${version}`,
         `--config.directories.output=${stage}`,
         "--publish",
         "never",
@@ -130,6 +138,9 @@ async function packageNative(): Promise<DistributionResult<string>> {
         "Build the requested Muzo installer on its native operating system and architecture.",
       );
 
+    const version = releaseVersion(await readReleaseVersions(true));
+    if (!version.ok) return version;
+
     const output = values.output
       ? resolve(process.env.INIT_CWD ?? process.cwd(), values.output)
       : join(native, "out/rust-distribution");
@@ -154,13 +165,16 @@ async function packageNative(): Promise<DistributionResult<string>> {
     await mkdir(output, { recursive: true });
     const stage = await mkdtemp(join(output, ".muzo-package-"));
     try {
-      await buildPayload(target, binaries, stage);
+      await buildPayload(target, version.value, binaries, stage);
       const suffix = process.platform === "win32" ? ".exe" : "";
       const renamed = await run(join(binaries, `name-installer${suffix}`), [
         stage,
       ]);
       const name = basename(renamed.trim());
-      if (!name || !(await stat(join(stage, name))).isFile())
+      if (
+        name !== releaseAssetName(target.id, version.value) ||
+        !(await stat(join(stage, name))).isFile()
+      )
         return distributionFailure(
           "storage",
           "The expected native installer was not produced.",
