@@ -161,6 +161,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_keeps_walnut_grain_continuous_through_the_height_of_the_mini_player() {
+        use svg::Renderer as _;
+
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        for material in [&*WALNUT, &*WALNUT_DARK] {
+            let tile = renderer.measure_svg(material);
+            assert!(
+                tile.height >= 560,
+                "the mini player would repeat the slanted grain vertically"
+            );
+        }
+    }
+
+    #[test]
     fn it_does_not_leave_a_bare_walnut_column_at_fractional_scale() {
         use svg::Renderer as _;
 
