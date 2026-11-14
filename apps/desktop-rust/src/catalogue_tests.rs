@@ -116,3 +116,51 @@ fn it_reopens_the_same_rust_catalogue_across_launches() {
     assert_eq!(restarted.selected.as_deref(), Some(id.as_str()));
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn it_imports_electron_metadata_overrides_and_play_events() {
+    let root = std::env::temp_dir().join(format!("muzo-electron-catalog-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&root).unwrap();
+    let legacy = root.join("muzo.sqlite");
+    let current = root.join("muzo-rust.sqlite");
+    let database = Connection::open(&legacy).unwrap();
+    database
+        .execute_batch(include_str!(
+            "../../desktop/electron/infrastructure/sqlite/fixtures/legacy-tauri-v5.sql"
+        ))
+        .unwrap();
+    database.execute_batch(include_str!("../../desktop/electron/infrastructure/sqlite/migrations/0006-create-dropbox-accounts.sql")).unwrap();
+    database
+        .execute_batch(include_str!(
+            "../../desktop/electron/infrastructure/sqlite/migrations/0007-dropbox-client-id.sql"
+        ))
+        .unwrap();
+    database
+        .execute_batch(include_str!(
+            "../../desktop/electron/infrastructure/sqlite/migrations/0008-dropbox-library-sync.sql"
+        ))
+        .unwrap();
+    database.execute_batch("PRAGMA user_version = 8; CREATE TABLE electron_migrations (version INTEGER PRIMARY KEY, name TEXT, applied_at_unix_seconds INTEGER);
+        INSERT INTO libraries VALUES ('dropbox-1', 'Cloud', 'dropbox', '/Cloud');
+        INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime, override_title)
+            VALUES ('track-1','dropbox-1','Original','Artist',5,'/Cloud/tone.mp3',100,100,'Edited');
+        INSERT INTO play_history VALUES ('play-1','dropbox-1','track-1',123);
+    ").unwrap();
+    drop(database);
+    let original = fs::read(&legacy).unwrap();
+    let catalogue = Catalogue::open(&current, Some(&legacy)).unwrap();
+    assert_eq!(catalogue.libraries().unwrap()[0].kind, "dropbox");
+    assert_eq!(catalogue.tracks("dropbox-1").unwrap()[0].title, "Edited");
+    drop(catalogue);
+    assert_eq!(fs::read(legacy).unwrap(), original);
+    let imported = Connection::open(current).unwrap();
+    assert_eq!(
+        imported
+            .query_row("SELECT track_id FROM play_history", [], |row| row
+                .get::<_, String>(0))
+            .unwrap(),
+        "track-1"
+    );
+    drop(imported);
+    fs::remove_dir_all(root).unwrap();
+}
