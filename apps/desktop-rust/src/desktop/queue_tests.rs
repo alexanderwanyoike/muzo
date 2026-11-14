@@ -1101,6 +1101,62 @@ fn rendered_labels(desktop: &Desktop) -> Vec<String> {
 }
 
 #[test]
+fn it_labels_songs_with_saved_edits_when_the_album_is_missing() {
+    use crate::catalogue::{Catalogue, MetadataOverride};
+
+    let directory = tempfile::tempdir().unwrap();
+    let audio = directory.path().join("Music");
+    std::fs::create_dir(&audio).unwrap();
+    std::fs::write(
+        audio.join("song.mp3"),
+        include_bytes!("../../tests/fixtures/tone.mp3"),
+    )
+    .unwrap();
+    let mut catalogue = Catalogue::open(&directory.path().join("catalogue.sqlite"), None).unwrap();
+    let library = catalogue.add_folder(&audio).unwrap();
+    let original = catalogue.tracks(&library.id).unwrap().remove(0);
+    assert!(original.album.is_none());
+
+    let (mut desktop, _) = setup();
+    let mut sources = snapshot(&[&library.id]);
+    sources.selected = Some(library.id.clone());
+    sources.libraries = vec![library.clone()];
+    desktop.sources.snapshot = Some(sources);
+    let mut song_labels = || {
+        desktop.sources.snapshot.as_mut().unwrap().tracks = catalogue.tracks(&library.id).unwrap();
+        rendered_labels(&desktop)
+    };
+
+    assert!(song_labels().contains(&original.artist));
+    let edit = MetadataOverride {
+        year: Some(1998),
+        ..MetadataOverride::default()
+    };
+    catalogue.override_track(&original.id, &edit).unwrap();
+
+    let edited = format!("{} - Edited in Muzo", original.artist);
+    assert!(song_labels().contains(&edited));
+
+    let edit_with_album = MetadataOverride {
+        album: Some("Field Recordings".into()),
+        ..edit
+    };
+    catalogue
+        .override_track(&original.id, &edit_with_album)
+        .unwrap();
+    let labels = song_labels();
+    assert!(labels.contains(&format!("{} - Field Recordings", original.artist)));
+    assert!(!labels.contains(&edited));
+
+    catalogue
+        .override_track(&original.id, &MetadataOverride::default())
+        .unwrap();
+    let labels = song_labels();
+    assert!(labels.contains(&original.artist));
+    assert!(!labels.contains(&edited));
+}
+
+#[test]
 fn it_opens_the_playlist_picker_inline_even_without_a_playlist() {
     let (mut desktop, track) = editing_source();
     let _ = desktop.update(Message::OpenPlaylistPicker(track));
