@@ -131,4 +131,34 @@ mod tests {
             "StartupWMClass=muzo\n"
         );
     }
+
+    #[test]
+    fn it_preserves_an_external_launcher_with_space_around_the_desktop_entry_key() {
+        let root = tempfile::tempdir().unwrap();
+        let applications = root.path().join("applications");
+        fs::create_dir(&applications).unwrap();
+        let external = applications.join("appimagekit-muzo.desktop");
+        let contents = "[Desktop Entry]\nType=Application\nName=Muzo\nExec=/usr/bin/true\nStartupWMClass = muzo\n";
+        fs::write(&external, contents).unwrap();
+
+        super::register(Path::new("/portable/Muzo.AppImage"), root.path()).unwrap();
+
+        assert_eq!(fs::read_to_string(external).unwrap(), contents);
+        assert!(!applications.join("muzo.desktop").exists());
+    }
+
+    #[test]
+    fn it_does_not_consider_actions_as_launcher_ownership() {
+        let root = tempfile::tempdir().unwrap();
+        let applications = root.path().join("applications");
+        fs::create_dir(&applications).unwrap();
+        let external = applications.join("another-player.desktop");
+        let contents = "[Desktop Entry]\nName=Another player\n[Desktop Action Play]\nX-Muzo-AppImage-Integration=true\n";
+        fs::write(&external, contents).unwrap();
+
+        super::register(Path::new("/portable/Muzo.AppImage"), root.path()).unwrap();
+
+        assert_eq!(fs::read_to_string(external).unwrap(), contents);
+        assert!(applications.join("muzo.desktop").exists());
+    }
 }
