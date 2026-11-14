@@ -11,6 +11,7 @@ mod appearance;
 mod compact;
 mod library;
 mod playlists;
+mod sleeve_image;
 mod sources;
 
 use super::{Message, library_sources::Sources};

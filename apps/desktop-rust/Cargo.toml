@@ -8,7 +8,7 @@ license = "MIT"
 publish = false
 
 [dependencies]
-iced = { version = "0.14.0", default-features = false, features = ["tiny-skia", "image", "svg", "tokio", "x11", "wayland", "linux-theme-detection"] }
+iced = { version = "0.14.0", default-features = false, features = ["advanced", "tiny-skia", "image", "svg", "tokio", "x11", "wayland", "linux-theme-detection"] }
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "webp"] }
 directories = "6.0.0"
 base64 = "0.22.1"

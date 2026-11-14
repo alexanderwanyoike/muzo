@@ -69,8 +69,15 @@ fn sleeve_pixels(
     let mut sleeve = cover.map_or_else(
         || RgbaImage::from_pixel(edge, edge, Rgba(fallback)),
         |image| {
-            image
-                .resize_to_fill(edge, edge, imageops::FilterType::Triangle)
+            let side = image.width().min(image.height());
+            let centered = image.crop_imm(
+                (image.width() - side) / 2,
+                (image.height() - side) / 2,
+                side,
+                side,
+            );
+            centered
+                .resize_exact(edge, edge, imageops::FilterType::Triangle)
                 .into_rgba8()
         },
     );

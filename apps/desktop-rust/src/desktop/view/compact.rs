@@ -90,13 +90,7 @@ pub(in crate::desktop) fn mini<'a>(
             if tight { 170.0 } else { SLEEVE_EDGE as f32 },
             surfaces
         ),
-        Space::new().height(if cover.sleeve().is_some() {
-            0
-        } else if tight {
-            10
-        } else {
-            16
-        }),
+        Space::new().height(if tight { 10 } else { 16 }),
         metadata,
         Space::new().height(if tight { 14 } else { 20 }),
         transport(session, retry, focus, surfaces, tight),
@@ -122,7 +116,7 @@ pub(in crate::desktop) fn mini<'a>(
         .padding(iced::Padding {
             left: inline,
             right: inline,
-            bottom: if cover.sleeve().is_some() { 0.0 } else { 20.0 },
+            bottom: 20.0,
             top: 0.0,
         })
         .center_x(Fill),
@@ -168,15 +162,7 @@ fn sleeve(
 ) -> Element<'static, Message> {
     if let Some(thumbnail) = thumbnail {
         let scale = edge / SLEEVE_EDGE as f32;
-        let pad = SLEEVE_PAD * scale;
-        let full = edge + pad * 2.0;
-        let cover = iced::widget::pin(image(thumbnail.clone()).width(full).height(full))
-            .position(iced::Point::new(0.0, -pad))
-            .width(full)
-            .height(edge + pad);
-        return stack![Space::new().width(full).height(edge + pad)]
-            .push(cover)
-            .into();
+        return super::sleeve_image::overhang(thumbnail.clone(), edge, SLEEVE_PAD * scale);
     }
     let inner: Element<'static, Message> = if playing {
         icon_tinted(Icon::Disc, move |_| surfaces.muted)
