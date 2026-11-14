@@ -64,12 +64,11 @@ fn it_drops_the_retry_when_the_failed_source_is_removed() {
 fn it_reevaluates_a_pending_track_index_when_an_unrelated_source_is_removed() {
     let (mut desktop, local) = setup();
     desktop.sources.snapshot = Some(snapshot(&["first", "second"]));
-    desktop.loading_remote = true;
+    desktop.pending_track = Some(1);
 
     let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["second"]))));
     let _ = desktop.update(Message::RemoteTrackReady(
         0,
-        1,
         Ok(local.with_library("second".into())),
     ));
 

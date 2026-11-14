@@ -50,8 +50,7 @@ pub enum Message {
     EditField(usize, String),
     SaveTrackEdit(bool),
     CloseTrackEdit,
-    IndexedQueueReady(u64, usize, Result<Vec<Track>, String>),
-    RemoteTrackReady(u64, usize, Result<Track, String>),
+    RemoteTrackReady(u64, Result<Track, String>),
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
@@ -82,7 +81,7 @@ pub struct Desktop {
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
-    loading_remote: bool,
+    pending_track: Option<usize>,
     failed_track: Option<usize>,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
@@ -142,7 +141,7 @@ impl Desktop {
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
-                loading_remote: false,
+                pending_track: None,
                 failed_track: None,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
@@ -174,19 +173,14 @@ impl Desktop {
             }
             Message::SourcesUpdated(result) => {
                 if let (Some(previous), Ok(next)) = (&self.sources.snapshot, &result) {
-                    let removed = previous
+                    let removed: Vec<_> = previous
                         .libraries
                         .iter()
-                        .filter(|old| !next.libraries.iter().any(|source| old.id == source.id));
-                    for source in removed {
-                        self.playback_request += 1;
-                        self.loading_remote = false;
-                        if let Some(session) = &mut self.session {
-                            session.remove_library(&source.id);
-                            if session.current().is_none() {
-                                self.artwork = None;
-                            }
-                        }
+                        .filter(|old| !next.libraries.iter().any(|source| old.id == source.id))
+                        .map(|source| source.id.clone())
+                        .collect();
+                    for library in removed {
+                        self.remove_queued_library(&library);
                     }
                 }
                 self.sources.apply(result);
@@ -207,7 +201,7 @@ impl Desktop {
                 if matches!(action, dropbox_panel::Action::Disconnect) && !self.dropbox.busy {
                     self.playback_request += 1;
                     self.failed_track = None;
-                    self.loading_remote = false;
+                    self.pending_track = None;
                     if let (Some(session), Some(snapshot)) =
                         (&mut self.session, &self.sources.snapshot)
                     {
@@ -321,36 +315,24 @@ impl Desktop {
                 self.sources.editing = None;
                 Task::none()
             }
-            Message::IndexedQueueReady(request, _, _) if request != self.playback_request => {
-                Task::none()
-            }
-            Message::IndexedQueueReady(_, index, Ok(tracks)) => {
-                self.artwork = None;
-                self.loading_remote = false;
-                if let Some(session) = &mut self.session {
-                    session.replace(tracks);
+            Message::RemoteTrackReady(request, result) => {
+                if request != self.playback_request {
+                    return Task::none();
                 }
-                self.select_track(index)
-            }
-            Message::RemoteTrackReady(request, _, _) if request != self.playback_request => {
-                Task::none()
-            }
-            Message::RemoteTrackReady(_, index, Ok(track)) => {
-                self.loading_remote = false;
-                self.transport(|session| {
-                    session.replace_track(index, track)?;
-                    session.select(index)
-                })
-            }
-            Message::RemoteTrackReady(_, index, Err(error)) => {
-                self.loading_remote = false;
-                self.failed_track = Some(index);
-                self.error = Some(error);
-                Task::none()
-            }
-            Message::IndexedQueueReady(_, _, Err(error)) => {
-                self.error = Some(error);
-                Task::none()
+                let Some(index) = self.pending_track.take() else {
+                    return Task::none();
+                };
+                match result {
+                    Ok(track) => self.transport(|session| {
+                        session.replace_track(index, track)?;
+                        session.select(index)
+                    }),
+                    Err(error) => {
+                        self.failed_track = Some(index);
+                        self.error = Some(error);
+                        Task::none()
+                    }
+                }
             }
             Message::OpenFiles => Task::perform(
                 async {
@@ -417,7 +399,7 @@ impl Desktop {
                 Ok(())
             }),
             Message::Tick => {
-                if self.loading_remote || self.failed_track.is_some() {
+                if self.pending_track.is_some() || self.failed_track.is_some() {
                     return Task::none();
                 }
                 if self.session.as_ref().is_some_and(Session::finished) {
@@ -539,42 +521,55 @@ impl Desktop {
             .filter(|library| library.kind == "dropbox")
             .map(|library| library.id.clone())
             .collect();
-        self.playback_request += 1;
-        let request = self.playback_request;
-        Task::perform(
-            async move {
-                tokio::task::spawn_blocking(move || {
-                    tracks
-                        .into_iter()
-                        .map(|track| {
-                            let is_remote = remote_libraries.contains(&track.library_id);
-                            let path = track.path.to_string_lossy().to_string();
-                            let item = Track::new(
-                                if is_remote {
-                                    PathBuf::new()
-                                } else {
-                                    track.path
-                                },
-                                track.title,
-                                Some(track.artist),
-                                track.album,
-                                None,
-                            )
-                            .with_indexed_id(track.id)
-                            .with_library(track.library_id.clone());
-                            if is_remote {
-                                item.with_remote(track.library_id, path)
-                            } else {
-                                item
-                            }
-                        })
-                        .collect()
-                })
-                .await
-                .map_err(|error| format!("Could not load the indexed tracks: {error}"))
-            },
-            move |result| Message::IndexedQueueReady(request, index, result),
-        )
+        let tracks = tracks
+            .into_iter()
+            .map(|track| {
+                let is_remote = remote_libraries.contains(&track.library_id);
+                let path = track.path.to_string_lossy().into_owned();
+                let item = Track::new(
+                    if is_remote {
+                        PathBuf::new()
+                    } else {
+                        track.path
+                    },
+                    track.title,
+                    Some(track.artist),
+                    track.album,
+                    None,
+                )
+                .with_indexed_id(track.id)
+                .with_library(track.library_id.clone());
+                if is_remote {
+                    item.with_remote(track.library_id, path)
+                } else {
+                    item
+                }
+            })
+            .collect();
+        if let Some(session) = &mut self.session {
+            session.replace(tracks);
+        }
+        self.artwork = None;
+        self.select_track(index)
+    }
+
+    fn remove_queued_library(&mut self, library: &str) {
+        let Some(session) = self.session.as_mut() else {
+            return;
+        };
+        self.pending_track = self
+            .pending_track
+            .and_then(|index| session.index_without_library(index, library));
+        if let Some(index) = self.failed_track {
+            self.failed_track = session.index_without_library(index, library);
+            if self.failed_track.is_none() {
+                self.error = None;
+            }
+        }
+        session.remove_library(library);
+        if session.current().is_none() {
+            self.artwork = None;
+        }
     }
 
     fn move_track(&mut self, step: isize) -> Task<Message> {
@@ -596,7 +591,7 @@ impl Desktop {
         else {
             return Task::none();
         };
-        self.loading_remote = false;
+        self.pending_track = None;
         self.failed_track = None;
         if let Some((library, path)) = track.remote().filter(|_| !track.path().is_file()) {
             let Some(paths) = self.sources.paths() else {
@@ -604,7 +599,7 @@ impl Desktop {
             };
             let library = library.to_owned();
             let path = path.to_owned();
-            self.loading_remote = true;
+            self.pending_track = Some(index);
             return Task::perform(
                 async move {
                     tokio::task::spawn_blocking(move || {
@@ -629,11 +624,11 @@ impl Desktop {
                     .await
                     .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
                 },
-                move |result| Message::RemoteTrackReady(request, index, result),
+                move |result| Message::RemoteTrackReady(request, result),
             );
         }
         if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
-            self.loading_remote = true;
+            self.pending_track = Some(index);
             return Task::perform(
                 async move {
                     tokio::task::spawn_blocking(move || {
@@ -644,7 +639,7 @@ impl Desktop {
                     .await
                     .map_err(|error| format!("Could not read track artwork: {error}"))
                 },
-                move |result| Message::RemoteTrackReady(request, index, result),
+                move |result| Message::RemoteTrackReady(request, result),
             );
         }
         self.transport(|session| session.select(index))
