@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory=$true)][string] $LegacyInstaller,
     [Parameter(Mandatory=$true)][string] $RustInstaller,
-    [Parameter(Mandatory=$true)][string] $InstallDirectory
+    [Parameter(Mandatory=$true)][string] $InstallDirectory,
+    [Parameter(Mandatory=$true)][string] $RustBinary
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,8 +25,10 @@ $marker = Join-Path $profileDirectory 'rust-upgrade-keep.txt'
 Set-Content $marker 'legacy profile'
 Invoke-Installer $RustInstaller @('/S')
 
-$installed = Get-Item "$InstallDirectory\muzo.exe"
-if ($installed.Length -lt 1024) { throw 'The Rust executable was not installed in the existing directory.' }
+$installed = Get-FileHash "$InstallDirectory\muzo.exe"
+if ($installed.Hash -ne (Get-FileHash $RustBinary).Hash) {
+    throw 'The Rust executable was not installed in the existing directory.'
+}
 if (Test-Path "$InstallDirectory\resources\app\dist-electron\main.cjs") { throw 'Electron runtime payload remains.' }
 if (!(Test-Path $legacyKey)) { throw 'The established Windows uninstall registration is missing.' }
 if (Test-Path (Join-Path $uninstallRoot 'Muzo')) { throw 'The installer added a second uninstall registration.' }

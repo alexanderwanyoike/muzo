@@ -55,13 +55,32 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libfuse2t64 file
       - run: rustup toolchain install 1.95 --profile minimal
       - name: Install Cargo Packager
+        if: runner.os != 'Windows'
         run: |
           yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8 --root "$RUNNER_TEMP/muzo-packager"
           "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" --version
       - run: yarn exec cargo -- +1.95 build --locked --release
       - run: yarn exec "$RUNNER_TEMP/muzo-packager/bin/cargo-packager" -- --config Packager.toml --formats ${{ matrix.format }}
+        if: runner.os != 'Windows'
         env:
           APPIMAGE_EXTRACT_AND_RUN: "1"
+      - name: Install the existing Windows packaging dependencies
+        if: runner.os == 'Windows'
+        working-directory: .
+        run: yarn install --frozen-lockfile
+      - name: Package the Rust payload with the existing Windows installer identity
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop
+        run: |
+          payload="$RUNNER_TEMP/muzo-rust-payload"
+          mkdir -p "$payload/resources"
+          cp ../desktop-rust/target/release/muzo-desktop.exe "$payload/muzo.exe"
+          cp -R assets/licenses "$payload/resources/licenses"
+          version=$(sed -n 's/^version = "\([^"]*\)"$/\1/p' ../desktop-rust/Packager.toml)
+          yarn exec electron-builder -- --prepackaged "$payload" --win nsis --x64 \
+            --config electron-builder.config.json \
+            --config.extraMetadata.version="$version" \
+            --config.directories.output=../desktop-rust/out/rust-distribution --publish never
       - run: yarn exec cargo -- +1.95 run --locked --release --bin name-installer out/rust-distribution
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'
@@ -88,12 +107,26 @@ jobs:
           } finally {
             $stream.Dispose()
           }
+      - name: Verify an installed Windows upgrade
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne '0a21cc92b92f39a0f8ee406284eb434ec45ab2ad3565cb648d69e356e31e53dc') {
+            throw 'The legacy installer checksum changed.'
+          }
+          $candidate = Get-ChildItem out/rust-distribution -Filter '*-setup.exe' | Select-Object -First 1
+          ./tests/manual/windows-upgrade.ps1 -LegacyInstaller $legacy -RustInstaller $candidate.FullName `
+            -InstallDirectory (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-custom') `
+            -RustBinary 'target/release/muzo-desktop.exe'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: muzo-rust-${{ matrix.label }}
           path: |
             apps/desktop-rust/out/rust-distribution/Muzo-*.AppImage
             apps/desktop-rust/out/rust-distribution/Muzo-*.exe
+            apps/desktop-rust/out/rust-distribution/Muzo-*.exe.blockmap
             apps/desktop-rust/out/rust-distribution/Muzo-*.dmg
             apps/desktop-rust/out/rust-distribution/latest*.yml
           if-no-files-found: error
