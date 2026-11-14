@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+pub mod appimage;
 mod update;
 pub use update::{Artifact, Release, Update, UpdateError, latest, update_for};
 

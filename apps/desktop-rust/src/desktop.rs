@@ -35,6 +35,7 @@ pub enum Message {
     AppearanceMode(String),
     Accent(String),
     CheckUpdate,
+    AppImageIntegration(Result<(), String>),
     UpdateReceived(updates::Status),
     DownloadUpdate(crate::distribution::Update),
     InstallUpdate(crate::distribution::Update, PathBuf),
@@ -119,6 +120,7 @@ impl Desktop {
             open.chain(Task::batch([
                 load_sources,
                 auto_update(),
+                appimage_integration(),
                 Task::done(Message::FilesPicked(files)),
             ])),
         )
@@ -222,6 +224,12 @@ impl Desktop {
                     }
                 }
                 self.dropbox.update(action, self.sources.paths())
+            }
+            Message::AppImageIntegration(result) => {
+                if let Err(error) = result {
+                    self.error = Some(error);
+                }
+                Task::none()
             }
             Message::CheckUpdate => {
                 self.update_status = updates::Status::Checking;
@@ -767,4 +775,26 @@ fn auto_update() -> Task<Message> {
     } else {
         Task::none()
     }
+}
+
+fn appimage_integration() -> Task<Message> {
+    #[cfg(target_os = "linux")]
+    if let (Some(image), Some(base)) = (std::env::var_os("APPIMAGE"), directories::BaseDirs::new())
+    {
+        let data = base.data_dir().to_owned();
+        return Task::perform(
+            async move {
+                tokio::task::spawn_blocking(move || {
+                    crate::distribution::appimage::register(std::path::Path::new(&image), &data)
+                        .map_err(|error| {
+                            format!("Could not add Muzo to the application menu: {error}")
+                        })
+                })
+                .await
+                .map_err(|error| format!("Could not add Muzo to the application menu: {error}"))?
+            },
+            Message::AppImageIntegration,
+        );
+    }
+    Task::none()
 }
