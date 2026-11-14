@@ -629,6 +629,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_reports_when_the_requested_dropbox_source_owner_has_disconnected() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut catalogue = paths.open().unwrap();
+        catalogue.save_dropbox_account("previous", "key").unwrap();
+        let library = catalogue
+            .add_dropbox("previous", "/Archive", "Archive")
+            .unwrap();
+        catalogue.disconnect_dropbox("previous").unwrap();
+
+        let result = run(
+            &paths,
+            Action::SyncLibrary(library.id),
+            None,
+            "",
+            "5",
+            Snapshot::default(),
+        );
+
+        assert!(matches!(
+            result,
+            Err(Error::Dropbox(DropboxError::Reconnect))
+        ));
+    }
+
+    #[test]
+    fn it_leaves_the_background_schedule_and_pending_drafts_alone_on_source_refresh() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut settings = Settings::default();
+        settings.code = "pending-code".into();
+        settings.interval = "30".into();
+        let scheduled = settings.next_sync;
+
+        let refresh = settings.update(Action::SyncLibrary("source".into()), Some(paths));
+
+        assert_ne!(refresh.units(), 0);
+        assert_eq!(settings.code, "pending-code");
+        assert_eq!(settings.interval, "30");
+        assert_eq!(settings.next_sync, scheduled);
+    }
+
+    #[test]
     fn it_disconnects_the_account_while_a_separate_authorization_is_pending() {
         let directory = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(directory.path());
