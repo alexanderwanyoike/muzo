@@ -136,3 +136,29 @@ fn it_keeps_relative_music_arguments_resolvable_when_the_appimage_restarts() {
         ]
     );
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+#[ignore = "requires two real AppImages and an isolated graphical display"]
+fn it_replaces_and_restarts_a_real_appimage() {
+    use crate::distribution::{Artifact, Update, appimage};
+    use sha2::{Digest, Sha256};
+    use std::path::PathBuf;
+
+    let installed = PathBuf::from(std::env::var_os("MUZO_TEST_INSTALLED_APPIMAGE").unwrap());
+    let downloaded = PathBuf::from(std::env::var_os("MUZO_TEST_NEW_APPIMAGE").unwrap());
+    let media = std::env::var_os("MUZO_TEST_AUDIO").unwrap();
+    let payload = std::fs::read(&downloaded).unwrap();
+    let update = Update {
+        version: semver::Version::new(0, 0, 7),
+        asset: Artifact {
+            name: filename("0.0.7", Target::LinuxX64),
+            platform: "linux".into(),
+            arch: "x64".into(),
+            size: payload.len() as u64,
+            sha256: format!("{:x}", Sha256::digest(&payload)),
+        },
+    };
+    appimage::replace_and_launch(&update, &downloaded, &installed, vec![media]).unwrap();
+    assert_eq!(std::fs::read(installed).unwrap(), payload);
+}
