@@ -343,7 +343,7 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
     let glyph = icon_tinted(Icon::Search, move |_| surfaces.muted)
         .width(13)
         .height(13);
-    let mut field = stack![input, container(glyph).padding([8, 8])];
+    let mut field = stack![source_search_input(input), container(glyph).padding([8, 8])];
     if !sources.search.is_empty() {
         let clear = icon_button(
             Icon::Close,
@@ -353,6 +353,66 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
         field = field.push(container(clear).width(Fill).align_x(Alignment::End));
     }
     container(field).padding(8).into()
+}
+
+fn source_search_input(input: iced::widget::TextInput<'_, Message>) -> Element<'_, Message> {
+    input.into()
+}
+
+#[cfg(test)]
+#[test]
+fn it_clears_the_focused_source_search_when_escape_is_pressed() {
+    use iced::advanced::{
+        Layout, Shell, clipboard, layout, mouse,
+        widget::{Tree, operation::focusable::focus},
+    };
+    use iced::{Font, Pixels, Rectangle, Renderer, Size, Theme, keyboard};
+
+    let input = text_input("Search sources", "Archive")
+        .id(SOURCE_SEARCH)
+        .on_input(Message::SourceSearch);
+    let mut element = source_search_input(input);
+    let mut tree = Tree::new(&element);
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let viewport = Rectangle::with_size(Size::new(220.0, 40.0));
+    let widget = element.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, viewport.size()),
+    );
+    let layout = Layout::new(&node);
+    widget.operate(
+        &mut tree,
+        layout,
+        &renderer,
+        &mut focus::<()>(SOURCE_SEARCH.into()),
+    );
+    let event = iced::Event::Keyboard(keyboard::Event::KeyPressed {
+        key: keyboard::Key::Named(keyboard::key::Named::Escape),
+        modified_key: keyboard::Key::Named(keyboard::key::Named::Escape),
+        physical_key: keyboard::key::Physical::Code(keyboard::key::Code::Escape),
+        location: keyboard::Location::Standard,
+        modifiers: keyboard::Modifiers::empty(),
+        text: None,
+        repeat: false,
+    });
+    let mut messages = Vec::new();
+    let mut shell = Shell::new(&mut messages);
+    widget.update(
+        &mut tree,
+        &event,
+        layout,
+        mouse::Cursor::Unavailable,
+        &renderer,
+        &mut clipboard::Null,
+        &mut shell,
+        &viewport,
+    );
+
+    assert!(shell.is_event_captured());
+    assert!(matches!(messages.as_slice(), [Message::ClearSourceSearch]));
+    let _ = Theme::Light;
 }
 
 fn source_search_empty(
