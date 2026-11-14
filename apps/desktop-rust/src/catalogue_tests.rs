@@ -78,7 +78,7 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
     let library = catalogue.add_folder(&music).unwrap();
     let tracks = catalogue.tracks(&library.id).unwrap();
     assert_eq!(tracks.len(), 1);
-    assert_eq!(tracks[0].path, file);
+    assert_eq!(tracks[0].path, file.canonicalize().unwrap());
     assert!(catalogue.add_folder(&music).is_err());
     catalogue.refresh(&library.id).unwrap();
     assert_eq!(catalogue.tracks(&library.id).unwrap()[0].id, tracks[0].id);
@@ -88,7 +88,7 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
     catalogue.refresh(&library.id).unwrap();
     let tracks = catalogue.tracks(&library.id).unwrap();
     assert_eq!(tracks.len(), 1);
-    assert_eq!(tracks[0].path, moved);
+    assert_eq!(tracks[0].path, moved.canonicalize().unwrap());
     catalogue.remove(&library.id).unwrap();
     assert!(catalogue.libraries().unwrap().is_empty());
     assert!(moved.is_file());

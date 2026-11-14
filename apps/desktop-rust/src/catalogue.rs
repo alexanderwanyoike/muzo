@@ -95,7 +95,7 @@ impl Catalogue {
     pub fn libraries(&self) -> Result<Vec<Library>, CatalogueError> {
         let mut statement = self
             .database
-            .prepare("SELECT id, name, kind, location FROM libraries ORDER BY rowid")?;
+            .prepare("SELECT id, name, lower(kind), location FROM libraries ORDER BY rowid")?;
         let libraries = statement
             .query_map([], |row| {
                 Ok(Library {
