@@ -115,7 +115,7 @@ fn it_indexes_remote_audio_and_preserves_an_existing_track_id_on_resync() {
     )
     .unwrap();
     catalogue
-        .sync_dropbox(&library.id, &[audio.clone()])
+        .sync_dropbox(&library.id, std::slice::from_ref(&audio))
         .unwrap();
     let track = catalogue.tracks(&library.id).unwrap().remove(0);
     assert_eq!(track.path, Path::new("/Music/A.mp3"));
