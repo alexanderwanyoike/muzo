@@ -467,3 +467,50 @@ pub(super) fn bordered_button(
         ..action(theme, status)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Color, Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    use super::*;
+
+    fn play_icon_pixels(enabled: bool) -> Vec<u8> {
+        let mut button = chrome_play(false, enabled);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut tree = Tree::new(&button);
+        let widget = button.as_widget_mut();
+        let size = Size::new(34, 34);
+        let bounds = Rectangle::with_size(Size::new(34.0, 34.0));
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &Theme::Light,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &bounds,
+        );
+        renderer.screenshot(size, 1.0, Color::WHITE)
+    }
+
+    #[test]
+    fn it_dims_the_play_glyph_when_no_track_is_selected() {
+        let active = play_icon_pixels(true);
+        let disabled = play_icon_pixels(false);
+        let darkest = |pixels: &[u8]| pixels.chunks_exact(4).map(|color| color[0]).min().unwrap();
+        assert!(darkest(&active) < darkest(&disabled));
+        assert!(darkest(&disabled) < 255);
+    }
+}
