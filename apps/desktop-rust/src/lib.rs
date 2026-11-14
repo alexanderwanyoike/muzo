@@ -1,3 +1,4 @@
+pub mod appearance;
 pub mod catalogue;
 pub mod desktop;
 pub mod dropbox;
