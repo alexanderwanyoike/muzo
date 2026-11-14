@@ -75,3 +75,53 @@ fn it_plays_and_seeks_ogg_opus() {
             .any(|sample| sample.abs() > 0.001)
     );
 }
+
+#[test]
+fn it_applies_the_signed_opus_output_gain() {
+    let open = |name| {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name);
+        crate::opus::OpusSource::open(std::fs::File::open(path).unwrap(), Duration::ZERO).unwrap()
+    };
+    let original: Vec<_> = open("tone.opus").take(4096).collect();
+    let attenuated: Vec<_> = open("tone-minus-6db.opus").take(4096).collect();
+    let ratio = 10.0_f32.powf(-6.0 / 20.0);
+    assert!(original.iter().any(|sample| sample.abs() > 0.01));
+    assert_eq!(original.len(), attenuated.len());
+    assert!(
+        original
+            .iter()
+            .zip(attenuated)
+            .all(|(original, actual)| (original * ratio - actual).abs() < 0.0001)
+    );
+}
+
+#[test]
+fn it_warms_up_opus_before_emitting_samples_at_a_seek_target() {
+    use crate::opus::OpusSource;
+    use std::fs::File;
+
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.opus");
+    let target = Duration::from_millis(1150);
+    let window = 240;
+    let expected: Vec<_> = OpusSource::open(File::open(&path).unwrap(), Duration::ZERO)
+        .unwrap()
+        .skip(55_200)
+        .take(window)
+        .collect();
+    let sought: Vec<_> = OpusSource::open(File::open(path).unwrap(), target)
+        .unwrap()
+        .take(window)
+        .collect();
+    let error: f32 = expected
+        .iter()
+        .zip(&sought)
+        .map(|(expected, actual)| (expected - actual).abs())
+        .sum::<f32>()
+        / window as f32;
+
+    assert_eq!(expected.len(), window);
+    assert_eq!(sought.len(), window);
+    assert!(error < 0.003, "average sample difference was {error}");
+}
