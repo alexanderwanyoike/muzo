@@ -18,7 +18,7 @@ use crate::{
 use super::{Icon, action, bold, clock, compact, icon_button, icon_tinted, library};
 
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
-    let can_edit = !sources.folder_save_pending();
+    let can_edit = sources.folder_editable();
     let can_submit = can_edit && !sources.busy();
     let browse = button(text("Browse").size(11))
         .style(move |theme, status| library::bordered_button(theme, status, surfaces))
@@ -38,9 +38,16 @@ pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, 
             row![location, browse].spacing(8).align_y(Alignment::Center),
         ]
         .spacing(4),
-        button(text(if can_edit { "Add library" } else { "Adding…" }).size(12))
-            .style(move |theme, status| library::bordered_button(theme, status, surfaces))
-            .on_press_maybe(can_submit.then_some(Message::SubmitFolder)),
+        button(
+            text(if sources.folder_save_pending() {
+                "Adding…"
+            } else {
+                "Add library"
+            })
+            .size(12)
+        )
+        .style(move |theme, status| library::bordered_button(theme, status, surfaces))
+        .on_press_maybe(can_submit.then_some(Message::SubmitFolder)),
     ]
     .spacing(14)
     .into()

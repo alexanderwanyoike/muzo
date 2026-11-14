@@ -225,17 +225,31 @@ impl Desktop {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::AddFolder => Task::perform(
-                async {
-                    rfd::AsyncFileDialog::new()
-                        .pick_folder()
-                        .await
-                        .map(|folder| folder.path().to_owned())
-                },
-                Message::FolderPicked,
-            ),
+            Message::AddFolder => {
+                if !self.sources.folder_editable() {
+                    return Task::none();
+                }
+                self.sources.choosing_folder = true;
+                Task::perform(
+                    async {
+                        rfd::AsyncFileDialog::new()
+                            .pick_folder()
+                            .await
+                            .map(|folder| folder.path().to_owned())
+                    },
+                    Message::FolderPicked,
+                )
+            }
             Message::FolderPicked(path) => {
-                if let Some(path) = path.filter(|_| !self.sources.folder_save_pending()) {
+                if !std::mem::take(&mut self.sources.choosing_folder) {
+                    return Task::none();
+                }
+                if let Some(path) = path {
+                    let Some(location) = path.to_str() else {
+                        self.sources.error =
+                            Some(crate::catalogue::CatalogueError::UnsupportedPath.to_string());
+                        return Task::none();
+                    };
                     if self.sources.folder_name.trim().is_empty() {
                         self.sources.folder_name = path
                             .file_name()
@@ -243,29 +257,34 @@ impl Desktop {
                             .to_string_lossy()
                             .into_owned();
                     }
-                    self.sources.folder_location = path.to_string_lossy().into_owned();
+                    self.sources.folder_location = location.into();
                 }
                 Task::none()
             }
             Message::FolderName(name) => {
-                if !self.sources.folder_save_pending() {
+                if self.sources.folder_editable() {
                     self.sources.folder_name = name;
                 }
                 Task::none()
             }
             Message::FolderLocation(location) => {
-                if !self.sources.folder_save_pending() {
+                if self.sources.folder_editable() {
                     self.sources.folder_location = location;
                 }
                 Task::none()
             }
             Message::SubmitFolder => {
-                if self.sources.busy() || self.sources.folder_save_pending() {
+                if self.sources.busy() || !self.sources.folder_editable() {
+                    return Task::none();
+                }
+                if self.sources.folder_location.trim().is_empty() {
+                    self.sources.error =
+                        Some(crate::catalogue::CatalogueError::EmptyLibraryLocation.to_string());
                     return Task::none();
                 }
                 self.sources.start(Operation::AddNamedFolder(
                     self.sources.folder_name.clone(),
-                    PathBuf::from(self.sources.folder_location.trim()),
+                    PathBuf::from(&self.sources.folder_location),
                 ))
             }
             Message::LibraryPage(page) => {

@@ -298,6 +298,7 @@ pub(super) struct Sources {
     pub show_playlist_form: bool,
     pub folder_name: String,
     pub folder_location: String,
+    pub choosing_folder: bool,
     adding_folder: bool,
     creating_playlist: bool,
     pub editing: Option<(String, String, Box<[String; 7]>)>,
@@ -324,6 +325,7 @@ impl Sources {
             show_playlist_form: false,
             folder_name: String::new(),
             folder_location: String::new(),
+            choosing_folder: false,
             adding_folder: false,
             creating_playlist: false,
             editing: None,
@@ -381,6 +383,10 @@ impl Sources {
                 .pending
                 .iter()
                 .any(|operation| matches!(operation, Operation::AddNamedFolder(_, _)))
+    }
+
+    pub fn folder_editable(&self) -> bool {
+        !self.choosing_folder && !self.folder_save_pending()
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
@@ -612,18 +618,14 @@ mod tests {
     #[test]
     fn it_preserves_whitespace_at_the_end_of_a_real_folder_location() {
         let root = tempfile::tempdir().unwrap();
-        let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
         let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
         let folder = root.path().join("Live ");
         let lookalike = root.path().join("Live");
         std::fs::create_dir(&folder).unwrap();
         std::fs::create_dir(&lookalike).unwrap();
+        let _ = desktop.update(Message::AddFolder);
         let _ = desktop.update(Message::FolderPicked(Some(folder.clone())));
-        sources.folder_name = desktop.sources.folder_name;
-        sources.folder_location = desktop.sources.folder_location;
-        let _ = sources.start(Operation::Reload);
-        desktop.sources = sources;
-        desktop.sources.busy = false;
         desktop.sources.pending.push_back(Operation::Reload);
         let _ = desktop.update(Message::SubmitFolder);
 
