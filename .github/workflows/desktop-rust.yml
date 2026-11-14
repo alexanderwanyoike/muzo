@@ -56,6 +56,8 @@ jobs:
           sudo apt-get install --yes --no-install-recommends libasound2-dev libwayland-dev libxkbcommon-dev
       - run: rustup toolchain install 1.95 --profile minimal --component rustfmt,clippy --target ${{ matrix.target }}
       - run: yarn exec cargo -- +1.95 fmt --check
-      - run: yarn exec cargo -- +1.95 clippy --locked --all-targets --target ${{ matrix.target }} -- -D warnings
+      - run: yarn exec cargo -- +1.95 clippy --locked --all-targets --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: "-D warnings"
       - run: yarn exec cargo -- +1.95 test --locked --target ${{ matrix.target }}
       - run: yarn exec cargo -- +1.95 build --locked --release --target ${{ matrix.target }}
