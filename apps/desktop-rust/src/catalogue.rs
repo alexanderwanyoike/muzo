@@ -1,0 +1,117 @@
+mod migrations;
+
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+    time::Duration,
+};
+
+use rusqlite::{Connection, OpenFlags, backup::Backup};
+
+#[derive(Debug, thiserror::Error)]
+pub enum CatalogueError {
+    #[error("Could not access the music catalogue: {0}")]
+    Io(#[from] io::Error),
+    #[error("Could not read or update the music catalogue: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("This music catalogue's schema is unsupported.")]
+    UnsupportedSchema,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Library {
+    pub id: String,
+    pub name: String,
+    pub kind: String,
+    pub location: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IndexedTrack {
+    pub id: String,
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub path: PathBuf,
+}
+
+pub struct Catalogue {
+    database: Connection,
+}
+
+impl Catalogue {
+    pub fn open(path: &Path, legacy: Option<&Path>) -> Result<Self, CatalogueError> {
+        let mut database =
+            match Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE) {
+                Ok(existing) => existing,
+                Err(_) if !path.try_exists()? => {
+                    let mut staging = Connection::open_in_memory()?;
+                    if let Some(source) = legacy
+                        && source.try_exists()?
+                    {
+                        let origin =
+                            Connection::open_with_flags(source, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+                        Backup::new(&origin, &mut staging)?.run_to_completion(
+                            64,
+                            Duration::from_millis(10),
+                            None,
+                        )?;
+                    }
+                    migrations::run(&mut staging)?;
+                    if let Some(parent) = path
+                        .parent()
+                        .filter(|parent| !parent.as_os_str().is_empty())
+                    {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let mut target = Connection::open(path)?;
+                    Backup::new(&staging, &mut target)?.run_to_completion(
+                        64,
+                        Duration::from_millis(10),
+                        None,
+                    )?;
+                    target
+                }
+                Err(error) => return Err(error.into()),
+            };
+        database.pragma_update(None, "foreign_keys", true)?;
+        migrations::run(&mut database)?;
+        Ok(Self { database })
+    }
+
+    pub fn libraries(&self) -> Result<Vec<Library>, CatalogueError> {
+        let mut statement = self
+            .database
+            .prepare("SELECT id, name, kind, location FROM libraries ORDER BY rowid")?;
+        let libraries = statement
+            .query_map([], |row| {
+                Ok(Library {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    kind: row.get(2)?,
+                    location: PathBuf::from(row.get::<_, String>(3)?),
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(libraries)
+    }
+
+    pub fn tracks(&self, library_id: &str) -> Result<Vec<IndexedTrack>, CatalogueError> {
+        let mut statement = self.database.prepare(
+            "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
+             COALESCE(override_album, album), file_path FROM tracks WHERE library_id = ?1 ORDER BY rowid"
+        )?;
+        let tracks = statement
+            .query_map([library_id], |row| {
+                Ok(IndexedTrack {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    artist: row.get(2)?,
+                    album: row.get(3)?,
+                    path: PathBuf::from(row.get::<_, String>(4)?),
+                })
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(tracks)
+    }
+}

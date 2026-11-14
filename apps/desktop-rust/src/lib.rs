@@ -1,3 +1,4 @@
+pub mod catalogue;
 pub mod desktop;
 pub mod playback;
 pub mod session;
