@@ -289,3 +289,19 @@ fn it_preserves_unchanged_metadata_overrides_in_the_editor() {
     assert_eq!(overrides.genre.as_deref(), Some("Ambient"));
     assert_eq!(overrides.track_number, Some(7));
 }
+
+#[test]
+fn it_keeps_the_custom_name_when_indexing_a_filesystem_source() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = root.path().join("raw-folder-name");
+    fs::create_dir(&folder).unwrap();
+    let path = root.path().join("catalogue.sqlite");
+    let mut catalogue = Catalogue::open(&path, None).unwrap();
+
+    let library = catalogue
+        .add_named_folder(&folder, "Weekend records")
+        .unwrap();
+    assert_eq!(library.name, "Weekend records");
+    assert_eq!(catalogue.libraries().unwrap(), vec![library]);
+    assert!(catalogue.add_named_folder(&folder, "Other").is_err());
+}
