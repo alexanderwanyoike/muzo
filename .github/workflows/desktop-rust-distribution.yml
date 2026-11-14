@@ -34,9 +34,11 @@ jobs:
           - os: macos-15
             format: dmg
             label: macos-arm64
+            macho: arm64
           - os: macos-15-intel
             format: dmg
             label: macos-x64
+            macho: x86_64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     defaults:
@@ -98,7 +100,23 @@ jobs:
       - name: Verify macOS disk image
         if: runner.os == 'macOS'
         shell: bash
-        run: hdiutil verify out/rust-distribution/*.dmg
+        env:
+          MUZO_ARCH: ${{ matrix.macho }}
+        run: |
+          set -euo pipefail
+          image=(out/rust-distribution/*.dmg)
+          test "${#image[@]}" -eq 1
+          hdiutil verify "${image[0]}"
+          mountpoint=$(mktemp -d "$RUNNER_TEMP/muzo-mounted.XXXXXX")
+          hdiutil attach "${image[0]}" -readonly -nobrowse -noautoopen -mountpoint "$mountpoint"
+          trap 'hdiutil detach "$mountpoint" -force && rmdir "$mountpoint"' EXIT
+          test "$(readlink "$mountpoint/Applications")" = /Applications
+          bundle="$mountpoint/Muzo.app/Contents"
+          plist="$bundle/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = com.muzo.desktop
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$plist")
+          cmp target/release/muzo-desktop "$bundle/MacOS/$executable"
+          lipo "$bundle/MacOS/$executable" -verify_arch "$MUZO_ARCH"
       - name: Verify Windows installer container
         if: runner.os == 'Windows'
         shell: pwsh
