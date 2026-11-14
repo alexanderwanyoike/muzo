@@ -10,7 +10,7 @@ use crate::catalogue::Catalogue;
 
 #[test]
 fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
-    let root = PathBuf::from(std::env::temp_dir()).join(format!(
+    let root = std::env::temp_dir().join(format!(
         "muzo-catalog-{}-{}",
         std::process::id(),
         SystemTime::now()
