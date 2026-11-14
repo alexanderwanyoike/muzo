@@ -29,6 +29,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
             let mut sample = appearance.clone();
             sample.theme = id.into();
             let choice = material_choice(
+                id,
                 &sample,
                 name,
                 detail,
@@ -75,7 +76,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
                 };
                 focus_ring(style, theme, focused)
             })
-            .on_press(Message::AppearanceMode(id.into()))
+            .on_press(Message::AppearanceMode(id))
             .into()
     }))
     .spacing(2);
@@ -127,6 +128,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
 }
 
 fn material_choice(
+    id: &'static str,
     appearance: &Appearance,
     name: &'static str,
     detail: &'static str,
@@ -171,7 +173,6 @@ fn material_choice(
     .width(Fill)
     .clip(true)
     .style(move |_| library::framed(palette.background, surfaces, 5));
-    let id = appearance.theme.clone();
     let preview = container(preview)
         .padding(2)
         .width(Fill)
@@ -266,7 +267,7 @@ fn accent_group(
                         focused,
                     )
                 })
-                .on_press(Message::Accent(id.into())),
+                .on_press(Message::Accent(id)),
             text(label).size(11),
             tooltip::Position::Top,
         )

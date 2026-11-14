@@ -649,7 +649,7 @@ fn it_activates_the_material_clicked_after_keyboard_navigation() {
     let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
     let _ = desktop.update(Message::CycleMiniFocus(library, false));
-    let _ = desktop.update(Message::Material("walnut".into()));
+    let _ = desktop.update(Message::Material("walnut"));
     let _ = desktop.update(Message::MiniSpace(library));
 
     assert_eq!(desktop.appearance.theme, "walnut");

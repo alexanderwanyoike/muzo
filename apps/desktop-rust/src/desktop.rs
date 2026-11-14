@@ -41,9 +41,10 @@ pub enum Message {
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
-    Material(String),
-    AppearanceMode(String),
-    Accent(String),
+    Material(&'static str),
+    AppearanceMode(&'static str),
+    Accent(&'static str),
+    AppearancePointerPressed(window::Id),
     CheckUpdate,
     AppImageIntegration(Result<(), String>),
     UpdateReceived(updates::Status),
@@ -363,16 +364,25 @@ impl Desktop {
                 }
             },
             Message::Material(material) => {
-                self.appearance.theme = material;
+                self.appearance_focus = Some(appearance_focus::Choice::Material(material));
+                self.appearance.theme = material.into();
                 self.save_appearance()
             }
             Message::AppearanceMode(mode) => {
-                self.appearance.mode = mode;
+                self.appearance_focus = Some(appearance_focus::Choice::Mode(mode));
+                self.appearance.mode = mode.into();
                 self.save_appearance()
             }
             Message::Accent(accent) => {
-                self.appearance.accent = accent;
+                self.appearance_focus = Some(appearance_focus::Choice::Accent(accent));
+                self.appearance.accent = accent.into();
                 self.save_appearance()
+            }
+            Message::AppearancePointerPressed(id) => {
+                if self.windows.is_library(id) {
+                    self.appearance_focus = None;
+                }
+                Task::none()
             }
             Message::DropboxReady(mut result) => {
                 if let Ok(snapshot) = &mut result {
@@ -613,13 +623,9 @@ impl Desktop {
             }
             Message::CycleMiniFocus(id, backwards) => {
                 if self.windows.is_library(id) && self.page == LibraryPage::Settings {
-                    self.appearance_focus = Some(appearance_focus::Choice::next(
-                        self.appearance_focus,
-                        backwards,
-                    ));
-                    return self
-                        .appearance_focus
-                        .map_or_else(Task::none, appearance_focus::Choice::reveal);
+                    let next = appearance_focus::Choice::next(self.appearance_focus, backwards);
+                    self.appearance_focus = Some(next);
+                    return next.take_focus();
                 }
                 if self.windows.is_mini(id) {
                     let queue_len = self
@@ -1089,6 +1095,14 @@ impl Desktop {
                 Subscription::none()
             },
             iced::event::listen_with(|event, status, id| {
+                if matches!(
+                    &event,
+                    iced::Event::Mouse(iced::mouse::Event::ButtonPressed(
+                        iced::mouse::Button::Left
+                    ))
+                ) {
+                    return Some(Message::AppearancePointerPressed(id));
+                }
                 if status == iced::event::Status::Captured {
                     return None;
                 }

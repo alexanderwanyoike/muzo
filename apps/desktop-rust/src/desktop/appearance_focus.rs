@@ -1,4 +1,8 @@
-use iced::widget::operation::{AbsoluteOffset, scroll_to};
+use iced::{
+    Task,
+    advanced::widget::{operate, operation::focusable::unfocus},
+    widget::operation::{AbsoluteOffset, scroll_to},
+};
 
 use crate::appearance::{ACCENTS, MATERIALS, MODES};
 
@@ -36,13 +40,13 @@ impl Choice {
 
     pub(super) fn message(self) -> Message {
         match self {
-            Self::Material(id) => Message::Material(id.into()),
-            Self::Mode(id) => Message::AppearanceMode(id.into()),
-            Self::Accent(id) => Message::Accent(id.into()),
+            Self::Material(id) => Message::Material(id),
+            Self::Mode(id) => Message::AppearanceMode(id),
+            Self::Accent(id) => Message::Accent(id),
         }
     }
 
-    pub(super) fn reveal(self) -> iced::Task<Message> {
+    pub(super) fn take_focus(self) -> Task<Message> {
         let y = match self {
             Self::Material(id) => {
                 let index = MATERIALS
@@ -54,12 +58,15 @@ impl Choice {
             Self::Mode(_) => 380.0,
             Self::Accent(_) => 440.0,
         };
-        scroll_to(
-            SCROLL,
-            AbsoluteOffset {
-                x: None,
-                y: Some(y),
-            },
-        )
+        Task::batch([
+            operate(unfocus::<()>()).discard(),
+            scroll_to(
+                SCROLL,
+                AbsoluteOffset {
+                    x: None,
+                    y: Some(y),
+                },
+            ),
+        ])
     }
 }
