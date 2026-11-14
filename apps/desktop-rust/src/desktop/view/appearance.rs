@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Color, Element, Fill, Theme, border,
+    Alignment, Color, Element, Fill, Shadow, Theme, border,
     widget::{Space, button, column, container, row, text, tooltip},
 };
 
@@ -105,7 +105,7 @@ pub fn controls(appearance: &Appearance) -> Element<'static, Message> {
             column![
                 text("Material").size(11).color(surfaces.muted),
                 materials,
-                row![modes, accents].spacing(40),
+                row![modes, accents].spacing(40).wrap().vertical_spacing(18),
             ]
             .spacing(14)
         )
@@ -132,7 +132,10 @@ fn material_choice(
     .spacing(8);
 
     let songs = column![
-        sample_line(palette.primary, iced::Length::FillPortion(2)),
+        row![
+            sample_line(palette.primary, iced::Length::FillPortion(65)),
+            Space::new().width(iced::Length::FillPortion(35)),
+        ],
         sample_line(surfaces.line, Fill),
         sample_line(surfaces.line, Fill),
     ]
@@ -160,27 +163,33 @@ fn material_choice(
     .clip(true)
     .style(move |_| library::framed(palette.background, surfaces, 5));
     let id = appearance.theme.clone();
-    let preview = button(preview)
+    let preview = container(preview)
         .padding(2)
         .width(Fill)
-        .style(move |theme, status| {
-            let style = action(theme, status);
-            button::Style {
-                border: border::rounded(7)
-                    .color(theme.palette().primary)
-                    .width(if selected { 2 } else { 0 }),
-                background: None,
-                ..style
+        .style(move |theme: &Theme| {
+            if selected {
+                container::Style::default()
+                    .border(border::rounded(7).color(theme.palette().primary).width(2))
+            } else {
+                container::Style::default()
             }
-        })
-        .on_press(Message::Material(id));
-    column![
-        preview,
-        text(name).size(12).font(bold()),
-        text(detail).size(10).color(surfaces.muted),
-    ]
-    .spacing(6)
+        });
+    button(
+        column![
+            preview,
+            text(name).size(12).font(bold()),
+            text(detail).size(10).color(surfaces.muted),
+        ]
+        .spacing(6)
+        .width(Fill),
+    )
+    .padding(0)
     .width(Fill)
+    .style(move |theme, status| button::Style {
+        background: None,
+        ..action(theme, status)
+    })
+    .on_press(Message::Material(id))
     .into()
 }
 
@@ -206,14 +215,24 @@ fn accent_group(
         sample.accent = id.into();
         let color = sample.theme().palette().primary;
         let selected = appearance.accent == id;
+        let glow = id.starts_with("glow-");
         let dot = container(Space::new()).center(19).style(move |_| {
             container::Style::default()
                 .background(color)
-                .border(border::rounded(10))
+                .border(
+                    border::rounded(10)
+                        .width(if glow { 1 } else { 0 })
+                        .color(color),
+                )
+                .shadow(Shadow {
+                    color: color.scale_alpha(if glow { 0.5 } else { 0.0 }),
+                    blur_radius: 8.0,
+                    ..Shadow::default()
+                })
         });
         tooltip(
             button(dot)
-                .padding(2)
+                .padding(3)
                 .style(move |theme, status| button::Style {
                     background: Some(surfaces.raised.into()),
                     border: border::rounded(15)
@@ -229,5 +248,7 @@ fn accent_group(
     }))
     .spacing(11)
     .align_y(Alignment::Center)
+    .wrap()
+    .vertical_spacing(10)
     .into()
 }
