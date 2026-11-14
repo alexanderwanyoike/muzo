@@ -1112,7 +1112,7 @@ impl Desktop {
                 self.session.as_ref(),
                 self.windows.mini_view(),
                 (&self.cover, Some(&self.queue_covers), &self.direct_covers),
-                self.appearance.surfaces(),
+                &self.appearance,
                 (self.error.as_deref(), self.failed_track.is_some()),
                 self.mini_focus,
             )

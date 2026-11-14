@@ -48,8 +48,20 @@ pub(super) fn chrome(
     surfaces: Surfaces,
     height: impl Into<Length>,
 ) -> Element<'static, Message> {
+    material_surface(appearance, surfaces.chrome, height)
+}
+
+pub(super) fn compact_background(appearance: &Appearance) -> Element<'static, Message> {
+    material_surface(appearance, appearance.theme().palette().background, Fill)
+}
+
+fn material_surface(
+    appearance: &Appearance,
+    color: Color,
+    height: impl Into<Length>,
+) -> Element<'static, Message> {
     let height = height.into();
-    let base = surface(appearance, surfaces.chrome, height);
+    let base = surface(appearance, color, height);
     if let Some(grain) = texture(&appearance.theme, appearance.mode == "dark") {
         stack![base, Element::new(Grain(grain))].clip(true).into()
     } else {

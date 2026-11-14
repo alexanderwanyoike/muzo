@@ -5,7 +5,11 @@ use iced::{
     widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
 };
 
-use crate::{appearance::Surfaces, session::Session, track::Track};
+use crate::{
+    appearance::{Appearance, Surfaces},
+    session::Session,
+    track::Track,
+};
 
 use super::{
     Icon, Message, action, bold, clock, focus_ring, focusable_icon, icon, icon_tinted,
@@ -21,10 +25,11 @@ pub(in crate::desktop) fn mini<'a>(
     session: Option<&'a Session>,
     window: (bool, bool, Size),
     covers: (&Cover, Option<&Covers>, &DirectCovers),
-    surfaces: Surfaces,
+    appearance: &Appearance,
     playback: (Option<&'a str>, bool),
     focus: Option<Control>,
 ) -> Element<'a, Message> {
+    let surfaces = appearance.surfaces();
     let (cover, indexed, direct) = covers;
     let (queue_open, queue_pending, size) = window;
     let (error, retry) = playback;
@@ -151,7 +156,11 @@ pub(in crate::desktop) fn mini<'a>(
                 .into()
         },
     );
-    stack![foreground].push_under(underlay).clip(true).into()
+    stack![foreground]
+        .push_under(underlay)
+        .push_under(crate::desktop::material::compact_background(appearance))
+        .clip(true)
+        .into()
 }
 
 fn sleeve(
