@@ -33,3 +33,19 @@ fn it_reuses_persistent_artwork_without_probing_the_source_again() {
     let updated = Revision::new("library", "track", "/Music/song.mp3", 100, 2);
     assert_eq!(reopened.get_or_read(&updated, || None), None);
 }
+
+#[test]
+fn it_retries_after_a_temporary_cover_probe_failure() {
+    use crate::artwork_cache::{ArtworkCache, Revision};
+    let root = tempfile::tempdir().unwrap();
+    let cache = ArtworkCache::new(root.path().to_path_buf());
+    let revision = Revision::new("library", "track", "/Music/song.mp3", 100, 1);
+    assert!(cache.get_or_read(&revision, || None).is_none());
+    assert!(
+        cache
+            .get_or_read(&revision, || {
+                Some(include_bytes!("../../desktop/assets/icons/muzo.png").to_vec())
+            })
+            .is_some()
+    );
+}
