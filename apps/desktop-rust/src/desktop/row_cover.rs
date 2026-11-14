@@ -16,6 +16,7 @@ use super::CataloguePaths;
 
 const ROW_EDGE: u32 = 48;
 pub(super) const ROW_LIMIT: usize = 512;
+const PROBE_LIMIT: usize = 768;
 
 pub type Covers = HashMap<String, Handle>;
 pub type DirectCovers = HashMap<PathBuf, Handle>;
@@ -59,12 +60,13 @@ pub(super) fn indexed<'a>(
     let cache = ArtworkCache::new(paths.artwork_cache());
     let mut covers = Covers::new();
     let mut visited = HashSet::new();
-    for track in tracks {
+    let candidates = tracks
+        .into_iter()
+        .filter(|track| visited.insert(&track.id))
+        .take(PROBE_LIMIT);
+    for track in candidates {
         if covers.len() >= ROW_LIMIT {
             break;
-        }
-        if !visited.insert(&track.id) {
-            continue;
         }
         let Ok(revision) = catalogue.artwork_revision(&track.library_id, &track.id) else {
             continue;

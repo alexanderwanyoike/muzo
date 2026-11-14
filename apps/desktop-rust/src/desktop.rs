@@ -459,12 +459,14 @@ impl Desktop {
                 };
                 match result {
                     Ok(track) => {
-                        if self.queue_covers.len() < row_cover::ROW_LIMIT
-                            && let Some(id) = track.indexed_id()
-                            && !self.queue_covers.contains_key(id)
-                            && let Some(handle) = track.artwork().and_then(row_cover::row_handle)
-                        {
-                            self.queue_covers.insert(id.to_owned(), handle);
+                        if let Some(id) = track.indexed_id() {
+                            self.queue_covers.remove(id);
+                            if self.queue_covers.len() < row_cover::ROW_LIMIT
+                                && let Some(handle) =
+                                    track.artwork().and_then(row_cover::row_handle)
+                            {
+                                self.queue_covers.insert(id.to_owned(), handle);
+                            }
                         }
                         self.transport(|session| {
                             session.replace_track(index, track)?;
@@ -866,12 +868,13 @@ impl Desktop {
             })
             .collect();
         self.direct_covers.clear();
+        let mut seeded = std::collections::HashSet::new();
         self.queue_covers = tracks
             .iter()
-            .filter_map(|track: &Track| {
-                let id = track.indexed_id()?;
-                Some((id.to_owned(), snapshot.covers.get(id)?.clone()))
-            })
+            .filter_map(Track::indexed_id)
+            .filter(|id| seeded.insert(*id))
+            .filter_map(|id| Some((id.to_owned(), snapshot.covers.get(id)?.clone())))
+            .take(row_cover::ROW_LIMIT)
             .collect();
         if let Some(session) = &mut self.session {
             session.replace(tracks);
@@ -904,6 +907,12 @@ impl Desktop {
             }
         }
         session.remove_library(library);
+        let live: std::collections::HashSet<_> = session
+            .tracks()
+            .iter()
+            .filter_map(Track::indexed_id)
+            .collect();
+        self.queue_covers.retain(|id, _| live.contains(id.as_str()));
         if session.current().is_none() {
             self.cover = Cover::default();
         }
