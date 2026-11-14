@@ -20,6 +20,7 @@ using System.Runtime.InteropServices;
 public static class MuzoWindows
 {
     public const int DpiAwarenessContextPerMonitorAwareV2 = -4;
+    public const uint DwmExtendedFrameBounds = 9;
     public const int SwMaximize = 3;
     public const uint SwpNoSize = 0x0001;
     public const uint SwpNoZOrder = 0x0004;
@@ -41,6 +42,8 @@ public static class MuzoWindows
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr window);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(
         IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+    [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(
+        IntPtr window, uint attribute, out Rect rect, uint size);
 }
 '@
 
@@ -90,8 +93,14 @@ function Get-WindowBounds([IntPtr] $Window) {
 function Save-MuzoWindow([IntPtr] $Window, [string] $Name) {
     Start-Sleep -Milliseconds $redrawMilliseconds
     if ([MuzoWindows]::GetForegroundWindow() -ne $Window) { throw 'Muzo lost focus before taking a screenshot.' }
+    $frame = [MuzoWindows+Rect]::new()
+    $frameSize = [Runtime.InteropServices.Marshal]::SizeOf($frame)
+    if ([MuzoWindows]::DwmGetWindowAttribute($Window, [MuzoWindows]::DwmExtendedFrameBounds, [ref] $frame, $frameSize) -lt 0) {
+        throw 'Could not read the visible bounds of the Muzo window.'
+    }
+    $visible = [Drawing.Rectangle]::FromLTRB($frame.Left, $frame.Top, $frame.Right, $frame.Bottom)
     $bounds = [Drawing.Rectangle]::Intersect(
-        (Get-WindowBounds $Window), [Windows.Forms.Screen]::FromHandle($Window).Bounds)
+        $visible, [Windows.Forms.Screen]::FromHandle($Window).Bounds)
     $bitmap = [Drawing.Bitmap]::new($bounds.Width, $bounds.Height)
     try {
         $graphics = [Drawing.Graphics]::FromImage($bitmap)
