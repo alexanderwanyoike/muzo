@@ -1,6 +1,7 @@
 pub mod appearance;
 pub mod catalogue;
 pub mod desktop;
+pub mod distribution;
 pub mod dropbox;
 pub mod local_track;
 mod opus;

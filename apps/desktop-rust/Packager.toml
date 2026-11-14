@@ -1,0 +1,14 @@
+product-name = "Muzo"
+identifier = "com.muzo.desktop"
+version = "0.0.6"
+description = "Desktop music player"
+publisher = "Muzo"
+category = "Music"
+out-dir = "out/rust-distribution"
+icons = ["../desktop/assets/icons/muzo.png", "../desktop/assets/icons/muzo.ico", "../desktop/assets/icons/muzo.icns"]
+license-file = "../../LICENSE"
+resources = ["../desktop/assets/licenses"]
+
+[[binaries]]
+path = "muzo-desktop"
+main = true
