@@ -604,6 +604,52 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_cancels_pending_dropbox_authorization_and_accepts_a_different_key() {
+        let mut settings = Settings::default();
+        let _ = settings
+            .update(Action::Key("first-key".into()), None)
+            .discard::<()>();
+        let _ = settings.update(Action::Begin, None).discard::<()>();
+        let _ = settings
+            .update(Action::Code("first-code".into()), None)
+            .discard::<()>();
+
+        let _ = settings.update(Action::Disconnect, None).discard::<()>();
+        let _ = settings
+            .update(Action::Key("second-key".into()), None)
+            .discard::<()>();
+
+        assert!(settings.auth.is_none());
+        assert!(settings.code.is_empty());
+        assert_eq!(settings.app_key, "second-key");
+    }
+
+    #[test]
+    fn it_clears_pending_authorization_after_connecting() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut settings = Settings::default();
+        let _ = settings
+            .update(Action::Key("test-key".into()), None)
+            .discard::<()>();
+        let _ = settings.update(Action::Begin, None).discard::<()>();
+        let _ = settings
+            .update(Action::Code("test-code".into()), None)
+            .discard::<()>();
+        let _ = settings
+            .update(Action::Connect, Some(paths))
+            .discard::<()>();
+
+        settings.apply(Ok(Snapshot {
+            account: Some("connected".into()),
+            ..Default::default()
+        }));
+
+        assert!(settings.auth.is_none());
+        assert!(settings.code.is_empty());
+    }
+
+    #[test]
     fn it_retains_selected_dropbox_folders_across_browsing_and_partial_success() {
         let mut settings = Settings::default();
         let _ = settings.update(Action::SelectFolder("/First".into(), "First".into()), None);
