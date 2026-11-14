@@ -8,10 +8,7 @@ use crate::{
     desktop::{Message, library_sources::TrackEditor},
 };
 
-use super::{
-    error_line,
-    library::{settings_button, settings_input},
-};
+use super::library::{settings_button, settings_input};
 
 pub(super) fn editor(
     editor: &TrackEditor,
@@ -56,7 +53,7 @@ pub(super) fn editor(
     ]
     .spacing(12);
     if let Some(error) = &editor.error {
-        body = body.push(error_line(Some(error)));
+        body = body.push(text(error).size(12));
     }
     container(body.push(actions)).padding(iced::Padding {
         top: 17.0,
