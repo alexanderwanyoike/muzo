@@ -18,17 +18,31 @@ pub const MUSIC_EXTENSIONS: [&str; 6] = ["mp3", "flac", "m4a", "ogg", "opus", "w
 
 impl Catalogue {
     pub fn add_folder(&mut self, path: &Path) -> Result<Library, CatalogueError> {
-        self.index_folder(path, None)
+        self.index_folder(path, None, |_, library| Ok(library))
     }
 
     pub fn add_named_folder(&mut self, path: &Path, name: &str) -> Result<Library, CatalogueError> {
+        self.add_named_folder_with_snapshot(path, name, |_, library| Ok(library))
+    }
+
+    pub(crate) fn add_named_folder_with_snapshot<T>(
+        &self,
+        path: &Path,
+        name: &str,
+        snapshot: impl FnOnce(&Catalogue, Library) -> Result<T, CatalogueError>,
+    ) -> Result<T, CatalogueError> {
         if name.trim().is_empty() {
             return Err(CatalogueError::EmptyLibraryName);
         }
-        self.index_folder(path, Some(name))
+        self.index_folder(path, Some(name), snapshot)
     }
 
-    fn index_folder(&mut self, path: &Path, name: Option<&str>) -> Result<Library, CatalogueError> {
+    fn index_folder<T>(
+        &self,
+        path: &Path,
+        name: Option<&str>,
+        snapshot: impl FnOnce(&Catalogue, Library) -> Result<T, CatalogueError>,
+    ) -> Result<T, CatalogueError> {
         if path.as_os_str().is_empty() {
             return Err(CatalogueError::EmptyLibraryLocation);
         }
@@ -53,9 +67,7 @@ impl Catalogue {
         };
         let location = printable(&library.location)?;
         let files = walk(&library.location)?;
-        let transaction = self
-            .database
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let transaction = self.begin_write()?;
         let mut roots = transaction
             .prepare("SELECT location FROM libraries WHERE lower(kind) = 'filesystem'")?;
         let existing = roots
@@ -77,8 +89,9 @@ impl Catalogue {
             params![library.id, library.name, location],
         )?;
         reconcile(&transaction, &library.id, &files)?;
+        let result = snapshot(self, library)?;
         transaction.commit()?;
-        Ok(library)
+        Ok(result)
     }
 
     pub fn refresh(&mut self, library_id: &str) -> Result<usize, CatalogueError> {

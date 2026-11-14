@@ -130,7 +130,20 @@ fn run_with_selection(
     let mut editor = None;
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
-        Operation::AddNamedFolder(name, path) => Some(catalogue.add_named_folder(&path, &name)?.id),
+        Operation::AddNamedFolder(name, path) => {
+            let mut snapshot =
+                catalogue.add_named_folder_with_snapshot(&path, &name, |catalogue, library| {
+                    read_snapshot(
+                        catalogue,
+                        Some(library.id),
+                        selected_playlist,
+                        None,
+                        warnings,
+                    )
+                })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
+        }
         Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
