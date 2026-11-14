@@ -1,7 +1,12 @@
 mod local;
 pub use local::MUSIC_EXTENSIONS;
 
+mod metadata;
 mod migrations;
+mod playlists;
+
+pub use metadata::MetadataOverride;
+pub use playlists::{Playlist, PlaylistEntry};
 
 use std::{
     fs, io,
@@ -27,6 +32,12 @@ pub enum CatalogueError {
     UnknownFolder,
     #[error("A folder or file name cannot be stored as text.")]
     UnsupportedPath,
+    #[error("Enter a playlist name.")]
+    EmptyPlaylistName,
+    #[error("This playlist entry is no longer available.")]
+    UnknownPlaylistEntry,
+    #[error("This track is no longer available.")]
+    UnknownTrack,
     #[error("Could not read the music folder: {0}")]
     Walk(#[from] walkdir::Error),
 }
@@ -46,6 +57,8 @@ pub struct IndexedTrack {
     pub artist: String,
     pub album: Option<String>,
     pub path: PathBuf,
+    pub plays: u32,
+    pub library_id: String,
 }
 
 pub struct Catalogue {
@@ -112,7 +125,9 @@ impl Catalogue {
     pub fn tracks(&self, library_id: &str) -> Result<Vec<IndexedTrack>, CatalogueError> {
         let mut statement = self.database.prepare(
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
-             COALESCE(override_album, album), file_path FROM tracks WHERE library_id = ?1 ORDER BY rowid"
+             COALESCE(override_album, album), file_path,
+             (SELECT COUNT(*) FROM play_history h WHERE h.library_id=tracks.library_id AND h.track_id=tracks.id),
+             library_id FROM tracks WHERE library_id = ?1 ORDER BY rowid"
         )?;
         let tracks = statement
             .query_map([library_id], |row| {
@@ -122,6 +137,8 @@ impl Catalogue {
                     artist: row.get(2)?,
                     album: row.get(3)?,
                     path: PathBuf::from(row.get::<_, String>(4)?),
+                    plays: row.get(5)?,
+                    library_id: row.get(6)?,
                 })
             })?
             .collect::<Result<_, _>>()?;

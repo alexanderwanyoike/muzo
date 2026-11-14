@@ -1,0 +1,47 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use rusqlite::params;
+use uuid::Uuid;
+
+use super::{Catalogue, CatalogueError};
+
+#[derive(Debug, Clone, Default)]
+pub struct MetadataOverride {
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub track_number: Option<u32>,
+    pub disc_number: Option<u32>,
+    pub genre: Option<String>,
+    pub year: Option<u32>,
+}
+
+impl Catalogue {
+    pub fn override_track(
+        &self,
+        id: &str,
+        change: &MetadataOverride,
+    ) -> Result<(), CatalogueError> {
+        let affected = self.database.execute(
+            "UPDATE tracks SET override_title=?1, override_artist=?2, override_album=?3,
+             override_track_number=?4, override_disc_number=?5, override_genre=?6, override_year=?7 WHERE id=?8",
+            params![change.title, change.artist, change.album, change.track_number, change.disc_number, change.genre, change.year, id],
+        )?;
+        if affected == 0 {
+            return Err(CatalogueError::UnknownTrack);
+        }
+        Ok(())
+    }
+
+    pub fn record_play(&self, track_id: &str) -> Result<(), CatalogueError> {
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| duration.as_secs() as i64);
+        self.database.execute(
+            "INSERT INTO play_history (id, library_id, track_id, played_at_unix_seconds)
+             SELECT ?1, library_id, id, ?2 FROM tracks WHERE id=?3",
+            params![Uuid::new_v4().to_string(), now, track_id],
+        )?;
+        Ok(())
+    }
+}
