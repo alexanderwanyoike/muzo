@@ -222,15 +222,6 @@ impl Desktop {
                 self.page = page;
                 self.sources.pending_remove = None;
                 self.sources.editing = None;
-                if page == LibraryPage::Playlists
-                    && let Some(snapshot) = self.sources.snapshot.as_ref()
-                    && snapshot.selected_playlist.is_none()
-                    && let Some(first) = snapshot.playlists.first()
-                {
-                    return self
-                        .sources
-                        .start(Operation::SelectPlaylist(first.id.clone()));
-                }
                 Task::none()
             }
             Message::SourceSearch(query) => {
