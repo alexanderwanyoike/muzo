@@ -147,7 +147,7 @@ fn run_with_selection(
         Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
-            Some(id)
+            None
         }
         Operation::Remove(id) => {
             catalogue.remove(&id)?;
