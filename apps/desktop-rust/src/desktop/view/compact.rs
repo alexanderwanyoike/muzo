@@ -306,6 +306,7 @@ fn play_button(
                             0.14
                         },
                     )
+                    .scale_alpha(control_opacity(available))
                     .into(),
                 ),
                 border: border::rounded(24),
