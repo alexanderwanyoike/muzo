@@ -12,6 +12,8 @@ on:
       - "package.json"
       - "yarn.lock"
       - ".github/workflows/desktop-rust-distribution.yml"
+  push:
+    tags: ["v*"]
   workflow_dispatch:
 
 permissions:
@@ -32,7 +34,14 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          fetch-depth: 0
           persist-credentials: false
+      - name: Require annotated release tags on main
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          git merge-base --is-ancestor HEAD origin/main
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -220,3 +229,23 @@ jobs:
           name: muzo-rust-release-set
           path: release-set/*
           if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag' && github.event_name == 'push'
+    needs: [context, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: muzo-rust-release-set
+          path: release-set
+      - name: Create a draft release without replacing existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MUZO_RELEASE_TAG: ${{ needs.context.outputs.tag }}
+        run: |
+          gh release create "$MUZO_RELEASE_TAG" release-set/* --verify-tag --draft --title "$MUZO_RELEASE_TAG" --notes "Download the installer for your platform. These preview builds are not signed or notarized. Review the installers and SHA256SUMS before publishing this draft."
