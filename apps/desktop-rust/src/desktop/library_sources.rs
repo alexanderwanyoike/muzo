@@ -745,6 +745,35 @@ mod navigation_tests {
     use super::*;
 
     #[test]
+    fn it_refreshes_another_source_without_switching_the_selected_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut catalogue = paths.open().unwrap();
+        let selected = directory.path().join("selected");
+        let refreshed = directory.path().join("refreshed");
+        std::fs::create_dir(&selected).unwrap();
+        std::fs::create_dir(&refreshed).unwrap();
+        let selected = catalogue.add_folder(&selected).unwrap().id;
+        let target = catalogue.add_folder(&refreshed).unwrap().id;
+        std::fs::copy(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+            refreshed.join("tone.mp3"),
+        )
+        .unwrap();
+
+        let snapshot = run_with_selection(
+            &paths,
+            Operation::Refresh(target.clone()),
+            Some(selected.clone()),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(snapshot.track_counts.get(&target), Some(&1));
+        assert_eq!(snapshot.selected, Some(selected));
+    }
+
+    #[test]
     fn it_keeps_the_selected_source_and_playlist_when_adding_a_song_elsewhere() {
         let directory = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(directory.path());
