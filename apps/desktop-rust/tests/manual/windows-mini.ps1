@@ -5,6 +5,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $executable = (Resolve-Path -LiteralPath $Binary).Path
+$windowTimeoutSeconds = 12
+$windowPollMilliseconds = 100
+$redrawMilliseconds = 350
+$exitTimeoutMilliseconds = 2500
+$miniWidth = 420
+$miniHeight = 560
+$queueWidth = 740
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;
@@ -12,6 +19,12 @@ using System.Runtime.InteropServices;
 
 public static class MuzoWindows
 {
+    public const int DpiAwarenessContextPerMonitorAwareV2 = -4;
+    public const int SwMaximize = 3;
+    public const uint SwpNoSize = 0x0001;
+    public const uint SwpNoZOrder = 0x0004;
+    public const uint SwpNoActivate = 0x0010;
+
     [StructLayout(LayoutKind.Sequential)]
     public struct Rect { public int Left, Top, Right, Bottom; }
 
@@ -40,7 +53,7 @@ function Test-ClientSize([IntPtr] $Window, [int] $Width, [int] $Height) {
 
 function Wait-MuzoWindow([string] $Stage, [scriptblock] $Match, [switch] $Activate) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
-    while ($timer.Elapsed.TotalSeconds -lt 12) {
+    while ($timer.Elapsed.TotalSeconds -lt $windowTimeoutSeconds) {
         if ($application.HasExited) { throw "Muzo exited while waiting for $Stage with code $($application.ExitCode)." }
         $window = [MuzoWindows]::GetForegroundWindow()
         $owner = [uint32] 0
@@ -51,7 +64,7 @@ function Wait-MuzoWindow([string] $Stage, [scriptblock] $Match, [switch] $Activa
             $handle = $application.MainWindowHandle
             if ($handle -ne [IntPtr]::Zero) { [void] [MuzoWindows]::SetForegroundWindow($handle) }
         }
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds $windowPollMilliseconds
     }
     throw "Timed out waiting for $Stage. Foreground window $window belongs to process $owner."
 }
@@ -68,7 +81,7 @@ function Get-WindowBounds([IntPtr] $Window) {
 }
 
 function Save-MuzoWindow([IntPtr] $Window, [string] $Name) {
-    Start-Sleep -Milliseconds 350
+    Start-Sleep -Milliseconds $redrawMilliseconds
     if ([MuzoWindows]::GetForegroundWindow() -ne $Window) { throw 'Muzo lost focus before taking a screenshot.' }
     $bounds = [Drawing.Rectangle]::Intersect(
         (Get-WindowBounds $Window), [Windows.Forms.Screen]::FromHandle($Window).Bounds)
@@ -88,7 +101,7 @@ function Save-MuzoWindow([IntPtr] $Window, [string] $Name) {
 
 $data = [IO.Directory]::CreateTempSubdirectory('muzo-mini-')
 $application = $null
-$previousDpi = [MuzoWindows]::SetThreadDpiAwarenessContext([IntPtr] (-4))
+$previousDpi = [MuzoWindows]::SetThreadDpiAwarenessContext([IntPtr] [MuzoWindows]::DpiAwarenessContextPerMonitorAwareV2)
 try {
     New-Item -ItemType Directory -Force -Path $Screenshots | Out-Null
     $recording = Join-Path $data.FullName 'Local track.mp3'
@@ -96,7 +109,7 @@ try {
     $application = Start-Process -FilePath $executable -ArgumentList ('"{0}"' -f $recording) -PassThru `
         -WorkingDirectory $data.FullName -Environment @{ MUZO_DATA_DIR = $data.FullName }
     $library = Wait-MuzoWindow 'the library' { $true } -Activate
-    [void] [MuzoWindows]::ShowWindow($library, 3)
+    [void] [MuzoWindows]::ShowWindow($library, [MuzoWindows]::SwMaximize)
     $library = Wait-MuzoWindow 'the maximized library' { param($window) $window -eq $library -and [MuzoWindows]::IsZoomed($window) }
     $libraryBounds = Get-WindowBounds $library
     Save-MuzoWindow $library 'windows-library'
@@ -104,10 +117,10 @@ try {
     Send-MuzoKeys $library '^m'
     $mini = Wait-MuzoWindow 'the compact player' {
         param($window)
-        $window -ne $library -and (Test-ClientSize $window 420 560) -and [MuzoWindows]::IsIconic($library)
+        $window -ne $library -and (Test-ClientSize $window $miniWidth $miniHeight) -and [MuzoWindows]::IsIconic($library)
     }
     $area = [Windows.Forms.Screen]::FromHandle($mini).WorkingArea
-    $moveOnly = 0x0001 -bor 0x0004 -bor 0x0010
+    $moveOnly = [MuzoWindows]::SwpNoSize -bor [MuzoWindows]::SwpNoZOrder -bor [MuzoWindows]::SwpNoActivate
     if (![MuzoWindows]::SetWindowPos($mini, [IntPtr]::Zero, $area.Left, $area.Top, 0, 0, $moveOnly)) {
         throw 'Could not position the mini player for capture.'
     }
@@ -116,14 +129,14 @@ try {
     Send-MuzoKeys $mini '^q'
     $expanded = Wait-MuzoWindow 'the expanded mini player queue' {
         param($window)
-        $window -eq $mini -and (Test-ClientSize $window 740 560)
+        $window -eq $mini -and (Test-ClientSize $window $queueWidth $miniHeight)
     }
     Save-MuzoWindow $expanded 'windows-mini-queue'
 
     Send-MuzoKeys $mini '^q'
     $null = Wait-MuzoWindow 'the collapsed mini player queue' {
         param($window)
-        $window -eq $mini -and (Test-ClientSize $window 420 560)
+        $window -eq $mini -and (Test-ClientSize $window $miniWidth $miniHeight)
     }
     Send-MuzoKeys $mini '{ESC}'
     $restored = Wait-MuzoWindow 'the restored library' {
@@ -136,7 +149,7 @@ try {
 } finally {
     if ($application -and !$application.HasExited) {
         [void] $application.CloseMainWindow()
-        if (!$application.WaitForExit(2500)) { $application.Kill(); $application.WaitForExit() }
+        if (!$application.WaitForExit($exitTimeoutMilliseconds)) { $application.Kill(); $application.WaitForExit() }
     }
     if ($previousDpi -ne [IntPtr]::Zero) {
         [void] [MuzoWindows]::SetThreadDpiAwarenessContext($previousDpi)
