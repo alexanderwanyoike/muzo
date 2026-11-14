@@ -151,3 +151,63 @@ fn playlist_options<'a>(
     })
     .into()
 }
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Color, Event, Font, Pixels, Point, Rectangle, Renderer, Size, Theme,
+        advanced::{
+            Layout, Shell, clipboard, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn it_distinguishes_the_keyboard_preview_from_the_hovered_destination() {
+        let playlists = ["First", "Second"].map(|name| Playlist {
+            id: name.into(),
+            name: name.into(),
+        });
+        let mut menu = playlist_options(
+            &playlists,
+            "First",
+            crate::appearance::Appearance::default().surfaces(),
+        );
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut tree = Tree::new(&menu);
+        let bounds = Rectangle::with_size(Size::new(200.0, 58.0));
+        let widget = menu.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        let cursor = mouse::Cursor::Available(Point::new(160.0, 45.0));
+        widget.update(
+            &mut tree,
+            &Event::Window(iced::window::Event::RedrawRequested(iced::time::Instant::now())),
+            Layout::new(&node),
+            cursor,
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut Vec::new()),
+            &bounds,
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &Theme::Light,
+            &Style::default(),
+            Layout::new(&node),
+            cursor,
+            &bounds,
+        );
+        let pixels = renderer.screenshot(Size::new(200, 58), 1.0, Color::WHITE);
+        let color = |y: usize| &pixels[(y * 200 + 160) * 4..][..4];
+
+        assert_ne!(color(14), color(45));
+    }
+}
