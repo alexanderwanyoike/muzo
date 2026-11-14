@@ -1,4 +1,6 @@
 pub mod playback;
+pub mod session;
+pub mod track;
 
 #[cfg(test)]
 mod playback_tests;

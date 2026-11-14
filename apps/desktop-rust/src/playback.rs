@@ -41,6 +41,26 @@ impl Playback {
         Ok(())
     }
 
+    pub fn reset(&mut self) {
+        self.player = None;
+        self.duration = Duration::ZERO;
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.player.as_ref().is_some_and(Player::empty)
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    pub fn set_volume(&mut self, value: f32) {
+        self.volume = value;
+        if let Some(player) = &self.player {
+            player.set_volume(value);
+        }
+    }
+
     pub fn duration(&self) -> Duration {
         self.duration
     }
