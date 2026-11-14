@@ -50,13 +50,21 @@ impl Sidebar {
     pub(super) fn drag(&mut self, ratio: f32) -> SidebarWidth {
         let requested = ratio * self.content_width() - SPLITTER_SPACING / 2.0;
         let desired = SidebarWidth::new(requested);
-        let clamped = SidebarWidth::new(desired.visible(self.viewport));
+        let clamped = SidebarWidth::new(desired.visible(self.pane_space()));
         self.set(clamped);
         clamped
     }
 
     pub(super) fn visible_width(&self) -> f32 {
-        self.width.visible(self.viewport)
+        self.width.visible(self.pane_space())
+    }
+
+    pub(super) fn preferred_width(&self) -> SidebarWidth {
+        self.width
+    }
+
+    fn pane_space(&self) -> f32 {
+        self.content_width() - SPLITTER_SPACING
     }
 
     fn content_width(&self) -> f32 {

@@ -438,11 +438,7 @@ impl Desktop {
                 if revision != self.sidebar_revision {
                     return Task::none();
                 }
-                if let Some(path) = self.sources.paths().map(|paths| paths.sidebar())
-                    && let Err(error) = crate::appearance::sidebar::save(&path, width)
-                {
-                    self.error = Some(error.to_string());
-                }
+                self.persist_sidebar(width);
                 Task::none()
             }
             Message::SetVolume(value) => self.transport(|session| {
@@ -563,7 +559,12 @@ impl Desktop {
                 task
             }
 
-            Message::CloseRequested(id) => self.windows.close_requested(id),
+            Message::CloseRequested(id) => {
+                if self.windows.is_library(id) && self.sidebar_revision != 0 {
+                    self.persist_sidebar(self.sidebar.preferred_width());
+                }
+                self.windows.close_requested(id)
+            }
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
                     self.windows.resized(id, size);
@@ -572,6 +573,14 @@ impl Desktop {
                 }
                 Task::none()
             }
+        }
+    }
+
+    fn persist_sidebar(&mut self, width: crate::appearance::sidebar::SidebarWidth) {
+        if let Some(path) = self.sources.paths().map(|paths| paths.sidebar())
+            && let Err(error) = crate::appearance::sidebar::save(&path, width)
+        {
+            self.error = Some(error.to_string());
         }
     }
 
