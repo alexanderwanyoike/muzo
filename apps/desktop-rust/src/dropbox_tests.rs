@@ -98,3 +98,34 @@ fn it_uses_offline_authorization_and_follows_the_dropbox_folder_cursor() {
         "next"
     );
 }
+
+#[test]
+fn it_indexes_remote_audio_and_preserves_an_existing_track_id_on_resync() {
+    use crate::{catalogue::Catalogue, dropbox::Entry};
+    use std::path::Path;
+
+    let root = tempfile::tempdir().unwrap();
+    let mut catalogue = Catalogue::open(&root.path().join("catalogue.sqlite"), None).unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let audio: Entry = serde_json::from_str(
+        r#"{".tag":"file","name":"A.mp3","path_display":"/Music/A.mp3","size":48,"rev":"1"}"#,
+    )
+    .unwrap();
+    catalogue
+        .sync_dropbox(&library.id, &[audio.clone()])
+        .unwrap();
+    let track = catalogue.tracks(&library.id).unwrap().remove(0);
+    assert_eq!(track.path, Path::new("/Music/A.mp3"));
+    assert_eq!(
+        catalogue
+            .dropbox_account_for(&library.id)
+            .unwrap()
+            .as_deref(),
+        Some("account")
+    );
+    catalogue.sync_dropbox(&library.id, &[audio]).unwrap();
+    assert_eq!(catalogue.tracks(&library.id).unwrap()[0].id, track.id);
+}
