@@ -184,3 +184,26 @@ fn it_ignores_late_audio_from_a_disconnected_dropbox_account() {
     assert_eq!(session.tracks().len(), 1);
     assert_eq!(session.tracks()[0].library(), Some("second"));
 }
+
+#[test]
+fn it_can_expand_the_mini_queue_from_the_keyboard() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::ShowMini);
+    let mini_id = desktop.windows.mini_id().unwrap();
+    let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
+    let _ = desktop.update(Message::CycleMiniFocus(mini_id, false));
+
+    assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
+    assert!(desktop.windows.queue_pending());
+}
+
+#[test]
+fn it_skips_disabled_transport_when_cycling_mini_controls() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::ShowMini);
+    let mini_id = desktop.windows.mini_id().unwrap();
+    let _ = desktop.update(Message::CycleMiniFocus(mini_id, true));
+
+    assert!(desktop.update(Message::ActivateMiniFocus(mini_id)).units() > 0);
+    assert!(!desktop.windows.is_mini(mini_id));
+}
