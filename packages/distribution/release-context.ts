@@ -10,6 +10,7 @@ import {
 interface ReleaseContextInput {
   rootVersion: unknown;
   desktopVersion: unknown;
+  native?: { workspace: unknown; binary: unknown; packager: unknown };
   sourceCommit: unknown;
   tag?: unknown;
 }
@@ -21,7 +22,17 @@ export interface ReleaseContext {
 export function releaseContext(
   input: ReleaseContextInput,
 ): DistributionResult<ReleaseContext> {
-  const { rootVersion, desktopVersion, sourceCommit, tag } = input;
+  const { rootVersion, desktopVersion, native, sourceCommit, tag } = input;
+  if (
+    native !== undefined &&
+    [native.workspace, native.binary, native.packager].some(
+      (version) => version !== rootVersion,
+    )
+  )
+    return distributionFailure(
+      "invalidRelease",
+      "The native workspace, Cargo and Packager versions must match the root version.",
+    );
   if (
     !isStableReleaseVersion(rootVersion) ||
     rootVersion !== desktopVersion ||
