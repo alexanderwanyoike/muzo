@@ -119,6 +119,27 @@ impl Catalogue {
             .collect::<Result<_, _>>()?;
         Ok(tracks)
     }
+
+    pub(crate) fn artwork_revision(
+        &self,
+        library: &str,
+        id: &str,
+    ) -> Result<crate::artwork_cache::Revision, CatalogueError> {
+        Ok(self.database.query_row(
+            "SELECT file_path, file_size, file_mtime FROM tracks WHERE id=?1 AND library_id=?2",
+            rusqlite::params![id, library],
+            |row| {
+                let path = row.get::<_, String>(0)?;
+                Ok(crate::artwork_cache::Revision::new(
+                    library,
+                    id,
+                    &path,
+                    row.get(1)?,
+                    row.get(2)?,
+                ))
+            },
+        )?)
+    }
 }
 
 fn initialise(path: &Path, legacy: Option<&Path>) -> Result<Connection, CatalogueError> {

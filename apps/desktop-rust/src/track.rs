@@ -58,6 +58,11 @@ impl Track {
         self
     }
 
+    pub(crate) fn with_artwork(mut self, bytes: Vec<u8>) -> Self {
+        self.artwork = Some(Arc::from(bytes));
+        self
+    }
+
     pub fn library(&self) -> Option<&str> {
         self.library.as_deref()
     }

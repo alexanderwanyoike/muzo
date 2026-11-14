@@ -20,7 +20,7 @@ static PUBLISH: Mutex<()> = Mutex::new(());
 pub struct Revision(String);
 
 impl Revision {
-    pub fn new(library: &str, track: &str, path: &str, size: u64, modified: i64) -> Self {
+    pub fn new(library: &str, track: &str, path: &str, size: i64, modified: i64) -> Self {
         Self(format!(
             "{:x}",
             Sha256::digest(format!("{library}\0{track}\0{path}\0{size}\0{modified}"))

@@ -40,6 +40,10 @@ impl CataloguePaths {
         self.current.with_file_name("updates-rust")
     }
 
+    pub(crate) fn artwork_cache(&self) -> PathBuf {
+        self.current.with_file_name("artwork-rust")
+    }
+
     pub(crate) fn legacy_appearance() -> Option<PathBuf> {
         let profile = directories::BaseDirs::new()?;
         Some(

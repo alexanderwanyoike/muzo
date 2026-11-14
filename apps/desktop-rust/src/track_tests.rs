@@ -20,7 +20,9 @@ fn it_reuses_persistent_artwork_without_probing_the_source_again() {
     let cache = ArtworkCache::new(root.path().to_path_buf());
     let revision = Revision::new("library", "track", "/Music/song.mp3", 100, 1);
     let original = include_bytes!("../../desktop/assets/icons/muzo.png");
-    let cover = cache.get_or_read(&revision, || Some(original.to_vec())).unwrap();
+    let cover = cache
+        .get_or_read(&revision, || Some(original.to_vec()))
+        .unwrap();
     assert_eq!(&cover[..8], b"\x89PNG\r\n\x1a\n");
 
     let reopened = ArtworkCache::new(root.path().to_path_buf());

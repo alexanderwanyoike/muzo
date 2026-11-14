@@ -779,15 +779,12 @@ impl Desktop {
         }
         if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
             self.pending_track = Some(index);
+            let paths = self.sources.paths();
             return Task::perform(
                 async move {
-                    tokio::task::spawn_blocking(move || {
-                        let path = track.path().to_owned();
-                        let metadata = read_track(path.clone());
-                        track.with_audio(path, &metadata)
-                    })
-                    .await
-                    .map_err(|error| format!("Could not read track artwork: {error}"))
+                    tokio::task::spawn_blocking(move || prepare_local_track(paths.as_ref(), track))
+                        .await
+                        .map_err(|error| format!("Could not read track artwork: {error}"))
                 },
                 move |result| Message::RemoteTrackReady(request, result),
             );
@@ -966,7 +963,37 @@ fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -
     {
         eprintln!("Could not cache Dropbox track metadata: {error}");
     }
-    track.with_audio(local, &metadata)
+    let track = track.with_audio(local, &metadata);
+    cache_artwork(Some(paths), track, || {
+        metadata.artwork().map(<[u8]>::to_vec)
+    })
+}
+
+fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> Track {
+    let path = track.path().to_owned();
+    cache_artwork(paths, track, || {
+        read_track(path).artwork().map(<[u8]>::to_vec)
+    })
+}
+
+fn cache_artwork(
+    paths: Option<&CataloguePaths>,
+    track: Track,
+    read: impl FnOnce() -> Option<Vec<u8>>,
+) -> Track {
+    let revision = paths
+        .zip(track.library())
+        .zip(track.indexed_id())
+        .and_then(|((paths, library), id)| paths.open().ok()?.artwork_revision(library, id).ok());
+    let cover = match paths.zip(revision) {
+        Some((paths, revision)) => crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
+            .get_or_read(&revision, read),
+        None => read().as_deref().and_then(crate::artwork_cache::thumbnail),
+    };
+    if let Some(bytes) = cover {
+        return track.with_artwork(bytes);
+    }
+    track
 }
 
 #[cfg(test)]
