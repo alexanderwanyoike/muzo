@@ -44,3 +44,18 @@ it("makes the verified Rust installer workflow the sole tagged release publisher
   expect(legacy).not.toHaveProperty("on.push");
   expect(legacy).not.toHaveProperty("jobs.release");
 });
+
+it("runs the root native installer command for every release target", () => {
+  const native = workflow("desktop-rust-distribution.yml");
+  const packageJob = nested(native, "jobs", "package");
+  const targets = nested(packageJob, "strategy", "matrix", "include");
+  expect(Array.isArray(targets)).toBe(true);
+  expect(JSON.stringify(targets)).toContain("linux-x64");
+  expect(JSON.stringify(targets)).toContain("windows-x64");
+  expect(JSON.stringify(targets)).toContain("macos-arm64");
+  expect(JSON.stringify(targets)).toContain("macos-x64");
+  const steps = JSON.stringify(nested(packageJob, "steps"));
+  expect(steps).toContain("yarn desktop:package --target ${{ matrix.label }}");
+  expect(steps).not.toContain("hdiutil create");
+  expect(steps).not.toContain("--prepackaged");
+});
