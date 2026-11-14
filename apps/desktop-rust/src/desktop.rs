@@ -28,6 +28,7 @@ pub enum Message {
     Tick,
     ShowMini,
     MiniOpened(window::Id),
+    LibraryVisibilityChecked(window::Id, bool),
     ShowLibrary,
     ToggleQueue,
     CloseRequested(window::Id),
@@ -121,6 +122,9 @@ impl Desktop {
             }
             Message::ShowMini => self.windows.show_mini(),
             Message::MiniOpened(id) => self.windows.mini_opened(id),
+            Message::LibraryVisibilityChecked(id, wayland) => {
+                self.windows.library_visibility_checked(id, wayland)
+            }
             Message::ShowLibrary => self.windows.show_library(),
             Message::ToggleQueue => self.windows.toggle_queue(),
             Message::CloseRequested(id) => self.windows.close_requested(id),

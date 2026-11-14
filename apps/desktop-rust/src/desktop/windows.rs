@@ -1,5 +1,7 @@
 use iced::{Size, Task, window};
 
+use window::raw_window_handle::RawWindowHandle;
+
 use super::Message;
 
 const LIBRARY_SIZE: Size = Size::new(850.0, 570.0);
@@ -8,11 +10,28 @@ const MINI_SIZE: Size = Size::new(426.0, 236.0);
 const MINI_MIN: Size = Size::new(370.0, 222.0);
 const QUEUE_HEIGHT: f32 = 198.0;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LibraryVisibility {
+    KeepMapped,
+    MinimizeAndRestore,
+}
+
+impl LibraryVisibility {
+    fn for_wayland(wayland: bool) -> Self {
+        if wayland {
+            Self::KeepMapped
+        } else {
+            Self::MinimizeAndRestore
+        }
+    }
+}
+
 pub struct Windows {
     library: window::Id,
     mini: Option<window::Id>,
     queue_open: bool,
     mini_bounds: Size,
+    library_visibility: LibraryVisibility,
 }
 
 impl Windows {
@@ -24,6 +43,7 @@ impl Windows {
                 mini: None,
                 queue_open: false,
                 mini_bounds: MINI_SIZE,
+                library_visibility: LibraryVisibility::KeepMapped,
             },
             open.discard(),
         )
@@ -51,12 +71,32 @@ impl Windows {
         if !self.is_mini(id) {
             return Task::none();
         }
-        window::minimize(self.library, true)
+        window::run(self.library, move |handle| {
+            let wayland = handle
+                .window_handle()
+                .is_ok_and(|handle| matches!(handle.as_raw(), RawWindowHandle::Wayland(_)));
+            Message::LibraryVisibilityChecked(id, wayland)
+        })
+    }
+
+    pub fn library_visibility_checked(&mut self, id: window::Id, wayland: bool) -> Task<Message> {
+        if !self.is_mini(id) {
+            return Task::none();
+        }
+        self.library_visibility = LibraryVisibility::for_wayland(wayland);
+        match self.library_visibility {
+            LibraryVisibility::KeepMapped => Task::none(),
+            LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, true),
+        }
     }
 
     pub fn show_library(&mut self) -> Task<Message> {
         self.mini.take().map_or_else(Task::none, |id| {
-            window::minimize(self.library, false)
+            let restore = match self.library_visibility {
+                LibraryVisibility::KeepMapped => Task::none(),
+                LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, false),
+            };
+            restore
                 .chain(window::gain_focus(self.library))
                 .chain(window::close(id))
         })
