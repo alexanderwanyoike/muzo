@@ -219,8 +219,11 @@ pub(super) struct Sources {
     pub saving_editor: bool,
     busy: bool,
     changed: Arc<AtomicBool>,
+    roots_changed: Arc<AtomicBool>,
     watcher: Option<RecommendedWatcher>,
     roots: Vec<PathBuf>,
+    registered: Vec<PathBuf>,
+    pending: std::collections::VecDeque<Operation>,
 }
 
 impl Sources {
@@ -237,8 +240,11 @@ impl Sources {
             saving_editor: false,
             busy: false,
             changed: Arc::new(AtomicBool::new(false)),
+            roots_changed: Arc::new(AtomicBool::new(false)),
             watcher: None,
             roots: Vec::new(),
+            registered: Vec::new(),
+            pending: std::collections::VecDeque::new(),
         }
     }
 
@@ -260,7 +266,11 @@ impl Sources {
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
-        let Some(paths) = self.paths.clone().filter(|_| !self.busy) else {
+        if self.busy {
+            self.pending.push_back(operation);
+            return Task::none();
+        }
+        let Some(paths) = self.paths.clone() else {
             return Task::none();
         };
         self.busy = true;
@@ -297,6 +307,8 @@ impl Sources {
         if self.roots != roots {
             self.install_watcher(&roots);
             self.roots = roots;
+        } else {
+            self.retry_watch_roots();
         }
         if let Some(fields) = snapshot.editor.clone() {
             self.editing = Some(fields);
@@ -311,6 +323,10 @@ impl Sources {
     pub fn poll(&mut self) -> Task<Message> {
         if self.busy {
             return Task::none();
+        }
+        self.retry_watch_roots();
+        if let Some(operation) = self.pending.pop_front() {
+            return self.start(operation);
         }
         let selected = self
             .snapshot
@@ -331,26 +347,62 @@ impl Sources {
     }
 
     fn install_watcher(&mut self, roots: &[PathBuf]) {
+        self.registered.clear();
         let changed = Arc::clone(&self.changed);
+        let roots_changed = Arc::clone(&self.roots_changed);
         self.watcher =
             match notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
-                if result.as_ref().is_err() || result.is_ok_and(|event| !event.kind.is_access()) {
+                if result.as_ref().is_err()
+                    || result.as_ref().is_ok_and(|event| !event.kind.is_access())
+                {
                     changed.store(true, Ordering::Release);
                 }
-            }) {
-                Ok(mut watcher) => {
-                    for root in roots.iter().filter(|root| root.is_dir()) {
-                        if let Err(error) = watcher.watch(root, RecursiveMode::Recursive) {
-                            self.error =
-                                Some(format!("Could not watch {}: {error}", root.display()));
-                        }
-                    }
-                    Some(watcher)
+                if result.is_ok_and(|event| event.kind.is_remove()) {
+                    roots_changed.store(true, Ordering::Release);
                 }
+            }) {
+                Ok(watcher) => Some(watcher),
                 Err(error) => {
                     self.error = Some(error.to_string());
                     None
                 }
             };
+        self.register_available(roots);
+    }
+
+    fn retry_watch_roots(&mut self) {
+        let roots = self.roots.clone();
+        if self.roots_changed.swap(false, Ordering::AcqRel) {
+            let watched_offline = self.registered.iter().any(|root| !root.is_dir());
+            if watched_offline {
+                self.install_watcher(&roots);
+                return;
+            }
+        }
+        if self.watcher.is_none() && !roots.is_empty() {
+            self.install_watcher(&roots);
+        } else {
+            self.register_available(&roots);
+        }
+    }
+
+    fn register_available(&mut self, roots: &[PathBuf]) {
+        let Some(watcher) = &mut self.watcher else {
+            return;
+        };
+        for root in roots {
+            if self.registered.contains(root) || !root.is_dir() {
+                continue;
+            }
+            match watcher.watch(root, RecursiveMode::Recursive) {
+                Ok(()) => {
+                    self.registered.push(root.clone());
+                    self.changed.store(true, Ordering::Release);
+                }
+                Err(error) => {
+                    self.error = Some(format!("Could not watch {}: {error}", root.display()))
+                }
+            }
+        }
     }
 }
