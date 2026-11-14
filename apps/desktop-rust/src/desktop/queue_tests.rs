@@ -1057,3 +1057,33 @@ fn it_reveals_the_focused_metadata_action_in_a_short_songs_viewport() {
 
     assert!(offset.0 > 0.0);
 }
+
+#[test]
+fn it_serializes_repeated_tab_requests_for_the_same_metadata_draft() {
+    let (mut desktop, _) = editing_source();
+    let library = desktop.windows.library_id();
+
+    let first = desktop.update(Message::CycleMiniFocus(library, false));
+    let repeated = desktop.update(Message::CycleMiniFocus(library, false));
+
+    assert!(first.units() > 0);
+    assert_eq!(repeated.units(), 0);
+}
+
+#[test]
+fn it_ignores_an_old_tab_result_after_opening_the_same_song_again() {
+    let (mut desktop, track) = editing_source();
+    let previous_draft = desktop.sources.editing.clone();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::CloseTrackEdit);
+    desktop.sources.editing = previous_draft;
+
+    let stale = desktop.update(Message::TrackEditorTab(
+        track.id,
+        false,
+        Some(MetadataField::Year),
+    ));
+
+    assert_eq!(stale.units(), 0);
+}
