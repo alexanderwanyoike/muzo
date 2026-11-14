@@ -35,6 +35,11 @@ fn it_finds_a_library_by_its_location_as_well_as_its_name() {
 
 fn matches_source(source: &crate::catalogue::Library, query: &str) -> bool {
     source.name.to_lowercase().contains(query)
+        || source
+            .location
+            .to_string_lossy()
+            .to_lowercase()
+            .contains(query)
 }
 
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
