@@ -195,12 +195,12 @@ impl Catalogue {
     pub fn cache_dropbox_metadata(
         &self,
         id: &str,
-        title: &str,
+        title: Option<&str>,
         artist: Option<&str>,
         album: Option<&str>,
     ) -> Result<(), CatalogueError> {
         self.database.execute(
-            "UPDATE tracks SET title=?2, artist=COALESCE(?3, artist), album=COALESCE(?4, album)
+            "UPDATE tracks SET title=COALESCE(?2, title), artist=COALESCE(?3, artist), album=COALESCE(?4, album)
              WHERE id=?1 AND EXISTS (SELECT 1 FROM dropbox_library_accounts WHERE library_id=tracks.library_id)",
             params![id, title, artist, album],
         )?;

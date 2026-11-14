@@ -111,7 +111,7 @@ fn it_keeps_the_catalogued_title_when_a_cached_download_has_no_embedded_title() 
 
     let track = Track::new(PathBuf::new(), indexed.title.clone(), None, None, None)
         .with_indexed_id(indexed.id);
-    let played = prepare_dropbox_track(&paths, track, local).unwrap();
+    let played = prepare_dropbox_track(&paths, track, local);
 
     assert_eq!(played.title(), indexed.title);
     assert_eq!(
@@ -129,5 +129,5 @@ fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
     let path = audio.path().to_path_buf();
     let result = prepare_dropbox_track(&paths, audio.with_indexed_id("track".into()), path.clone());
 
-    assert_eq!(result.unwrap().path(), path);
+    assert_eq!(result.path(), path);
 }

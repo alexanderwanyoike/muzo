@@ -611,7 +611,7 @@ impl Desktop {
                     tokio::task::spawn_blocking(move || {
                         let local = dropbox_panel::remote_audio(&paths, &library, &path)
                             .map_err(|error| error.to_string())?;
-                        prepare_dropbox_track(&paths, track, local)
+                        Ok(prepare_dropbox_track(&paths, track, local))
                     })
                     .await
                     .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
@@ -786,26 +786,21 @@ fn appimage_integration() -> Task<Message> {
     Task::none()
 }
 
-fn prepare_dropbox_track(
-    paths: &CataloguePaths,
-    track: Track,
-    local: PathBuf,
-) -> Result<Track, String> {
-    let metadata = read_track(local.clone());
-    if let Some(id) = track.indexed_id() {
-        paths
-            .open()
-            .and_then(|catalogue| {
-                catalogue.cache_dropbox_metadata(
-                    id,
-                    metadata.title(),
-                    metadata.artist(),
-                    metadata.album(),
-                )
-            })
-            .map_err(|error| error.to_string())?;
+fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -> Track {
+    let (metadata, title) = crate::local_track::read_track_with_embedded_title(local.clone());
+    if let Some(id) = track.indexed_id()
+        && let Err(error) = paths.open().and_then(|catalogue| {
+            catalogue.cache_dropbox_metadata(
+                id,
+                title.as_deref(),
+                metadata.artist(),
+                metadata.album(),
+            )
+        })
+    {
+        eprintln!("Could not cache Dropbox track metadata: {error}");
     }
-    Ok(track.with_audio(local, &metadata))
+    track.with_audio(local, &metadata)
 }
 
 #[cfg(test)]
