@@ -37,3 +37,27 @@ impl Cover {
         self.background.as_ref()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_masks_cover_corners_and_keeps_the_soft_sleeve_shadow() {
+        let pixels = ::image::RgbaImage::from_pixel(64, 64, ::image::Rgba([194, 105, 84, 255]));
+        let sleeve = sleeve_pixels(
+            Some(::image::DynamicImage::ImageRgba8(pixels)),
+            [236, 238, 242, 255],
+            240,
+            8,
+        );
+        let pad = 36;
+        assert_eq!(sleeve.get_pixel(pad, pad)[0], 0);
+        assert_eq!(
+            sleeve.get_pixel(pad + 120, pad + 120).0,
+            [194, 105, 84, 255]
+        );
+        assert!(sleeve.get_pixel(pad + 120, pad + 248)[3] > 0);
+        assert_eq!(sleeve.get_pixel(0, 0)[3], 0);
+    }
+}
