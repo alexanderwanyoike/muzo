@@ -198,3 +198,38 @@ fn it_imports_an_electron_refresh_token_once_and_reuses_the_native_credential() 
     .unwrap();
     assert_eq!(reopened, imported);
 }
+
+#[test]
+fn it_persists_the_native_credential_store_for_each_dropbox_account() {
+    use crate::catalogue::Catalogue;
+    let root = tempfile::tempdir().unwrap();
+    let database = root.path().join("muzo-rust.sqlite");
+    let catalogue = Catalogue::open(&database, None).unwrap();
+    catalogue.save_dropbox_account("first", "app-key").unwrap();
+    catalogue.save_dropbox_account("second", "app-key").unwrap();
+    catalogue
+        .set_dropbox_credential_store("first", "kwallet")
+        .unwrap();
+    catalogue
+        .set_dropbox_credential_store("second", "keyring")
+        .unwrap();
+    drop(catalogue);
+
+    let catalogue = Catalogue::open(&database, None).unwrap();
+    assert_eq!(
+        catalogue
+            .dropbox_credential_store("first")
+            .unwrap()
+            .as_deref(),
+        Some("kwallet")
+    );
+    assert_eq!(
+        catalogue
+            .dropbox_credential_store("second")
+            .unwrap()
+            .as_deref(),
+        Some("keyring")
+    );
+    catalogue.disconnect_dropbox("first").unwrap();
+    assert_eq!(catalogue.dropbox_credential_store("first").unwrap(), None);
+}
