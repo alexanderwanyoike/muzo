@@ -1,29 +1,44 @@
 use std::time::Duration;
 
-use crate::{
-    playback::{Playback, PlaybackError},
-    track::Track,
-};
+use std::{error::Error, path::Path};
+
+use crate::track::Track;
+
+pub type AudioError = Box<dyn Error + Send + Sync>;
+
+pub trait AudioPlayback {
+    fn play(&mut self, path: &Path) -> Result<(), AudioError>;
+    fn reset(&mut self);
+    fn is_finished(&self) -> bool;
+    fn volume(&self) -> f32;
+    fn set_volume(&mut self, value: f32);
+    fn duration(&self) -> Duration;
+    fn position(&self) -> Duration;
+    fn is_paused(&self) -> bool;
+    fn pause(&self);
+    fn resume(&self);
+    fn seek(&mut self, target: Duration) -> Result<(), AudioError>;
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum SessionError {
     #[error("This queue entry is no longer available.")]
     MissingEntry,
     #[error(transparent)]
-    Playback(#[from] PlaybackError),
+    Playback(#[from] AudioError),
 }
 
 pub struct Session {
-    playback: Playback,
+    playback: Box<dyn AudioPlayback>,
     tracks: Vec<Track>,
     current: Option<usize>,
     started: bool,
 }
 
 impl Session {
-    pub fn new(playback: Playback) -> Self {
+    pub fn new(playback: impl AudioPlayback + 'static) -> Self {
         Self {
-            playback,
+            playback: Box::new(playback),
             tracks: Vec::new(),
             current: None,
             started: false,

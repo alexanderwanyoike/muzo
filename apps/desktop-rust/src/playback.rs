@@ -42,12 +42,6 @@ impl Playback {
         }
     }
 
-    pub fn play(&mut self, path: &Path) -> Result<(), PlaybackError> {
-        self.start(path, Duration::ZERO, false)?;
-        self.source_path = Some(path.to_owned());
-        Ok(())
-    }
-
     fn start(&mut self, path: &Path, offset: Duration, paused: bool) -> Result<(), PlaybackError> {
         let file = File::open(path)?;
         let decoded: Box<dyn Source + Send> = match Decoder::try_from(file) {
@@ -83,56 +77,64 @@ impl Playback {
         self.offset = offset;
         Ok(())
     }
+}
 
-    pub fn reset(&mut self) {
+impl crate::session::AudioPlayback for Playback {
+    fn play(&mut self, path: &Path) -> Result<(), crate::session::AudioError> {
+        self.start(path, Duration::ZERO, false)?;
+        self.source_path = Some(path.to_owned());
+        Ok(())
+    }
+
+    fn reset(&mut self) {
         self.player = None;
         self.duration = Duration::ZERO;
         self.offset = Duration::ZERO;
         self.source_path = None;
     }
 
-    pub fn is_finished(&self) -> bool {
+    fn is_finished(&self) -> bool {
         self.player.as_ref().is_some_and(Player::empty)
     }
 
-    pub fn volume(&self) -> f32 {
+    fn volume(&self) -> f32 {
         self.volume
     }
 
-    pub fn set_volume(&mut self, value: f32) {
+    fn set_volume(&mut self, value: f32) {
         self.volume = value;
         if let Some(player) = &self.player {
             player.set_volume(value);
         }
     }
 
-    pub fn duration(&self) -> Duration {
+    fn duration(&self) -> Duration {
         self.duration
     }
 
-    pub fn position(&self) -> Duration {
+    fn position(&self) -> Duration {
         self.player
             .as_ref()
             .map_or(Duration::ZERO, |player| self.offset + player.get_pos())
     }
 
-    pub fn is_paused(&self) -> bool {
+    fn is_paused(&self) -> bool {
         self.player.as_ref().is_none_or(Player::is_paused)
     }
 
-    pub fn pause(&self) {
+    fn pause(&self) {
         if let Some(player) = &self.player {
             player.pause();
         }
     }
 
-    pub fn resume(&self) {
+    fn resume(&self) {
         if let Some(player) = &self.player {
             player.play();
         }
     }
 
-    pub fn seek(&mut self, target: Duration) -> Result<(), PlaybackError> {
+    fn seek(&mut self, target: Duration) -> Result<(), crate::session::AudioError> {
         if let Some(path) = self.source_path.clone() {
             let target = if self.duration.is_zero() {
                 target

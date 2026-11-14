@@ -2,7 +2,7 @@ use std::{num::NonZero, path::Path, time::Duration};
 
 use rodio::mixer;
 
-use crate::playback::Playback;
+use crate::{playback::Playback, session::AudioPlayback};
 
 #[test]
 fn it_plays_real_local_audio_and_can_pause_seek_and_resume() {

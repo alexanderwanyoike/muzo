@@ -7,6 +7,7 @@ use iced::{Element, Subscription, Task, Theme, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
 
 use crate::{
+    local_track::read_track,
     playback::Playback,
     session::{Session, SessionError},
     track::Track,
@@ -18,7 +19,7 @@ use windows::Windows;
 pub enum Message {
     OpenFiles,
     FilesPicked(Vec<PathBuf>),
-    FilesRead(Vec<PathBuf>),
+    FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
     Previous,
@@ -53,7 +54,7 @@ impl Desktop {
         let (mut desktop, open) = Self::with_session(session);
         desktop.output = output.ok();
         let files = std::env::args_os().skip(1).map(PathBuf::from).collect();
-        (desktop, open.chain(Task::done(Message::FilesRead(files))))
+        (desktop, open.chain(Task::done(Message::FilesPicked(files))))
     }
 
     pub fn with_session(session: Result<Session, String>) -> (Self, Task<Message>) {
@@ -88,17 +89,29 @@ impl Desktop {
                 },
                 Message::FilesPicked,
             ),
-            Message::FilesPicked(paths) => Task::done(Message::FilesRead(paths)),
-            Message::FilesRead(paths) => {
+            Message::FilesPicked(paths) if paths.is_empty() => Task::none(),
+            Message::FilesPicked(paths) => Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || paths.into_iter().map(read_track).collect())
+                        .await
+                        .map_err(|error| format!("Could not read the selected tracks: {error}"))
+                },
+                Message::FilesRead,
+            ),
+            Message::FilesRead(Ok(tracks)) => {
                 if let Some(session) = &mut self.session
-                    && !paths.is_empty()
+                    && !tracks.is_empty()
                 {
                     let first = session.tracks().len();
-                    session.extend(paths.into_iter().map(Track::read));
+                    session.extend(tracks);
                     if session.current().is_none() {
                         return self.transport(|session| session.select(first));
                     }
                 }
+                Task::none()
+            }
+            Message::FilesRead(Err(error)) => {
+                self.error = Some(error);
                 Task::none()
             }
             Message::Select(index) => self.transport(|session| session.select(index)),

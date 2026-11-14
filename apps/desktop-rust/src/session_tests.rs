@@ -3,9 +3,9 @@ use std::{num::NonZero, path::PathBuf};
 use rodio::mixer;
 
 use crate::{
+    local_track::read_track,
     playback::Playback,
     session::{Session, SessionError},
-    track::Track,
 };
 
 #[test]
@@ -14,9 +14,9 @@ fn it_advances_in_queue_order_and_survives_a_bad_file() {
     let audio = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
     let mut session = Session::new(Playback::new(mixer));
     session.extend([
-        Track::read(audio.clone()),
-        Track::read(audio.with_file_name("missing.mp3")),
-        Track::read(audio),
+        read_track(audio.clone()),
+        read_track(audio.with_file_name("missing.mp3")),
+        read_track(audio),
     ]);
 
     session.select(0).unwrap();
@@ -41,7 +41,7 @@ fn it_does_not_restart_the_current_queue_entry_when_selected_again() {
     let (mixer, mut output) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
     let audio = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
     let mut session = Session::new(Playback::new(mixer));
-    session.extend([Track::read(audio.clone()), Track::read(audio)]);
+    session.extend([read_track(audio.clone()), read_track(audio)]);
     session.select(0).unwrap();
     output.by_ref().take(22_050).for_each(drop);
     let position = session.observe().0;
