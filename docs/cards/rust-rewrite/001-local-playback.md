@@ -34,6 +34,10 @@ windows. The X11 smoke test uses a disposable Xvfb display and Metacity to check
 the moved library window's geometry before and after compact mode. It also opens
 the queue, selects another track and seeks in it.
 
-Ogg Opus uses Symphonia's demuxer and the MIT or Apache 2.0
-[Opus decoder](https://docs.rs/opus-decoder/0.1.1/opus_decoder/) for packet
-decoding. A real Opus fixture exercises playback and seek.
+Ogg Opus uses Symphonia's demuxer and the MIT-licensed
+[ruopus decoder](https://docs.rs/ruopus/0.1.2/ruopus/) for packet decoding.
+[RFC 7845](https://www.rfc-editor.org/rfc/rfc7845.html) defines stream pre-skip,
+seek preroll, and output gain. Xiph's BSD-3-Clause
+[libopusfile seek implementation](https://github.com/xiph/opusfile/blob/master/src/opusfile.c#L2223-L2239)
+informs the stream-relative boundary handling. Real Opus fixtures check gain,
+cropped-stream seeking, and playback through the final sample.

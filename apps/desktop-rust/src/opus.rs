@@ -1,7 +1,7 @@
 use std::{fs::File, num::NonZero, time::Duration};
 
-use opus_decoder::OpusDecoder;
 use rodio::{ChannelCount, SampleRate, Source};
+use ruopus::OpusDecoder;
 use symphonia::core::{
     codecs::CODEC_TYPE_OPUS,
     errors::Error,
@@ -12,8 +12,8 @@ use symphonia::core::{
 };
 
 const RATE: SampleRate = NonZero::new(48_000).unwrap();
-const MAX_FRAME_SAMPLES_PER_CHANNEL: usize = 5_760;
 const SEEK_PREROLL: Duration = Duration::from_millis(80);
+const PRE_SKIP_BYTES: std::ops::Range<usize> = 10..12;
 const OUTPUT_GAIN_BYTES: std::ops::Range<usize> = 16..18;
 const GAIN_UNITS_PER_DB: f32 = 256.0;
 const NANOS_PER_SECOND: u128 = Duration::from_secs(1).as_nanos();
@@ -63,6 +63,17 @@ impl OpusSource {
             .time_base
             .zip(parameters.n_frames)
             .map(|(base, frames)| Duration::from(base.calc_time(frames)));
+        let pre_skip = parameters
+            .extra_data
+            .as_deref()
+            .and_then(|header| header.get(PRE_SKIP_BYTES))
+            .and_then(|delay| delay.try_into().ok())
+            .map_or(0, |delay| u64::from(u16::from_le_bytes(delay)));
+        let duration = duration.map(|length| {
+            length.saturating_sub(Duration::from_secs_f64(
+                pre_skip as f64 / f64::from(RATE.get()),
+            ))
+        });
         let gain_db = parameters
             .extra_data
             .as_deref()
@@ -73,7 +84,7 @@ impl OpusSource {
             });
         // RFC 7845 sections 4.6 and 5.1 specify preroll and a signed output gain.
         let preroll_start = position.saturating_sub(SEEK_PREROLL);
-        let target_frame = pcm_frame(position);
+        let target_frame = pre_skip.saturating_add(pcm_frame(position));
         let target_ts = start_ts.saturating_add(target_frame);
         let discard_frames = if preroll_start.is_zero() {
             target_frame
@@ -87,8 +98,7 @@ impl OpusSource {
             )?;
             target_ts.saturating_sub(seek.actual_ts)
         };
-        let decoder = OpusDecoder::new(RATE.get(), usize::from(channels.get()))
-            .map_err(|_| Error::Unsupported("Could not initialize Opus decoding"))?;
+        let decoder = OpusDecoder::new(usize::from(channels.get()));
 
         Ok(Self {
             format,
@@ -96,7 +106,7 @@ impl OpusSource {
             track_id,
             channels,
             duration,
-            packet: vec![0.0; MAX_FRAME_SAMPLES_PER_CHANNEL * usize::from(channels.get())],
+            packet: Vec::new(),
             cursor: 0,
             end: 0,
             discard_frames,
@@ -111,12 +121,11 @@ impl OpusSource {
             if packet.track_id() != self.track_id {
                 continue;
             }
-            let Ok(frames) = self
-                .decoder
-                .decode_float(&packet.data, &mut self.packet, false)
-            else {
+            let Ok(samples) = self.decoder.decode_packet(&packet.data) else {
                 continue;
             };
+            self.packet = samples;
+            let frames = self.packet.len() / channels;
             let start = frames.min(packet.trim_start() as usize);
             let end = frames.saturating_sub(packet.trim_end() as usize).max(start);
             let skip = self.discard_frames.min((end - start) as u64);
