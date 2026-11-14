@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use iced::{
     Task,
-    widget::{button, column, row, scrollable, text, text_input},
+    widget::{button, checkbox, column, row, scrollable, text, text_input},
 };
 
 use crate::{
@@ -21,7 +21,9 @@ pub enum Action {
     Connect,
     Disconnect,
     Browse(String),
-    Add(String, String),
+    SelectFolder(String, String),
+    AddSelected,
+    AddFolders(Vec<(String, String)>),
     Interval(String),
     SaveInterval,
     Sync,
@@ -37,6 +39,9 @@ pub struct Snapshot {
     pub path: String,
     pub folders: Vec<(String, String)>,
     pub disconnected_libraries: Vec<String>,
+    pub added_folders: Vec<String>,
+    pub added_paths: Vec<String>,
+    pub folder_error: Option<String>,
 }
 
 pub struct Settings {
@@ -47,6 +52,7 @@ pub struct Settings {
     pub code: String,
     pub interval: String,
     pub snapshot: Snapshot,
+    selected_folders: Vec<(String, String)>,
     auth: Option<Arc<Authorization>>,
     next_sync: std::time::Instant,
 }
@@ -71,6 +77,7 @@ impl Default for Settings {
             code: String::new(),
             interval: "5".into(),
             snapshot: Snapshot::default(),
+            selected_folders: Vec::new(),
             auth: None,
             next_sync: std::time::Instant::now(),
         }
@@ -78,8 +85,34 @@ impl Default for Settings {
 }
 
 impl Settings {
-    pub fn update(&mut self, action: Action, paths: Option<CataloguePaths>) -> Task<Message> {
+    pub fn update(&mut self, mut action: Action, paths: Option<CataloguePaths>) -> Task<Message> {
         match action {
+            Action::SelectFolder(path, name) => {
+                if !self.busy
+                    && !self
+                        .snapshot
+                        .added_paths
+                        .iter()
+                        .any(|added| added.eq_ignore_ascii_case(&path))
+                {
+                    if let Some(index) = self
+                        .selected_folders
+                        .iter()
+                        .position(|(selection, _)| selection.eq_ignore_ascii_case(&path))
+                    {
+                        self.selected_folders.remove(index);
+                    } else {
+                        self.selected_folders.push((path, name));
+                    }
+                }
+                return Task::none();
+            }
+            Action::AddSelected => {
+                if self.selected_folders.is_empty() {
+                    return Task::none();
+                }
+                action = Action::AddFolders(self.selected_folders.clone());
+            }
             Action::Toggle => {
                 self.visible = !self.visible;
                 return Task::none();
@@ -165,6 +198,18 @@ impl Settings {
         self.busy = false;
         match result {
             Ok(snapshot) => {
+                if self.snapshot.account != snapshot.account {
+                    self.selected_folders.clear();
+                }
+                self.selected_folders.retain(|(path, _)| {
+                    !snapshot
+                        .added_folders
+                        .iter()
+                        .any(|added| added.eq_ignore_ascii_case(path))
+                });
+                if let Some(error) = &snapshot.folder_error {
+                    self.error = Some(error.clone());
+                }
                 if self.app_key.is_empty() {
                     self.app_key = snapshot.app_key.clone();
                 }
@@ -245,25 +290,38 @@ impl Settings {
                     row![
                         button("Up").on_press(msg(Action::Browse(up.into()))),
                         text(path).size(13),
-                        button("Add this folder").on_press_maybe(
-                            (!self.busy).then(|| msg(Action::Add(path.clone(), folder_name(path))))
-                        ),
+                        self.folder_checkbox(path, &folder_name(path)),
                     ]
                     .spacing(7),
                 );
                 let rows = self.snapshot.folders.iter().map(|(path, name)| {
                     row![
+                        self.folder_checkbox(path, name),
                         button(text(name)).on_press_maybe(
                             (!self.busy).then(|| msg(Action::Browse(path.clone())))
-                        ),
-                        button("Add").on_press_maybe(
-                            (!self.busy).then(|| msg(Action::Add(path.clone(), name.clone())))
                         ),
                     ]
                     .spacing(7)
                     .into()
                 });
                 inner = inner.push(scrollable(column(rows).spacing(4)).height(iced::Fill));
+                if !self.selected_folders.is_empty() {
+                    for (path, name) in &self.selected_folders {
+                        inner = inner.push(
+                            row![
+                                text(path).size(12),
+                                button("Remove").on_press_maybe((!self.busy).then(|| {
+                                    msg(Action::SelectFolder(path.clone(), name.clone()))
+                                }))
+                            ]
+                            .spacing(7),
+                        );
+                    }
+                    inner = inner.push(
+                        button("Add selected folders")
+                            .on_press_maybe((!self.busy).then_some(msg(Action::AddSelected))),
+                    );
+                }
             }
         }
         if self.busy {
@@ -273,6 +331,27 @@ impl Settings {
             inner = inner.push(text(error).size(12));
         }
         inner.spacing(10)
+    }
+
+    fn folder_checkbox(&self, path: &str, name: &str) -> iced::widget::Checkbox<'_, Message> {
+        let added = self
+            .snapshot
+            .added_paths
+            .iter()
+            .any(|added| added.eq_ignore_ascii_case(path));
+        let selected = self
+            .selected_folders
+            .iter()
+            .any(|(item, _)| item.eq_ignore_ascii_case(path));
+        let label = if added {
+            format!("{name} (added)")
+        } else {
+            format!("Select {name}")
+        };
+        let action = Action::SelectFolder(path.to_owned(), name.to_owned());
+        checkbox(added || selected).label(label).on_toggle_maybe(
+            (!self.busy && !added).then_some(move |_| Message::Dropbox(action.clone())),
+        )
     }
 }
 
@@ -306,6 +385,9 @@ fn run(
 
     let current = catalogue.latest_dropbox()?;
     snapshot.disconnected_libraries.clear();
+    snapshot.added_folders.clear();
+    snapshot.added_paths.clear();
+    snapshot.folder_error = None;
     if let Some((account, _)) = &current
         && matches!(action, Action::Disconnect)
     {
@@ -321,6 +403,13 @@ fn run(
     };
     snapshot.app_key = app_key.clone();
     snapshot.account = Some(account.clone());
+    let owned = catalogue.dropbox_libraries_for(&account)?;
+    snapshot.added_paths = catalogue
+        .libraries()?
+        .into_iter()
+        .filter(|library| owned.contains(&library.id))
+        .map(|library| library.location.to_string_lossy().into_owned())
+        .collect();
     if matches!(action, Action::Disconnect) {
         return Ok(snapshot);
     }
@@ -352,7 +441,7 @@ fn run(
                 .collect();
             snapshot.path = path;
         }
-        Action::Add(path, name) => {
+        Action::AddFolders(folders) => {
             let token = match refresh_current() {
                 Ok(token) => token,
                 Err(DropboxError::Reconnect) => {
@@ -361,9 +450,28 @@ fn run(
                 }
                 Err(error) => return Err(error.into()),
             };
-            let entries = client.list(&token.access_token, &path, true)?;
-            let library = catalogue.add_dropbox(&account, &path, &name)?;
-            catalogue.sync_dropbox(&library.id, &entries)?;
+            let mut failures = Vec::new();
+            for (path, name) in folders {
+                let result = (|| -> Result<(), Error> {
+                    let entries = client.list(&token.access_token, &path, true)?;
+                    let library = catalogue.add_dropbox(&account, &path, &name)?;
+                    if let Err(error) = catalogue.sync_dropbox(&library.id, &entries) {
+                        catalogue.remove(&library.id)?;
+                        return Err(error.into());
+                    }
+                    Ok(())
+                })();
+                match result {
+                    Ok(()) => {
+                        snapshot.added_paths.push(path.clone());
+                        snapshot.added_folders.push(path);
+                    }
+                    Err(error) => failures.push(format!("{name}: {error}")),
+                }
+            }
+            if !failures.is_empty() {
+                snapshot.folder_error = Some(failures.join("; "));
+            }
         }
         Action::Sync | Action::Connect => {
             for library in catalogue
