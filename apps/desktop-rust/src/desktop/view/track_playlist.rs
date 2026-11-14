@@ -117,10 +117,16 @@ fn playlist_options<'a>(
                 .padding([5, 8])
                 .style(move |theme, status| {
                     let style = iced::overlay::menu::default(theme);
-                    let active = highlighted || status == button::Status::Hovered;
+                    let background = if highlighted {
+                        Some(style.selected_background)
+                    } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+                        Some(theme.extended_palette().background.weak.color.into())
+                    } else {
+                        None
+                    };
                     button::Style {
-                        background: active.then_some(style.selected_background),
-                        text_color: if active {
+                        background,
+                        text_color: if highlighted {
                             style.selected_text_color
                         } else {
                             style.text_color
