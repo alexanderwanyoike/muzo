@@ -36,6 +36,7 @@ pub struct Snapshot {
     pub interval: u16,
     pub path: String,
     pub folders: Vec<(String, String)>,
+    pub disconnected_libraries: Vec<String>,
 }
 
 pub struct Settings {
@@ -305,11 +306,16 @@ fn run(
     }
 
     let current = catalogue.latest_dropbox()?;
+    snapshot.disconnected_libraries.clear();
     if let Some((account, _)) = &current
         && matches!(action, Action::Disconnect)
     {
+        let affected = catalogue.dropbox_libraries_for(account)?;
         Credentials::remove(account)?;
         catalogue.disconnect_dropbox(account)?;
+        snapshot.disconnected_libraries = affected;
+        snapshot.folders.clear();
+        snapshot.path.clear();
     }
     snapshot.interval = catalogue.dropbox_interval()?;
     snapshot.account = None;
@@ -319,6 +325,9 @@ fn run(
     };
     snapshot.app_key = app_key.clone();
     snapshot.account = Some(account.clone());
+    if matches!(action, Action::Disconnect) {
+        return Ok(snapshot);
+    }
     let Some(refresh) = Credentials::read(&account)? else {
         snapshot.reconnect = true;
         return Ok(snapshot);

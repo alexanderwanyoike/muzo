@@ -166,3 +166,21 @@ fn it_keeps_current_audio_until_dropbox_disconnect_succeeds() {
     assert_eq!(desktop.session.as_ref().unwrap().tracks().len(), 2);
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(0));
 }
+
+#[test]
+fn it_ignores_late_audio_from_a_disconnected_dropbox_account() {
+    let (mut desktop, remote_audio) = setup();
+    desktop.pending_track = Some(0);
+    let snapshot = dropbox_panel::Snapshot {
+        disconnected_libraries: vec!["first".into()],
+        ..Default::default()
+    };
+
+    let _ = desktop.update(Message::DropboxReady(Ok(snapshot)));
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(remote_audio)));
+
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current_index(), None);
+    assert_eq!(session.tracks().len(), 1);
+    assert_eq!(session.tracks()[0].library(), Some("second"));
+}
