@@ -41,6 +41,7 @@ pub enum Message {
     SaveTrackEdit(bool),
     CloseTrackEdit,
     IndexedQueueReady(u64, usize, Result<Vec<Track>, String>),
+    RemoteTrackReady(u64, usize, Result<Track, String>),
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
@@ -71,6 +72,7 @@ pub struct Desktop {
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
+    loading_remote: bool,
 }
 
 impl Desktop {
@@ -111,6 +113,7 @@ impl Desktop {
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
+                loading_remote: false,
             },
             open,
         )
@@ -196,10 +199,26 @@ impl Desktop {
             }
             Message::IndexedQueueReady(_, index, Ok(tracks)) => {
                 self.artwork = None;
-                self.transport(|session| {
+                self.loading_remote = false;
+                if let Some(session) = &mut self.session {
                     session.replace(tracks);
+                }
+                self.select_track(index)
+            }
+            Message::RemoteTrackReady(request, _, _) if request != self.playback_request => {
+                Task::none()
+            }
+            Message::RemoteTrackReady(_, index, Ok(track)) => {
+                self.loading_remote = false;
+                self.transport(|session| {
+                    session.replace_track(index, track)?;
                     session.select(index)
                 })
+            }
+            Message::RemoteTrackReady(_, _, Err(error)) => {
+                self.loading_remote = false;
+                self.error = Some(error);
+                Task::none()
             }
             Message::IndexedQueueReady(_, _, Err(error)) => {
                 self.error = Some(error);
@@ -243,10 +262,10 @@ impl Desktop {
                 self.error = Some(error);
                 Task::none()
             }
-            Message::Select(index) => self.transport(|session| session.select(index)),
+            Message::Select(index) => self.select_track(index),
             Message::TogglePlayback => self.transport(Session::toggle),
-            Message::Previous => self.transport(Session::previous_track),
-            Message::Next => self.transport(Session::next_track),
+            Message::Previous => self.move_track(-1),
+            Message::Next => self.move_track(1),
             Message::Seek(seconds) => {
                 self.transport(|session| session.seek(Duration::from_secs_f32(seconds)))
             }
@@ -264,6 +283,18 @@ impl Desktop {
                 Ok(())
             }),
             Message::Tick => {
+                if self.loading_remote {
+                    return Task::none();
+                }
+                if self.session.as_ref().is_some_and(Session::finished) {
+                    let next = self.session.as_ref().and_then(|session| {
+                        let index = session.current_index()? + 1;
+                        (index < session.tracks().len()).then_some(index)
+                    });
+                    if let Some(index) = next {
+                        return self.select_track(index);
+                    }
+                }
                 self.refresh_transport(Session::advance_if_finished, false);
                 Task::none()
             }
@@ -365,59 +396,100 @@ impl Desktop {
             .filter(|library| library.kind == "dropbox")
             .map(|library| library.id.clone())
             .collect();
-        let paths = self.sources.paths();
         self.playback_request += 1;
         let request = self.playback_request;
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
-                    let track_for_entry =
-                        |(position, track): (usize, crate::catalogue::IndexedTrack)| {
-                            let remote = remote_libraries.contains(&track.library_id);
-                            let (path, cover) = if remote && position == index {
-                                let paths = paths.as_ref().ok_or_else(|| {
-                                    "Could not locate the Dropbox cache.".to_owned()
-                                })?;
-                                let local = dropbox_panel::remote_audio(
-                                    paths,
-                                    &track.library_id,
-                                    &track.path.to_string_lossy(),
-                                )
-                                .map_err(|error| error.to_string())?;
-                                (local.clone(), Some(read_track(local)))
-                            } else if remote {
-                                (PathBuf::new(), None)
-                            } else {
-                                (
-                                    track.path.clone(),
-                                    (position == index).then(|| read_track(track.path)),
-                                )
-                            };
-                            Ok::<_, String>(
-                                Track::new(
-                                    path,
-                                    track.title,
-                                    Some(track.artist),
-                                    track.album,
-                                    cover
-                                        .as_ref()
-                                        .and_then(Track::artwork)
-                                        .map(std::sync::Arc::from),
-                                )
-                                .with_indexed_id(track.id),
-                            )
-                        };
                     tracks
                         .into_iter()
-                        .enumerate()
-                        .map(track_for_entry)
-                        .collect::<Result<Vec<_>, _>>()
+                        .map(|track| {
+                            let is_remote = remote_libraries.contains(&track.library_id);
+                            let path = track.path.to_string_lossy().to_string();
+                            let item = Track::new(
+                                if is_remote {
+                                    PathBuf::new()
+                                } else {
+                                    track.path
+                                },
+                                track.title,
+                                Some(track.artist),
+                                track.album,
+                                None,
+                            )
+                            .with_indexed_id(track.id);
+                            if is_remote {
+                                item.with_remote(track.library_id, path)
+                            } else {
+                                item
+                            }
+                        })
+                        .collect()
                 })
                 .await
-                .map_err(|error| format!("Could not load the indexed tracks: {error}"))?
+                .map_err(|error| format!("Could not load the indexed tracks: {error}"))
             },
             move |result| Message::IndexedQueueReady(request, index, result),
         )
+    }
+
+    fn move_track(&mut self, step: isize) -> Task<Message> {
+        let index = self.session.as_ref().and_then(|session| {
+            let index = session.current_index()?.checked_add_signed(step)?;
+            (index < session.tracks().len()).then_some(index)
+        });
+        index.map_or_else(Task::none, |index| self.select_track(index))
+    }
+
+    fn select_track(&mut self, index: usize) -> Task<Message> {
+        self.playback_request += 1;
+        let request = self.playback_request;
+        let Some(track) = self
+            .session
+            .as_ref()
+            .and_then(|session| session.tracks().get(index))
+            .cloned()
+        else {
+            return Task::none();
+        };
+        self.loading_remote = false;
+        if let Some((library, path)) = track.remote().filter(|_| !track.path().is_file()) {
+            let Some(paths) = self.sources.paths() else {
+                return Task::none();
+            };
+            let library = library.to_owned();
+            let path = path.to_owned();
+            self.loading_remote = true;
+            return Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        let local = dropbox_panel::remote_audio(&paths, &library, &path)
+                            .map_err(|error| error.to_string())?;
+                        let metadata = read_track(local.clone());
+                        Ok(track.with_audio(local, &metadata))
+                    })
+                    .await
+                    .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
+                },
+                move |result| Message::RemoteTrackReady(request, index, result),
+            );
+        }
+        if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
+            self.loading_remote = true;
+            return Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        let path = track.path().to_owned();
+                        let metadata = read_track(path.clone());
+                        track.with_audio(path, &metadata)
+                    })
+                    .await
+                    .map_err(|error| format!("Could not read track artwork: {error}"))
+                },
+                move |result| Message::RemoteTrackReady(request, index, result),
+            );
+        }
+        self.transport(|session| session.select(index))
     }
 
     fn transport(

@@ -7,6 +7,7 @@ use std::{
 pub struct Track {
     path: PathBuf,
     indexed_id: Option<String>,
+    remote: Option<(String, String)>,
     title: String,
     artist: Option<String>,
     album: Option<String>,
@@ -24,11 +25,35 @@ impl Track {
         Self {
             path,
             indexed_id: None,
+            remote: None,
             title,
             artist,
             album,
             artwork,
         }
+    }
+
+    pub fn remote(&self) -> Option<(&str, &str)> {
+        self.remote
+            .as_ref()
+            .map(|(library, path)| (library.as_str(), path.as_str()))
+    }
+
+    pub fn with_remote(mut self, library: String, path: String) -> Self {
+        self.remote = Some((library, path));
+        self
+    }
+
+    pub fn with_audio(mut self, local: PathBuf, metadata: &Track) -> Self {
+        self.path = local;
+        self.artwork = metadata.artwork.clone();
+        if self.artist.as_deref().is_none_or(str::is_empty) {
+            self.artist = metadata.artist.clone();
+        }
+        if self.album.is_none() {
+            self.album = metadata.album.clone();
+        }
+        self
     }
 
     pub fn indexed_id(&self) -> Option<&str> {

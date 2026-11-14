@@ -128,6 +128,18 @@ impl Session {
         (self.playback.position(), self.playback.duration())
     }
 
+    pub fn replace_track(&mut self, index: usize, track: Track) -> Result<(), SessionError> {
+        *self
+            .tracks
+            .get_mut(index)
+            .ok_or(SessionError::MissingEntry)? = track;
+        Ok(())
+    }
+
+    pub fn finished(&self) -> bool {
+        self.started && self.playback.is_finished()
+    }
+
     pub fn seek(&mut self, value: Duration) -> Result<(), SessionError> {
         self.playback.seek(value)?;
         self.started |= self.playback.has_source() && !self.playback.is_finished();
