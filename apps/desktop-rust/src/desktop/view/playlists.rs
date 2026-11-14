@@ -53,19 +53,22 @@ pub fn sidebar(sources: &Sources) -> Element<'_, Message> {
     .into()
 }
 
-pub fn tracks(snapshot: &Snapshot, busy: bool) -> iced::widget::Column<'_, Message> {
+pub fn tracks<'a>(
+    snapshot: &'a Snapshot,
+    busy: bool,
+    active_entry: Option<&str>,
+) -> iced::widget::Column<'a, Message> {
     let Some(playlist) = &snapshot.selected_playlist else {
         return column![];
     };
-    let mut playable = 0;
     let rows = snapshot
         .playlist_entries
         .iter()
         .enumerate()
         .map(|(index, entry)| {
+            let active = active_entry == Some(entry.id.as_str());
             let (label, plays, play) = if let Some(track) = &entry.track {
-                let play = Message::PlayPlaylist(playable);
-                playable += 1;
+                let play = Message::PlayPlaylist(entry.id.clone());
                 (track.title.as_str(), track.plays.to_string(), Some(play))
             } else {
                 ("Unavailable track", String::new(), None)
@@ -73,7 +76,13 @@ pub fn tracks(snapshot: &Snapshot, busy: bool) -> iced::widget::Column<'_, Messa
             row![
                 button(text(label).size(14).width(Fill))
                     .width(Fill)
-                    .style(action)
+                    .style(move |theme, status| {
+                        if active {
+                            selected(theme, status)
+                        } else {
+                            action(theme, status)
+                        }
+                    })
                     .on_press_maybe(play),
                 text(plays).size(12).style(muted).width(38),
                 button(text("Up").size(11)).style(action).on_press_maybe(

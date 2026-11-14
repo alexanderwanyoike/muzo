@@ -49,7 +49,7 @@ pub enum Message {
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
-    PlayPlaylist(usize),
+    PlayPlaylist(String),
     PlaylistName(String),
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
@@ -350,8 +350,19 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 Task::none()
             }
-            Message::PlayIndexed(index) => self.play_indexed(index, false),
-            Message::PlayPlaylist(index) => self.play_indexed(index, true),
+            Message::PlayIndexed(index) => self.play_indexed(index, None),
+            Message::PlayPlaylist(entry) => {
+                if self
+                    .session
+                    .as_ref()
+                    .and_then(Session::current)
+                    .and_then(Track::playlist_entry)
+                    == Some(&entry)
+                {
+                    return self.update(Message::TogglePlayback);
+                }
+                self.play_indexed(0, Some(&entry))
+            }
             Message::PlaylistName(name) => {
                 self.sources.playlist_name = name;
                 Task::none()
@@ -699,20 +710,35 @@ impl Desktop {
             .start(Operation::EditTrack(id.clone(), library.clone(), edit))
     }
 
-    fn play_indexed(&mut self, index: usize, playlist: bool) -> Task<Message> {
+    fn play_indexed(&mut self, index: usize, entry: Option<&str>) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
-        let tracks = if playlist {
-            snapshot
+        let position;
+        let tracks: Vec<_> = if let Some(entry) = entry {
+            let tracks: Vec<_> = snapshot
                 .playlist_entries
                 .iter()
-                .filter_map(|entry| entry.track.clone())
-                .collect()
+                .filter_map(|item| Some((item.track.clone()?, Some(item.id.clone()))))
+                .collect();
+            let Some(found) = tracks
+                .iter()
+                .position(|(_, id)| id.as_deref() == Some(entry))
+            else {
+                return Task::none();
+            };
+            position = found;
+            tracks
         } else {
-            snapshot.tracks.clone()
+            position = index;
+            snapshot
+                .tracks
+                .iter()
+                .cloned()
+                .map(|track| (track, None))
+                .collect()
         };
-        if index >= tracks.len() || self.session.is_none() {
+        if position >= tracks.len() || self.session.is_none() {
             return Task::none();
         }
         let remote_libraries: std::collections::HashSet<_> = snapshot
@@ -723,7 +749,7 @@ impl Desktop {
             .collect();
         let tracks = tracks
             .into_iter()
-            .map(|track| {
+            .map(|(track, entry)| {
                 let is_remote = remote_libraries.contains(&track.library_id);
                 let path = track.path.to_string_lossy().into_owned();
                 let item = Track::new(
@@ -737,6 +763,7 @@ impl Desktop {
                     track.album,
                     None,
                 )
+                .with_playlist_entry(entry)
                 .with_indexed_id(track.id)
                 .with_library(track.library_id.clone());
                 if is_remote {
@@ -753,7 +780,7 @@ impl Desktop {
             self.mini_focus = Some(MiniControl::Queue);
         }
         self.artwork = None;
-        self.select_track(index)
+        self.select_track(position)
     }
 
     fn remove_queued_library(&mut self, library: &str) {

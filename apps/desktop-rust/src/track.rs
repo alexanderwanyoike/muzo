@@ -7,6 +7,7 @@ use std::{
 pub struct Track {
     path: PathBuf,
     indexed_id: Option<String>,
+    playlist_entry: Option<String>,
     library: Option<String>,
     remote: Option<(String, String)>,
     title: String,
@@ -26,6 +27,7 @@ impl Track {
         Self {
             path,
             indexed_id: None,
+            playlist_entry: None,
             library: None,
             remote: None,
             title,
@@ -83,6 +85,15 @@ impl Track {
 
     pub fn with_indexed_id(mut self, id: String) -> Self {
         self.indexed_id = Some(id);
+        self
+    }
+
+    pub(crate) fn playlist_entry(&self) -> Option<&str> {
+        self.playlist_entry.as_deref()
+    }
+
+    pub(crate) fn with_playlist_entry(mut self, entry: Option<String>) -> Self {
+        self.playlist_entry = entry;
         self
     }
 

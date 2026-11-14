@@ -131,7 +131,13 @@ fn library_content<'a>(
         .as_ref()
         .filter(|snapshot| snapshot.selected_playlist.is_some())
     {
-        playlists::tracks(snapshot, sources.busy())
+        playlists::tracks(
+            snapshot,
+            sources.busy(),
+            session
+                .and_then(Session::current)
+                .and_then(Track::playlist_entry),
+        )
     } else if let Some(snapshot) = sources
         .snapshot
         .as_ref()
