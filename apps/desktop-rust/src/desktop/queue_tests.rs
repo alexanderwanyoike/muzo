@@ -743,3 +743,14 @@ fn it_paints_the_walnut_material_in_the_mini_window() {
     let grain = &header[70 * 4..230 * 4];
     assert!(grain.chunks_exact(4).any(|pixel| pixel != &grain[..4]));
 }
+
+#[test]
+fn it_opens_and_reveals_source_setup_from_the_sidebar() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Songs));
+
+    let reveal = desktop.update(Message::OpenSourceSettings);
+
+    assert_eq!(desktop.page, LibraryPage::Settings);
+    assert_eq!(reveal.units(), 1);
+}
