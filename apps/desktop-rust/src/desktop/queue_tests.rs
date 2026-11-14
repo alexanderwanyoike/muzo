@@ -401,7 +401,7 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
     let request = desktop.playback_request;
     let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
 
-    assert!(desktop.artwork.is_some());
+    assert!(desktop.cover.thumbnail().is_some());
     assert_eq!(desktop.error.as_deref(), Some("Offline"));
 }
 
@@ -528,9 +528,9 @@ fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
 
     let _ = desktop.update(Message::Select(0));
 
-    assert!(desktop.mini_background.is_some());
+    assert!(desktop.cover.background().is_some());
 
     let _ = desktop.update(Message::Select(1));
 
-    assert!(desktop.mini_background.is_none());
+    assert!(desktop.cover.background().is_none());
 }

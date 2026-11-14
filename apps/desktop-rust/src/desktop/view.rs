@@ -3,7 +3,7 @@ use std::time::Duration;
 use iced::{
     Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
     widget::{
-        Space, button, column, container, image, row, scrollable, slider, svg, text, tooltip,
+        Space, button, column, container, image, row, scrollable, slider, stack, svg, text, tooltip,
     },
 };
 
@@ -168,7 +168,7 @@ fn library_content<'a>(
 pub(super) fn mini<'a>(
     session: Option<&'a Session>,
     queue: (bool, bool),
-    cover: Option<&image::Handle>,
+    cover: &super::cover::Cover,
     playback: (Option<&'a str>, bool),
     focus: Option<super::mini_focus::Control>,
 ) -> Element<'a, Message> {
@@ -197,7 +197,7 @@ pub(super) fn mini<'a>(
     .align_y(Alignment::Center);
     let track = session.and_then(Session::current);
     let playback = row![
-        artwork(cover, 126.0),
+        artwork(cover.thumbnail(), 126.0),
         column![metadata(track, 19), controls(session, retry, focus, true)]
             .spacing(10)
             .width(Fill),
@@ -225,12 +225,21 @@ pub(super) fn mini<'a>(
                 .height(Fill),
         );
     }
-    container(content)
-        .padding(14)
-        .width(Fill)
-        .height(super::mini_focus::QUEUE_ROW_HEIGHT)
-        .height(Fill)
-        .into()
+    let foreground = container(content).padding(14).width(Fill).height(Fill);
+    if let Some(background) = cover.background() {
+        stack![foreground]
+            .push_under(
+                image(background.clone())
+                    .content_fit(iced::ContentFit::Cover)
+                    .opacity(0.12)
+                    .width(Fill)
+                    .height(Fill),
+            )
+            .clip(true)
+            .into()
+    } else {
+        foreground.into()
+    }
 }
 
 fn queue_rows(

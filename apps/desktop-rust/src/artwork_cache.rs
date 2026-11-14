@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use image::{ImageFormat, ImageReader, Limits};
+use image::{DynamicImage, ImageFormat, ImageReader, Limits};
 use sha2::{Digest, Sha256};
 
 const BUDGET_BYTES: u64 = 128 * 1024 * 1024;
@@ -126,6 +126,13 @@ impl ArtworkCache {
 }
 
 pub(crate) fn thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
+    let image = decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE);
+    let mut output = Cursor::new(Vec::new());
+    image.write_to(&mut output, ImageFormat::Png).ok()?;
+    Some(output.into_inner())
+}
+
+pub(crate) fn decode_cover(bytes: &[u8]) -> Option<DynamicImage> {
     let mut reader = ImageReader::new(Cursor::new(bytes))
         .with_guessed_format()
         .ok()?;
@@ -134,8 +141,5 @@ pub(crate) fn thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
     limits.max_image_height = Some(MAX_ARTWORK_EDGE);
     limits.max_alloc = Some(128 * 1024 * 1024);
     reader.limits(limits);
-    let image = reader.decode().ok()?.thumbnail(COVER_EDGE, COVER_EDGE);
-    let mut output = Cursor::new(Vec::new());
-    image.write_to(&mut output, ImageFormat::Png).ok()?;
-    Some(output.into_inner())
+    reader.decode().ok()
 }

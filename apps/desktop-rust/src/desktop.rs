@@ -1,3 +1,4 @@
+mod cover;
 mod dropbox_panel;
 pub(crate) mod library_sources;
 mod mini_focus;
@@ -9,7 +10,7 @@ mod windows;
 
 use std::{path::PathBuf, time::Duration};
 
-use iced::{Element, Subscription, Task, Theme, widget::image, window};
+use iced::{Element, Subscription, Task, Theme, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
 
 use crate::{
@@ -19,6 +20,7 @@ use crate::{
     track::Track,
 };
 
+use cover::Cover;
 use library_sources::{CataloguePaths, Operation, Snapshot, Sources};
 use windows::Windows;
 
@@ -97,7 +99,7 @@ pub struct Desktop {
     session: Option<Session>,
     output: Option<MixerDeviceSink>,
     error: Option<String>,
-    artwork: Option<image::Handle>,
+    cover: Cover,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
@@ -173,7 +175,7 @@ impl Desktop {
                 session,
                 output: None,
                 error,
-                artwork: None,
+                cover: Cover::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
@@ -398,12 +400,11 @@ impl Desktop {
                     Err(error) => {
                         self.failed_track = Some(index);
                         if self.session.as_ref().and_then(Session::current).is_none() {
-                            self.artwork = self
-                                .session
-                                .as_ref()
-                                .and_then(|session| session.tracks().get(index))
-                                .and_then(Track::artwork)
-                                .map(|art| image::Handle::from_bytes(art.to_vec()));
+                            self.cover = Cover::from_track(
+                                self.session
+                                    .as_ref()
+                                    .and_then(|session| session.tracks().get(index)),
+                            );
                         }
                         self.error = Some(error);
                         Task::none()
@@ -792,7 +793,7 @@ impl Desktop {
         if matches!(self.mini_focus, Some(MiniControl::Track(_))) {
             self.mini_focus = Some(MiniControl::Queue);
         }
-        self.artwork = None;
+        self.cover = Cover::default();
         self.select_track(position)
     }
 
@@ -818,7 +819,7 @@ impl Desktop {
         }
         session.remove_library(library);
         if session.current().is_none() {
-            self.artwork = None;
+            self.cover = Cover::default();
         }
     }
 
@@ -857,9 +858,7 @@ impl Desktop {
                 if let Some(session) = &mut self.session {
                     let _ = session.replace_track(index, track.clone());
                     if session.current().is_none() {
-                        self.artwork = track
-                            .artwork()
-                            .map(|art| image::Handle::from_bytes(art.to_vec()));
+                        self.cover = Cover::from_track(Some(&track));
                     }
                 }
             }
@@ -922,10 +921,7 @@ impl Desktop {
                 Err(error) => self.error = Some(error.to_string()),
             }
             if current != session.current_index() {
-                self.artwork = session
-                    .current()
-                    .and_then(Track::artwork)
-                    .map(|encoded| image::Handle::from_bytes(encoded.to_vec()));
+                self.cover = Cover::from_track(session.current());
             }
         }
         started.map_or_else(Task::none, |(library, track)| {
@@ -1017,7 +1013,7 @@ impl Desktop {
             view::mini(
                 self.session.as_ref(),
                 (self.windows.queue_open(), self.windows.queue_pending()),
-                self.artwork.as_ref(),
+                &self.cover,
                 (self.error.as_deref(), self.failed_track.is_some()),
                 self.mini_focus,
             )
@@ -1027,7 +1023,7 @@ impl Desktop {
                 &self.dropbox,
                 (&self.appearance, &self.update_status, &self.sidebar),
                 self.session.as_ref(),
-                self.artwork.as_ref(),
+                self.cover.thumbnail(),
                 (self.error.as_deref(), self.failed_track.is_some()),
             )
         }
