@@ -261,9 +261,35 @@ fn it_rebases_mini_queue_focus_after_a_source_is_removed() {
 fn it_uses_the_resized_sidebar_in_the_library_without_changing_mini_geometry() {
     let (mut desktop, _) = setup();
     let _ = desktop.update(Message::ResizeSidebar(0.39));
-    assert_eq!(desktop.sidebar.visible_width(), 310.0);
+    assert_eq!(desktop.sidebar.visible_width(), 278.0);
     let _ = desktop.update(Message::ShowMini);
     let window = desktop.windows.mini_id().unwrap();
     let _ = desktop.update(Message::MiniResized(window, iced::Size::new(426.0, 236.0)));
-    assert_eq!(desktop.sidebar.visible_width(), 310.0);
+    assert_eq!(desktop.sidebar.visible_width(), 278.0);
+}
+
+#[test]
+fn it_measures_minimum_main_content_inside_the_library_chrome() {
+    let mut sidebar = sidebar::Sidebar::default();
+    sidebar.layout_width(900.0);
+    sidebar.set(crate::appearance::sidebar::SidebarWidth::new(360.0));
+
+    assert_eq!(sidebar.visible_width(), 328.0);
+}
+
+#[test]
+fn it_saves_the_completed_sidebar_resize_even_when_the_library_closes_immediately() {
+    let (mut desktop, _) = setup();
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    desktop.sources = Sources::new(Some(paths.clone()));
+    let _ = desktop.update(Message::ResizeSidebar(0.30));
+    let _ = desktop.update(Message::CloseRequested(desktop.windows.library_id()));
+
+    assert_eq!(
+        crate::appearance::sidebar::load_or_import(&paths.sidebar(), None)
+            .unwrap()
+            .visible(850.0),
+        desktop.sidebar.visible_width(),
+    );
 }
