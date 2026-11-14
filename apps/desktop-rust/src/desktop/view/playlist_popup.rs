@@ -263,15 +263,17 @@ mod tests {
             delta: mouse::ScrollDelta::Lines { x: 0.0, y: -1.0 },
         });
         let mut messages = Vec::new();
+        let mut shell = Shell::new(&mut messages);
         popup.update(
             &wheel,
             Layout::new(&node),
             cursor,
             &renderer,
             &mut iced::advanced::clipboard::Null,
-            &mut Shell::new(&mut messages),
+            &mut shell,
         );
 
+        assert!(!shell.is_event_captured());
         assert!(matches!(
             messages.as_slice(),
             [Message::DismissTrackPlaylistPopup]
