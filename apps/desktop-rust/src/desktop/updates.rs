@@ -252,4 +252,25 @@ mod tests {
         };
         assert!(width("Connection closed during the download".into()) > width("Offline".into()));
     }
+
+    #[test]
+    fn it_keeps_retry_wide_enough_for_a_long_installer_error() {
+        let surfaces = crate::appearance::Appearance::default().surfaces();
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(640.0, 120.0));
+        let status = Status::Error(format!(
+            "Could not reopen {}",
+            "/recordings/folder".repeat(32)
+        ));
+        let mut element = view(&status, surfaces);
+        let mut tree = Tree::new(&element);
+        let node = element
+            .as_widget_mut()
+            .layout(&mut tree, &renderer, &limits);
+        let retry = iced::advanced::Layout::new(&node)
+            .children()
+            .last()
+            .unwrap();
+        assert!(retry.bounds().width >= 90.0);
+    }
 }
