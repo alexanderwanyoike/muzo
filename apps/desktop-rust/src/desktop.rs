@@ -54,6 +54,7 @@ pub enum Message {
     FilesRead(Result<Vec<Track>, String>),
     Select(usize),
     TogglePlayback,
+    RetryTrack,
     Previous,
     Next,
     Seek(f32),
@@ -374,12 +375,17 @@ impl Desktop {
             }
             Message::Select(index) => self.select_track(index),
             Message::TogglePlayback => {
-                if let Some(index) = self.failed_track {
+                if let Some(index) = self.failed_track
+                    && self.session.as_ref().and_then(Session::current).is_none()
+                {
                     self.select_track(index)
                 } else {
                     self.transport(Session::toggle)
                 }
             }
+            Message::RetryTrack => self
+                .failed_track
+                .map_or_else(Task::none, |index| self.select_track(index)),
             Message::Previous => self.move_track(-1),
             Message::Next => self.move_track(1),
             Message::Seek(seconds) => {

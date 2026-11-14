@@ -108,7 +108,7 @@ pub fn library<'a>(
             ]
             .spacing(16),
             error_line(sources.error.as_deref()),
-            error_line(error),
+            playback_error(error, retry),
             container(
                 row![
                     artwork(cover, 54.0),
@@ -176,7 +176,7 @@ pub fn mini<'a>(
     let mut content = column![
         header,
         container(playback).width(Fill).padding(12).style(panel),
-        error_line(error),
+        playback_error(error, retry),
     ]
     .spacing(8);
 
@@ -345,6 +345,23 @@ fn error_line(error: Option<&str>) -> Element<'_, Message> {
     match error {
         Some(error) => text(error).size(12).color(color!(0xf6aca1)).into(),
         None => Space::new().into(),
+    }
+}
+
+fn playback_error(error: Option<&str>, retry: bool) -> Element<'_, Message> {
+    if retry {
+        row![
+            error_line(error),
+            button(text("Retry track").size(12))
+                .padding([2, 6])
+                .style(action)
+                .on_press(Message::RetryTrack),
+        ]
+        .align_y(Alignment::Center)
+        .spacing(5)
+        .into()
+    } else {
+        error_line(error)
     }
 }
 
