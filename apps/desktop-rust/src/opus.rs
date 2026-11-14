@@ -16,6 +16,7 @@ const MAX_FRAME_SAMPLES_PER_CHANNEL: usize = 5_760;
 const SEEK_PREROLL: Duration = Duration::from_millis(80);
 const OUTPUT_GAIN_BYTES: std::ops::Range<usize> = 16..18;
 const GAIN_UNITS_PER_DB: f32 = 256.0;
+const NANOS_PER_SECOND: u128 = Duration::from_secs(1).as_nanos();
 
 pub struct OpusSource {
     format: Box<dyn FormatReader>,
@@ -52,6 +53,7 @@ impl OpusSource {
             .ok_or(Error::Unsupported("No Ogg Opus track was found"))?;
         let parameters = &track.codec_params;
         let track_id = track.id;
+        let start_ts = parameters.start_ts;
         let channels = parameters
             .channels
             .and_then(|channels| ChannelCount::new(channels.count() as u16))
@@ -71,21 +73,19 @@ impl OpusSource {
             });
         // RFC 7845 sections 4.6 and 5.1 specify preroll and a signed output gain.
         let preroll_start = position.saturating_sub(SEEK_PREROLL);
-        let target_frame = |time: Duration| {
-            let seconds = time.as_secs().saturating_mul(u64::from(RATE.get()));
-            seconds + u64::from(time.subsec_nanos()) * u64::from(RATE.get()) / 1_000_000_000
-        };
+        let target_frame = pcm_frame(position);
+        let target_ts = start_ts.saturating_add(target_frame);
         let discard_frames = if preroll_start.is_zero() {
-            target_frame(position)
+            target_frame
         } else {
             let seek = format.seek(
                 SeekMode::Accurate,
-                SeekTo::Time {
-                    time: preroll_start.into(),
-                    track_id: Some(track_id),
+                SeekTo::TimeStamp {
+                    ts: start_ts.saturating_add(pcm_frame(preroll_start)),
+                    track_id,
                 },
             )?;
-            target_frame(position).saturating_sub(seek.actual_ts)
+            target_ts.saturating_sub(seek.actual_ts)
         };
         let decoder = OpusDecoder::new(RATE.get(), usize::from(channels.get()))
             .map_err(|_| Error::Unsupported("Could not initialize Opus decoding"))?;
@@ -128,6 +128,12 @@ impl OpusSource {
             }
         }
     }
+}
+
+fn pcm_frame(time: Duration) -> u64 {
+    let rounded_frames =
+        (time.as_nanos() * u128::from(RATE.get()) + NANOS_PER_SECOND / 2) / NANOS_PER_SECOND;
+    rounded_frames.try_into().unwrap_or(u64::MAX)
 }
 
 impl Iterator for OpusSource {
