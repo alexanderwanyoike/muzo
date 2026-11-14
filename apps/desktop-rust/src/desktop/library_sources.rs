@@ -530,3 +530,26 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod navigation_tests {
+    use super::*;
+
+    #[test]
+    fn it_keeps_the_selected_catalogue_during_a_background_reload() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+        sources.snapshot = Some(Snapshot {
+            libraries: vec![],
+            selected: Some("picked-source".into()),
+            tracks: vec![],
+            warnings: vec![],
+            playlists: vec![],
+            selected_playlist: Some("picked-playlist".into()),
+            playlist_entries: vec![],
+            editor: None,
+        });
+        assert_eq!(sources.reload().units(), 0);
+        assert!(sources.changed.load(Ordering::Acquire));
+    }
+}
