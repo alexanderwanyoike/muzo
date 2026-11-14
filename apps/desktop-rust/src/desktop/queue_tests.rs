@@ -587,3 +587,18 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
     assert_eq!(session.start_generation(), generation + 1);
     assert_eq!(session.current().unwrap().playlist_entry(), Some("first"));
 }
+
+#[test]
+fn it_keeps_the_new_playlist_name_when_saving_fails() {
+    let (mut desktop, _) = setup();
+    let root = tempfile::tempdir().unwrap();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+    desktop.sources.show_playlist_form = true;
+    desktop.sources.playlist_name = "After Hours".into();
+    desktop.sources.playlist_search = "Other".into();
+    let _ = desktop.update(Message::CreatePlaylist);
+    let _ = desktop.update(Message::SourcesUpdated(Err("Cannot write database".into())));
+    assert!(desktop.sources.show_playlist_form);
+    assert_eq!(desktop.sources.playlist_name, "After Hours");
+    assert_eq!(desktop.sources.playlist_search, "Other");
+}
