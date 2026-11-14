@@ -27,6 +27,10 @@ pub enum CatalogueError {
     UnsupportedSchema,
     #[error("The selected location is not a folder.")]
     NotDirectory,
+    #[error("Library name must not be empty.")]
+    EmptyLibraryName,
+    #[error("Library location must not be empty.")]
+    EmptyLibraryLocation,
     #[error("This folder is already indexed.")]
     DuplicateFolder,
     #[error("This folder source no longer exists.")]

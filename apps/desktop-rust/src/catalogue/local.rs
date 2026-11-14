@@ -18,17 +18,36 @@ pub const MUSIC_EXTENSIONS: [&str; 6] = ["mp3", "flac", "m4a", "ogg", "opus", "w
 
 impl Catalogue {
     pub fn add_folder(&mut self, path: &Path) -> Result<Library, CatalogueError> {
+        self.index_folder(path, None)
+    }
+
+    pub fn add_named_folder(&mut self, path: &Path, name: &str) -> Result<Library, CatalogueError> {
+        if name.trim().is_empty() {
+            return Err(CatalogueError::EmptyLibraryName);
+        }
+        self.index_folder(path, Some(name))
+    }
+
+    fn index_folder(&mut self, path: &Path, name: Option<&str>) -> Result<Library, CatalogueError> {
+        if path.as_os_str().is_empty() {
+            return Err(CatalogueError::EmptyLibraryLocation);
+        }
         let location = path.canonicalize()?;
         if !location.is_dir() {
             return Err(CatalogueError::NotDirectory);
         }
         let library = Library {
             id: Uuid::new_v4().to_string(),
-            name: location
-                .file_name()
-                .unwrap_or(location.as_os_str())
-                .to_string_lossy()
-                .into_owned(),
+            name: name.map_or_else(
+                || {
+                    location
+                        .file_name()
+                        .unwrap_or(location.as_os_str())
+                        .to_string_lossy()
+                        .into_owned()
+                },
+                str::to_owned,
+            ),
             kind: "filesystem".into(),
             location,
         };

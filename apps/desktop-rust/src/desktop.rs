@@ -33,6 +33,9 @@ pub enum Message {
     FilesPicked(Vec<PathBuf>),
     AddFolder,
     FolderPicked(Option<PathBuf>),
+    FolderName(String),
+    FolderLocation(String),
+    SubmitFolder,
     SourceSearch(String),
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
@@ -229,8 +232,40 @@ impl Desktop {
                 },
                 Message::FolderPicked,
             ),
-            Message::FolderPicked(Some(path)) => self.sources.start(Operation::Add(path)),
-            Message::FolderPicked(None) => Task::none(),
+            Message::FolderPicked(path) => {
+                if let Some(path) = path.filter(|_| !self.sources.folder_save_pending()) {
+                    if self.sources.folder_name.trim().is_empty() {
+                        self.sources.folder_name = path
+                            .file_name()
+                            .unwrap_or(path.as_os_str())
+                            .to_string_lossy()
+                            .into_owned();
+                    }
+                    self.sources.folder_location = path.to_string_lossy().into_owned();
+                }
+                Task::none()
+            }
+            Message::FolderName(name) => {
+                if !self.sources.folder_save_pending() {
+                    self.sources.folder_name = name;
+                }
+                Task::none()
+            }
+            Message::FolderLocation(location) => {
+                if !self.sources.folder_save_pending() {
+                    self.sources.folder_location = location;
+                }
+                Task::none()
+            }
+            Message::SubmitFolder => {
+                if self.sources.busy() || self.sources.folder_save_pending() {
+                    return Task::none();
+                }
+                self.sources.start(Operation::AddNamedFolder(
+                    self.sources.folder_name.clone(),
+                    PathBuf::from(self.sources.folder_location.trim()),
+                ))
+            }
             Message::LibraryPage(page) => {
                 self.page = page;
                 self.appearance_focus = None;

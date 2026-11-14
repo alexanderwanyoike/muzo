@@ -81,6 +81,7 @@ pub enum Operation {
     Startup,
     Reload,
     Add(PathBuf),
+    AddNamedFolder(String, PathBuf),
     Select(String),
     Refresh(String),
     Remove(String),
@@ -129,6 +130,7 @@ fn run_with_selection(
     let mut editor = None;
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
+        Operation::AddNamedFolder(name, path) => Some(catalogue.add_named_folder(&path, &name)?.id),
         Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
@@ -294,6 +296,9 @@ pub(super) struct Sources {
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
+    pub folder_name: String,
+    pub folder_location: String,
+    adding_folder: bool,
     creating_playlist: bool,
     pub editing: Option<(String, String, Box<[String; 7]>)>,
     pub saving_editor: bool,
@@ -317,6 +322,9 @@ impl Sources {
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
+            folder_name: String::new(),
+            folder_location: String::new(),
+            adding_folder: false,
             creating_playlist: false,
             editing: None,
             saving_editor: false,
@@ -367,6 +375,14 @@ impl Sources {
                 .any(|operation| matches!(operation, Operation::CreatePlaylist(_)))
     }
 
+    pub fn folder_save_pending(&self) -> bool {
+        self.adding_folder
+            || self
+                .pending
+                .iter()
+                .any(|operation| matches!(operation, Operation::AddNamedFolder(_, _)))
+    }
+
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
         if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);
@@ -381,6 +397,7 @@ impl Sources {
         };
         self.busy = true;
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
+        self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
         self.error = None;
         let selected = self
             .snapshot
@@ -406,6 +423,7 @@ impl Sources {
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
+        let adding_folder = std::mem::take(&mut self.adding_folder);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -418,6 +436,10 @@ impl Sources {
             self.show_playlist_form = false;
             self.playlist_name.clear();
             self.playlist_search.clear();
+        }
+        if adding_folder {
+            self.folder_name.clear();
+            self.folder_location.clear();
         }
         if let Some(previous) = &self.snapshot {
             preserve_play_counts(&mut snapshot, previous);

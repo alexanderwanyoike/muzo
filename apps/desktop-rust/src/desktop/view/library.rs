@@ -379,13 +379,22 @@ pub(super) fn settings<'a>(
         });
     let body = column![
         appearance::controls(preferences, focus),
+        dropbox.view(),
         container(
             column![
-                text("Sources").size(16).font(bold()),
+                text("Library folders").size(13).font(bold()),
+                text("Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.").size(11).color(surfaces.muted),
+                sources::folder_form(sources, surfaces),
+            ]
+            .spacing(12)
+        )
+        .padding(20)
+        .width(Fill)
+        .style(move |_| framed(surfaces.raised, surfaces, 4)),
+        container(
+            column![
+                text("Indexed sources").size(13).font(bold()),
                 row![
-                    button(text("Add folder").size(13))
-                        .style(move |theme, status| bordered_button(theme, status, surfaces))
-                        .on_press_maybe((!sources.busy()).then_some(Message::AddFolder)),
                     button(text("Open files").size(13))
                         .style(move |theme, status| bordered_button(theme, status, surfaces))
                         .on_press_maybe(audio.then_some(Message::OpenFiles)),
@@ -394,7 +403,6 @@ pub(super) fn settings<'a>(
                         .on_press_maybe(refresh),
                 ]
                 .spacing(8),
-                dropbox.view(),
             ]
             .spacing(12)
         )
