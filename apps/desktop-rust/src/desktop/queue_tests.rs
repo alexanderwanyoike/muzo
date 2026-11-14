@@ -423,3 +423,24 @@ fn it_does_not_regress_a_committed_play_count_when_an_older_snapshot_arrives() {
 
     assert_eq!(desktop.sources.snapshot.unwrap().tracks[0].plays, 1);
 }
+
+#[test]
+fn it_dispatches_play_history_off_the_transport_thread_and_waits_for_it_on_close() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let (mut desktop, audio) = setup();
+    let track = audio
+        .with_indexed_id("track".into())
+        .with_library("library".into())
+        .with_artwork(vec![0]);
+    desktop.sources = Sources::new(Some(paths));
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+
+    assert!(desktop.update(Message::Select(0)).units() > 0);
+    assert_eq!(
+        desktop
+            .update(Message::CloseRequested(desktop.windows.library_id()))
+            .units(),
+        0
+    );
+}
