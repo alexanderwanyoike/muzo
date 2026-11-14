@@ -91,6 +91,75 @@ fn library_content<'a>(
     }
 }
 
+#[cfg(test)]
+#[test]
+fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size, Vector,
+        advanced::{
+            Layout, layout,
+            widget::{Id, Operation, Tree, operation::Scrollable},
+        },
+    };
+
+    #[derive(Default)]
+    struct ScrollAreas(Vec<Id>);
+    impl Operation for ScrollAreas {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            _: Vector,
+            _: &mut dyn Scrollable,
+        ) {
+            self.0.extend(id.cloned());
+        }
+    }
+
+    let mut sources = Sources::new(None);
+    let mut snapshot = super::queue_tests::snapshot(&["source"]);
+    snapshot.selected = Some("source".into());
+    snapshot.tracks.push(crate::catalogue::IndexedTrack {
+        id: "song".into(),
+        title: "Song".into(),
+        artist: "Artist".into(),
+        album: None,
+        path: "track.mp3".into(),
+        plays: 0,
+        duration_seconds: 1,
+        library_id: "source".into(),
+    });
+    sources.snapshot = Some(snapshot);
+    sources.editing = Some(("song".into(), "source".into(), Box::new(Default::default())));
+    let dropbox = super::dropbox_panel::Settings::default();
+    let preferences = crate::appearance::Appearance::default();
+    let mut body: Element<'_, Message> = library_content(
+        &sources,
+        &dropbox,
+        &preferences,
+        None,
+        (super::LibraryPage::Songs, None),
+        None,
+    )
+    .into();
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut tree = Tree::new(&body);
+    let widget = body.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(900.0, 550.0)),
+    );
+    let mut areas = ScrollAreas::default();
+    widget.operate(&mut tree, Layout::new(&node), &renderer, &mut areas);
+
+    assert!(areas.0.contains(&"indexed-songs".into()));
+}
+
 pub(super) use compact::mini;
 
 fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {

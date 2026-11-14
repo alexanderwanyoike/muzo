@@ -22,7 +22,7 @@ fn source(id: &str) -> crate::catalogue::Library {
     }
 }
 
-fn snapshot(ids: &[&str]) -> Snapshot {
+pub(super) fn snapshot(ids: &[&str]) -> Snapshot {
     Snapshot {
         libraries: ids.iter().map(|id| source(id)).collect(),
         selected: None,

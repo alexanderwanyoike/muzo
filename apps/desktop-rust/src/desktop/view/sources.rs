@@ -597,5 +597,5 @@ pub fn tracks<'a>(
             .center(Fill)
         ];
     }
-    column![scrollable(column(list)).height(Fill)]
+    column![scrollable(column(list)).id("indexed-songs").height(Fill)]
 }
