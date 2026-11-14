@@ -29,7 +29,7 @@ export default function AddLibraryForm({ onAdded }: AddLibraryFormProps) {
       }
     } catch {
       setError(
-        "Could not open the folder picker. If this is running in a browser, start Muzo with yarn desktop:dev.",
+        "Could not open the folder picker. If this is running in a browser, start Muzo with yarn desktop:legacy.",
       );
     }
   }

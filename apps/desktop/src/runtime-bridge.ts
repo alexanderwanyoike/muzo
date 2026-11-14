@@ -19,7 +19,7 @@ export function getRuntimeBridge(): RuntimeBridge {
   const runtime = window.__MUZO_RUNTIME__;
   if (!runtime) {
     throw new Error(
-      "Muzo desktop runtime is not available. Start the app with yarn desktop:dev.",
+      "Muzo desktop runtime is not available. Start the app with yarn desktop:legacy.",
     );
   }
   return runtime;
