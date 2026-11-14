@@ -56,3 +56,6 @@ windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Secur
 
 [profile.dev]
 debug = 0
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+winresource = { version = "0.1.34", default-features = false }
