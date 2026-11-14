@@ -448,3 +448,58 @@ fn it_dispatches_play_history_off_the_transport_thread_and_waits_for_it_on_close
         0
     );
 }
+
+#[test]
+fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
+    let (mut desktop, audio) = setup();
+    let mut playlist = snapshot(&[]);
+    playlist.selected_playlist = Some("playlist".into());
+    let indexed = crate::catalogue::IndexedTrack {
+        id: "shared-song".into(),
+        title: audio.title().into(),
+        artist: "Artist".into(),
+        album: None,
+        path: audio.path().into(),
+        plays: 0,
+        library_id: "local-library".into(),
+    };
+    playlist.playlist_entries = ["first", "second"]
+        .into_iter()
+        .map(|id| crate::catalogue::PlaylistEntry {
+            id: id.into(),
+            track: Some(indexed.clone()),
+        })
+        .collect();
+    desktop.sources.snapshot = Some(playlist);
+
+    for entry in ["first", "second"] {
+        let _ = desktop.update(Message::PlayPlaylist(entry.into()));
+        let index = desktop.pending_track.unwrap();
+        let ready = desktop.session.as_ref().unwrap().tracks()[index].clone();
+        let _ = desktop.update(Message::RemoteTrackReady(
+            desktop.playback_request,
+            Ok(ready),
+        ));
+        let session = desktop.session.as_ref().unwrap();
+        assert_eq!(session.current().unwrap().playlist_entry(), Some(entry));
+        assert!(session.is_playing());
+    }
+
+    desktop
+        .sources
+        .snapshot
+        .as_mut()
+        .unwrap()
+        .playlist_entries
+        .reverse();
+    let before = desktop.session.as_ref().unwrap().start_generation();
+    let _ = desktop.update(Message::PlayPlaylist("second".into()));
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current().unwrap().playlist_entry(), Some("second"));
+    assert_eq!(session.start_generation(), before);
+    assert!(!session.is_playing());
+    assert!(desktop.pending_track.is_none());
+
+    let _ = desktop.update(Message::PlayPlaylist("missing".into()));
+    assert_eq!(desktop.session.as_ref().unwrap().start_generation(), before);
+}
