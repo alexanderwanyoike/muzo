@@ -7,7 +7,10 @@ use std::{
 };
 
 use iced::Task;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+    EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{ModifyKind, RenameMode},
+};
 
 use crate::catalogue::{
     Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
@@ -277,10 +280,14 @@ impl Sources {
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
-        if self.busy {
+        if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);
             return Task::none();
         }
+        self.run_operation(operation)
+    }
+
+    fn run_operation(&mut self, operation: Operation) -> Task<Message> {
         let Some(paths) = self.paths.clone() else {
             return Task::none();
         };
@@ -337,7 +344,7 @@ impl Sources {
         }
         self.retry_watch_roots();
         if let Some(operation) = self.pending.pop_front() {
-            return self.start(operation);
+            return self.run_operation(operation);
         }
         let selected = self
             .snapshot
@@ -361,15 +368,23 @@ impl Sources {
         self.registered.clear();
         let changed = Arc::clone(&self.changed);
         let roots_changed = Arc::clone(&self.roots_changed);
+        let watched_paths = roots.to_vec();
         self.watcher =
             match notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
-                if result.as_ref().is_err()
-                    || result.as_ref().is_ok_and(|event| !event.kind.is_access())
-                {
-                    changed.store(true, Ordering::Release);
-                }
-                if result.is_ok_and(|event| event.kind.is_remove()) {
+                let touches_root = result.as_ref().is_ok_and(|event| {
+                    matches!(
+                        event.kind,
+                        EventKind::Remove(_)
+                            | EventKind::Modify(ModifyKind::Name(
+                                RenameMode::From | RenameMode::Both | RenameMode::Any
+                            ))
+                    ) && event.paths.iter().any(|path| watched_paths.contains(path))
+                });
+                if result.is_err() || touches_root {
                     roots_changed.store(true, Ordering::Release);
+                }
+                if result.is_err() || result.is_ok_and(|event| !event.kind.is_access()) {
+                    changed.store(true, Ordering::Release);
                 }
             }) {
                 Ok(watcher) => Some(watcher),
@@ -383,14 +398,9 @@ impl Sources {
 
     fn retry_watch_roots(&mut self) {
         let roots = self.roots.clone();
-        if self.roots_changed.swap(false, Ordering::AcqRel) {
-            let watched_offline = self.registered.iter().any(|root| !root.is_dir());
-            if watched_offline {
-                self.install_watcher(&roots);
-                return;
-            }
-        }
-        if self.watcher.is_none() && !roots.is_empty() {
+        if self.roots_changed.swap(false, Ordering::AcqRel)
+            || (self.watcher.is_none() && !roots.is_empty())
+        {
             self.install_watcher(&roots);
         } else {
             self.register_available(&roots);
