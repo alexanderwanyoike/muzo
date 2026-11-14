@@ -5,7 +5,7 @@ use iced::{
     widget::{Space, button, column, container, image, row, scrollable, svg, text, tooltip},
 };
 
-use crate::{session::Session, track::Track};
+use crate::session::Session;
 
 mod appearance;
 mod compact;
@@ -55,9 +55,9 @@ fn library_content<'a>(
         return playlists::tracks(
             snapshot,
             sources.busy(),
-            session
-                .and_then(Session::current)
-                .and_then(Track::playlist_entry),
+            session,
+            cover,
+            preferences.surfaces(),
         );
     }
     if let Some(snapshot) = sources
@@ -230,6 +230,8 @@ enum Icon {
     Folder,
     Edit,
     Close,
+    Up,
+    Down,
     Volume,
 }
 
@@ -326,6 +328,8 @@ fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg
             "<path d='M3 7a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>"
         }
         Icon::Edit => "<path d='m14 6 4 4M4 20l4-1L20 7l-4-4L4 15z'/>",
+        Icon::Up => "<path d='m7 15 5-5 5 5'/>",
+        Icon::Down => "<path d='m7 10 5 5 5-5'/>",
         Icon::Close => "<path d='m7 7 10 10m0-10L7 17'/>",
         Icon::Music => {
             "<path d='M10 17V6l9-2v11M10 17a3 2-20 1 1-6 1 3 2-20 1 1 6-1m9-2a3 2-20 1 1-6 1 3 2-20 1 1 6-1'/>"

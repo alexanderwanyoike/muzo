@@ -256,11 +256,7 @@ fn navigation<'a>(
     ]
     .spacing(3);
     let panel: Element<'_, Message> = if page == LibraryPage::Playlists {
-        container(playlists::sidebar(sources))
-            .padding(9)
-            .width(Fill)
-            .style(move |_| framed(surfaces.raised, surfaces, 3))
-            .into()
+        playlists::sidebar(sources, surfaces)
     } else {
         sources::sidebar(sources, surfaces)
     };

@@ -53,7 +53,10 @@ pub enum Message {
     CancelSourceRemoval,
     PlayIndexed(usize),
     PlayPlaylist(String),
+    StartPlaylist(String),
     PlaylistName(String),
+    PlaylistSearch(String),
+    ShowPlaylistForm(bool),
     CreatePlaylist,
     EditTrack(crate::catalogue::IndexedTrack),
     EditField(usize, String),
@@ -92,7 +95,7 @@ pub enum Message {
 
 enum CatalogueSelection<'a> {
     Source(usize),
-    PlaylistEntry(&'a str),
+    PlaylistEntry(&'a str, bool),
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -380,14 +383,50 @@ impl Desktop {
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
             Message::PlayPlaylist(entry) => {
-                self.play_indexed(CatalogueSelection::PlaylistEntry(&entry))
+                self.play_indexed(CatalogueSelection::PlaylistEntry(&entry, false))
+            }
+            Message::StartPlaylist(playlist) => {
+                let Some(entry) = self
+                    .sources
+                    .snapshot
+                    .as_ref()
+                    .filter(|snapshot| {
+                        snapshot.selected_playlist.as_deref() == Some(playlist.as_str())
+                    })
+                    .and_then(|snapshot| {
+                        snapshot
+                            .playlist_entries
+                            .iter()
+                            .find(|entry| entry.track.is_some())
+                    })
+                    .map(|entry| entry.id.clone())
+                else {
+                    return Task::none();
+                };
+                self.play_indexed(CatalogueSelection::PlaylistEntry(&entry, true))
+            }
+            Message::PlaylistSearch(query) => {
+                self.sources.playlist_search = query;
+                Task::none()
+            }
+            Message::ShowPlaylistForm(visible) => {
+                self.sources.show_playlist_form = visible;
+                if visible {
+                    return iced::widget::operation::focus("new-playlist-name");
+                }
+                self.sources.playlist_name.clear();
+                Task::none()
             }
             Message::PlaylistName(name) => {
                 self.sources.playlist_name = name;
                 Task::none()
             }
             Message::CreatePlaylist => {
+                if self.sources.busy() || self.sources.playlist_name.trim().is_empty() {
+                    return Task::none();
+                }
                 let name = std::mem::take(&mut self.sources.playlist_name);
+                self.sources.show_playlist_form = false;
                 self.sources.start(Operation::CreatePlaylist(name))
             }
             Message::EditTrack(track) => self
@@ -742,7 +781,7 @@ impl Desktop {
                     .map(|track| (track, None))
                     .collect(),
             ),
-            CatalogueSelection::PlaylistEntry(entry) => {
+            CatalogueSelection::PlaylistEntry(entry, restart) => {
                 if !snapshot
                     .playlist_entries
                     .iter()
@@ -750,12 +789,13 @@ impl Desktop {
                 {
                     return Task::none();
                 }
-                if self
-                    .session
-                    .as_ref()
-                    .and_then(Session::current)
-                    .and_then(Track::playlist_entry)
-                    == Some(entry)
+                if !restart
+                    && self
+                        .session
+                        .as_ref()
+                        .and_then(Session::current)
+                        .and_then(Track::playlist_entry)
+                        == Some(entry)
                 {
                     return self.update(Message::TogglePlayback);
                 }
