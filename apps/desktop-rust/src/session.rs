@@ -60,25 +60,27 @@ impl Session {
     }
 
     pub fn remove_library(&mut self, library: &str) {
-        let previous = self.current;
-        let active_removed = self
-            .current()
-            .is_some_and(|track| track.library() == Some(library));
-        let removed_before = previous.map_or(0, |index| {
-            self.tracks
-                .iter()
-                .take(index)
-                .filter(|track| track.library() == Some(library))
-                .count()
-        });
+        let current = self
+            .current
+            .and_then(|index| self.index_without_library(index, library));
         self.tracks.retain(|track| track.library() != Some(library));
-        if active_removed {
-            self.current = None;
+        if self.current.is_some() && current.is_none() {
             self.playback.reset();
             self.started = false;
-        } else {
-            self.current = previous.map(|index| index - removed_before);
         }
+        self.current = current;
+    }
+
+    pub(crate) fn index_without_library(&self, index: usize, library: &str) -> Option<usize> {
+        let track = self.tracks.get(index)?;
+        if track.library() == Some(library) {
+            return None;
+        }
+        let removed_before = self.tracks[..index]
+            .iter()
+            .filter(|track| track.library() == Some(library))
+            .count();
+        Some(index - removed_before)
     }
 
     pub fn tracks(&self) -> &[Track] {

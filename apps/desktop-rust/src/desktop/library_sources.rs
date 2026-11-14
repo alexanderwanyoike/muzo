@@ -7,7 +7,10 @@ use std::{
 };
 
 use iced::Task;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{
+    EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{ModifyKind, RenameMode},
+};
 
 use crate::catalogue::{
     Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
@@ -277,10 +280,14 @@ impl Sources {
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
-        if self.busy {
+        if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);
             return Task::none();
         }
+        self.run_operation(operation)
+    }
+
+    fn run_operation(&mut self, operation: Operation) -> Task<Message> {
         let Some(paths) = self.paths.clone() else {
             return Task::none();
         };
@@ -337,7 +344,7 @@ impl Sources {
         }
         self.retry_watch_roots();
         if let Some(operation) = self.pending.pop_front() {
-            return self.start(operation);
+            return self.run_operation(operation);
         }
         let selected = self
             .snapshot
@@ -361,15 +368,23 @@ impl Sources {
         self.registered.clear();
         let changed = Arc::clone(&self.changed);
         let roots_changed = Arc::clone(&self.roots_changed);
+        let watched_paths = roots.to_vec();
         self.watcher =
             match notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
-                if result.as_ref().is_err()
-                    || result.as_ref().is_ok_and(|event| !event.kind.is_access())
-                {
-                    changed.store(true, Ordering::Release);
-                }
-                if result.is_ok_and(|event| event.kind.is_remove()) {
+                let touches_root = result.as_ref().is_ok_and(|event| {
+                    matches!(
+                        event.kind,
+                        EventKind::Remove(_)
+                            | EventKind::Modify(ModifyKind::Name(
+                                RenameMode::From | RenameMode::Both | RenameMode::Any
+                            ))
+                    ) && event.paths.iter().any(|path| watched_paths.contains(path))
+                });
+                if result.is_err() || touches_root {
                     roots_changed.store(true, Ordering::Release);
+                }
+                if result.is_err() || result.is_ok_and(|event| !event.kind.is_access()) {
+                    changed.store(true, Ordering::Release);
                 }
             }) {
                 Ok(watcher) => Some(watcher),
@@ -383,14 +398,9 @@ impl Sources {
 
     fn retry_watch_roots(&mut self) {
         let roots = self.roots.clone();
-        if self.roots_changed.swap(false, Ordering::AcqRel) {
-            let watched_offline = self.registered.iter().any(|root| !root.is_dir());
-            if watched_offline {
-                self.install_watcher(&roots);
-                return;
-            }
-        }
-        if self.watcher.is_none() && !roots.is_empty() {
+        if self.roots_changed.swap(false, Ordering::AcqRel)
+            || (self.watcher.is_none() && !roots.is_empty())
+        {
             self.install_watcher(&roots);
         } else {
             self.register_available(&roots);
@@ -414,6 +424,55 @@ impl Sources {
                     self.error = Some(format!("Could not watch {}: {error}", root.display()))
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_starts_queued_source_actions_before_new_arrivals() {
+        let root = tempfile::tempdir().unwrap();
+        let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        assert!(sources.start(Operation::Select("first".into())).units() > 0);
+        assert_eq!(sources.start(Operation::Select("second".into())).units(), 0);
+
+        sources.apply(Err("first finished".into()));
+
+        assert_eq!(sources.start(Operation::Select("third".into())).units(), 0);
+        assert!(sources.poll().units() > 0);
+        assert!(matches!(sources.pending.front(), Some(Operation::Select(id)) if id == "third"));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_reattaches_a_watched_folder_replaced_between_polls() {
+        let root = tempfile::tempdir().unwrap();
+        let library = root.path().join("library");
+        std::fs::create_dir(&library).unwrap();
+        let mut sources = Sources::new(None);
+        sources.roots = vec![library.clone()];
+        sources.install_watcher(std::slice::from_ref(&library));
+        sources.changed.store(false, Ordering::Release);
+
+        std::fs::rename(&library, root.path().join("renamed")).unwrap();
+        std::fs::create_dir(&library).unwrap();
+        wait_for_event(&sources.changed);
+        let _ = sources.poll();
+        sources.changed.store(false, Ordering::Release);
+
+        std::fs::write(library.join("Track.mp3"), "fixture").unwrap();
+        wait_for_event(&sources.changed);
+    }
+
+    #[cfg(target_os = "linux")]
+    fn wait_for_event(changed: &AtomicBool) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !changed.load(Ordering::Acquire) {
+            assert!(std::time::Instant::now() < deadline, "no filesystem event");
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
     }
 }

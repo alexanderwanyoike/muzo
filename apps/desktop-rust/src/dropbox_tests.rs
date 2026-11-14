@@ -148,7 +148,7 @@ fn it_does_not_replace_cached_metadata_when_remote_audio_is_reindexed() {
         .unwrap();
     let indexed = catalogue.tracks(&library.id).unwrap().remove(0);
     catalogue
-        .cache_dropbox_metadata(&indexed.id, "Tagged", Some("Artist"), Some("Record"))
+        .cache_dropbox_metadata(&indexed.id, Some("Tagged"), Some("Artist"), Some("Record"))
         .unwrap();
     catalogue.sync_dropbox(&library.id, &[audio]).unwrap();
     let indexed = catalogue.tracks(&library.id).unwrap().remove(0);
