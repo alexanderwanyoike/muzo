@@ -55,7 +55,9 @@ it("runs the root native installer command for every release target", () => {
   expect(JSON.stringify(targets)).toContain("macos-arm64");
   expect(JSON.stringify(targets)).toContain("macos-x64");
   const steps = JSON.stringify(nested(packageJob, "steps"));
-  expect(steps).toContain("yarn desktop:package --target ${{ matrix.label }}");
+  expect(steps).toMatch(
+    /yarn desktop:package --target \$\{\{ matrix\.label \}\}/u,
+  );
   expect(steps).not.toContain("hdiutil create");
   expect(steps).not.toContain("--prepackaged");
 });
