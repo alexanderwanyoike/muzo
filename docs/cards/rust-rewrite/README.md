@@ -12,7 +12,7 @@ the epic to `dev` after parity and packaged upgrade checks.
 | [003 Playlists, metadata and history](003-playlists-and-history.md) | Add tracks, remove and reorder playlist entries, play duplicate entries independently, edit and clear tags, cache and refresh artwork, record history and show play counts. Preserve migrated records. |
 | [004 Dropbox sources](004-dropbox-sources.md) | OAuth with PKCE, OS credential storage and reconnect, folder browsing and multiple selections, account-scoped libraries, startup and configured polling, refresh, bounded audio cache, playback retry and disconnect. Verify migration from Electron encrypted credentials on all targets. |
 | [005 Appearance and desktop interactions](005-appearance.md) | Saved materials, light/dark, all default and glow accents, mini player artwork treatment, layout and splitter preferences, system decorations and icons, settings and keyboard interactions. Import existing settings. |
-| 006 Distribution and updates | AppImage integration, NSIS and both DMGs, manifests and checksums, existing feed compatibility, explicit download and restart, Linux path retention and macOS manual updates. Install/upgrade smoke tests. |
+| [006 Distribution and updates](006-distribution.md) | AppImage integration, NSIS and both DMGs, manifests and checksums, existing feed compatibility, explicit download and restart, Linux path retention and macOS manual updates. Install/upgrade smoke tests. |
 | 007 Cutover | Switch desktop entry points and release jobs to Rust, remove superseded Electron runtime, verify data upgrades from installed Muzo, and check the full parity matrix on each OS. |
 
 Resolve release discrepancies against the existing feature tests, cards and
