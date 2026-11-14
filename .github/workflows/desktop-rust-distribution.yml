@@ -160,6 +160,20 @@ jobs:
           ./tests/manual/windows-upgrade.ps1 -LegacyInstaller $legacy -RustInstaller $candidate.FullName `
             -InstallDirectory (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-custom') `
             -RustBinary 'target/release/muzo-desktop.exe'
+      - name: Exercise the installed Windows mini player
+        if: runner.os == 'Windows'
+        id: windows-mini
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          ./tests/manual/windows-mini.ps1 `
+            -Binary (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-custom/muzo.exe') `
+            -Screenshots (Join-Path $env:RUNNER_TEMP 'muzo-windows-mini-screenshots')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.windows-mini.outcome != 'skipped' }}
+        with:
+          name: muzo-windows-mini-screenshots
+          path: ${{ runner.temp }}/muzo-windows-mini-screenshots/*.png
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: muzo-rust-${{ matrix.label }}
