@@ -129,3 +129,29 @@ fn it_indexes_remote_audio_and_preserves_an_existing_track_id_on_resync() {
     catalogue.sync_dropbox(&library.id, &[audio]).unwrap();
     assert_eq!(catalogue.tracks(&library.id).unwrap()[0].id, track.id);
 }
+
+#[test]
+fn it_does_not_replace_cached_metadata_when_remote_audio_is_reindexed() {
+    use crate::{catalogue::Catalogue, dropbox::Entry};
+    let root = tempfile::tempdir().unwrap();
+    let mut catalogue = Catalogue::open(&root.path().join("catalogue.sqlite"), None).unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let audio: Entry = serde_json::from_str(
+        r#"{".tag":"file","name":"A.mp3","path_display":"/Music/A.mp3","size":48,"rev":"1"}"#,
+    )
+    .unwrap();
+    catalogue
+        .sync_dropbox(&library.id, std::slice::from_ref(&audio))
+        .unwrap();
+    let indexed = catalogue.tracks(&library.id).unwrap().remove(0);
+    catalogue
+        .cache_dropbox_metadata(&indexed.id, "Tagged", Some("Artist"), Some("Record"))
+        .unwrap();
+    catalogue.sync_dropbox(&library.id, &[audio]).unwrap();
+    let indexed = catalogue.tracks(&library.id).unwrap().remove(0);
+    assert_eq!(indexed.title, "Tagged");
+    assert_eq!(indexed.artist, "Artist");
+}
