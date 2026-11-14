@@ -17,3 +17,21 @@ fn it_restores_the_chosen_material_mode_and_accent() {
         Appearance::default().theme().palette().background
     );
 }
+
+#[test]
+fn it_imports_the_electron_appearance_without_changing_its_storage() {
+    let root = tempfile::tempdir().unwrap();
+    let legacy = root.path().join("leveldb");
+    let mut database = rusty_leveldb::DB::open(&legacy, rusty_leveldb::Options::default()).unwrap();
+    let key = b"_app://muzo\0\x01muzo.appearance.v1";
+    let json = b"\x01{\"theme\":\"paper\",\"mode\":\"dark\",\"accent\":\"plum\"}";
+    database.put(key, json).unwrap();
+    database.flush().unwrap();
+    let before = database.get(key).unwrap();
+    let path = root.path().join("appearance-rust.json");
+    let imported = crate::appearance::load_or_import(&path, &legacy).unwrap();
+    assert_eq!(imported.theme, "paper");
+    assert_eq!(imported.mode, "dark");
+    assert_eq!(load(&path).unwrap(), imported);
+    assert_eq!(database.get(key).unwrap(), before);
+}
