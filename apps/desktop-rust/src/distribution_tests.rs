@@ -43,3 +43,26 @@ fn it_selects_the_installer_and_checksum_for_the_current_target() {
             .ends_with("/v0.0.7/Muzo-0.0.7-windows-x64-setup.exe")
     );
 }
+
+#[test]
+fn it_rejects_a_download_modified_before_installation() {
+    use crate::distribution::{Artifact, Update};
+    use sha2::{Digest, Sha256};
+
+    let installer = tempfile::NamedTempFile::new().unwrap();
+    let original = b"muzo";
+    std::fs::write(installer.path(), original).unwrap();
+    let update = Update {
+        version: "0.0.7".parse().unwrap(),
+        asset: Artifact {
+            name: "Muzo-0.0.7-linux-x64.AppImage".into(),
+            platform: "linux".into(),
+            arch: "x64".into(),
+            size: original.len() as u64,
+            sha256: format!("{:x}", Sha256::digest(original)),
+        },
+    };
+    update.verify(installer.path()).unwrap();
+    std::fs::write(installer.path(), b"bad!").unwrap();
+    assert!(update.verify(installer.path()).is_err());
+}
