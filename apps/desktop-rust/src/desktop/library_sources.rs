@@ -107,7 +107,15 @@ pub struct Snapshot {
     pub playlists: Vec<Playlist>,
     pub selected_playlist: Option<String>,
     pub playlist_entries: Vec<PlaylistEntry>,
-    pub editor: Option<(String, String, Box<[String; 7]>)>,
+    pub editor: Option<Box<TrackEditor>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct TrackEditor {
+    pub track_id: String,
+    pub library_id: String,
+    pub fields: [String; 7],
+    pub overridden: bool,
 }
 
 #[cfg(test)]
@@ -187,22 +195,23 @@ fn run_with_selection(
             previous_source.clone()
         }
         Operation::LoadTrackEditor(id, library_id) => {
-            let edit = catalogue.track_overrides(&id)?;
-            let field =
-                |value: Option<u32>| value.map_or_else(String::new, |value| value.to_string());
-            editor = Some((
-                id,
-                library_id.clone(),
-                Box::new([
-                    edit.title.unwrap_or_default(),
-                    edit.artist.unwrap_or_default(),
-                    edit.album.unwrap_or_default(),
-                    field(edit.track_number),
-                    field(edit.disc_number),
-                    edit.genre.unwrap_or_default(),
-                    field(edit.year),
-                ]),
-            ));
+            let metadata = catalogue.track_metadata(&id, &library_id)?;
+            let number =
+                |value: Option<i64>| value.map_or_else(String::new, |value| value.to_string());
+            editor = Some(Box::new(TrackEditor {
+                track_id: id,
+                library_id: library_id.clone(),
+                fields: [
+                    metadata.title,
+                    metadata.artist,
+                    metadata.album.unwrap_or_default(),
+                    number(metadata.track_number),
+                    number(metadata.disc_number),
+                    metadata.genre.unwrap_or_default(),
+                    number(metadata.year),
+                ],
+                overridden: metadata.overridden,
+            }));
             Some(library_id)
         }
         Operation::EditTrack(id, library_id, edit) => {
@@ -244,7 +253,7 @@ fn read_snapshot(
     catalogue: &Catalogue,
     selected: Option<String>,
     selected_playlist: Option<String>,
-    editor: Option<(String, String, Box<[String; 7]>)>,
+    editor: Option<Box<TrackEditor>>,
     warnings: Vec<String>,
 ) -> Result<Snapshot, CatalogueError> {
     let libraries = catalogue.libraries()?;
@@ -314,7 +323,7 @@ pub(super) struct Sources {
     pub choosing_folder: bool,
     adding_folder: bool,
     creating_playlist: bool,
-    pub editing: Option<(String, String, Box<[String; 7]>)>,
+    pub editing: Option<Box<TrackEditor>>,
     pub saving_editor: bool,
     busy: bool,
     changed: Arc<AtomicBool>,
@@ -476,8 +485,8 @@ impl Sources {
         } else {
             self.retry_watch_roots();
         }
-        if let Some(fields) = snapshot.editor.clone() {
-            self.editing = Some(fields);
+        if let Some(editor) = snapshot.editor.take() {
+            self.editing = Some(editor);
         }
         if self.saving_editor {
             self.editing = None;

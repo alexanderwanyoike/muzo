@@ -16,7 +16,49 @@ pub struct MetadataOverride {
     pub year: Option<u32>,
 }
 
+pub(crate) struct TrackMetadata {
+    pub title: String,
+    pub artist: String,
+    pub album: Option<String>,
+    pub track_number: Option<i64>,
+    pub disc_number: Option<i64>,
+    pub genre: Option<String>,
+    pub year: Option<i64>,
+    pub overridden: bool,
+}
+
 impl Catalogue {
+    pub(crate) fn track_metadata(
+        &self,
+        id: &str,
+        library_id: &str,
+    ) -> Result<TrackMetadata, CatalogueError> {
+        Ok(self.database.query_row(
+            "SELECT COALESCE(override_title, title), COALESCE(override_artist, artist),
+                    COALESCE(override_album, album), COALESCE(override_track_number, track_number),
+                    COALESCE(override_disc_number, disc_number), COALESCE(override_genre, genre),
+                    COALESCE(override_year, year),
+                    (override_title IS NOT NULL OR override_artist IS NOT NULL
+                        OR override_album IS NOT NULL OR override_track_number IS NOT NULL
+                        OR override_disc_number IS NOT NULL OR override_genre IS NOT NULL
+                        OR override_year IS NOT NULL)
+             FROM tracks WHERE id=?1 AND library_id=?2",
+            [id, library_id],
+            |row| {
+                Ok(TrackMetadata {
+                    title: row.get(0)?,
+                    artist: row.get(1)?,
+                    album: row.get(2)?,
+                    track_number: row.get(3)?,
+                    disc_number: row.get(4)?,
+                    genre: row.get(5)?,
+                    year: row.get(6)?,
+                    overridden: row.get(7)?,
+                })
+            },
+        )?)
+    }
+
     pub fn track_overrides(&self, id: &str) -> Result<MetadataOverride, CatalogueError> {
         Ok(self.database.query_row(
             "SELECT override_title, override_artist, override_album, override_track_number,

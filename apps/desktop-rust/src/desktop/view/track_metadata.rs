@@ -3,12 +3,15 @@ use iced::{
     widget::{Space, column, container, row, text},
 };
 
-use crate::{appearance::Surfaces, desktop::Message};
+use crate::{
+    appearance::Surfaces,
+    desktop::{Message, library_sources::TrackEditor},
+};
 
 use super::library::{settings_button, settings_input};
 
 pub(super) fn editor(
-    fields: &[String; 7],
+    editor: &TrackEditor,
     busy: bool,
     surfaces: Surfaces,
 ) -> iced::widget::Container<'_, Message> {
@@ -16,13 +19,23 @@ pub(super) fn editor(
     let field = |index: usize, label| {
         column![
             text(label).size(11).color(surfaces.muted),
-            settings_input(fields[index].as_str(), surfaces)
+            settings_input(&editor.fields[index], surfaces)
                 .on_input(move |value| Message::EditField(index, value))
                 .on_submit_maybe(save.clone()),
         ]
         .width(Fill)
         .spacing(5)
     };
+    let mut actions =
+        row![settings_button("Save metadata", surfaces).on_press_maybe(save.clone())].spacing(8);
+    if editor.overridden {
+        actions = actions.push(
+            settings_button("Clear override", surfaces)
+                .on_press_maybe((!busy).then_some(Message::SaveTrackEdit(true))),
+        );
+    }
+    let actions =
+        actions.push(settings_button("Cancel", surfaces).on_press(Message::CloseTrackEdit));
     container(
         column![
             row![field(0, "Title"), field(1, "Artist"), field(2, "Album")].spacing(12),
@@ -33,13 +46,7 @@ pub(super) fn editor(
                 Space::new().width(Fill)
             ]
             .spacing(12),
-            row![
-                settings_button("Save metadata", surfaces).on_press_maybe(save),
-                settings_button("Clear override", surfaces)
-                    .on_press_maybe((!busy).then_some(Message::SaveTrackEdit(true))),
-                settings_button("Cancel", surfaces).on_press(Message::CloseTrackEdit),
-            ]
-            .spacing(8),
+            actions,
         ]
         .spacing(12),
     )

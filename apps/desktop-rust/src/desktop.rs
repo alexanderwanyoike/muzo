@@ -545,8 +545,8 @@ impl Desktop {
                 .sources
                 .start(Operation::LoadTrackEditor(track.id, track.library_id)),
             Message::EditField(index, value) => {
-                if let Some((_, _, fields)) = &mut self.sources.editing
-                    && let Some(field) = fields.get_mut(index)
+                if let Some(editor) = &mut self.sources.editing
+                    && let Some(field) = editor.fields.get_mut(index)
                 {
                     *field = value;
                 }
@@ -871,11 +871,11 @@ impl Desktop {
     }
 
     fn save_track_edit(&mut self, clear: bool) -> Task<Message> {
-        let Some((id, library, fields)) = self.sources.editing.as_ref() else {
+        let Some(editor) = self.sources.editing.as_ref() else {
             return Task::none();
         };
         let non_empty = |index: usize| {
-            let value = fields[index].trim();
+            let value = editor.fields[index].trim();
             (!value.is_empty()).then(|| value.to_owned())
         };
         let mut edit = crate::catalogue::MetadataOverride::default();
@@ -906,8 +906,11 @@ impl Desktop {
             return Task::none();
         }
         self.sources.saving_editor = true;
-        self.sources
-            .start(Operation::EditTrack(id.clone(), library.clone(), edit))
+        self.sources.start(Operation::EditTrack(
+            editor.track_id.clone(),
+            editor.library_id.clone(),
+            edit,
+        ))
     }
 
     fn play_indexed(&mut self, selection: CatalogueSelection<'_>) -> Task<Message> {

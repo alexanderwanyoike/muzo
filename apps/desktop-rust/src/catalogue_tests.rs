@@ -315,9 +315,10 @@ fn it_opens_the_editor_with_effective_tags_and_saved_overrides() {
         Operation::LoadTrackEditor("song".into(), "source".into()),
     )
     .unwrap();
-    let (_, _, fields) = snapshot.editor.unwrap();
+    let editor = snapshot.editor.unwrap();
+    assert!(editor.overridden);
     assert_eq!(
-        *fields,
+        editor.fields,
         [
             "Silt and Light",
             "Mara Vale",

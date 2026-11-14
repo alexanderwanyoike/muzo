@@ -126,7 +126,12 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         library_id: "source".into(),
     });
     sources.snapshot = Some(snapshot);
-    sources.editing = Some(("song".into(), "source".into(), Box::new(Default::default())));
+    sources.editing = Some(Box::new(super::library_sources::TrackEditor {
+        track_id: "song".into(),
+        library_id: "source".into(),
+        fields: Default::default(),
+        overridden: false,
+    }));
     let dropbox = super::dropbox_panel::Settings::default();
     let preferences = crate::appearance::Appearance::default();
     let mut body: Element<'_, Message> = library_content(

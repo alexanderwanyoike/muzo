@@ -572,11 +572,11 @@ pub fn tracks<'a>(
         .spacing(8)
         .align_y(Alignment::Center);
         let mut content = column![container(body).center_y(59)];
-        if let Some((id, library, fields)) = &sources.editing
-            && id == &track.id
-            && library == &track.library_id
+        if let Some(editor) = &sources.editing
+            && editor.track_id == track.id
+            && editor.library_id == track.library_id
         {
-            content = content.push(track_metadata::editor(fields, busy, surfaces));
+            content = content.push(track_metadata::editor(editor, busy, surfaces));
         }
         column![
             container(content)
