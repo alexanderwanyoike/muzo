@@ -362,6 +362,7 @@ pub(super) struct Sources {
     pub editing: Option<Box<TrackEditor>>,
     pub playlist_picker: Option<PlaylistPicker>,
     pub playlist_message: Option<String>,
+    last_playlist_choice: Option<String>,
     adding_track: Option<(String, String, String)>,
     pending_editor: Option<(String, String)>,
     loading_editor: bool,
@@ -394,6 +395,7 @@ impl Sources {
             editing: None,
             playlist_picker: None,
             playlist_message: None,
+            last_playlist_choice: None,
             adding_track: None,
             pending_editor: None,
             loading_editor: false,
@@ -483,10 +485,13 @@ impl Sources {
         }
         self.close_editor();
         self.playlist_message = None;
-        let playlist = self
-            .snapshot
-            .as_ref()
-            .and_then(|snapshot| snapshot.playlists.first());
+        let playlist = self.snapshot.as_ref().and_then(|snapshot| {
+            snapshot
+                .playlists
+                .iter()
+                .find(|playlist| Some(&playlist.id) == self.last_playlist_choice.as_ref())
+                .or_else(|| snapshot.playlists.first())
+        });
         self.playlist_picker = Some(PlaylistPicker {
             track_id: track.id,
             library_id: track.library_id,
@@ -496,10 +501,21 @@ impl Sources {
         });
     }
 
+    pub fn choose_track_playlist(&mut self, id: String) {
+        if !self.track_add_pending()
+            && let Some(draft) = self.playlist_picker.as_mut()
+        {
+            self.last_playlist_choice = Some(id.clone());
+            draft.playlist = Some(id);
+            draft.error = None;
+        }
+    }
+
     pub fn close_track_panels(&mut self) {
         self.close_editor();
         self.playlist_picker = None;
         self.playlist_message = None;
+        self.last_playlist_choice = None;
     }
 
     pub fn track_add_pending(&self) -> bool {
@@ -656,6 +672,7 @@ impl Sources {
             && let Some(playlist) = snapshot.playlists.iter().find(|item| item.id == playlist)
         {
             self.playlist_picker = None;
+            self.last_playlist_choice = None;
             self.playlist_message = Some(format!("Added {title} to {}.", playlist.name));
         }
         if let Some(draft) = self.playlist_picker.as_mut() {

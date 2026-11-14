@@ -589,12 +589,7 @@ impl Desktop {
                 Task::none()
             }
             Message::ChooseTrackPlaylist(id) => {
-                if !self.sources.track_add_pending()
-                    && let Some(draft) = self.sources.playlist_picker.as_mut()
-                {
-                    draft.playlist = Some(id);
-                    draft.error = None;
-                }
+                self.sources.choose_track_playlist(id);
                 Task::none()
             }
             Message::SubmitPlaylistPicker => self.sources.submit_playlist_picker(),
