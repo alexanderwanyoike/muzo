@@ -4,9 +4,9 @@ use rodio::mixer;
 
 use crate::{
     desktop::{Desktop, Message},
+    local_track::read_track,
     playback::Playback,
     session::Session,
-    track::Track,
 };
 
 #[test]
@@ -14,7 +14,7 @@ fn it_keeps_the_same_audio_position_when_switching_between_players() {
     let (mixer, mut output) = mixer::mixer(NonZero::new(2).unwrap(), NonZero::new(44_100).unwrap());
     let mut session = Session::new(Playback::new(mixer));
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
-    session.extend([Track::read(path)]);
+    session.extend([read_track(path)]);
     let (mut desktop, _) = Desktop::with_session(Ok(session));
     let _ = desktop.update(Message::Select(0));
     output.by_ref().take(44_100).for_each(drop);

@@ -33,7 +33,11 @@ pub fn theme() -> Theme {
     )
 }
 
-pub fn library<'a>(session: Option<&'a Session>, error: Option<&'a str>) -> Element<'a, Message> {
+pub fn library<'a>(
+    session: Option<&'a Session>,
+    cover: Option<&image::Handle>,
+    error: Option<&'a str>,
+) -> Element<'a, Message> {
     let header = row![
         text("Library").font(bold()).size(24),
         Space::new().width(Fill),
@@ -41,7 +45,6 @@ pub fn library<'a>(session: Option<&'a Session>, error: Option<&'a str>) -> Elem
             .padding([7, 14])
             .style(primary)
             .on_press_maybe(session.map(|_| Message::OpenFiles)),
-        icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini)),
     ]
     .align_y(Alignment::Center)
     .spacing(10);
@@ -73,9 +76,16 @@ pub fn library<'a>(session: Option<&'a Session>, error: Option<&'a str>) -> Elem
             error_line(error),
             container(
                 row![
-                    artwork(session.and_then(Session::current), 54.0),
+                    artwork(cover, 54.0),
                     metadata(session.and_then(Session::current), 15),
-                    controls(session).width(Length::Fixed(300.0)),
+                    column![
+                        row![
+                            Space::new().width(Fill),
+                            icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
+                        ],
+                        controls(session),
+                    ]
+                    .width(Length::Fixed(300.0)),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(15)
@@ -94,9 +104,11 @@ pub fn library<'a>(session: Option<&'a Session>, error: Option<&'a str>) -> Elem
 
 pub fn mini<'a>(
     session: Option<&'a Session>,
-    queue_open: bool,
+    queue: (bool, bool),
+    cover: Option<&image::Handle>,
     error: Option<&'a str>,
 ) -> Element<'a, Message> {
+    let (queue_open, queue_pending) = queue;
     let header = row![
         icon_button(
             Icon::Library,
@@ -111,13 +123,13 @@ pub fn mini<'a>(
             } else {
                 "Show queue"
             },
-            Some(Message::ToggleQueue)
+            (!queue_pending).then_some(Message::ToggleQueue)
         ),
     ]
     .align_y(Alignment::Center);
     let track = session.and_then(Session::current);
     let playback = row![
-        artwork(track, 126.0),
+        artwork(cover, 126.0),
         column![metadata(track, 19), controls(session)]
             .spacing(10)
             .width(Fill),
@@ -213,10 +225,10 @@ fn metadata(track: Option<&Track>, size: u32) -> Element<'_, Message> {
     metadata.into()
 }
 
-fn artwork(track: Option<&Track>, size: f32) -> Element<'_, Message> {
+fn artwork(cover: Option<&image::Handle>, size: f32) -> Element<'static, Message> {
     let box_size = Length::Fixed(size);
-    let contents: Element<'_, Message> = match track.and_then(Track::artwork) {
-        Some(art) => image(image::Handle::from_bytes(art.to_vec()))
+    let contents: Element<'_, Message> = match cover {
+        Some(art) => image(art.clone())
             .content_fit(iced::ContentFit::Cover)
             .width(box_size)
             .height(box_size)

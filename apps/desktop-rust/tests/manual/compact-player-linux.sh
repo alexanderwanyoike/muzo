@@ -20,7 +20,7 @@ wmctrl -ir "$(printf '0x%x' "$library")" -e 0,190,105,-1,-1
 sleep .5
 geometry "$library" > library-before
 capture "$library" "$3/rust-library.png"
-xdotool mousemove --window "$library" 813 38 click 1
+xdotool mousemove --window "$library" 801 455 click 1
 mini=$(visible 'Mini player')
 sleep .5
 geometry "$mini" > mini-before
@@ -38,5 +38,12 @@ xdotool mousemove --window "$mini" 30 29 click 1
 sleep .5
 geometry "$library" > library-after
 capture "$library" "$3/rust-library-restored.png"
+xdotool key ctrl+m
+visible "Mini player" >/dev/null
+xdotool key ctrl+q
+sleep 1
+xdotool key Escape
+visible "^Muzo$" >/dev/null
+if xdotool search --onlyvisible --name "Mini player" >/dev/null; then exit 1; fi
 diff -u library-before library-after
 test "$(sed -n 's/^HEIGHT=//p' mini-queue)" -gt "$(sed -n 's/^HEIGHT=//p' mini-before)"
