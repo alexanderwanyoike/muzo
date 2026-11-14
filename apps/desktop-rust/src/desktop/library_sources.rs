@@ -399,6 +399,7 @@ impl Sources {
     fn retry_watch_roots(&mut self) {
         let roots = self.roots.clone();
         if self.roots_changed.swap(false, Ordering::AcqRel)
+            || self.registered.iter().any(|root| !root.is_dir())
             || (self.watcher.is_none() && !roots.is_empty())
         {
             self.install_watcher(&roots);
