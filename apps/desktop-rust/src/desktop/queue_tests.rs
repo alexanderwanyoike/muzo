@@ -503,3 +503,24 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
     let _ = desktop.update(Message::PlayPlaylist("missing".into()));
     assert_eq!(desktop.session.as_ref().unwrap().start_generation(), before);
 }
+
+#[test]
+fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
+    let (mut desktop, plain) = setup();
+    let fixture =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/embedded-cover.mp3");
+    let covered = read_track(fixture);
+    desktop
+        .session
+        .as_mut()
+        .unwrap()
+        .replace(vec![covered, plain]);
+
+    let _ = desktop.update(Message::Select(0));
+
+    assert!(desktop.mini_background.is_some());
+
+    let _ = desktop.update(Message::Select(1));
+
+    assert!(desktop.mini_background.is_none());
+}
