@@ -1094,43 +1094,7 @@ impl Desktop {
             } else {
                 Subscription::none()
             },
-            iced::event::listen_with(|event, status, id| {
-                if matches!(
-                    &event,
-                    iced::Event::Mouse(iced::mouse::Event::ButtonPressed(
-                        iced::mouse::Button::Left
-                    ))
-                ) {
-                    return Some(Message::AppearancePointerPressed(id));
-                }
-                if status == iced::event::Status::Captured {
-                    return None;
-                }
-                let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                    key, modifiers, ..
-                }) = event
-                else {
-                    return None;
-                };
-                use iced::keyboard::{Key, key::Named};
-                match (key.as_ref(), modifiers.command()) {
-                    (Key::Named(Named::Tab), false) => {
-                        Some(Message::CycleMiniFocus(id, modifiers.shift()))
-                    }
-                    (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id)),
-                    (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id)),
-                    (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
-                    (Key::Named(Named::ArrowLeft), false) => Some(Message::MiniArrow(id, -1)),
-                    (Key::Named(Named::ArrowRight), false) => Some(Message::MiniArrow(id, 1)),
-                    (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
-                    (Key::Character("o"), true) => Some(Message::OpenFiles),
-                    (Key::Character("q"), true) if !cfg!(target_os = "macos") => {
-                        Some(Message::ToggleQueue)
-                    }
-                    (Key::Character("q"), true) if modifiers.shift() => Some(Message::ToggleQueue),
-                    _ => None,
-                }
-            }),
+            iced::event::listen_with(input_message),
         ])
     }
 
@@ -1174,6 +1138,40 @@ impl Desktop {
     pub fn now_playing(&self) -> Option<(usize, Duration)> {
         let session = self.session.as_ref()?;
         Some((session.current_index()?, session.observe().0))
+    }
+}
+
+fn input_message(
+    event: iced::Event,
+    status: iced::event::Status,
+    id: window::Id,
+) -> Option<Message> {
+    if matches!(
+        &event,
+        iced::Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left))
+    ) {
+        return Some(Message::AppearancePointerPressed(id));
+    }
+    if status == iced::event::Status::Captured {
+        return None;
+    }
+    let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = event
+    else {
+        return None;
+    };
+    use iced::keyboard::{Key, key::Named};
+    match (key.as_ref(), modifiers.command()) {
+        (Key::Named(Named::Tab), false) => Some(Message::CycleMiniFocus(id, modifiers.shift())),
+        (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id)),
+        (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id)),
+        (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
+        (Key::Named(Named::ArrowLeft), false) => Some(Message::MiniArrow(id, -1)),
+        (Key::Named(Named::ArrowRight), false) => Some(Message::MiniArrow(id, 1)),
+        (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
+        (Key::Character("o"), true) => Some(Message::OpenFiles),
+        (Key::Character("q"), true) if !cfg!(target_os = "macos") => Some(Message::ToggleQueue),
+        (Key::Character("q"), true) if modifiers.shift() => Some(Message::ToggleQueue),
+        _ => None,
     }
 }
 
