@@ -17,8 +17,29 @@ pub enum Status {
     Available(Update),
     Downloading(u8),
     Ready(Update, PathBuf),
+    Confirming(Update, PathBuf),
     Installing,
     Error(String),
+}
+
+impl Status {
+    pub(super) fn accepts(&self, incoming: &Self) -> bool {
+        match (self, incoming) {
+            (Self::Checking, Self::Idle | Self::Available(_) | Self::Error(_)) => true,
+            (Self::Downloading(_), Self::Ready(_, _) | Self::Error(_)) => true,
+            (Self::Downloading(previous), Self::Downloading(current)) => current >= previous,
+            _ => false,
+        }
+    }
+}
+
+pub(super) fn installed_build() -> bool {
+    (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some())
+        || (cfg!(any(target_os = "windows", target_os = "macos")) && !cfg!(debug_assertions))
+}
+
+fn manual_download() -> bool {
+    cfg!(target_os = "macos") || (cfg!(target_os = "linux") && !installed_build())
 }
 
 pub fn check() -> Task<Message> {
@@ -111,17 +132,31 @@ pub fn launch(
 pub fn view(status: &Status) -> Element<'_, Message> {
     let summary = match status {
         Status::Idle => button(text(format!("Muzo {}", env!("CARGO_PKG_VERSION"))).size(11))
-            .on_press(Message::CheckUpdate),
+            .on_press_maybe(installed_build().then_some(Message::CheckUpdate)),
         Status::Checking => button(text("Checking for updates…").size(11)),
         Status::Available(update) => {
-            button(text(format!("Muzo {} available", update.version)).size(11))
-                .on_press(Message::DownloadUpdate(update.clone()))
+            let label = if manual_download() {
+                format!("Download installer for {}", update.version)
+            } else {
+                format!("Update available to {}", update.version)
+            };
+            button(text(label).size(11)).on_press(Message::DownloadUpdate(update.clone()))
         }
         Status::Downloading(percent) => {
             button(text(format!("Downloading update… {percent}%")).size(11))
         }
         Status::Ready(update, path) => button(text("Restart to install").size(11))
             .on_press(Message::InstallUpdate(update.clone(), path.clone())),
+        Status::Confirming(update, _) => {
+            return row![
+                text(format!("Restart to install {}?", update.version)).size(11),
+                button("Later").on_press(Message::CancelInstallUpdate),
+                button("Restart").on_press(Message::ConfirmInstallUpdate),
+            ]
+            .spacing(5)
+            .align_y(iced::Alignment::Center)
+            .into();
+        }
         Status::Installing => button(text("Installing update…").size(11)),
         Status::Error(error) => {
             return row![

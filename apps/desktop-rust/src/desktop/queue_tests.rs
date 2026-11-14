@@ -148,8 +148,13 @@ fn it_starts_no_second_install_while_the_first_is_running() {
     let path = PathBuf::from("download.AppImage");
     desktop.update_status = updates::Status::Ready(update.clone(), path.clone());
 
-    let first = desktop.update(Message::InstallUpdate(update.clone(), path.clone()));
-    let second = desktop.update(Message::InstallUpdate(update, path));
+    let _ = desktop.update(Message::InstallUpdate(update, path));
+    assert!(matches!(
+        desktop.update_status,
+        updates::Status::Confirming(_, _)
+    ));
+    let first = desktop.update(Message::ConfirmInstallUpdate);
+    let second = desktop.update(Message::ConfirmInstallUpdate);
 
     assert!(first.units() > 0);
     assert_eq!(second.units(), 0);
@@ -302,5 +307,8 @@ fn it_keeps_install_download_progress_when_another_check_arrives() {
     let check = desktop.update(Message::CheckUpdate);
 
     assert_eq!(check.units(), 0);
-    assert!(matches!(desktop.update_status, updates::Status::Downloading(42)));
+    assert!(matches!(
+        desktop.update_status,
+        updates::Status::Downloading(42)
+    ));
 }

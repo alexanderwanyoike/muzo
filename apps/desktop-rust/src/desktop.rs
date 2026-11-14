@@ -42,6 +42,8 @@ pub enum Message {
     UpdateReceived(updates::Status),
     DownloadUpdate(crate::distribution::Update),
     InstallUpdate(crate::distribution::Update, PathBuf),
+    ConfirmInstallUpdate,
+    CancelInstallUpdate,
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
@@ -233,14 +235,18 @@ impl Desktop {
                 Task::none()
             }
             Message::CheckUpdate => {
-                if matches!(self.update_status, updates::Status::Installing) {
+                if !matches!(
+                    self.update_status,
+                    updates::Status::Idle | updates::Status::Error(_)
+                ) || !updates::installed_build()
+                {
                     return Task::none();
                 }
                 self.update_status = updates::Status::Checking;
                 updates::check()
             }
             Message::UpdateReceived(status) => {
-                if !matches!(self.update_status, updates::Status::Installing) {
+                if self.update_status.accepts(&status) {
                     self.update_status = status;
                 }
                 Task::none()
@@ -267,6 +273,20 @@ impl Desktop {
                 if !matches!(self.update_status, updates::Status::Ready(_, _)) {
                     return Task::none();
                 }
+                self.update_status = updates::Status::Confirming(update, path);
+                Task::none()
+            }
+            Message::CancelInstallUpdate => {
+                if let updates::Status::Confirming(update, path) = &self.update_status {
+                    self.update_status = updates::Status::Ready(update.clone(), path.clone());
+                }
+                Task::none()
+            }
+            Message::ConfirmInstallUpdate => {
+                let updates::Status::Confirming(update, path) = &self.update_status else {
+                    return Task::none();
+                };
+                let (update, path) = (update.clone(), path.clone());
                 self.update_status = updates::Status::Installing;
                 Task::perform(
                     async move {
@@ -819,6 +839,11 @@ impl Desktop {
             window::close_requests().map(Message::CloseRequested),
             iced::time::every(Duration::from_secs(1)).map(|_| Message::SourceWatchTick),
             window::resize_events().map(|(id, size)| Message::MiniResized(id, size)),
+            if updates::installed_build() {
+                iced::time::every(Duration::from_secs(6 * 60 * 60)).map(|_| Message::CheckUpdate)
+            } else {
+                Subscription::none()
+            },
             if self.session.as_ref().is_some_and(Session::is_playing) {
                 iced::time::every(Duration::from_millis(100)).map(|_| Message::Tick)
             } else {
@@ -898,9 +923,7 @@ impl Desktop {
 }
 
 fn auto_update() -> Task<Message> {
-    if (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some())
-        || (cfg!(any(target_os = "windows", target_os = "macos")) && !cfg!(debug_assertions))
-    {
+    if updates::installed_build() {
         Task::done(Message::CheckUpdate)
     } else {
         Task::none()
