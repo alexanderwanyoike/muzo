@@ -82,7 +82,7 @@ pub fn library<'a>(
         ]
         .padding([5, 10])
         .spacing(8);
-        let list = queue_rows(session);
+        let list = queue_rows(session, None, false);
         column![heading, scrollable(list).height(Fill)].spacing(5)
     } else {
         column![
@@ -108,7 +108,7 @@ pub fn library<'a>(
             ]
             .spacing(16),
             error_line(sources.error.as_deref()),
-            playback_error(error, retry, false),
+            playback_error(error, retry, false, false),
             container(
                 row![
                     artwork(cover, 54.0),
@@ -118,7 +118,7 @@ pub fn library<'a>(
                             Space::new().width(Fill),
                             icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini))
                         ],
-                        controls(session, retry, None),
+                        controls(session, retry, None, false),
                     ]
                     .width(Length::Fixed(300.0)),
                 ]
@@ -151,7 +151,7 @@ pub(super) fn mini<'a>(
         focusable_icon(
             Icon::Library,
             "Return to library",
-            Some(Message::ShowLibrary),
+            Some(Message::ClickMiniControl(Control::Library)),
             focus == Some(Control::Library),
         ),
         Space::new().width(Fill),
@@ -162,7 +162,7 @@ pub(super) fn mini<'a>(
             } else {
                 "Show queue"
             },
-            (!queue_pending).then_some(Message::ToggleQueue),
+            (!queue_pending).then_some(Message::ClickMiniControl(Control::Queue)),
             focus == Some(Control::Queue),
         ),
     ]
@@ -170,7 +170,7 @@ pub(super) fn mini<'a>(
     let track = session.and_then(Session::current);
     let playback = row![
         artwork(cover, 126.0),
-        column![metadata(track, 19), controls(session, retry, focus)]
+        column![metadata(track, 19), controls(session, retry, focus, true)]
             .spacing(10)
             .width(Fill),
     ]
@@ -180,7 +180,7 @@ pub(super) fn mini<'a>(
     let mut content = column![
         header,
         container(playback).width(Fill).padding(12).style(panel),
-        playback_error(error, retry, focus == Some(Control::Retry)),
+        playback_error(error, retry, focus == Some(Control::Retry), true),
     ]
     .spacing(8);
 
@@ -189,7 +189,7 @@ pub(super) fn mini<'a>(
             .filter(|session| !session.tracks().is_empty())
             .map_or_else(
                 || column![text("Queue is empty").size(13).style(muted)],
-                queue_rows,
+                |session| queue_rows(session, focus, true),
             );
         content = content
             .push(text("Queue").font(bold()).size(15))
@@ -202,7 +202,11 @@ pub(super) fn mini<'a>(
         .into()
 }
 
-fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
+fn queue_rows(
+    session: &Session,
+    focus: Option<super::mini_focus::Control>,
+    is_mini: bool,
+) -> iced::widget::Column<'_, Message> {
     column(session.tracks().iter().enumerate().map(|(index, track)| {
         let current = session.current_index() == Some(index);
         button(
@@ -222,13 +226,20 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
         .width(Fill)
         .padding([8, 10])
         .style(move |theme, status| {
-            if current {
+            let style = if current {
                 selected(theme, status)
             } else {
                 action(theme, status)
-            }
+            };
+            focus_ring(
+                style,
+                theme,
+                focus == Some(super::mini_focus::Control::Track(index)),
+            )
         })
-        .on_press(if current {
+        .on_press(if is_mini {
+            Message::ClickMiniControl(super::mini_focus::Control::Track(index))
+        } else if current {
             Message::TogglePlayback
         } else {
             Message::Select(index)
@@ -294,6 +305,7 @@ fn controls(
     session: Option<&Session>,
     retry: bool,
     focus: Option<super::mini_focus::Control>,
+    is_mini: bool,
 ) -> iced::widget::Column<'_, Message> {
     use super::mini_focus::Control;
     let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
@@ -323,23 +335,42 @@ fn controls(
     )
     .step(0.01)
     .width(Length::Fixed(60.0));
+    let message = |control, fallback| {
+        if is_mini {
+            Message::ClickMiniControl(control)
+        } else {
+            fallback
+        }
+    };
+    let volume = container(volume).padding(2).style(move |theme: &Theme| {
+        let style = container::Style::default();
+        if focus == Some(Control::Volume) {
+            style.border(
+                border::rounded(4)
+                    .width(2.0)
+                    .color(theme.extended_palette().background.base.text),
+            )
+        } else {
+            style
+        }
+    });
     let transport = row![
         focusable_icon(
             Icon::Previous,
             "Previous track",
-            has_previous.then_some(Message::Previous),
+            has_previous.then_some(message(Control::Previous, Message::Previous)),
             focus == Some(Control::Previous),
         ),
         focusable_icon(
             if playing { Icon::Pause } else { Icon::Play },
             if playing { "Pause" } else { "Play" },
-            available.then_some(Message::TogglePlayback),
+            available.then_some(message(Control::Playback, Message::TogglePlayback)),
             focus == Some(Control::Playback),
         ),
         focusable_icon(
             Icon::Next,
             "Next track",
-            has_next.then_some(Message::Next),
+            has_next.then_some(message(Control::Next, Message::Next)),
             focus == Some(Control::Next),
         ),
         Space::new().width(Fill),
@@ -364,14 +395,23 @@ fn error_line(error: Option<&str>) -> Element<'_, Message> {
     }
 }
 
-fn playback_error(error: Option<&str>, retry: bool, focused: bool) -> Element<'_, Message> {
+fn playback_error(
+    error: Option<&str>,
+    retry: bool,
+    focused: bool,
+    is_mini: bool,
+) -> Element<'_, Message> {
     if retry {
         row![
             error_line(error),
             button(text("Retry track").size(12))
                 .padding([2, 6])
                 .style(move |theme, status| focus_ring(action(theme, status), theme, focused))
-                .on_press(Message::RetryTrack),
+                .on_press(if is_mini {
+                    Message::ClickMiniControl(super::mini_focus::Control::Retry)
+                } else {
+                    Message::RetryTrack
+                }),
         ]
         .align_y(Alignment::Center)
         .spacing(5)

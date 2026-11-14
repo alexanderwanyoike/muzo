@@ -1,6 +1,7 @@
 mod dropbox_panel;
 pub(crate) mod library_sources;
 mod mini_focus;
+pub use mini_focus::Control as MiniControl;
 mod updates;
 mod view;
 mod windows;
@@ -70,6 +71,9 @@ pub enum Message {
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
     ActivateMiniFocus(window::Id),
+    MiniSpace(window::Id),
+    MiniArrow(window::Id, i8),
+    ClickMiniControl(MiniControl),
     CloseRequested(window::Id),
     MiniResized(window::Id, iced::Size),
     CheckQueueSize(window::Id, u64),
@@ -437,32 +441,57 @@ impl Desktop {
             }
             Message::CycleMiniFocus(id, backwards) => {
                 if self.windows.is_mini(id) {
+                    let queue_len = self
+                        .session
+                        .as_ref()
+                        .filter(|_| self.windows.queue_open())
+                        .map_or(0, |session| session.tracks().len());
                     self.mini_focus =
-                        mini_focus::Control::next(self.mini_focus, backwards, |control| {
-                            control
-                                .message(
-                                    self.session.as_ref(),
-                                    self.failed_track.is_some(),
-                                    self.windows.queue_pending(),
-                                )
-                                .is_some()
+                        MiniControl::next(self.mini_focus, backwards, queue_len, |control| {
+                            control.enabled(
+                                self.session.as_ref(),
+                                self.failed_track.is_some(),
+                                self.windows.queue_pending(),
+                                self.windows.queue_open(),
+                            )
                         });
                 }
                 Task::none()
             }
             Message::ActivateMiniFocus(id) => {
-                if self.windows.is_mini(id)
-                    && let Some(message) = self.mini_focus.and_then(|control| {
-                        control.message(
-                            self.session.as_ref(),
-                            self.failed_track.is_some(),
-                            self.windows.queue_pending(),
-                        )
-                    })
-                {
+                if let Some(control) = self.mini_focus.filter(|_| self.windows.is_mini(id)) {
+                    return self.update(Message::ClickMiniControl(control));
+                }
+                Task::none()
+            }
+            Message::ClickMiniControl(control) => {
+                if let Some(message) = control.message(
+                    self.session.as_ref(),
+                    self.failed_track.is_some(),
+                    self.windows.queue_pending(),
+                    self.windows.queue_open(),
+                ) {
+                    self.mini_focus = Some(control);
                     return self.update(message);
                 }
                 Task::none()
+            }
+            Message::MiniSpace(id) => {
+                if self.windows.is_mini(id) && self.mini_focus.is_some() {
+                    self.update(Message::ActivateMiniFocus(id))
+                } else {
+                    self.update(Message::TogglePlayback)
+                }
+            }
+            Message::MiniArrow(id, step) => {
+                if self.windows.is_mini(id) && self.mini_focus == Some(MiniControl::Volume) {
+                    let volume = self.session.as_ref().map_or(1.0, Session::volume);
+                    self.update(Message::SetVolume(
+                        (volume + 0.05 * f32::from(step)).clamp(0.0, 1.0),
+                    ))
+                } else {
+                    self.update(Message::SeekRelative(step * 5))
+                }
             }
             Message::MiniOpened(id) => self.windows.mini_opened(id),
             Message::LibraryVisibilityChecked(id, wayland) => {
@@ -738,10 +767,10 @@ impl Desktop {
                         Some(Message::CycleMiniFocus(id, modifiers.shift()))
                     }
                     (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id)),
-                    (Key::Named(Named::Space), false) => Some(Message::TogglePlayback),
+                    (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id)),
                     (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
-                    (Key::Named(Named::ArrowLeft), false) => Some(Message::SeekRelative(-5)),
-                    (Key::Named(Named::ArrowRight), false) => Some(Message::SeekRelative(5)),
+                    (Key::Named(Named::ArrowLeft), false) => Some(Message::MiniArrow(id, -1)),
+                    (Key::Named(Named::ArrowRight), false) => Some(Message::MiniArrow(id, 1)),
                     (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
                     (Key::Character("o"), true) => Some(Message::OpenFiles),
                     (Key::Character("q"), true) if !cfg!(target_os = "macos") => {
