@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="924" height="96" viewBox="0 0 924 96">
+<svg xmlns="http://www.w3.org/2000/svg" width="924" height="1024" viewBox="0 0 924 1024">
   <!-- Four horizontal periods keep tile edges whole at common fractional display scales. -->
+  <!-- The full grain height avoids resetting the slant between rows in the player. -->
   <defs>
-    <pattern id="grain" width="11" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(-2)">
-      <path d="M0 0h1v96H0z" fill="#6a3c19" opacity="0.031"/>
+    <pattern id="grain" width="11" height="1024" patternUnits="userSpaceOnUse" patternTransform="skewX(-2)">
+      <path d="M0 0h1v1024H0z" fill="#6a3c19" opacity="0.031"/>
     </pattern>
-    <pattern id="highlight" width="21" height="96" patternUnits="userSpaceOnUse" patternTransform="skewX(2)">
-      <path d="M19 0h2v96h-2z" fill="#ffffff" opacity="0.071"/>
+    <pattern id="highlight" width="21" height="1024" patternUnits="userSpaceOnUse" patternTransform="skewX(2)">
+      <path d="M19 0h2v1024h-2z" fill="#ffffff" opacity="0.071"/>
     </pattern>
   </defs>
-  <path d="M0 0h924v96H0z" fill="url(#highlight)"/>
-  <path d="M0 0h924v96H0z" fill="url(#grain)"/>
+  <path d="M0 0h924v1024H0z" fill="url(#highlight)"/>
+  <path d="M0 0h924v1024H0z" fill="url(#grain)"/>
 </svg>
