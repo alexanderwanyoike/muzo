@@ -289,14 +289,16 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         body = body.push(library::line(surfaces));
     }
     let list: Element<'_, Message> = match (libraries, matching) {
-        (None | Some(0), _) => {
+        (None, _) if sources.error.is_some() => Space::new().into(),
+        (None, _) => source_search_empty("Loading sources...", surfaces).into(),
+        (Some(0), _) => {
             source_search_empty("No libraries yet. Add one in Settings.", surfaces).into()
         }
         (_, 0) => source_search_empty("No sources match your search.", surfaces).into(),
         _ => column(source_rows).into(),
     };
     body = body.push(scrollable(list).height(Fill));
-    if sources.busy() {
+    if libraries.is_some() && sources.busy() {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
     }
@@ -330,12 +332,10 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
 }
 
 fn source_count(sources: &Sources) -> Option<usize> {
-    Some(
-        sources
-            .snapshot
-            .as_ref()
-            .map_or(0, |snapshot| snapshot.libraries.len()),
-    )
+    sources
+        .snapshot
+        .as_ref()
+        .map(|snapshot| snapshot.libraries.len())
 }
 
 #[cfg(test)]
