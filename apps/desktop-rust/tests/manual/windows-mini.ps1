@@ -99,10 +99,29 @@ function Save-MuzoWindow([IntPtr] $Window, [string] $Name) {
     }
 }
 
+function Stop-MuzoProcess([Diagnostics.Process] $Process) {
+    if (!$Process) { return }
+    try {
+        if (!$Process.HasExited) {
+            [void] $Process.CloseMainWindow()
+            if (!$Process.WaitForExit($exitTimeoutMilliseconds)) {
+                Stop-Process -InputObject $Process -ErrorAction SilentlyContinue
+                if (!$Process.WaitForExit($exitTimeoutMilliseconds)) { throw 'The test Muzo process did not stop.' }
+            }
+        }
+    } catch [InvalidOperationException] {
+        if (!$Process.HasExited) { throw }
+    } finally {
+        $Process.Dispose()
+    }
+}
+
 $data = [IO.Directory]::CreateTempSubdirectory('muzo-mini-')
 $application = $null
-$previousDpi = [MuzoWindows]::SetThreadDpiAwarenessContext([IntPtr] [MuzoWindows]::DpiAwarenessContextPerMonitorAwareV2)
+$previousDpi = [IntPtr]::Zero
+$testFailed = $false
 try {
+    $previousDpi = [MuzoWindows]::SetThreadDpiAwarenessContext([IntPtr] [MuzoWindows]::DpiAwarenessContextPerMonitorAwareV2)
     New-Item -ItemType Directory -Force -Path $Screenshots | Out-Null
     $recording = Join-Path $data.FullName 'Local track.mp3'
     Copy-Item (Join-Path $PSScriptRoot '../fixtures/tone.mp3') $recording
@@ -146,13 +165,21 @@ try {
     }
     Save-MuzoWindow $restored 'windows-library-restored'
     Write-Host 'Verified the Windows compact window, queue expansion and collapse, and maximized library restoration.'
+} catch {
+    $testFailed = $true
+    throw
 } finally {
-    if ($application -and !$application.HasExited) {
-        [void] $application.CloseMainWindow()
-        if (!$application.WaitForExit($exitTimeoutMilliseconds)) { $application.Kill(); $application.WaitForExit() }
+    try {
+        try {
+            Stop-MuzoProcess $application
+        } finally {
+            if ($previousDpi -ne [IntPtr]::Zero) {
+                [void] [MuzoWindows]::SetThreadDpiAwarenessContext($previousDpi)
+            }
+            $data.Delete($true)
+        }
+    } catch {
+        if (!$testFailed) { throw }
+        Write-Warning "Could not clean up after the Muzo smoke test. $($_.Exception.Message)"
     }
-    if ($previousDpi -ne [IntPtr]::Zero) {
-        [void] [MuzoWindows]::SetThreadDpiAwarenessContext($previousDpi)
-    }
-    $data.Delete($true)
 }
