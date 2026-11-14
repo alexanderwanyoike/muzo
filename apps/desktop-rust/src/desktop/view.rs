@@ -12,6 +12,7 @@ mod compact;
 mod library;
 mod playlists;
 mod sleeve_image;
+mod source_search_input;
 mod sources;
 
 use super::{Message, library_sources::Sources};

@@ -356,7 +356,7 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
 }
 
 fn source_search_input(input: iced::widget::TextInput<'_, Message>) -> Element<'_, Message> {
-    input.into()
+    Element::new(super::source_search_input::SourceSearchInput(input))
 }
 
 #[cfg(test)]
@@ -366,7 +366,7 @@ fn it_clears_the_focused_source_search_when_escape_is_pressed() {
         Layout, Shell, clipboard, layout, mouse,
         widget::{Tree, operation::focusable::focus},
     };
-    use iced::{Font, Pixels, Rectangle, Renderer, Size, Theme, keyboard};
+    use iced::{Font, Pixels, Rectangle, Renderer, Size, keyboard};
 
     let input = text_input("Search sources", "Archive")
         .id(SOURCE_SEARCH)
@@ -412,7 +412,6 @@ fn it_clears_the_focused_source_search_when_escape_is_pressed() {
 
     assert!(shell.is_event_captured());
     assert!(matches!(messages.as_slice(), [Message::ClearSourceSearch]));
-    let _ = Theme::Light;
 }
 
 fn source_search_empty(
