@@ -88,3 +88,31 @@ fn it_rejects_an_update_with_mismatched_platform_metadata() {
 
     assert!(update_for("0.0.6", Target::LinuxX64, release).is_err());
 }
+
+#[test]
+fn it_reports_download_progress_before_publishing_the_verified_installer() {
+    use crate::distribution::{Artifact, Update};
+    use sha2::{Digest, Sha256};
+    let directory = tempfile::tempdir().unwrap();
+    let payload = vec![2u8; 100_000];
+    let update = Update {
+        version: semver::Version::new(0, 0, 7),
+        asset: Artifact {
+            name: filename("0.0.7", Target::LinuxX64),
+            platform: "linux".into(),
+            arch: "x64".into(),
+            size: payload.len() as u64,
+            sha256: format!("{:x}", Sha256::digest(&payload)),
+        },
+    };
+    let mut ticks = Vec::new();
+    let path = update
+        .persist_download(directory.path(), payload.as_slice(), |percentage| {
+            ticks.push(percentage);
+        })
+        .unwrap();
+    assert_eq!(ticks.first(), Some(&0));
+    assert!(ticks.iter().any(|step| (1..100).contains(step)));
+    assert_eq!(ticks.last(), Some(&100));
+    assert_eq!(std::fs::read(path).unwrap(), payload);
+}
