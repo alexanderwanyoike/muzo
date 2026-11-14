@@ -87,6 +87,11 @@ pub enum Message {
     QueueResizeTimedOut(window::Id, u64, iced::Size),
 }
 
+enum CatalogueSelection<'a> {
+    Source(usize),
+    PlaylistEntry(&'a str),
+}
+
 pub struct Desktop {
     windows: Windows,
     session: Option<Session>,
@@ -350,18 +355,9 @@ impl Desktop {
                 self.sources.pending_remove = None;
                 Task::none()
             }
-            Message::PlayIndexed(index) => self.play_indexed(index, None),
+            Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
             Message::PlayPlaylist(entry) => {
-                if self
-                    .session
-                    .as_ref()
-                    .and_then(Session::current)
-                    .and_then(Track::playlist_entry)
-                    == Some(&entry)
-                {
-                    return self.update(Message::TogglePlayback);
-                }
-                self.play_indexed(0, Some(&entry))
+                self.play_indexed(CatalogueSelection::PlaylistEntry(&entry))
             }
             Message::PlaylistName(name) => {
                 self.sources.playlist_name = name;
@@ -710,33 +706,50 @@ impl Desktop {
             .start(Operation::EditTrack(id.clone(), library.clone(), edit))
     }
 
-    fn play_indexed(&mut self, index: usize, entry: Option<&str>) -> Task<Message> {
+    fn play_indexed(&mut self, selection: CatalogueSelection<'_>) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
-        let position;
-        let tracks: Vec<_> = if let Some(entry) = entry {
-            let tracks: Vec<_> = snapshot
-                .playlist_entries
-                .iter()
-                .filter_map(|item| Some((item.track.clone()?, Some(item.id.clone()))))
-                .collect();
-            let Some(found) = tracks
-                .iter()
-                .position(|(_, id)| id.as_deref() == Some(entry))
-            else {
-                return Task::none();
-            };
-            position = found;
-            tracks
-        } else {
-            position = index;
-            snapshot
-                .tracks
-                .iter()
-                .cloned()
-                .map(|track| (track, None))
-                .collect()
+        let (position, tracks): (_, Vec<_>) = match selection {
+            CatalogueSelection::Source(index) => (
+                index,
+                snapshot
+                    .tracks
+                    .iter()
+                    .cloned()
+                    .map(|track| (track, None))
+                    .collect(),
+            ),
+            CatalogueSelection::PlaylistEntry(entry) => {
+                if !snapshot
+                    .playlist_entries
+                    .iter()
+                    .any(|item| item.id == entry && item.track.is_some())
+                {
+                    return Task::none();
+                }
+                if self
+                    .session
+                    .as_ref()
+                    .and_then(Session::current)
+                    .and_then(Track::playlist_entry)
+                    == Some(entry)
+                {
+                    return self.update(Message::TogglePlayback);
+                }
+                let tracks: Vec<_> = snapshot
+                    .playlist_entries
+                    .iter()
+                    .filter_map(|item| Some((item.track.clone()?, Some(item.id.clone()))))
+                    .collect();
+                let Some(position) = tracks
+                    .iter()
+                    .position(|(_, id)| id.as_deref() == Some(entry))
+                else {
+                    return Task::none();
+                };
+                (position, tracks)
+            }
         };
         if position >= tracks.len() || self.session.is_none() {
             return Task::none();
