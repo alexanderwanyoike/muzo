@@ -1285,3 +1285,70 @@ fn it_opens_the_playlist_popup_and_confirms_a_keyboard_choice() {
     );
     assert!(!desktop.sources.track_add_pending());
 }
+
+#[test]
+fn it_ignores_playlist_confirmation_repeats_and_cancels_the_preview_on_escape() {
+    use iced::keyboard::{
+        Event, Key, Location, Modifiers,
+        key::{Named, NativeCode, Physical},
+    };
+
+    let press = |desktop: &mut Desktop, name, repeat| {
+        let key = Key::Named(name);
+        let event = iced::Event::Keyboard(Event::KeyPressed {
+            key: key.clone(),
+            modified_key: key,
+            physical_key: Physical::Unidentified(NativeCode::Unidentified),
+            location: Location::Standard,
+            modifiers: Modifiers::empty(),
+            text: None,
+            repeat,
+        });
+        let library = desktop.windows.library_id();
+        if let Some(message) = input_message(event, iced::event::Status::Ignored, library) {
+            let _ = desktop.update(message);
+        }
+    };
+    for confirmation in [Named::Enter, Named::Space] {
+        let (mut desktop, track) = editing_source();
+        desktop.sources.snapshot.as_mut().unwrap().playlists = ["First", "Second"]
+            .into_iter()
+            .map(|name| crate::catalogue::Playlist {
+                id: name.to_lowercase(),
+                name: name.into(),
+            })
+            .collect();
+        let _ = desktop.update(Message::OpenPlaylistPicker(track));
+        press(&mut desktop, Named::Tab, false);
+        press(&mut desktop, confirmation, false);
+        press(&mut desktop, Named::ArrowDown, true);
+        press(&mut desktop, confirmation, true);
+
+        assert!(playlist_popup_is_visible(&desktop));
+        assert_eq!(
+            desktop
+                .sources
+                .playlist_picker
+                .as_ref()
+                .unwrap()
+                .preview
+                .as_deref(),
+            Some("second")
+        );
+
+        press(&mut desktop, Named::Escape, false);
+
+        assert!(!playlist_popup_is_visible(&desktop));
+        assert_eq!(
+            desktop
+                .sources
+                .playlist_picker
+                .as_ref()
+                .unwrap()
+                .playlist
+                .as_deref(),
+            Some("first")
+        );
+        assert!(!desktop.sources.track_add_pending());
+    }
+}
