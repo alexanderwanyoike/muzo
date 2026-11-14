@@ -7,6 +7,12 @@ use super::{Appearance, AppearanceError};
 const APPEARANCE_KEY: &[u8] = b"muzo.appearance.v1";
 
 pub fn read(path: &Path) -> Result<Option<Appearance>, AppearanceError> {
+    read_setting(path, APPEARANCE_KEY)?
+        .map(|value| serde_json::from_str(&value).map_err(AppearanceError::from))
+        .transpose()
+}
+
+pub fn read_setting(path: &Path, setting: &[u8]) -> Result<Option<String>, AppearanceError> {
     if !path.join("CURRENT").is_file() {
         return Ok(None);
     }
@@ -30,9 +36,9 @@ pub fn read(path: &Path) -> Result<Option<Appearance>, AppearanceError> {
         .map_err(|error| AppearanceError::Legacy(error.to_string()))?;
     while let Some((key, value)) = iterator.next() {
         if !key.starts_with(b"_")
-            || !key.ends_with(APPEARANCE_KEY)
+            || !key.ends_with(setting)
             || !key
-                .get(..key.len() - APPEARANCE_KEY.len())
+                .get(..key.len() - setting.len())
                 .is_some_and(|prefix| prefix.ends_with(b"\0\x01"))
         {
             continue;
@@ -55,7 +61,7 @@ pub fn read(path: &Path) -> Result<Option<Appearance>, AppearanceError> {
             }
             _ => return Err(AppearanceError::Invalid),
         };
-        return Ok(Some(serde_json::from_str(&decoded)?));
+        return Ok(Some(decoded));
     }
     Ok(None)
 }

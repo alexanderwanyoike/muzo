@@ -1,5 +1,6 @@
 mod legacy;
 mod palette;
+pub mod sidebar;
 
 use std::{
     fs,
