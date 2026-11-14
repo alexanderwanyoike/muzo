@@ -51,12 +51,12 @@ impl Windows {
         if !self.is_mini(id) {
             return Task::none();
         }
-        window::set_mode(self.library, window::Mode::Hidden)
+        window::minimize(self.library, true)
     }
 
     pub fn show_library(&mut self) -> Task<Message> {
         self.mini.take().map_or_else(Task::none, |id| {
-            window::set_mode(self.library, window::Mode::Windowed)
+            window::minimize(self.library, false)
                 .chain(window::gain_focus(self.library))
                 .chain(window::close(id))
         })
