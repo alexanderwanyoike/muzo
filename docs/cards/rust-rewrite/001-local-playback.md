@@ -33,3 +33,7 @@ advance, recovery from a missing file and playback continuity when switching
 windows. The X11 smoke test uses a disposable Xvfb display and Metacity to check
 the moved library window's geometry before and after compact mode. It also opens
 the queue, selects another track and seeks in it.
+
+Ogg Opus uses Symphonia's demuxer and the MIT or Apache 2.0
+[Opus decoder](https://docs.rs/opus-decoder/0.1.1/opus_decoder/) for packet
+decoding. A real Opus fixture exercises playback and seek.
