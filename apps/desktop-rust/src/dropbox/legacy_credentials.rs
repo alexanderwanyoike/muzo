@@ -43,3 +43,15 @@ mod platform;
 #[cfg(target_os = "windows")]
 #[path = "legacy_credentials/windows.rs"]
 mod platform;
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "run only with a disposable D-Bus Secret Service"]
+    fn it_decrypts_a_token_created_by_the_electron_safe_storage_backend() {
+        let ciphertext = std::env::var("MUZO_TEST_ENCRYPTED_REFRESH").unwrap();
+        assert_eq!(decrypt(&ciphertext).unwrap(), "muzo-fixture-refresh-7");
+    }
+}
