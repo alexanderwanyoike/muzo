@@ -284,8 +284,12 @@ impl Operation<u64> for ApplyScroll {
 }
 
 pub(super) fn reveal(control: Control) -> RevealControl {
+    reveal_songs_control(control.id())
+}
+
+pub(super) fn reveal_songs_control(id: &'static str) -> RevealControl {
     RevealControl {
-        target: control.id().into(),
+        target: id.into(),
         viewport: None,
         bounds: None,
     }
@@ -325,7 +329,6 @@ impl Operation for RevealControl {
         }
     }
 
-    #[cfg(test)]
     fn finish(&self) -> Outcome<()> {
         self.offset().map_or(Outcome::None, |offset| {
             Outcome::Chain(Box::new(

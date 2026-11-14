@@ -127,6 +127,7 @@ pub(super) struct PlaylistPicker {
     pub title: String,
     pub playlist: Option<String>,
     pub error: Option<String>,
+    pub focus: Option<super::playlist_picker_focus::Control>,
 }
 
 struct PlaylistAddition {
@@ -498,6 +499,7 @@ impl Sources {
             title: track.title,
             playlist: playlist.map(|playlist| playlist.id.clone()),
             error: None,
+            focus: None,
         });
     }
 
@@ -508,6 +510,30 @@ impl Sources {
             self.last_playlist_choice = Some(id.clone());
             draft.playlist = Some(id);
             draft.error = None;
+        }
+    }
+
+    pub fn step_track_playlist(&mut self, step: i8) {
+        let Some(draft) = self.playlist_picker.as_ref() else {
+            return;
+        };
+        let Some(snapshot) = &self.snapshot else {
+            return;
+        };
+        let playlists = &snapshot.playlists;
+        let next = draft
+            .playlist
+            .as_ref()
+            .and_then(|id| {
+                playlists
+                    .iter()
+                    .position(|playlist| &playlist.id == id)
+                    .and_then(|index| index.checked_add_signed(isize::from(step)))
+                    .and_then(|index| playlists.get(index))
+            })
+            .map(|playlist| playlist.id.clone());
+        if let Some(id) = next {
+            self.choose_track_playlist(id);
         }
     }
 

@@ -4,6 +4,7 @@ mod dropbox_panel;
 pub(crate) mod library_sources;
 pub(crate) mod material;
 mod mini_focus;
+mod playlist_picker_focus;
 mod row_cover;
 mod settings_scroll;
 mod sidebar;
@@ -107,6 +108,7 @@ pub enum Message {
     ActivateMiniFocus(window::Id),
     MiniSpace(window::Id),
     MiniArrow(window::Id, i8),
+    PlaylistPickerVerticalArrow(window::Id, i8),
     ClickMiniControl(MiniControl),
     CloseRequested(window::Id),
     MiniResized(window::Id, iced::Size),
@@ -482,6 +484,9 @@ impl Desktop {
                 }
                 if self.windows.is_library(id) {
                     self.appearance_focus = None;
+                    if let Some(picker) = &mut self.sources.playlist_picker {
+                        picker.focus = None;
+                    }
                 }
                 Task::none()
             }
@@ -804,6 +809,12 @@ impl Desktop {
             Message::CycleMiniFocus(id, backwards) => {
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Songs
+                    && let Some(task) = self.focus_playlist_picker(backwards)
+                {
+                    return task;
+                }
+                if self.windows.is_library(id)
+                    && self.page == LibraryPage::Songs
                     && !self.sources.editor_save_pending()
                     && self.sources.editing.is_some()
                 {
@@ -836,6 +847,9 @@ impl Desktop {
                 Task::none()
             }
             Message::ActivateMiniFocus(id) => {
+                if let Some(task) = self.route_playlist_picker_activation(id) {
+                    return task;
+                }
                 if let Some(task) = self.route_track_editor_activation(id) {
                     return task;
                 }
@@ -863,6 +877,9 @@ impl Desktop {
                 Task::none()
             }
             Message::MiniSpace(id) => {
+                if let Some(task) = self.route_playlist_picker_activation(id) {
+                    return task;
+                }
                 if let Some(task) = self.route_track_editor_activation(id) {
                     return task;
                 }
@@ -878,7 +895,14 @@ impl Desktop {
                     self.update(Message::TogglePlayback)
                 }
             }
+            Message::PlaylistPickerVerticalArrow(id, step) => {
+                self.route_playlist_picker_arrow(id, step);
+                Task::none()
+            }
             Message::MiniArrow(id, step) => {
+                if self.route_playlist_picker_arrow(id, step) {
+                    return Task::none();
+                }
                 if self.windows.is_mini(id) && self.mini_focus == Some(MiniControl::Volume) {
                     let volume = self.session.as_ref().map_or(1.0, Session::volume);
                     self.update(Message::SetVolume(
@@ -969,6 +993,52 @@ impl Desktop {
             self.error = Some(error.to_string());
         }
         Task::none()
+    }
+
+    fn focus_playlist_picker(&mut self, backwards: bool) -> Option<Task<Message>> {
+        let pending = self.sources.track_add_pending();
+        let can_add = !self.sources.busy();
+        let picker = self.sources.playlist_picker.as_mut()?;
+        if pending {
+            return Some(Task::none());
+        }
+        let next = playlist_picker_focus::Control::next(
+            picker.focus,
+            backwards,
+            picker.playlist.is_some(),
+            can_add,
+        );
+        picker.focus = Some(next);
+        Some(next.reveal())
+    }
+
+    fn route_playlist_picker_activation(&mut self, id: window::Id) -> Option<Task<Message>> {
+        if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
+            return None;
+        }
+        let control = self.sources.playlist_picker.as_ref()?.focus?;
+        Some(
+            control
+                .message()
+                .map_or_else(Task::none, |message| self.update(message)),
+        )
+    }
+
+    fn route_playlist_picker_arrow(&mut self, id: window::Id, step: i8) -> bool {
+        if !self.windows.is_library(id) || self.page != LibraryPage::Songs {
+            return false;
+        }
+        if self
+            .sources
+            .playlist_picker
+            .as_ref()
+            .and_then(|picker| picker.focus)
+            != Some(playlist_picker_focus::Control::Choice)
+        {
+            return false;
+        }
+        self.sources.step_track_playlist(step);
+        true
     }
 
     fn route_track_editor_activation(&mut self, id: window::Id) -> Option<Task<Message>> {
@@ -1398,6 +1468,8 @@ fn input_message(
         (Key::Named(Named::Escape), false) => Some(Message::ShowLibrary),
         (Key::Named(Named::ArrowLeft), false) => Some(Message::MiniArrow(id, -1)),
         (Key::Named(Named::ArrowRight), false) => Some(Message::MiniArrow(id, 1)),
+        (Key::Named(Named::ArrowUp), false) => Some(Message::PlaylistPickerVerticalArrow(id, -1)),
+        (Key::Named(Named::ArrowDown), false) => Some(Message::PlaylistPickerVerticalArrow(id, 1)),
         (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
         (Key::Character("o"), true) => Some(Message::OpenFiles),
         (Key::Character("q"), true) if !cfg!(target_os = "macos") => Some(Message::ToggleQueue),
