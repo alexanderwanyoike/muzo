@@ -1,10 +1,11 @@
 use std::{
+    collections::HashMap,
     fs,
     io::{self, Write},
     path::Path,
 };
 
-const MANAGED: &str = "X-Muzo-AppImage-Integration=true";
+const MANAGED: &str = "X-Muzo-AppImage-Integration";
 const SHORTCUT: &str = "muzo.desktop";
 const CINNAMON: &str = "Muzo.cinnamon-generated.desktop";
 
@@ -35,21 +36,19 @@ pub fn register(image: &Path, data: &Path) -> io::Result<()> {
             }
             Err(_) => continue,
         };
-        let lines = contents.lines().map(str::trim);
+        let fields = desktop_entry_fields(&contents);
         let temporary_cinnamon = entry.file_name() == CINNAMON
-            && lines.clone().any(|line| line == "Name=Muzo")
-            && lines.clone().any(|line| {
-                line.strip_prefix("Exec=/tmp/.mount_").is_some_and(|exec| {
+            && fields.get("Name") == Some(&"Muzo")
+            && fields.get("Exec").is_some_and(|exec| {
+                exec.strip_prefix("/tmp/.mount_").is_some_and(|exec| {
                     exec.split_whitespace()
                         .next()
                         .is_some_and(|binary| binary.ends_with("/muzo"))
                 })
             });
-        if temporary_cinnamon || lines.clone().any(|line| line == MANAGED) {
+        if temporary_cinnamon || fields.get(MANAGED) == Some(&"true") {
             managed = Some(path);
-        } else if entry.file_name() == SHORTCUT
-            || lines.clone().any(|line| line == "StartupWMClass=muzo")
-        {
+        } else if entry.file_name() == SHORTCUT || fields.get("StartupWMClass") == Some(&"muzo") {
             return Ok(());
         }
     }
@@ -74,7 +73,7 @@ pub fn register(image: &Path, data: &Path) -> io::Result<()> {
     let mut file = tempfile::NamedTempFile::new_in(&directory)?;
     write!(
         file,
-        "[Desktop Entry]\nType=Application\nName=Muzo\nExec={command}\"{escaped}\"\nIcon={icon}\nTerminal=false\nStartupWMClass=muzo\nCategories=AudioVideo;Audio;Player;\n{MANAGED}\n"
+        "[Desktop Entry]\nType=Application\nName=Muzo\nExec={command}\"{escaped}\"\nIcon={icon}\nTerminal=false\nStartupWMClass=muzo\nCategories=AudioVideo;Audio;Player;\n{MANAGED}=true\n"
     )?;
     match managed {
         Some(path) => {
@@ -89,6 +88,22 @@ pub fn register(image: &Path, data: &Path) -> io::Result<()> {
         }
     }
     Ok(())
+}
+
+fn desktop_entry_fields(contents: &str) -> HashMap<&str, &str> {
+    let mut fields = HashMap::new();
+    let mut in_desktop_entry = false;
+    for line in contents.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_desktop_entry = line == "[Desktop Entry]";
+        } else if in_desktop_entry
+            && !line.starts_with('#')
+            && let Some((key, value)) = line.split_once('=')
+        {
+            fields.insert(key.trim(), value.trim());
+        }
+    }
+    fields
 }
 
 fn desktop_path(path: &Path) -> io::Result<&str> {
