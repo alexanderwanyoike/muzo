@@ -529,6 +529,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_rolls_back_a_playlist_when_its_catalogue_snapshot_cannot_be_read() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let catalogue = paths.open().unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection.execute(
+            "INSERT INTO libraries (id, name, kind, location) VALUES ('broken', 'Test', 'filesystem', '/test')",
+            [],
+        ).unwrap();
+        connection.execute(
+            "INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime) VALUES ('bad', 'broken', 'Test', '', 'invalid', '/test/bad.mp3', 0, 0)",
+            [],
+        ).unwrap();
+
+        let result = run(&paths, Operation::CreatePlaylist("Evening".into()));
+
+        assert!(result.is_err());
+        assert!(catalogue.playlists().unwrap().is_empty());
+        connection
+            .execute("UPDATE tracks SET duration_seconds=1", [])
+            .unwrap();
+        let retry = run(&paths, Operation::CreatePlaylist("Evening".into())).unwrap();
+        assert_eq!(retry.playlists.len(), 1);
+        assert_eq!(retry.playlists[0].name, "Evening");
+    }
+
+    #[test]
     fn it_starts_queued_source_actions_before_new_arrivals() {
         let root = tempfile::tempdir().unwrap();
         let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
