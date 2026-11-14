@@ -23,19 +23,22 @@ it("makes the verified Rust installer workflow the sole tagged release publisher
   expect(nested(native, "on", "push", "tags")).toEqual(["v*"]);
   const contextSteps = nested(native, "jobs", "context", "steps");
   expect(Array.isArray(contextSteps)).toBe(true);
+  expect(JSON.stringify(contextSteps)).toContain(
+    "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",
+  );
   expect(JSON.stringify(contextSteps)).toContain("git cat-file -t");
   expect(JSON.stringify(contextSteps)).toContain(
     "git merge-base --is-ancestor HEAD origin/main",
   );
   const release = nested(native, "jobs", "release");
   expect(nested(release, "if")).toBe(
-    "github.ref_type == 'tag' && github.event_name == 'push'",
+    "github.ref_type == 'tag' && github.event_name == 'push' && github.event.created",
   );
   expect(nested(release, "needs")).toEqual(["context", "assemble"]);
   expect(nested(release, "permissions")).toEqual({ contents: "write" });
-  expect(JSON.stringify(nested(release, "steps"))).toContain(
-    "--verify-tag --draft",
-  );
+  const releaseSteps = JSON.stringify(nested(release, "steps"));
+  expect(releaseSteps).toContain("verify-release-tag.sh");
+  expect(releaseSteps).toContain("--verify-tag --draft");
 
   const legacy = workflow("distribution.yml");
   expect(legacy).not.toHaveProperty("on.push");

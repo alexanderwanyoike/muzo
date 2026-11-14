@@ -75,13 +75,15 @@ both macOS DMGs described in [the Rust distribution card](cards/rust-rewrite/006
 The Electron distribution workflow remains available on relevant PRs to dev/main
 and manual runs to verify the existing application while the port is in progress.
 
-Linux extracts the real AppImage and checks its launcher and packaged resources.
-macOS verifies and mounts each DMG, checks the executable architecture and compares
-Info.plist against the Forge bundle. Windows installs the real NSIS package in the
-runner's temporary directory. Each job compares the installed/extracted main.cjs
-and sql-wasm.wasm with Forge's originals and checks the renderer exists. The complete
-Forge payload retains Electron/Chromium notices plus the Manrope font OFL under
-`assets/licenses/`.
+The Rust workflow extracts the AppImage and checks for its launcher and binary.
+It mounts each DMG and verifies the application identity, executable architecture
+and binary contents. The Windows job installs the native NSIS package over the
+previous Electron release in a temporary directory and verifies the updated
+executable and profile marker.
+
+The Electron verification workflow checks the packaged renderer, `main.cjs` and
+`sql-wasm.wasm` against the Forge build. Its payload includes the Electron and
+Chromium notices alongside the Manrope font licence.
 
 Assembly validates native installer containers, rejects missing/corrupt files and
 wrong-CPU AppImages, streams SHA-256 hashes, writes the manifest and checksums, and
@@ -92,6 +94,7 @@ PR/manual artifacts are unpublished release candidates. Their manifest tag names
 the intended release, and sourceCommit identifies that exact candidate checkout.
 Pushing an annotated tag whose commit is already on main can create a draft
 GitHub Release. Its native package versions must match the version in the tag.
+The release job rechecks the remote tag identity before creating the draft.
 Existing releases and published tags retain their original assets and commits.
 
 Merge feature PRs into dev with merge commits, then promote dev to main through a

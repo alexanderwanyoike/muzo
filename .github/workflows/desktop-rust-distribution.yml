@@ -11,6 +11,7 @@ on:
       - "packages/distribution/**"
       - "package.json"
       - "yarn.lock"
+      - ".github/scripts/verify-release-tag.sh"
       - ".github/workflows/desktop-rust-distribution.yml"
   push:
     tags: ["v*"]
@@ -31,17 +32,21 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
       sourceCommit: ${{ steps.release.outputs.sourceCommit }}
+      tagObject: ${{ steps.tag.outputs.object }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Require annotated release tags on main
+        id: tag
         if: github.ref_type == 'tag'
         shell: bash
         run: |
           test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "${GITHUB_REF}^{commit}")" = "$GITHUB_SHA"
           git merge-base --is-ancestor HEAD origin/main
+          printf 'object=%s\n' "$(git rev-parse "$GITHUB_REF")" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -49,7 +54,7 @@ jobs:
       - run: yarn install --frozen-lockfile
       - name: Resolve matching native release versions
         id: release
-        run: yarn release:context --native --github-output "$GITHUB_OUTPUT"
+        run: yarn release:context --native --source-commit "$(git rev-parse HEAD)" --github-output "$GITHUB_OUTPUT"
 
   package:
     needs: context
@@ -78,9 +83,10 @@ jobs:
         shell: bash
         working-directory: apps/desktop-rust
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -201,9 +207,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -231,13 +238,17 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.ref_type == 'tag' && github.event_name == 'push'
+    if: github.ref_type == 'tag' && github.event_name == 'push' && github.event.created
     needs: [context, assemble]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: muzo-rust-release-set
@@ -247,5 +258,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           MUZO_RELEASE_TAG: ${{ needs.context.outputs.tag }}
+          MUZO_TAG_OBJECT: ${{ needs.context.outputs.tagObject }}
+          MUZO_SOURCE_COMMIT: ${{ needs.context.outputs.sourceCommit }}
         run: |
+          set -euo pipefail
+          bash .github/scripts/verify-release-tag.sh origin "$MUZO_RELEASE_TAG" "$MUZO_TAG_OBJECT" "$MUZO_SOURCE_COMMIT"
           gh release create "$MUZO_RELEASE_TAG" release-set/* --verify-tag --draft --title "$MUZO_RELEASE_TAG" --notes "Download the installer for your platform. These preview builds are not signed or notarized. Review the installers and SHA256SUMS before publishing this draft."
