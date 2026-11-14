@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 iced = { version = "0.14.0", default-features = false, features = ["tiny-skia", "image", "svg", "tokio", "x11", "wayland", "linux-theme-detection"] }
 lofty = "0.25.5"
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled", "backup"] }
 rfd = "0.18.0"
 rodio = { version = "0.22.2", default-features = false, features = ["playback", "flac", "mp3", "mp4", "vorbis", "wav"] }
 thiserror = "2.0.21"

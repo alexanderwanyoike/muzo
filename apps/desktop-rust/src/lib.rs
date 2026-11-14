@@ -14,3 +14,6 @@ mod track_tests;
 
 #[cfg(test)]
 mod desktop_tests;
+
+#[cfg(test)]
+mod catalogue_tests;
