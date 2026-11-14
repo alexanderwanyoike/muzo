@@ -155,3 +155,46 @@ fn it_does_not_replace_cached_metadata_when_remote_audio_is_reindexed() {
     assert_eq!(indexed.title, "Tagged");
     assert_eq!(indexed.artist, "Artist");
 }
+
+#[test]
+fn it_imports_an_electron_refresh_token_once_and_reuses_the_native_credential() {
+    use crate::{catalogue::Catalogue, dropbox::Credentials};
+    let folder = tempfile::tempdir().unwrap();
+    let catalogue = Catalogue::open(&folder.path().join("muzo.sqlite"), None).unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let database = rusqlite::Connection::open(folder.path().join("muzo.sqlite")).unwrap();
+    database
+        .execute(
+            "UPDATE dropbox_accounts SET encrypted_refresh_token='encrypted'",
+            [],
+        )
+        .unwrap();
+    let remote = std::cell::RefCell::new(None);
+    let imported = Credentials::migrate_with(
+        &catalogue,
+        "account",
+        || Ok(remote.borrow().clone()),
+        |encrypted| {
+            assert_eq!(encrypted, "encrypted");
+            Ok("fixture-refresh-token".to_owned())
+        },
+        |token| {
+            remote.replace(Some(token.into()));
+            Ok(())
+        },
+    )
+    .unwrap();
+    assert_eq!(imported.as_deref(), Some("fixture-refresh-token"));
+
+    let reopened = Credentials::migrate_with(
+        &catalogue,
+        "account",
+        || Ok(remote.borrow().clone()),
+        |_| panic!("already imported"),
+        |_| panic!("already imported"),
+    )
+    .unwrap();
+    assert_eq!(reopened, imported);
+}
