@@ -654,3 +654,22 @@ fn it_activates_the_material_clicked_after_keyboard_navigation() {
 
     assert_eq!(desktop.appearance.theme, "walnut");
 }
+
+#[test]
+fn it_clears_the_appearance_choice_when_a_text_entry_captures_a_tap() {
+    let (mut desktop, _) = setup();
+    let library = desktop.windows.library_id();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let _ = desktop.update(Message::CycleMiniFocus(library, false));
+    let tap = iced::Event::Touch(iced::touch::Event::FingerPressed {
+        id: iced::touch::Finger(0),
+        position: iced::Point::new(50.0, 340.0),
+    });
+    if let Some(message) = input_message(tap, iced::event::Status::Captured, library) {
+        let _ = desktop.update(message);
+    }
+    let _ = desktop.update(Message::ActivateMiniFocus(library));
+
+    assert_eq!(desktop.appearance.theme, "studio");
+}
