@@ -488,10 +488,9 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn it_paints_both_wide_pause_bars_in_the_mini_player() {
+    fn paint_play_control(playing: bool, enabled: bool) -> Vec<u8> {
         let surfaces = Appearance::default().surfaces();
-        let mut control = play_button(true, true, false, surfaces);
+        let mut control = play_button(playing, enabled, false, surfaces);
         let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
         let mut tree = Tree::new(&control);
         let bounds = Rectangle::with_size(Size::new(48.0, 48.0));
@@ -510,7 +509,24 @@ mod tests {
             mouse::Cursor::Unavailable,
             &bounds,
         );
-        let pixels = renderer.screenshot(Size::new(48, 48), 1.0, Color::WHITE);
+        renderer.screenshot(Size::new(48, 48), 1.0, Color::WHITE)
+    }
+
+    #[test]
+    fn it_fades_the_disabled_mini_play_disc_and_glyph() {
+        let active = paint_play_control(false, true);
+        let disabled = paint_play_control(false, false);
+        let red_at = |image: &[u8], x: usize, y: usize| f32::from(image[(y * 48 + x) * 4]);
+        let active_circle = red_at(&active, 24, 7);
+        let disabled_circle = red_at(&disabled, 24, 7);
+        let expected = 255.0 - (255.0 - active_circle) * 0.4;
+        assert!((disabled_circle - expected).abs() <= 2.0);
+        assert!(red_at(&disabled, 24, 24) > red_at(&active, 24, 24));
+    }
+
+    #[test]
+    fn it_paints_both_wide_pause_bars_in_the_mini_player() {
+        let pixels = paint_play_control(true, true);
         let centre = pixels.chunks_exact(48 * 4).nth(24).unwrap();
         let dark = centre.chunks_exact(4).filter(|pixel| pixel[0] < 80).count();
         assert!(
