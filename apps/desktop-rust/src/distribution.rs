@@ -1,5 +1,5 @@
 mod update;
-pub use update::{Release, Update, UpdateError, latest, update_for};
+pub use update::{Artifact, Release, Update, UpdateError, latest, update_for};
 
 #[derive(Clone, Copy)]
 pub enum Target {

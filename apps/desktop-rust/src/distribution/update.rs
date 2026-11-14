@@ -82,6 +82,34 @@ pub fn update_for(
 }
 
 impl Update {
+    pub fn verify(&self, path: &Path) -> Result<(), UpdateError> {
+        self.verify_and_copy(path, &mut std::io::sink())
+    }
+
+    pub fn verify_and_copy(&self, path: &Path, output: &mut impl Write) -> Result<(), UpdateError> {
+        let mut digest = Sha256::new();
+        let mut remaining = self.asset.size;
+        let mut file = fs::File::open(path)?;
+        let mut buffer = [0u8; 32 * 1024];
+        loop {
+            let size = file.read(&mut buffer)?;
+            if size == 0 {
+                break;
+            }
+            remaining = remaining
+                .checked_sub(size as u64)
+                .ok_or(UpdateError::Integrity)?;
+            digest.update(&buffer[..size]);
+            output.write_all(&buffer[..size])?;
+        }
+        if remaining != 0
+            || !format!("{:x}", digest.finalize()).eq_ignore_ascii_case(&self.asset.sha256)
+        {
+            return Err(UpdateError::Integrity);
+        }
+        Ok(())
+    }
+
     pub fn download_url(&self) -> Result<Url, UpdateError> {
         Url::parse(&format!(
             "{RELEASE_ROOT}/download/v{}/{}",

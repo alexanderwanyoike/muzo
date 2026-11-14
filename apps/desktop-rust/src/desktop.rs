@@ -37,7 +37,8 @@ pub enum Message {
     CheckUpdate,
     UpdateReceived(updates::Status),
     DownloadUpdate(crate::distribution::Update),
-    InstallUpdate(PathBuf),
+    InstallUpdate(crate::distribution::Update, PathBuf),
+    UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
     PlayIndexed(usize),
@@ -237,7 +238,17 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::InstallUpdate(path) => match updates::launch(&path) {
+            Message::InstallUpdate(update, path) => Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        updates::launch(&update, &path).map_err(|error| error.to_string())
+                    })
+                    .await
+                    .map_err(|error| format!("Could not install the update: {error}"))?
+                },
+                Message::UpdateInstalled,
+            ),
+            Message::UpdateInstalled(result) => match result {
                 Ok(()) => iced::exit(),
                 Err(error) => {
                     self.update_status = updates::Status::Error(error.to_string());

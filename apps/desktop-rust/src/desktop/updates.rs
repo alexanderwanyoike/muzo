@@ -16,7 +16,7 @@ pub enum Status {
     Checking,
     Available(Update),
     Downloading,
-    Ready(PathBuf),
+    Ready(Update, PathBuf),
     Error(String),
 }
 
@@ -43,6 +43,7 @@ pub fn check() -> Task<Message> {
 }
 
 pub fn download(update: Update, directory: PathBuf) -> Task<Message> {
+    let expected = update.clone();
     Task::perform(
         async move {
             tokio::task::spawn_blocking(move || {
@@ -53,32 +54,38 @@ pub fn download(update: Update, directory: PathBuf) -> Task<Message> {
             .await
             .map_err(|error| format!("Could not download the update: {error}"))?
         },
-        |result| {
+        move |result| {
             Message::UpdateReceived(match result {
-                Ok(path) => Status::Ready(path),
+                Ok(path) => Status::Ready(expected.clone(), path),
                 Err(error) => Status::Error(error),
             })
         },
     )
 }
 
-pub fn launch(installer: &std::path::Path) -> std::io::Result<()> {
+pub fn launch(
+    expected: &Update,
+    installer: &std::path::Path,
+) -> Result<(), crate::distribution::UpdateError> {
     #[cfg(target_os = "linux")]
     {
-        use std::os::unix::fs::PermissionsExt;
         if let Some(current) = std::env::var_os("APPIMAGE") {
             let current = std::fs::canonicalize(current)?;
             let parent = current
                 .parent()
                 .ok_or_else(|| std::io::Error::other("AppImage directory unavailable"))?;
             let mut update = tempfile::NamedTempFile::new_in(parent)?;
-            std::io::copy(&mut std::fs::File::open(installer)?, update.as_file_mut())?;
+            expected.verify_and_copy(installer, update.as_file_mut())?;
             update
                 .as_file()
-                .set_permissions(std::fs::Permissions::from_mode(0o755))?;
+                .set_permissions(std::fs::metadata(&current)?.permissions())?;
             update.as_file().sync_all()?;
             update.persist(&current).map_err(|error| error.error)?;
-            std::process::Command::new(current)
+            std::process::Command::new(&current)
+                .current_dir(parent)
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
                 .args(std::env::args_os().skip(1))
                 .env_remove("APPIMAGE")
                 .env_remove("APPDIR")
@@ -86,7 +93,9 @@ pub fn launch(installer: &std::path::Path) -> std::io::Result<()> {
             return Ok(());
         }
     }
-    open::that_detached(installer)
+    expected.verify(installer)?;
+    open::that_detached(installer)?;
+    Ok(())
 }
 
 pub fn view(status: &Status) -> Element<'_, Message> {
@@ -99,8 +108,8 @@ pub fn view(status: &Status) -> Element<'_, Message> {
                 .on_press(Message::DownloadUpdate(update.clone()))
         }
         Status::Downloading => button(text("Downloading update…").size(11)),
-        Status::Ready(path) => button(text("Restart to install").size(11))
-            .on_press(Message::InstallUpdate(path.clone())),
+        Status::Ready(update, path) => button(text("Restart to install").size(11))
+            .on_press(Message::InstallUpdate(update.clone(), path.clone())),
         Status::Error(error) => {
             return row![
                 text(error).size(11),
