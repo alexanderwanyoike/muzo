@@ -53,13 +53,16 @@ impl Catalogue {
     }
 
     pub fn playlist_entries(&self, playlist: &str) -> Result<Vec<PlaylistEntry>, CatalogueError> {
-        let mut statement = self.database.prepare(
+        use super::metadata::HAS_METADATA_OVERRIDE;
+
+        let mut statement = self.database.prepare(&format!(
             "SELECT e.id, t.id, COALESCE(t.override_title, t.title), COALESCE(t.override_artist, t.artist),
-                    COALESCE(t.override_album, t.album), t.file_path, COUNT(h.id), t.library_id, MAX(t.duration_seconds, 0)
+                    COALESCE(t.override_album, t.album), t.file_path, COUNT(h.id), t.library_id,
+                    MAX(t.duration_seconds, 0), {HAS_METADATA_OVERRIDE}
              FROM playlist_entries e LEFT JOIN tracks t ON t.id=e.track_id
              LEFT JOIN play_history h ON h.library_id=t.library_id AND h.track_id=t.id
              WHERE e.playlist_id=?1 GROUP BY e.id ORDER BY e.position"
-        )?;
+        ))?;
         Ok(statement
             .query_map([playlist], |row| {
                 let id = row.get(0)?;
@@ -71,6 +74,7 @@ impl Catalogue {
                             title: row.get(2)?,
                             artist: row.get(3)?,
                             album: row.get(4)?,
+                            metadata_overridden: row.get(9)?,
                             path: std::path::PathBuf::from(row.get::<_, String>(5)?),
                             plays: row.get(6)?,
                             library_id: row.get(7)?,

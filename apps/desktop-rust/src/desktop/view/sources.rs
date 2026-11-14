@@ -501,13 +501,17 @@ pub fn tracks<'a>(
                 Message::PlayIndexed(index)
             }),
         );
+        let song_detail = track
+            .album
+            .as_deref()
+            .or(track.metadata_overridden.then_some("Edited in Muzo"));
         let metadata = column![
             text(&track.title)
                 .size(12)
                 .font(bold())
                 .wrapping(text::Wrapping::None),
-            text(match &track.album {
-                Some(album) if !album.is_empty() => format!("{} · {album}", track.artist),
+            text(match song_detail {
+                Some(detail) if !detail.is_empty() => format!("{} - {detail}", track.artist),
                 _ => track.artist.clone(),
             })
             .size(10)

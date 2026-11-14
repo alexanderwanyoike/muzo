@@ -61,6 +61,7 @@ pub struct IndexedTrack {
     pub title: String,
     pub artist: String,
     pub album: Option<String>,
+    pub metadata_overridden: bool,
     pub path: PathBuf,
     pub plays: u32,
     pub duration_seconds: u32,
@@ -132,12 +133,15 @@ impl Catalogue {
     }
 
     pub fn tracks(&self, library_id: &str) -> Result<Vec<IndexedTrack>, CatalogueError> {
-        let mut statement = self.database.prepare(
+        use metadata::HAS_METADATA_OVERRIDE;
+
+        let mut statement = self.database.prepare(&format!(
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
              COALESCE(override_album, album), file_path,
              (SELECT COUNT(*) FROM play_history h WHERE h.library_id=tracks.library_id AND h.track_id=tracks.id),
-             library_id, MAX(duration_seconds, 0) FROM tracks WHERE library_id = ?1 ORDER BY rowid"
-        )?;
+             library_id, MAX(duration_seconds, 0), {HAS_METADATA_OVERRIDE}
+             FROM tracks WHERE library_id = ?1 ORDER BY rowid"
+        ))?;
         let tracks = statement
             .query_map([library_id], |row| {
                 Ok(IndexedTrack {
@@ -145,6 +149,7 @@ impl Catalogue {
                     title: row.get(1)?,
                     artist: row.get(2)?,
                     album: row.get(3)?,
+                    metadata_overridden: row.get(8)?,
                     path: PathBuf::from(row.get::<_, String>(4)?),
                     plays: row.get(5)?,
                     library_id: row.get(6)?,

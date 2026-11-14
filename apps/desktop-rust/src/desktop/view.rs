@@ -122,6 +122,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         title: "Song".into(),
         artist: "Artist".into(),
         album: None,
+        metadata_overridden: false,
         path: "track.mp3".into(),
         plays: 0,
         duration_seconds: 1,

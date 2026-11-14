@@ -5,6 +5,10 @@ use uuid::Uuid;
 
 use super::{Catalogue, CatalogueError};
 
+pub(super) const HAS_METADATA_OVERRIDE: &str = "(override_title IS NOT NULL OR override_artist IS NOT NULL
+    OR override_album IS NOT NULL OR override_track_number IS NOT NULL
+    OR override_disc_number IS NOT NULL OR override_genre IS NOT NULL OR override_year IS NOT NULL)";
+
 #[derive(Debug, Clone, Default)]
 pub struct MetadataOverride {
     pub title: Option<String>,
@@ -34,15 +38,12 @@ impl Catalogue {
         library_id: &str,
     ) -> Result<TrackMetadata, CatalogueError> {
         Ok(self.database.query_row(
-            "SELECT COALESCE(override_title, title), COALESCE(override_artist, artist),
+            &format!("SELECT COALESCE(override_title, title), COALESCE(override_artist, artist),
                     COALESCE(override_album, album), CAST(COALESCE(override_track_number, track_number) AS TEXT),
                     CAST(COALESCE(override_disc_number, disc_number) AS TEXT), COALESCE(override_genre, genre),
                     CAST(COALESCE(override_year, year) AS TEXT),
-                    (override_title IS NOT NULL OR override_artist IS NOT NULL
-                        OR override_album IS NOT NULL OR override_track_number IS NOT NULL
-                        OR override_disc_number IS NOT NULL OR override_genre IS NOT NULL
-                        OR override_year IS NOT NULL)
-             FROM tracks WHERE id=?1 AND library_id=?2",
+                    {HAS_METADATA_OVERRIDE}
+             FROM tracks WHERE id=?1 AND library_id=?2"),
             [id, library_id],
             |row| {
                 Ok(TrackMetadata {
