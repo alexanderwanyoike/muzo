@@ -111,3 +111,50 @@ fn it_loads_the_first_covers_when_a_short_source_replaces_a_scrolled_one() {
         HashSet::from([(1, "0".into()), (1, "1".into())])
     );
 }
+
+#[test]
+fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
+    let temporary = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temporary.path());
+    let folder = temporary.path().join("music");
+    fs::create_dir(&folder).unwrap();
+    let audio = folder.join("record.mp3");
+    let embedded = include_bytes!("../../../../tests/fixtures/embedded-cover.mp3");
+    fs::write(&audio, embedded).unwrap();
+    let mut snapshot = run(&paths, Operation::Add(folder)).unwrap();
+    let track = snapshot.tracks[0].id.clone();
+    let mut loader = Loader::default();
+    loader.visible(LibraryPage::Songs, 0..16);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let completed = |request| {
+        let mut stream = task::into_stream(request).expect("a cover read should be scheduled");
+        let Some(Action::Output(Message::ArtworkReady(result))) = runtime.block_on(stream.next())
+        else {
+            panic!("the worker should report a cover result");
+        };
+        result
+    };
+    fs::remove_file(&audio).unwrap();
+    let unavailable = loader.request(&paths, &mut snapshot, LibraryPage::Songs);
+    loader.complete(completed(unavailable), Some(&mut snapshot));
+    assert!(!snapshot.covers.contains_key(&track));
+    assert_eq!(
+        loader
+            .request(&paths, &mut snapshot, LibraryPage::Songs)
+            .units(),
+        0
+    );
+
+    fs::write(&audio, embedded).unwrap();
+    loader.visible(LibraryPage::Playlists, 0..16);
+    loader.visible(LibraryPage::Songs, 0..16);
+    let restored = loader.request(&paths, &mut snapshot, LibraryPage::Songs);
+    assert_eq!(restored.units(), 1, "the failed cover should be retried");
+    loader.complete(completed(restored), Some(&mut snapshot));
+    assert!(snapshot.covers.contains_key(&track));
+}
