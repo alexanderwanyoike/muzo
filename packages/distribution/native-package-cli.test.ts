@@ -10,7 +10,7 @@ import {
 } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { expect, it } from "vitest";
@@ -127,7 +127,7 @@ it.skipIf(process.platform !== "linux" || process.arch !== "x64")(
         script(
           "cargo",
           `const fs = require("node:fs");
-const { join } = require("node:path");
+const { dirname, join } = require("node:path");
 const args = process.argv.slice(2);
 const cache = process.env.MUZO_FIXTURE_CACHE;
 if (args[0] === "-vV") {
@@ -141,6 +141,7 @@ if (args[0] === "-vV") {
   fs.writeFileSync(join(binaries, "muzo-desktop"), "candidate executable");
   fs.writeFileSync(join(binaries, "name-installer"), "#!/bin/sh\\nprintf 'linux-x64\\\\n'\\n", { mode: 0o700 });
   fs.writeFileSync(join(cache, "requested-build-cache"), process.env.CARGO_BUILD_BUILD_DIR ?? "");
+  fs.writeFileSync(join(cache, "executable-staging-directory"), dirname(binaries));
   for (const name of ["muzo-desktop", "name-installer"]) {
     console.log(JSON.stringify({ reason: "compiler-artifact", executable: join(binaries, name), target: { name } }));
   }
@@ -194,6 +195,8 @@ process.exit(43);
       expect(await readFile(join(cache, "requested-build-cache"), "utf8")).toBe(
         cache,
       );
+      const artifacts = await readFile(join(cache, "executable-staging-directory"), "utf8");
+      expect(dirname(artifacts), "keep executable artifacts off the installer output mount").toBe(cache);
     } finally {
       await rm(fixture, { recursive: true, force: true });
     }
