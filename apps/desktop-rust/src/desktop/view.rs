@@ -311,7 +311,7 @@ pub(super) fn panel(theme: &Theme) -> container::Style {
                 .width(1),
         )
 }
-fn action(theme: &Theme, status: button::Status) -> button::Style {
+pub(super) fn action(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     button::Style {
         background: match status {
@@ -376,7 +376,7 @@ fn tint(base: Color, overlay: Color, amount: f32) -> Color {
     )
 }
 
-fn primary(theme: &Theme, status: button::Status) -> button::Style {
+pub(super) fn primary(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     let pair = if status == button::Status::Hovered {
         palette.primary.strong
@@ -393,7 +393,7 @@ fn primary(theme: &Theme, status: button::Status) -> button::Style {
 const ICON_TOOLTIP_TEXT_SIZE: f32 = 12.0;
 
 #[derive(Clone, Copy)]
-enum Icon {
+pub(super) enum Icon {
     Library,
     Mini,
     Queue,
@@ -489,7 +489,10 @@ fn icon(kind: Icon) -> Element<'static, Message> {
     icon_tinted(kind, |theme| theme.palette().text.scale_alpha(0.68)).into()
 }
 
-fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg<'static> {
+pub(super) fn icon_tinted(
+    kind: Icon,
+    tint: impl Fn(&Theme) -> Color + 'static,
+) -> svg::Svg<'static> {
     let path = match kind {
         Icon::Library => "<path d='M15 3h6v6m0-6-7 7M3 21l7-7m-1 7H3v-6'/>",
         Icon::Mini => "<path d='m14 10 7-7m-1 7h-6V4M3 21l7-7m-6 0h6v6'/>",
