@@ -465,3 +465,63 @@ fn it_centres_the_label_in_a_fixed_height_settings_button() {
         "Settings button label has {top} px above and {bottom} px below"
     );
 }
+
+#[cfg(test)]
+#[test]
+fn it_draws_a_solid_rounded_panel_for_settings_sections() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    let appearance = Appearance {
+        theme: "carbon".into(),
+        mode: "dark".into(),
+        ..Default::default()
+    };
+    let theme = appearance.theme();
+    let mut view = settings_section(
+        "Library folders",
+        "Filesystem libraries sync automatically.",
+        text("Settings").into(),
+        &appearance,
+    );
+    let mut tree = Tree::new(&view);
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let size = Size::new(480, 160);
+    let bounds = Rectangle::with_size(Size::new(size.width as f32, size.height as f32));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, bounds.size()),
+    );
+    widget.draw(
+        &tree,
+        &mut renderer,
+        &theme,
+        &Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &bounds,
+    );
+    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+    let pixel = |x: usize, y: usize| {
+        let start = (y * size.width as usize + x) * 4;
+        &pixels[start..start + 4]
+    };
+    let fill = appearance.surfaces().raised.into_rgba8();
+    assert!(
+        (320..400).all(|x| pixel(x, 17) == fill),
+        "the Settings header should be solid"
+    );
+    assert_eq!(
+        pixel(3, 2),
+        theme.palette().background.into_rgba8(),
+        "the rounded panel should leave the corner clear"
+    );
+}
