@@ -1,7 +1,8 @@
 use iced::{
-    Event, Font, Pixels, Rectangle, Renderer, Size, Task, Vector,
+    Event, Font, Pixels, Point, Rectangle, Renderer, Size, Task, Vector,
     advanced::{
         clipboard, mouse,
+        renderer::{Headless, Style},
         widget::{
             Id, Operation,
             operation::{Focusable, Outcome, Scrollable},
@@ -145,6 +146,38 @@ fn release_space() -> Event {
     })
 }
 
+#[test]
+fn it_paints_launcher_focus_inside_the_control_edge() {
+    let mut library = KeyboardLibrary::new(LibraryPage::Songs);
+    let _ = library
+        .desktop
+        .update(Message::SourceSearch("Harbour".into()));
+    let unfocused = library.paint();
+    library.tab_to(
+        "source-remove-sidebar:Harbour Rehearsals",
+        Modifiers::empty(),
+    );
+    let bounds = library
+        .focus()
+        .bounds
+        .expect("focused source action bounds");
+    let focused = library.paint();
+
+    let fill = Point::new(bounds.x + 4.0, bounds.center_y());
+    assert_ne!(pixel(&focused, fill), pixel(&unfocused, fill));
+    for inset in [0.0, 1.0] {
+        let edge = Point::new(bounds.center_x(), bounds.y + inset);
+        assert_eq!(pixel(&focused, edge), pixel(&unfocused, edge));
+    }
+}
+
+const FRAME: Size<u32> = Size::new(800, 600);
+
+fn pixel(bytes: &[u8], point: Point) -> [u8; 4] {
+    let offset = (point.y as usize * FRAME.width as usize + point.x as usize) * 4;
+    bytes[offset..offset + 4].try_into().unwrap()
+}
+
 struct KeyboardLibrary {
     desktop: Desktop,
     renderer: Renderer,
@@ -253,9 +286,29 @@ impl KeyboardLibrary {
         focus
     }
 
+    fn paint(&mut self) -> Vec<u8> {
+        let theme = self.desktop.theme(self.desktop.windows.library_id());
+        let mut image = Vec::new();
+        self.with_ui(|ui, renderer| {
+            let cursor = mouse::Cursor::Unavailable;
+            ui.update(
+                &[Event::Window(window::Event::RedrawRequested(
+                    iced::time::Instant::now(),
+                ))],
+                cursor,
+                renderer,
+                &mut clipboard::Null,
+                &mut Vec::new(),
+            );
+            ui.draw(renderer, &theme, &Style::default(), cursor);
+            image = renderer.screenshot(FRAME, 1.0, theme.palette().background);
+        });
+        image
+    }
+
     fn with_ui(
         &mut self,
-        inspect: impl FnOnce(&mut UserInterface<'_, Message, iced::Theme, Renderer>, &Renderer),
+        inspect: impl FnOnce(&mut UserInterface<'_, Message, iced::Theme, Renderer>, &mut Renderer),
     ) {
         let mut ui = UserInterface::build(
             self.desktop.view(self.desktop.windows.library_id()),
@@ -263,7 +316,7 @@ impl KeyboardLibrary {
             std::mem::replace(&mut self.cache, Cache::new()),
             &mut self.renderer,
         );
-        inspect(&mut ui, &self.renderer);
+        inspect(&mut ui, &mut self.renderer);
         self.cache = ui.into_cache();
     }
 }
@@ -271,6 +324,7 @@ impl KeyboardLibrary {
 #[derive(Default)]
 struct Focus {
     id: Option<Id>,
+    bounds: Option<Rectangle>,
     settings_scroll: f32,
 }
 
@@ -279,9 +333,10 @@ impl Operation for Focus {
         visit(self);
     }
 
-    fn focusable(&mut self, id: Option<&Id>, _: Rectangle, state: &mut dyn Focusable) {
+    fn focusable(&mut self, id: Option<&Id>, bounds: Rectangle, state: &mut dyn Focusable) {
         if state.is_focused() {
             self.id = id.cloned();
+            self.bounds = Some(bounds);
         }
     }
 
