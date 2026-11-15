@@ -21,6 +21,7 @@ struct Window {
 }
 
 enum Shortcut: String {
+    case moveLibrary
     case mini
     case focusQueue
     case activate
@@ -34,6 +35,7 @@ let compactWidth: CGFloat = 420
 let expandedWidth: CGFloat = 740
 let miniContentHeight: CGFloat = 560
 let frameTolerance: CGFloat = 1
+let libraryMoveDistance: CGFloat = 40
 
 func visibleWindows(ownedBy pid: pid_t) throws -> [Window] {
     let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
@@ -88,7 +90,7 @@ func runTool(_ executable: String, _ arguments: [String]) throws {
     }
 }
 
-func send(_ shortcut: Shortcut, to app: Process) throws {
+func send(_ shortcut: Shortcut, to app: Process, arguments: [String] = []) throws {
     let script = """
     on run argv
         set targetPID to (item 1 of argv) as integer
@@ -100,7 +102,11 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
         tell application "System Events"
             set targetApp to first application process whose unix id is targetPID
             if not (frontmost of targetApp) then error "Muzo lost focus before sending a shortcut."
-            if shortcutName is "mini" then
+            if shortcutName is "moveLibrary" then
+                set targetX to (item 3 of argv) as integer
+                set targetY to (item 4 of argv) as integer
+                set position of first window of targetApp to {targetX, targetY}
+            else if shortcutName is "mini" then
                 keystroke "m" using command down
             else if shortcutName is "focusQueue" then
                 key code tabKey
@@ -114,7 +120,9 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
         end tell
     end run
     """
-    try runTool("/usr/bin/osascript", ["-e", script, "--", String(app.processIdentifier), shortcut.rawValue])
+    try runTool(
+        "/usr/bin/osascript", ["-e", script, "--", String(app.processIdentifier), shortcut.rawValue] + arguments
+    )
 }
 
 @MainActor
@@ -163,7 +171,17 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
         }
     }
 
-    let library = try waitForWindow("library", of: app) { _ in true }
+    let startup = try waitForWindow("startup library", of: app) { _ in true }
+    let x = startup.frame.minX
+    let movedX = x >= libraryMoveDistance ? x - libraryMoveDistance : x + libraryMoveDistance
+    try send(
+        .moveLibrary, to: app,
+        arguments: [String(Int(movedX.rounded())), String(Int(startup.frame.minY.rounded()))]
+    )
+    let library = try waitForWindow("moved library", of: app) { window in
+        window.id == startup.id && abs(window.frame.minX - movedX) <= frameTolerance
+            && window.frame.size == startup.frame.size
+    }
     try capture(library, of: app, named: "macos-library", in: screenshots)
 
     try send(.mini, to: app)
