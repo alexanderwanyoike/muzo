@@ -259,7 +259,7 @@ fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
     )
     .unwrap();
     server.join().unwrap();
-    let track = prepare_dropbox_track(&paths, track, downloaded, Some(old.clone()));
+    let track = prepare_downloaded_dropbox_track(&paths, track, downloaded, Some(old.clone()));
 
     assert!(track.track.artwork().is_some());
     assert!(
