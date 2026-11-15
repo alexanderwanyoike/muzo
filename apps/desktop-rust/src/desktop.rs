@@ -185,7 +185,7 @@ pub struct Desktop {
     page: LibraryPage,
     appearance_focus: Option<appearance_focus::Choice>,
     plays_pending: usize,
-    close_after_history: Option<window::Id>,
+    close_after_history: bool,
     install_after_history: bool,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
@@ -274,7 +274,7 @@ impl Desktop {
                 page: LibraryPage::default(),
                 appearance_focus: None,
                 plays_pending: 0,
-                close_after_history: None,
+                close_after_history: false,
                 install_after_history: false,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
@@ -1121,14 +1121,12 @@ impl Desktop {
                     Ok(count) => self.sources.confirm_play_count(&id, count),
                     Err(error) => {
                         self.error = Some(error);
-                        self.close_after_history = None;
+                        self.close_after_history = false;
                         self.install_after_history = false;
                     }
                 }
-                if self.plays_pending == 0
-                    && let Some(window) = self.close_after_history.take()
-                {
-                    return self.update(Message::CloseRequested(window));
+                if self.plays_pending == 0 && std::mem::take(&mut self.close_after_history) {
+                    return iced::exit();
                 }
                 if self.plays_pending == 0 && self.install_after_history {
                     return self.update(Message::ConfirmInstallUpdate);
@@ -1137,7 +1135,7 @@ impl Desktop {
             }
             Message::CloseRequested(id) => {
                 if self.windows.is_library(id) && self.plays_pending > 0 {
-                    self.close_after_history = Some(id);
+                    self.close_after_history = true;
                     return Task::none();
                 }
                 self.windows.close_requested(id)
