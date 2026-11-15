@@ -33,19 +33,28 @@ function describeRelease(version) {
 }
 
 function configureLegacyApp(source, address) {
-  assert.match(source, legacyFeed, "The released Electron feed could not be located");
+  assert.match(
+    source,
+    legacyFeed,
+    "The released Electron feed could not be located",
+  );
   const routed = source.replace(
     legacyFeed,
-    'var MUZO_UPDATE_FEED = { provider: "generic", url: ' + JSON.stringify(address) + " };",
+    'var MUZO_UPDATE_FEED = { provider: "generic", url: ' +
+      JSON.stringify(address) +
+      " };",
   );
   const requestTarget = JSON.stringify(new URL("release", address).href);
   const fixture = [
     "const fixtureFetch = globalThis.fetch;",
     "globalThis.fetch = (input, options) => fixtureFetch(input === " +
-      JSON.stringify(releaseEndpoint) + " ? " + requestTarget + " : input, options);",
+      JSON.stringify(releaseEndpoint) +
+      " ? " +
+      requestTarget +
+      " : input, options);",
     'const fixtureDialog = require("electron").dialog;',
     "const originalDialog = fixtureDialog.showMessageBox.bind(fixtureDialog);",
-    "fixtureDialog.showMessageBox = (options) => options.message?.startsWith(\"Restart Muzo to install\") " +
+    'fixtureDialog.showMessageBox = (options) => options.message?.startsWith("Restart Muzo to install") ' +
       "? Promise.resolve({ response: 1, checkboxChecked: false }) : originalDialog(options);",
   ];
   return fixture.join("\n") + "\n" + routed;
@@ -53,7 +62,10 @@ function configureLegacyApp(source, address) {
 
 export async function startLegacyUpdateFeed(installer, manifest, legacyMain) {
   const name = basename(installer);
-  const version = /^Muzo-(\d+\.\d+\.\d+)-(?:windows-x64-setup\.exe|linux-x64\.AppImage)$/u.exec(name)?.[1];
+  const version =
+    /^Muzo-(\d+\.\d+\.\d+)-(?:windows-x64-setup\.exe|linux-x64\.AppImage)$/u.exec(
+      name,
+    )?.[1];
   assert(version, "The candidate must have a supported release filename");
   const bundle = await readFile(legacyMain, "utf8");
   const manifestName = basename(manifest);

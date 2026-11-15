@@ -7,7 +7,10 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { startLegacyUpdateFeed } from "./legacy-update-feed.mjs";
-import { captureLegacyProfile, verifyProfileUpgrade } from "./profile-upgrade.mjs";
+import {
+  captureLegacyProfile,
+  verifyProfileUpgrade,
+} from "./profile-upgrade.mjs";
 import { connectToRenderer, renderer } from "./renderer-debugger.mjs";
 
 const execute = promisify(execFile);
@@ -34,8 +37,12 @@ async function clickUpdateButton(evaluate, label) {
   await waitFor(
     async () => {
       const button = await evaluate(
-        rendererButton + " && { label: " + rendererButton +
-          ".getAttribute('aria-label'), disabled: " + rendererButton + ".disabled }",
+        rendererButton +
+          " && { label: " +
+          rendererButton +
+          ".getAttribute('aria-label'), disabled: " +
+          rendererButton +
+          ".disabled }",
       );
       assert.deepEqual(button, { label, disabled: false });
     },
@@ -45,8 +52,9 @@ async function clickUpdateButton(evaluate, label) {
   return evaluate(rendererButton + ".click()");
 }
 
-const [legacyExecutable, candidate, manifest, fixture] =
-  process.argv.slice(2).map((path) => resolve(path));
+const [legacyExecutable, candidate, manifest, fixture] = process.argv
+  .slice(2)
+  .map((path) => resolve(path));
 assert(legacyExecutable && candidate && manifest && fixture);
 assert(process.env.APPDATA && !process.env.MUZO_DATA_DIR);
 const chromium = join(process.env.APPDATA, "Muzo");
@@ -54,12 +62,22 @@ const profile = {
   data: join(process.env.APPDATA, "muzo"),
   leveldb: join(chromium, "Local Storage", "leveldb"),
 };
-const legacyMain = join(dirname(legacyExecutable), "resources", "app", "dist-electron", "main.cjs");
+const legacyMain = join(
+  dirname(legacyExecutable),
+  "resources",
+  "app",
+  "dist-electron",
+  "main.cjs",
+);
 await assert.rejects(access(join(profile.data, "muzo-rust.sqlite")));
 const feed = await startLegacyUpdateFeed(candidate, manifest, legacyMain);
-const legacy = spawn(legacyExecutable, ["--remote-debugging-port=0"], { stdio: "ignore" });
+const legacy = spawn(legacyExecutable, ["--remote-debugging-port=0"], {
+  stdio: "ignore",
+});
 let startupError;
-legacy.once("error", (error) => { startupError = error; });
+legacy.once("error", (error) => {
+  startupError = error;
+});
 try {
   const fixturePreferences = join(fixture, "preferences.json");
   const seeded = await execute(process.execPath, [
@@ -72,17 +90,23 @@ try {
   assert.ifError(startupError);
   const preferences = JSON.parse(await readFile(fixturePreferences, "utf8"));
   const expected = captureLegacyProfile(profile, preferences);
-  const release = await fetch(new URL("release", feed.address)).then((response) => response.json());
+  const release = await fetch(new URL("release", feed.address)).then(
+    (response) => response.json(),
+  );
   const version = release.tag_name.slice(1);
   const socket = await connectToRenderer(chromium);
   const evaluate = renderer(socket);
   try {
-    const check = await evaluate("window.__MUZO_RUNTIME__.updates.command('check')");
+    const check = await evaluate(
+      "window.__MUZO_RUNTIME__.updates.command('check')",
+    );
     assert.equal(check?.ok, true, JSON.stringify(check));
     await clickUpdateButton(evaluate, "Update available v" + version);
-    await clickUpdateButton(evaluate, "Restart to install v" + version).catch((error) => {
-      if (socket.readyState === WebSocket.OPEN) throw error;
-    });
+    await clickUpdateButton(evaluate, "Restart to install v" + version).catch(
+      (error) => {
+        if (socket.readyState === WebSocket.OPEN) throw error;
+      },
+    );
   } finally {
     socket.close();
   }
@@ -99,8 +123,12 @@ try {
     restartTimeoutMs,
     "The installed Rust app did not restart with the Electron profile",
   );
-  console.log("Verified Download and Restart in the published Electron Windows app.");
-  console.log("The native installer replaced Electron and reopened its migrated profile.");
+  console.log(
+    "Verified Download and Restart in the published Electron Windows app.",
+  );
+  console.log(
+    "The native installer replaced Electron and reopened its migrated profile.",
+  );
 } finally {
   if (legacy.exitCode === null) legacy.kill();
   await feed.close();
