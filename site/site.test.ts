@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("Muzo project site", () => {
-  it("introduces the desktop preview with one main heading and working section navigation", () => {
+  it("introduces the native desktop app with one main heading and working section navigation", () => {
     expect(document.querySelectorAll("h1")).toHaveLength(1);
     expect(document.querySelector("main")).not.toBeNull();
     expect(document.querySelector('a[href="#main"]')).not.toBeNull();
@@ -47,8 +47,16 @@ describe("Muzo project site", () => {
         document.getElementById(link.getAttribute("href")?.slice(1) ?? ""),
       ).not.toBeNull();
     }
-    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
-      "desktop preview",
+    expect(document.querySelector(".hero .eyebrow")?.textContent).toContain(
+      "Native desktop",
+    );
+    expect(
+      document
+        .querySelector('meta[property="og:description"]')
+        ?.getAttribute("content"),
+    ).toContain("native desktop");
+    expect(document.querySelector("#downloads")?.textContent).not.toMatch(
+      /desktop preview/i,
     );
   });
 
@@ -78,6 +86,18 @@ describe("Muzo project site", () => {
         'a[href="https://github.com/alexanderwanyoike/muzo/releases"]',
       ),
     ).not.toBeNull();
+  });
+
+  it("describes the current material and accent options", () => {
+    expect(document.querySelectorAll(".materials li")).toHaveLength(8);
+    expect(document.querySelector(".materials")?.textContent).toContain(
+      "Pulse",
+    );
+    expect(
+      document
+        .querySelector(".appearance-heading")
+        ?.textContent?.replace(/\s+/g, " "),
+    ).toContain("Sixteen accent colours");
   });
 
   it("uses the current canonical screenshots with descriptive alternative text and dimensions", () => {
