@@ -227,6 +227,43 @@ jobs:
             apps/desktop-rust/out/rust-distribution/latest*.yml
           if-no-files-found: error
 
+  windows-in-app-upgrade:
+    needs: [context, package]
+    if: github.ref_type != 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: muzo-rust-windows-x64
+          path: update-fixture
+      - name: Verify Download and Restart in the installed Electron app
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.5/Muzo-0.0.5-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne 'ffafa3745972ce6bac997057440e5ab0196489a05306ff733442fab0294897b9') {
+            throw 'The legacy installer checksum changed.'
+          }
+          $candidate = Get-ChildItem update-fixture -Filter '*-setup.exe' | Select-Object -First 1
+          $install = Join-Path $env:RUNNER_TEMP 'muzo-in-app-upgrade'
+          $setup = Start-Process -FilePath $legacy -ArgumentList '/S', "/D=$install" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Legacy installer exited with code $($setup.ExitCode)" }
+          yarn exec -- node --test apps/desktop-rust/tests/manual/legacy-update-feed.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-in-app-upgrade.mjs `
+            (Join-Path $install 'muzo.exe') $candidate.FullName (Join-Path $candidate.DirectoryName 'latest.yml') `
+            (Join-Path $env:RUNNER_TEMP 'muzo-updater-profile')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   assemble:
     needs: [context, package]
     runs-on: ubuntu-24.04
