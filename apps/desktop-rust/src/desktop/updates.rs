@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use iced::{
     Element, Task, border,
-    widget::{button, row, text, tooltip},
+    widget::{button, container, row, text, tooltip},
 };
 
 use crate::{
@@ -205,9 +205,14 @@ fn pill<'a>(
     action: Option<Message>,
     surfaces: Surfaces,
 ) -> button::Button<'a, Message> {
-    button(text(label.into()).size(10))
-        .height(24)
-        .padding([2, 10])
+    const PILL_HEIGHT: f32 = 24.0;
+    const HORIZONTAL_INSET: f32 = 10.0;
+    let label = container(text(label.into()).size(11).align_y(iced::Center))
+        .center_y(PILL_HEIGHT)
+        .padding([0.0, HORIZONTAL_INSET]);
+    button(label)
+        .height(PILL_HEIGHT)
+        .padding(0)
         .style(move |theme: &iced::Theme, status| {
             let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
             button::Style {
@@ -224,7 +229,9 @@ fn pill<'a>(
                 } else {
                     theme.palette().text
                 },
-                border: border::rounded(12).width(1).color(surfaces.line),
+                border: border::rounded(PILL_HEIGHT / 2.0)
+                    .width(1)
+                    .color(surfaces.line),
                 ..button::Style::default()
             }
         })
