@@ -70,8 +70,9 @@ folder** while viewing Dropbox at the top level. Selections stay with you as you
 browse. Use **Add 1 folder** or **Add N folders** to create libraries using the
 folder names, including their subfolders. Already-added folders are marked, and
 failed additions remain selected for retry. Each library syncs on startup and at
-the interval set in Settings. **Sync now** starts a sync immediately. Each library
-stays bound to the account that created it.
+the interval set in Settings. Choose **Sync now** to sync all Dropbox libraries or
+**Refresh** under **Indexed sources** to sync one. Each library stays bound to the
+account that created it.
 
 Dropbox tracks download when selected, then use the normal playback controls.
 Downloads require an internet connection, and retained audio is capped at 1 GiB.
