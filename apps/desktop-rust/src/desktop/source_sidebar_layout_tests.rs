@@ -702,3 +702,37 @@ fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded()
     );
     assert!(desktop.sources.source_tracks_error.is_none());
 }
+
+#[test]
+fn it_opens_the_songs_for_a_library_folder_added_in_settings() {
+    let directory = tempfile::tempdir().unwrap();
+    let folder = directory.path().join("Music");
+    std::fs::create_dir(&folder).unwrap();
+    std::fs::write(
+        folder.join("tone.mp3"),
+        include_bytes!("../../tests/fixtures/tone.mp3"),
+    )
+    .unwrap();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    let _ = desktop.update(Message::LibraryPage(crate::desktop::LibraryPage::Settings));
+    let _ = desktop.update(Message::FolderName("Local Music".into()));
+    let _ = desktop.update(Message::FolderLocation(
+        folder.to_string_lossy().into_owned(),
+    ));
+    let submit = desktop.update(Message::SubmitFolder);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut actions = task::into_stream(submit).expect("add library command");
+    let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+        panic!("expected a catalogue result");
+    };
+    let _ = desktop.update(updated);
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().tracks.len(), 1);
+    assert_eq!(
+        desktop.page,
+        crate::desktop::LibraryPage::Songs,
+        "the new library should open after it has been saved"
+    );
+}
