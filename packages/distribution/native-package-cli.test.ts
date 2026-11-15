@@ -77,7 +77,7 @@ it.each([
         const fake = [
           "#!/bin/sh",
           'if [ "$1" = metadata ]; then',
-          `  printf '{"target_directory":"/stale"}\\n'`,
+          "  printf '%s\\n' \"$MUZO_FIXTURE_CARGO_METADATA\"",
           'elif [ "$1" = "-vV" ]; then',
           '  printf "host: x86_64-unknown-linux-gnu\\n"',
           "else",
@@ -101,6 +101,9 @@ it.each([
             ...process.env,
             PATH: fixture,
             CARGO_BUILD_TARGET: "muzo-invalid-host-target",
+            MUZO_FIXTURE_CARGO_METADATA: JSON.stringify({
+              target_directory: join(fixture, "stale"),
+            }),
           },
         },
       );
@@ -195,8 +198,14 @@ process.exit(43);
       expect(await readFile(join(cache, "requested-build-cache"), "utf8")).toBe(
         cache,
       );
-      const artifacts = await readFile(join(cache, "executable-staging-directory"), "utf8");
-      expect(dirname(artifacts), "keep executable artifacts off the installer output mount").toBe(cache);
+      const artifacts = await readFile(
+        join(cache, "executable-staging-directory"),
+        "utf8",
+      );
+      expect(
+        dirname(artifacts),
+        "keep executable artifacts off the installer output mount",
+      ).toBe(cache);
     } finally {
       await rm(fixture, { recursive: true, force: true });
     }
