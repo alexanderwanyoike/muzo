@@ -1185,3 +1185,81 @@ mod count_tests {
         assert_eq!(snapshot.track_counts.len(), 2);
     }
 }
+
+#[cfg(test)]
+mod source_selection_tests {
+    use super::*;
+
+    struct Libraries {
+        _directory: tempfile::TempDir,
+        paths: CataloguePaths,
+        first: Library,
+        second: Library,
+    }
+
+    impl Libraries {
+        fn new() -> Self {
+            let directory = tempfile::tempdir().unwrap();
+            let paths = CataloguePaths::in_directory(directory.path());
+            let mut catalogue = paths.open().unwrap();
+            let first = directory.path().join("Canal Sessions");
+            let second = directory.path().join("Harbour Rehearsals");
+            std::fs::create_dir(&first).unwrap();
+            std::fs::create_dir(&second).unwrap();
+            let first = catalogue.add_folder(&first).unwrap();
+            let second = catalogue.add_folder(&second).unwrap();
+            Self {
+                _directory: directory,
+                paths,
+                first,
+                second,
+            }
+        }
+
+        fn apply(&self, operation: Operation, selected: Option<String>) -> Snapshot {
+            run_with_selection(&self.paths, operation, selected, None).unwrap()
+        }
+    }
+
+    #[test]
+    fn it_waits_for_the_user_to_choose_a_source_after_startup() {
+        let libraries = Libraries::new();
+        let startup = libraries.apply(Operation::Startup, None);
+        assert_eq!(startup.libraries.len(), 2);
+        assert_eq!(startup.selected, None);
+
+        let chosen = libraries.apply(
+            Operation::Select(libraries.second.id.clone()),
+            startup.selected,
+        );
+        assert_eq!(chosen.selected.as_ref(), Some(&libraries.second.id));
+    }
+
+    #[test]
+    fn it_keeps_the_library_unselected_after_removing_the_active_source_and_reloading() {
+        let libraries = Libraries::new();
+        let snapshot = libraries.apply(
+            Operation::Remove(libraries.first.id.clone()),
+            Some(libraries.first.id.clone()),
+        );
+        assert_eq!(
+            snapshot.libraries.as_slice(),
+            std::slice::from_ref(&libraries.second)
+        );
+        assert_eq!(snapshot.selected, None);
+
+        let refreshed = libraries.apply(Operation::Reload, snapshot.selected);
+        assert_eq!(refreshed.selected, None);
+        assert!(refreshed.tracks.is_empty());
+    }
+
+    #[test]
+    fn it_keeps_the_selected_source_when_a_different_source_is_removed() {
+        let libraries = Libraries::new();
+        let snapshot = libraries.apply(
+            Operation::Remove(libraries.first.id.clone()),
+            Some(libraries.second.id.clone()),
+        );
+        assert_eq!(snapshot.selected.as_ref(), Some(&libraries.second.id));
+    }
+}
