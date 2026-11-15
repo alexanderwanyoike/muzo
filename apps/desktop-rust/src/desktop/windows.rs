@@ -172,9 +172,12 @@ impl Windows {
             return Task::none();
         }
         self.library_geometry = Some((size, maximized));
-        window::maximize(id, false)
-            .chain(window::set_min_size(id, Some(MINI_MIN)))
-            .chain(window::resize(id, MINI_SIZE))
+        let resize = window::set_min_size(id, Some(MINI_MIN)).chain(window::resize(id, MINI_SIZE));
+        if maximized {
+            window::maximize(id, false).chain(resize)
+        } else {
+            resize
+        }
     }
 
     pub fn mini_opened(&self, id: window::Id) -> Task<Message> {
@@ -207,9 +210,13 @@ impl Windows {
                 return self.library_geometry.take().map_or_else(
                     Task::none,
                     |(size, maximized)| {
-                        window::set_min_size(id, Some(LIBRARY_MIN))
-                            .chain(window::resize(id, size))
-                            .chain(window::maximize(id, maximized))
+                        let resize = window::set_min_size(id, Some(LIBRARY_MIN))
+                            .chain(window::resize(id, size));
+                        if maximized {
+                            resize.chain(window::maximize(id, true))
+                        } else {
+                            resize
+                        }
                     },
                 );
             }
