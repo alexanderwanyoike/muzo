@@ -128,7 +128,9 @@ pub enum Message {
     ShowMini,
     ToggleMini(window::Id),
     MiniOpened(window::Id),
-    LibraryVisibilityChecked(window::Id, bool),
+    LibraryVisibilityKnown(window::Id, bool),
+    WaylandMiniPrepared(window::Id, iced::Size, bool),
+    WaylandLibraryResized(window::Id, iced::Size, bool),
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
@@ -183,7 +185,7 @@ pub struct Desktop {
     page: LibraryPage,
     appearance_focus: Option<appearance_focus::Choice>,
     plays_pending: usize,
-    close_after_history: Option<window::Id>,
+    close_after_history: bool,
     install_after_history: bool,
     appearance: crate::appearance::Appearance,
     update_status: updates::Status,
@@ -197,7 +199,7 @@ impl Desktop {
             .as_ref()
             .map(|device| Session::new(Playback::new(device.mixer().clone())))
             .map_err(ToString::to_string);
-        let (mut desktop, open) = Self::with_session(session);
+        let (mut desktop, open) = Self::with_windows(session, Windows::open());
         desktop.output = output.ok();
         desktop.sources = Sources::new(CataloguePaths::from_environment());
         if let Some(path) = desktop.sources.paths().map(|paths| paths.appearance()) {
@@ -237,8 +239,15 @@ impl Desktop {
         )
     }
 
+    #[cfg(test)]
     pub fn with_session(session: Result<Session, String>) -> (Self, Task<Message>) {
-        let (windows, open) = Windows::open();
+        Self::with_windows(session, Windows::open_for_test())
+    }
+
+    fn with_windows(
+        session: Result<Session, String>,
+        (windows, open): (Windows, Task<Message>),
+    ) -> (Self, Task<Message>) {
         let (session, error) = match session {
             Ok(session) => (Some(session), None),
             Err(error) => (None, Some(error)),
@@ -265,7 +274,7 @@ impl Desktop {
                 page: LibraryPage::default(),
                 appearance_focus: None,
                 plays_pending: 0,
-                close_after_history: None,
+                close_after_history: false,
                 install_after_history: false,
                 appearance: crate::appearance::Appearance::default(),
                 update_status: updates::Status::Idle,
@@ -1058,9 +1067,23 @@ impl Desktop {
                     self.update(Message::SeekRelative(step * 5))
                 }
             }
-            Message::MiniOpened(id) => self.windows.mini_opened(id),
-            Message::LibraryVisibilityChecked(id, wayland) => {
-                self.windows.library_visibility_checked(id, wayland)
+            Message::MiniOpened(id) => {
+                let opened = self.windows.mini_opened(id);
+                if self.windows.is_mini(id) && self.windows.queue_open() {
+                    Task::batch([opened, self.load_row_covers()])
+                } else {
+                    opened
+                }
+            }
+            Message::LibraryVisibilityKnown(id, wayland) => {
+                self.windows.library_visibility_known(id, wayland)
+            }
+            Message::WaylandMiniPrepared(id, size, maximized) => {
+                self.windows.open_wayland_mini(id, size, maximized)
+            }
+            Message::WaylandLibraryResized(id, size, maximized) => {
+                self.windows.record_library_size(id, size, maximized);
+                Task::none()
             }
             Message::EscapePressed(id) => {
                 if self.windows.is_library(id)
@@ -1098,14 +1121,12 @@ impl Desktop {
                     Ok(count) => self.sources.confirm_play_count(&id, count),
                     Err(error) => {
                         self.error = Some(error);
-                        self.close_after_history = None;
+                        self.close_after_history = false;
                         self.install_after_history = false;
                     }
                 }
-                if self.plays_pending == 0
-                    && let Some(window) = self.close_after_history.take()
-                {
-                    return self.update(Message::CloseRequested(window));
+                if self.plays_pending == 0 && std::mem::take(&mut self.close_after_history) {
+                    return iced::exit();
                 }
                 if self.plays_pending == 0 && self.install_after_history {
                     return self.update(Message::ConfirmInstallUpdate);
@@ -1114,7 +1135,7 @@ impl Desktop {
             }
             Message::CloseRequested(id) => {
                 if self.windows.is_library(id) && self.plays_pending > 0 {
-                    self.close_after_history = Some(id);
+                    self.close_after_history = true;
                     return Task::none();
                 }
                 self.windows.close_requested(id)
@@ -1131,6 +1152,8 @@ impl Desktop {
                     if was_open != self.windows.queue_open() {
                         return self.load_row_covers();
                     }
+                } else {
+                    return self.windows.library_resized(id, size);
                 }
                 Task::none()
             }
