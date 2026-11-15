@@ -311,4 +311,66 @@ mod tests {
         assert!(darkest(&active) < darkest(&disabled));
         assert!(darkest(&disabled) < 255);
     }
+    #[test]
+    fn it_places_only_the_play_and_pause_tooltips_below_the_library_controls() {
+        use iced::{
+            Event, Point, Vector,
+            advanced::{Shell, clipboard},
+        };
+
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let viewport = Rectangle::with_size(Size::new(240.0, 160.0));
+        let origin = Vector::new(90.0, 55.0);
+        for (kind, label, below) in [
+            (Icon::Play, "Play", true),
+            (Icon::Pause, "Pause", true),
+            (Icon::Previous, "Previous", false),
+            (Icon::Next, "Next", false),
+        ] {
+            let mut control =
+                transport_button(kind, label, Some(Message::TogglePlayback), None, action);
+            let mut tree = Tree::new(&control);
+            let widget = control.as_widget_mut();
+            let node = widget
+                .layout(
+                    &mut tree,
+                    &renderer,
+                    &layout::Limits::new(Size::ZERO, viewport.size()),
+                )
+                .translate(origin);
+            let layout = Layout::new(&node);
+            let bounds = layout.bounds();
+            let cursor = Point::new(bounds.center_x(), bounds.center_y());
+            widget.update(
+                &mut tree,
+                &Event::Mouse(mouse::Event::CursorMoved { position: cursor }),
+                layout,
+                mouse::Cursor::Available(cursor),
+                &renderer,
+                &mut clipboard::Null,
+                &mut Shell::new(&mut Vec::new()),
+                &viewport,
+            );
+            let mut overlay = widget
+                .overlay(&mut tree, layout, &renderer, &viewport, Vector::ZERO)
+                .expect("hover should show a tooltip");
+            let overlay_layout = overlay.as_overlay_mut().layout(&renderer, viewport.size());
+            let tip = Layout::new(&overlay_layout)
+                .children()
+                .next()
+                .expect("tooltip overlay")
+                .bounds();
+            if below {
+                assert!(
+                    tip.y > bounds.y + bounds.height,
+                    "{label} overlaps its control"
+                );
+            } else {
+                assert!(
+                    tip.y < cursor.y,
+                    "{label} should keep its cursor-relative tooltip"
+                );
+            }
+        }
+    }
 }
