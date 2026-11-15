@@ -178,3 +178,41 @@ fn it_abbreviates_now_playing_labels_inside_the_original_display_column() {
         );
     }
 }
+
+#[test]
+fn it_draws_the_original_glowing_play_control_when_a_track_is_available() {
+    const SIZE: Size<u32> = Size::new(850, 800);
+    const CYAN: [u8; 4] = [0, 217, 237, 255];
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.appearance.accent = "glow-cyan".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let idle = paint(&desktop, id, SIZE);
+    let _ = desktop.update(Message::Select(0));
+    let playing = paint(&desktop, id, SIZE);
+    let _ = desktop.update(Message::TogglePlayback);
+    let paused = paint(&desktop, id, SIZE);
+    let pixel = |frame: &[u8], x, y| {
+        let offset = (y * SIZE.width as usize + x) * 4;
+        <[u8; 4]>::try_from(&frame[offset..offset + 4]).unwrap()
+    };
+
+    assert_ne!(
+        pixel(&idle, 92, 27),
+        CYAN,
+        "disabled control should remain muted"
+    );
+    for frame in [&playing, &paused] {
+        assert_eq!(
+            pixel(frame, 92, 27),
+            CYAN,
+            "active control needs the accent fill"
+        );
+        assert!(
+            pixel(frame, 70, 40)[1] > pixel(&idle, 70, 40)[1] + 4,
+            "the halo should extend beyond the button"
+        );
+    }
+}
