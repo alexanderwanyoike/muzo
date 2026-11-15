@@ -1760,3 +1760,26 @@ mod queue_shortcut_tests;
 #[cfg(test)]
 #[path = "desktop/saved_names_tests.rs"]
 mod saved_names_tests;
+
+#[cfg(test)]
+#[test]
+fn it_does_not_queue_electron_switches_after_upgrading_the_appimage() {
+    use std::ffi::OsString;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let audio = temporary.path().join("--Set mix.mp3");
+    std::fs::write(&audio, include_bytes!("../tests/fixtures/tone.mp3")).unwrap();
+    let forwarded = [
+        OsString::from("--no-sandbox"),
+        OsString::from("--disable-gpu"),
+        OsString::from("--user-data-dir=/fixture/Muzo"),
+        OsString::from("--remote-debugging-port=0"),
+        audio.clone().into_os_string(),
+        OsString::from("--"),
+        OsString::from("--Another track.flac"),
+    ];
+    assert_eq!(
+        launch_files(forwarded),
+        [audio, PathBuf::from("--Another track.flac")]
+    );
+}
