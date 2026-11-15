@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, Font, Theme, border,
+    Alignment, Color, Element, Fill, Font, Theme, border,
     widget::{
         Space, button, column, container, image, row, scrollable, stack, text, text_input, tooltip,
     },
@@ -525,23 +525,17 @@ fn track_row_control(
     label: &'static str,
     width: f32,
     message: Option<Message>,
-    surfaces: Surfaces,
+    ink: Color,
 ) -> Element<'static, Message> {
     const HIT_HEIGHT: f32 = 27.0;
     const PLAY_GLYPH: f32 = 13.0;
     const ACTION_GLYPH: f32 = 16.0;
     let playback = matches!(kind, Icon::Play | Icon::Pause);
     let edge = if playback { PLAY_GLYPH } else { ACTION_GLYPH };
-    let glyph = icon_tinted(kind, move |theme| {
-        if playback {
-            theme.palette().primary
-        } else {
-            surfaces.muted
-        }
-    })
-    .width(edge)
-    .height(edge)
-    .opacity(control_opacity(message.is_some()));
+    let glyph = icon_tinted(kind, move |_| ink)
+        .width(edge)
+        .height(edge)
+        .opacity(control_opacity(message.is_some()));
     tooltip(
         button(container(glyph).center_x(width).center_y(HIT_HEIGHT))
             .padding(0)
@@ -559,7 +553,7 @@ pub fn tracks<'a>(
     session: Option<&Session>,
     cover: Option<&image::Handle>,
     sources: &'a Sources,
-    surfaces: Surfaces,
+    appearance: &Appearance,
     viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {
     const ROW_CONTENT_HEIGHT: f32 = 56.0;
@@ -569,6 +563,8 @@ pub fn tracks<'a>(
     const STRIPE_OPACITY: f32 = 0.02;
     const DIVIDER_OPACITY: f32 = 0.5;
     const TABLE_TEXT: Font = Font::with_name("Muzo Table Text");
+    let surfaces = appearance.surfaces();
+    let accent_ink = appearance.accent_ink();
     let metrics = TrackRowMetrics::for_viewport(viewport_width);
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
@@ -594,7 +590,7 @@ pub fn tracks<'a>(
             } else {
                 Message::PlayIndexed(index)
             }),
-            surfaces,
+            accent_ink,
         );
         let song_detail = track
             .album
@@ -665,7 +661,7 @@ pub fn tracks<'a>(
                 metrics.action,
                 (!busy && !saving_editor && !adding_track)
                     .then(|| Message::EditTrack(track.clone())),
-                surfaces
+                surfaces.muted
             ),
             track_row_control(
                 Icon::AddToPlaylist,
@@ -673,7 +669,7 @@ pub fn tracks<'a>(
                 metrics.action,
                 (!busy && !saving_editor && !adding_track)
                     .then(|| Message::OpenPlaylistPicker(track.clone())),
-                surfaces
+                surfaces.muted
             ),
         ]
         .spacing(metrics.gap)

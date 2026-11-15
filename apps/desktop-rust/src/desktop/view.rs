@@ -82,7 +82,7 @@ fn library_content<'a>(
             session,
             cover,
             sources,
-            preferences.surfaces(),
+            preferences,
             viewport_width,
         )
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
