@@ -113,6 +113,7 @@ pub enum Message {
     TrackEditorFieldSubmit,
     SaveTrackEdit(bool),
     CloseTrackEdit,
+    RemoteCachedCoverReady(u64, Option<Vec<u8>>),
     RemoteTrackReady(u64, Result<Track, String>),
     FilesRead(Result<row_cover::OpenedFiles, String>),
     Select(usize),
@@ -788,6 +789,20 @@ impl Desktop {
                 }
                 Task::none()
             }
+            Message::RemoteCachedCoverReady(request, cover) => {
+                if request == self.playback_request
+                    && let (Some(index), Some(bytes), Some(session)) =
+                        (self.pending_track, cover, self.session.as_mut())
+                    && let Some(track) = session.tracks().get(index)
+                {
+                    let track = track.clone().with_artwork(bytes);
+                    let _ = session.replace_track(index, track.clone());
+                    if session.current().is_none() {
+                        self.cover = Cover::from_track(Some(&track));
+                    }
+                }
+                Task::none()
+            }
             Message::RemoteTrackReady(request, result) => {
                 if request != self.playback_request {
                     return Task::none();
@@ -1459,7 +1474,7 @@ impl Desktop {
     fn select_track(&mut self, index: usize) -> Task<Message> {
         self.playback_request += 1;
         let request = self.playback_request;
-        let Some(mut track) = self
+        let Some(track) = self
             .session
             .as_ref()
             .and_then(|session| session.tracks().get(index))
@@ -1475,20 +1490,23 @@ impl Desktop {
             };
             let library = library.to_owned();
             let path = path.to_owned();
-            if let Some(revision) = artwork_revision(&paths, &track)
-                && let Some(bytes) =
-                    crate::artwork_cache::ArtworkCache::new(paths.artwork_cache()).lookup(&revision)
-            {
-                track = track.with_artwork(bytes);
-                if let Some(session) = &mut self.session {
-                    let _ = session.replace_track(index, track.clone());
-                    if session.current().is_none() {
-                        self.cover = Cover::from_track(Some(&track));
-                    }
-                }
-            }
             self.pending_track = Some(index);
-            return Task::perform(
+            let cover_paths = paths.clone();
+            let cover_track = track.clone();
+            let cover = Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        let revision = artwork_revision(&cover_paths, &cover_track)?;
+                        crate::artwork_cache::ArtworkCache::new(cover_paths.artwork_cache())
+                            .lookup(&revision)
+                    })
+                    .await
+                    .ok()
+                    .flatten()
+                },
+                move |cover| Message::RemoteCachedCoverReady(request, cover),
+            );
+            let audio = Task::perform(
                 async move {
                     tokio::task::spawn_blocking(move || {
                         let local = dropbox_panel::remote_audio(&paths, &library, &path)
@@ -1500,6 +1518,7 @@ impl Desktop {
                 },
                 move |result| Message::RemoteTrackReady(request, result),
             );
+            return cover.chain(audio);
         }
         if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
             self.pending_track = Some(index);
