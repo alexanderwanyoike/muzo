@@ -78,6 +78,9 @@ describe("Muzo project site", () => {
       expect(text).toContain(platform);
     }
     expect(text).toContain("Preparing release");
+    expect(downloads?.querySelector("[data-release-status]")?.textContent).toBe(
+      "",
+    );
     expect(document.body.textContent).not.toContain("yarn desktop:dev");
     expect(document.body.textContent).not.toContain("git clone");
     expect(document.querySelector('a[href*="/releases/download/"]')).toBeNull();
