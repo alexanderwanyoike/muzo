@@ -39,6 +39,19 @@ fn shape(content: &str) -> Paragraph {
     })
 }
 
+fn single_line(name: &str) -> String {
+    name.split(|character: char| {
+        character.is_ascii_whitespace()
+            || matches!(
+                character,
+                '\u{001c}'..='\u{001e}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
+            )
+    })
+    .filter(|word| !word.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ")
+}
+
 impl State {
     fn update(&mut self, name: &str, width: f32) {
         if self.original == name && self.width == width {
@@ -46,7 +59,7 @@ impl State {
         }
         name.clone_into(&mut self.original);
         self.width = width;
-        self.visible = name.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+        self.visible = single_line(name);
         self.paragraph = shape(&self.visible);
         if self.paragraph.min_width() <= width {
             return;
