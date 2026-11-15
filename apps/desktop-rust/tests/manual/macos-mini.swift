@@ -11,6 +11,13 @@ struct SmokeError: Error, CustomStringConvertible {
 struct Window {
     let id: CGWindowID
     let frame: CGRect
+
+    @MainActor
+    func hasContentSize(width: CGFloat, height: CGFloat) -> Bool {
+        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
+        let content = NSWindow.contentRect(forFrameRect: frame, styleMask: style)
+        return abs(content.width - width) <= frameTolerance && abs(content.height - height) <= frameTolerance
+    }
 }
 
 enum Shortcut: String {
@@ -44,10 +51,12 @@ func visibleWindows(ownedBy pid: pid_t) throws -> [Window] {
     }
 }
 
+@MainActor
 func isFrontmost(_ app: Process) -> Bool {
     NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier
 }
 
+@MainActor
 func waitForWindow(
     _ stage: String, of app: Process, matching: (Window) -> Bool
 ) throws -> Window {
@@ -108,6 +117,7 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
     try runTool("/usr/bin/osascript", ["-e", script, "--", String(app.processIdentifier), shortcut.rawValue])
 }
 
+@MainActor
 func capture(_ window: Window, of app: Process, named name: String, in folder: URL) throws {
     RunLoop.current.run(until: Date(timeIntervalSinceNow: redrawInterval))
     guard isFrontmost(app) else {
@@ -120,6 +130,7 @@ func capture(_ window: Window, of app: Process, named name: String, in folder: U
     }
 }
 
+@MainActor
 func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
     let files = FileManager.default
     guard let executable = Bundle(url: bundle)?.executableURL, files.isExecutableFile(atPath: executable.path)
@@ -157,22 +168,20 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
 
     try send(.mini, to: app)
     let compact = try waitForWindow("compact mini player", of: app) { window in
-        window.id != library.id && abs(window.frame.width - compactWidth) <= frameTolerance
-            && window.frame.height >= miniContentHeight - frameTolerance
+        window.id != library.id && window.hasContentSize(width: compactWidth, height: miniContentHeight)
     }
     try capture(compact, of: app, named: "macos-mini", in: screenshots)
 
     try send(.focusQueue, to: app)
     try send(.activate, to: app)
     let expanded = try waitForWindow("expanded mini player queue", of: app) { window in
-        window.id == compact.id && abs(window.frame.width - expandedWidth) <= frameTolerance
-            && abs(window.frame.height - compact.frame.height) <= frameTolerance
+        window.id == compact.id && window.hasContentSize(width: expandedWidth, height: miniContentHeight)
     }
     try capture(expanded, of: app, named: "macos-mini-queue", in: screenshots)
 
     try send(.activate, to: app)
     let collapsed = try waitForWindow("collapsed mini player queue", of: app) { window in
-        window.id == compact.id && window.frame.size == compact.frame.size
+        window.id == compact.id && window.hasContentSize(width: compactWidth, height: miniContentHeight)
     }
     try capture(collapsed, of: app, named: "macos-mini-collapsed", in: screenshots)
 
@@ -189,10 +198,12 @@ do {
     guard arguments.count == 3 else {
         throw SmokeError(description: "Usage: swift macos-mini.swift <Muzo.app> <screenshot directory>")
     }
-    try verifyMiniPlayer(
-        bundle: URL(fileURLWithPath: arguments[1], isDirectory: true),
-        screenshots: URL(fileURLWithPath: arguments[2], isDirectory: true)
-    )
+    try MainActor.assumeIsolated {
+        try verifyMiniPlayer(
+            bundle: URL(fileURLWithPath: arguments[1], isDirectory: true),
+            screenshots: URL(fileURLWithPath: arguments[2], isDirectory: true)
+        )
+    }
 } catch {
     FileHandle.standardError.write(Data("macOS mini-player smoke test: \(error)\n".utf8))
     exit(EXIT_FAILURE)
