@@ -147,12 +147,9 @@ impl Settings {
             Action::OpenAuthorization(url) => {
                 return Task::perform(
                     async move {
-                        let request = url.clone();
-                        let result =
-                            tokio::task::spawn_blocking(move || browser::open_default(&request))
-                                .await
-                                .map_err(|error| error.to_string())
-                                .and_then(|opened| opened.map_err(|error| error.to_string()));
+                        let result = browser::open_default(url.clone())
+                            .await
+                            .map_err(|error| error.to_string());
                         (url, result)
                     },
                     |(url, result)| Message::Dropbox(Action::AuthorizationOpened(url, result)),

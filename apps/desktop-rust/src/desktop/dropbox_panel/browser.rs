@@ -1,7 +1,18 @@
 use std::io;
 
+pub(super) async fn open_default(url: String) -> io::Result<()> {
+    let (result, opened) = iced::futures::channel::oneshot::channel();
+    // A desktop handler can wait for the browser to close. Keep it out of Iced's shutdown path.
+    std::thread::Builder::new()
+        .name("dropbox-browser".into())
+        .spawn(move || {
+            let _ = result.send(launch_default(&url));
+        })?;
+    opened.await.map_err(io::Error::other)?
+}
+
 #[cfg(target_os = "linux")]
-pub(super) fn open_default(url: &str) -> io::Result<()> {
+fn launch_default(url: &str) -> io::Result<()> {
     let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
     let kde = desktop
         .split(':')
@@ -45,6 +56,6 @@ fn launch(executable: &str, args: &[&str]) -> io::Result<()> {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub(super) fn open_default(url: &str) -> io::Result<()> {
+fn launch_default(url: &str) -> io::Result<()> {
     open::that_detached(url)
 }
