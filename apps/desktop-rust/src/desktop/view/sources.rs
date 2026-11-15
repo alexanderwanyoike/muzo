@@ -114,11 +114,7 @@ pub(super) fn indexed_sources<'a>(
         } else {
             None
         };
-        let remove = button(text("Remove").size(11))
-            .style(button_style)
-            .on_press_maybe(
-                (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone())),
-            );
+        let remove = button(text("Remove").size(11)).style(button_style);
         let controls = row![
             button(
                 text(if dropbox.refreshing.as_deref() == Some(&source.id) {

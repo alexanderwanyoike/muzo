@@ -51,6 +51,9 @@ impl<'a> RemovalButton<'a> {
         enabled: bool,
         outline: Color,
     ) -> Self {
+        let button = button.on_press_maybe(
+            enabled.then(|| Message::RequestSourceRemoval(launcher.source_id().to_owned())),
+        );
         Self {
             id: launcher.widget_id(),
             button,

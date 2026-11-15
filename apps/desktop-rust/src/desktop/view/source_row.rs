@@ -164,10 +164,7 @@ fn remove_button(source_id: &str, enabled: bool, colors: Colors) -> Element<'sta
                     background: matches!(status, button::Status::Hovered | button::Status::Pressed)
                         .then(|| danger.scale_alpha(HOVER_OPACITY).into()),
                     ..button::Style::default()
-                })
-                .on_press_maybe(
-                    enabled.then(|| Message::RequestSourceRemoval(source_id.to_owned())),
-                ),
+                }),
             Launcher::Sidebar(source_id.to_owned()),
             enabled,
             focus_ink,
