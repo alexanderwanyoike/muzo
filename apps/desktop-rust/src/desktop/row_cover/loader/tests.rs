@@ -158,3 +158,52 @@ fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     loader.complete(completed(restored), Some(&mut snapshot));
     assert!(snapshot.covers.contains_key(&track));
 }
+
+#[test]
+fn it_preserves_ready_covers_until_the_backing_audio_changes() {
+    use crate::desktop::{Desktop, library_sources::Sources};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let audio = root.path().join("music");
+    fs::create_dir(&audio).unwrap();
+    for name in ["first.mp3", "second.mp3"] {
+        fs::write(
+            audio.join(name),
+            include_bytes!("../../../../tests/fixtures/embedded-cover.mp3"),
+        )
+        .unwrap();
+    }
+    let mut snapshot = run(&paths, Operation::Add(audio)).unwrap();
+    let library = snapshot.selected.clone().unwrap();
+    let handle = Handle::from_rgba(1, 1, vec![255; 4]);
+    for track in &snapshot.tracks {
+        snapshot.covers.insert(track.id.clone(), handle.clone());
+    }
+    let unchanged = snapshot.tracks[0].id.clone();
+    let updated = snapshot.tracks[1].id.clone();
+    let mut desktop = Desktop::with_session(Err("No audio in fixture".into())).0;
+    desktop.sources = Sources::new(Some(paths.clone()));
+    desktop.sources.snapshot = Some(snapshot);
+
+    let database = rusqlite::Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database
+        .execute(
+            "UPDATE tracks SET file_mtime = file_mtime + 1 WHERE id = ?1",
+            [&updated],
+        )
+        .unwrap();
+    let refreshed = run(&paths, Operation::Select(library)).unwrap();
+    let _ = desktop.update(Message::SourcesUpdated(Ok(refreshed)));
+
+    let covers = &desktop.sources.snapshot.as_ref().unwrap().covers;
+    assert_eq!(
+        covers.get(&unchanged),
+        Some(&handle),
+        "an unchanged cover should stay visible"
+    );
+    assert!(
+        !covers.contains_key(&updated),
+        "changed audio must load fresh artwork"
+    );
+}
