@@ -356,9 +356,17 @@ fn selection_fill(appearance: &crate::appearance::Appearance) -> Color {
     pulse_row_fills(appearance).map_or_else(
         || {
             let palette = appearance.theme().palette();
-            compact::tint(palette.background, palette.primary, ACCENT_OPACITY)
+            tint(palette.background, palette.primary, ACCENT_OPACITY)
         },
         |fills| fills.selected,
+    )
+}
+
+fn tint(base: Color, overlay: Color, amount: f32) -> Color {
+    Color::from_rgb(
+        base.r + (overlay.r - base.r) * amount,
+        base.g + (overlay.g - base.g) * amount,
+        base.b + (overlay.b - base.b) * amount,
     )
 }
 

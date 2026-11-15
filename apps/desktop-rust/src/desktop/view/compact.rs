@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     Icon, Message, action, bold, clock_label, control_opacity, focus_ring, focusable_icon, icon,
-    icon_tinted, playback_error,
+    icon_tinted, playback_error, tint,
     window_chrome::{PANE_GUTTER, pane_style, title_bar},
 };
 use crate::desktop::{
@@ -483,14 +483,6 @@ fn queue<'a>(
         .height(Fill)
         .style(move |_| pane_style(surfaces.chrome))
         .into()
-}
-
-pub(super) fn tint(base: Color, overlay: Color, amount: f32) -> Color {
-    Color::from_rgb(
-        base.r + (overlay.r - base.r) * amount,
-        base.g + (overlay.g - base.g) * amount,
-        base.b + (overlay.b - base.b) * amount,
-    )
 }
 
 #[cfg(test)]

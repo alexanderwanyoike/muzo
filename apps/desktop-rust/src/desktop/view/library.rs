@@ -14,11 +14,12 @@ use super::{
     label_text::replace_embedded_breaks,
     library_content, library_transport, playback_error, playlists,
     sidebar_divider::Divider,
-    sources,
+    sources, tint,
     window_chrome::{PANE_GUTTER, pane_style},
 };
 
 const NAV_SUMMARY_HEIGHT: f32 = 33.0;
+const NAV_SELECTION_TINT: f32 = 0.16;
 
 pub(in crate::desktop) fn library<'a>(
     sources: &'a Sources,
@@ -193,7 +194,7 @@ fn nav_item(
     .padding([7, 10])
     .style(move |theme, status| button::Style {
         background: if active {
-            Some(super::compact::tint(surfaces.chrome, theme.palette().primary, 0.16).into())
+            Some(tint(surfaces.chrome, theme.palette().primary, NAV_SELECTION_TINT).into())
         } else {
             action(theme, status).background
         },
