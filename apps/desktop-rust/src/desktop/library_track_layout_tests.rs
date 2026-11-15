@@ -108,6 +108,19 @@ fn it_shows_the_original_singular_and_plural_play_counts() {
 }
 
 #[test]
+fn it_shows_hours_in_the_duration_column_for_long_tracks() {
+    let mut desktop = track_table(850.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    tracks[0].duration_seconds = 3_599;
+    tracks[1].duration_seconds = 3_600;
+    tracks[2].duration_seconds = 3_665;
+    let Table { labels, .. } = track_table_layout(&desktop, 850.0);
+    for duration in ["59:59", "1:00:00", "1:01:05"] {
+        assert!(labels.contains_key(duration), "Missing {duration:?}");
+    }
+}
+
+#[test]
 fn it_ellipsizes_long_track_metadata_without_disturbing_the_numeric_columns() {
     const TITLE: &str =
         "Field recordings from the headland during a windy afternoon in early spring";
