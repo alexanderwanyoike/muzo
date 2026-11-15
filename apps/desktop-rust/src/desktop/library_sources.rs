@@ -1797,6 +1797,12 @@ mod source_selection_tests {
         let playlist = catalogue.create_playlist("Independent Mix").unwrap();
         let previous = libraries.apply(Operation::Select(libraries.first.id.clone()), None);
         assert_eq!(previous.selected_playlist.as_ref(), Some(&original.id));
+        assert!(previous.tracks.iter().any(|track| track.id == "unreadable"));
+        let previous_tracks: Vec<_> = previous
+            .tracks
+            .iter()
+            .map(|track| track.id.clone())
+            .collect();
         conn.execute(
             "UPDATE tracks SET duration_seconds='invalid' WHERE id='unreadable'",
             [],
@@ -1821,6 +1827,7 @@ mod source_selection_tests {
         let snapshot = sources.snapshot.unwrap();
         assert_eq!(snapshot.selected_playlist, Some(playlist.id));
         assert_eq!(snapshot.selected, Some(libraries.first.id));
-        assert_eq!(snapshot.tracks[0].id, "unreadable");
+        let retained_tracks: Vec<_> = snapshot.tracks.into_iter().map(|track| track.id).collect();
+        assert_eq!(retained_tracks, previous_tracks);
     }
 }
