@@ -14,6 +14,8 @@ use super::{
     icon_tinted, panel, pulse_row_fills, selection_fill, source_removal_button::RemovalButton,
 };
 
+mod identity;
+
 const HEIGHT: f32 = 32.0;
 const SELECTION_EDGE: f32 = 2.0;
 const COLUMN_GAP: f32 = 7.0;
@@ -100,7 +102,7 @@ pub(super) fn view(
     .spacing(COLUMN_GAP)
     .height(Fill)
     .align_y(Alignment::Center);
-    container(
+    let content = container(
         row![
             container(Space::new())
                 .width(SELECTION_EDGE)
@@ -117,8 +119,8 @@ pub(super) fn view(
         .align_y(Alignment::Center),
     )
     .width(Fill)
-    .style(move |_| container::Style::default().background(background))
-    .into()
+    .style(move |_| container::Style::default().background(background));
+    Element::new(identity::SourceRow::new(&source.id, content.into()))
 }
 
 fn source_button(theme: &Theme, status: button::Status, hover: Color) -> button::Style {
