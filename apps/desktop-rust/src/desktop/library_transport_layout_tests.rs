@@ -50,6 +50,21 @@ fn it_places_the_transport_display_at_the_original_window_breakpoint() {
 }
 
 fn click_header(desktop: &mut Desktop, width: f32, position: Point) -> Vec<Message> {
+    header_input(
+        desktop,
+        width,
+        [
+            (position, mouse::Event::ButtonPressed(mouse::Button::Left)),
+            (position, mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+    )
+}
+
+fn header_input(
+    desktop: &mut Desktop,
+    width: f32,
+    events: impl IntoIterator<Item = (Point, mouse::Event)>,
+) -> Vec<Message> {
     desktop.sidebar.layout_width(width);
     let mut view = desktop.view(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
@@ -62,10 +77,7 @@ fn click_header(desktop: &mut Desktop, width: f32, position: Point) -> Vec<Messa
         &layout::Limits::new(bounds.size(), bounds.size()),
     );
     let mut messages = Vec::new();
-    for event in [
-        mouse::Event::ButtonPressed(mouse::Button::Left),
-        mouse::Event::ButtonReleased(mouse::Button::Left),
-    ] {
+    for (position, event) in events {
         widget.update(
             &mut tree,
             &Event::Mouse(event),
@@ -106,12 +118,41 @@ fn it_maps_volume_along_the_thumb_travel_without_jumping_when_grabbed() {
         );
 
         let _ = desktop.update(Message::SetVolume(REFERENCE_VOLUME));
-        let grab = click_header(&mut desktop, width, Point::new(thumb_center, 40.0));
+        for offset in [0.0, 3.7] {
+            let grab = click_header(&mut desktop, width, Point::new(thumb_center + offset, 40.0));
+            assert!(
+                grab.is_empty(),
+                "grabbing the thumb at {width}px and offset {offset} changed the volume: {grab:?}"
+            );
+        }
+        let _ = desktop.update(Message::SetVolume(0.32));
+        let grab = click_header(&mut desktop, width, Point::new(thumb_center + 1.5, 40.0));
         assert!(
             grab.is_empty(),
-            "grabbing the thumb at {width}px changed the volume: {grab:?}"
+            "grabbing the existing mini-player volume changed it: {grab:?}"
         );
     }
+}
+
+#[test]
+fn it_keeps_the_volume_at_maximum_when_a_drag_crosses_the_mini_launcher() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::SetVolume(0.50));
+    let rail = Point::new(826.0, 40.0);
+    let launcher = Point::new(826.0, 16.0);
+    let messages = header_input(
+        &mut desktop,
+        850.0,
+        [
+            (rail, mouse::Event::ButtonPressed(mouse::Button::Left)),
+            (launcher, mouse::Event::CursorMoved { position: launcher }),
+            (launcher, mouse::Event::ButtonReleased(mouse::Button::Left)),
+        ],
+    );
+    assert!(
+        matches!(messages.as_slice(), [Message::SetVolume(value)] if *value == 1.0),
+        "vertical drag changed the volume: {messages:?}"
+    );
 }
 
 #[test]
