@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn it_keeps_the_queue_closed_until_the_native_window_has_room() {
-        let (mut windows, _) = Windows::open();
+        let (mut windows, _) = Windows::open_for_test();
         let id = window::Id::unique();
         windows.mini = Some(id);
         let _ = windows.toggle_queue();
@@ -402,7 +402,7 @@ mod tests {
 
     #[test]
     fn it_matches_electron_compact_and_queue_dimensions() {
-        let (mut windows, _) = Windows::open();
+        let (mut windows, _) = Windows::open_for_test();
         let _ = windows.show_mini();
         let id = windows.mini_id().unwrap();
         assert_eq!(windows.mini_size, iced::Size::new(420.0, 560.0));
@@ -420,7 +420,7 @@ mod tests {
 
     #[test]
     fn it_uses_the_original_size_on_mode_changes_after_manual_resizing() {
-        let (mut windows, _) = Windows::open();
+        let (mut windows, _) = Windows::open_for_test();
         let _ = windows.show_mini();
         let id = windows.mini_id().unwrap();
         windows.resized(id, iced::Size::new(405.0, 515.0));
@@ -441,7 +441,7 @@ mod tests {
 
     #[test]
     fn it_waits_for_both_target_dimensions_when_opening_the_queue() {
-        let (mut windows, _) = Windows::open();
+        let (mut windows, _) = Windows::open_for_test();
         let _ = windows.show_mini();
         let id = windows.mini_id().unwrap();
         windows.resized(id, iced::Size::new(820.0, 480.0));
@@ -467,14 +467,25 @@ mod tests {
     fn it_replaces_the_visible_wayland_surface_between_library_and_mini_player() {
         let (mut windows, _) = Windows::open();
         let library = windows.library_id();
-        let _ = windows.show_mini();
-        let initial_mini = windows.mini_id().unwrap();
+        assert_eq!(windows.show_mini().units(), 0);
+        assert!(windows.library_visibility_known(library, true).units() > 0);
+        let request = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
+        let compact = windows.mini_id().unwrap();
+        let mut actions = iced_runtime::task::into_stream(request).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        use iced::futures::StreamExt;
+        use iced_runtime::Action;
+        assert!(
+            matches!(runtime.block_on(actions.next()), Some(Action::Window(iced::window::Action::Close(id))) if id == library)
+        );
+        assert!(
+            matches!(runtime.block_on(actions.next()), Some(Action::Window(iced::window::Action::Open(id, settings, _))) if id == compact && settings.size == super::MINI_SIZE)
+        );
+        let _ = windows.mini_opened(compact);
 
-        let _ = windows.library_visibility_checked(initial_mini, true);
-        let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
-        let _ = windows.mini_opened(windows.mini_id().unwrap());
-
-        assert_ne!(windows.mini_id(), Some(library));
+        assert_ne!(compact, library);
         let _ = windows.show_library();
         assert_ne!(windows.library_id(), library);
         assert!(windows.is_library(windows.library_id()));
@@ -488,7 +499,7 @@ mod tests {
 
         let (mut windows, _) = Windows::open();
         let id = windows.library_id();
-        windows.library_visibility_known(id, true);
+        let _ = windows.library_visibility_known(id, true);
         let _ = windows.show_mini();
         let size = iced::Size::new(1050.0, 750.0);
         let _ = windows.open_wayland_mini(id, size, false);
@@ -521,7 +532,7 @@ mod tests {
 
         let (mut windows, _) = Windows::open();
         let library = windows.library_id();
-        windows.library_visibility_known(library, true);
+        let _ = windows.library_visibility_known(library, true);
         let _ = windows.show_mini();
         let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
         let compact = windows.mini_id().unwrap();
@@ -558,7 +569,7 @@ mod tests {
     fn it_serializes_wayland_replacement_until_the_new_window_is_open() {
         let (mut windows, _) = Windows::open();
         let library = windows.library_id();
-        windows.library_visibility_known(library, true);
+        let _ = windows.library_visibility_known(library, true);
         let _ = windows.show_mini();
         let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
         let opening = windows.mini_id();
@@ -572,10 +583,12 @@ mod tests {
     fn it_ignores_a_close_request_queued_for_the_retired_wayland_mini() {
         let (mut windows, _) = Windows::open();
         let library = windows.library_id();
+        let _ = windows.library_visibility_known(library, true);
         let _ = windows.show_mini();
-        let retired = windows.mini_id().unwrap();
-        let _ = windows.library_visibility_checked(retired, true);
         let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
+        let retired = windows.mini_id().unwrap();
+        let _ = windows.mini_opened(retired);
+        let _ = windows.toggle_queue();
 
         assert_eq!(windows.close_requested(retired).units(), 0);
     }
