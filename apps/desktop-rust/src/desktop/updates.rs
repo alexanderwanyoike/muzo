@@ -206,10 +206,15 @@ fn pill<'a>(
     surfaces: Surfaces,
 ) -> button::Button<'a, Message> {
     const PILL_HEIGHT: f32 = 24.0;
+    const PILL_LABEL_SIZE: f32 = 11.0;
     const HORIZONTAL_INSET: f32 = 10.0;
-    let label = container(text(label.into()).size(11).align_y(iced::Center))
-        .center_y(PILL_HEIGHT)
-        .padding([0.0, HORIZONTAL_INSET]);
+    let label = container(
+        text(label.into())
+            .size(PILL_LABEL_SIZE)
+            .align_y(iced::Center),
+    )
+    .center_y(PILL_HEIGHT)
+    .padding([0.0, HORIZONTAL_INSET]);
     button(label)
         .height(PILL_HEIGHT)
         .padding(0)
