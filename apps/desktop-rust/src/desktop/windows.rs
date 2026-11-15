@@ -509,4 +509,30 @@ mod tests {
             LibraryVisibility::MinimizeAndRestore
         );
     }
+
+    #[test]
+    fn it_serializes_wayland_replacement_until_the_new_window_is_open() {
+        let (mut windows, _) = Windows::open();
+        let library = windows.library_id();
+        windows.library_visibility_known(library, true);
+        let _ = windows.show_mini();
+        let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
+        let opening = windows.mini_id();
+
+        assert_eq!(windows.toggle_queue().units(), 0);
+        assert_eq!(windows.show_library().units(), 0);
+        assert_eq!(windows.mini_id(), opening);
+    }
+
+    #[test]
+    fn it_ignores_a_close_request_queued_for_the_retired_wayland_mini() {
+        let (mut windows, _) = Windows::open();
+        let library = windows.library_id();
+        let _ = windows.show_mini();
+        let retired = windows.mini_id().unwrap();
+        let _ = windows.library_visibility_checked(retired, true);
+        let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
+
+        assert_eq!(windows.close_requested(retired).units(), 0);
+    }
 }
