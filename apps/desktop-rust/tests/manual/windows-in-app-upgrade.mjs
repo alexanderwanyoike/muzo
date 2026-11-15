@@ -119,7 +119,7 @@ try {
       "window.__MUZO_RUNTIME__.updates.command('check')",
     );
     assert.equal(check?.ok, true, JSON.stringify(check));
-    await waitForUpdateButton(evaluate, "Update available v" + version);
+    await waitForUpdateButton(evaluate, "Update available to " + version);
     await evaluate(rendererButton + ".click()");
     await waitForUpdateButton(evaluate, "Restart to install v" + version);
     expected = captureLegacyProfile(profile, preferences);

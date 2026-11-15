@@ -228,10 +228,10 @@ jobs:
           if-no-files-found: error
 
   windows-in-app-upgrade:
-    needs: [context, package]
+    needs: context
     if: github.ref_type != 'tag'
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -241,16 +241,25 @@ jobs:
         with:
           node-version: "22"
       - run: corepack enable
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
-        with:
-          name: muzo-rust-windows-x64
-          path: update-fixture
+      - run: yarn install --frozen-lockfile
+      - run: rustup toolchain install 1.95 --profile minimal
+      - name: Build a successor to the published Electron app
+        shell: pwsh
+        env:
+          RUSTUP_TOOLCHAIN: "1.95"
+        run: |
+          yarn exec -- node --test apps/desktop-rust/tests/manual/windows-updater-fixture-version.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-updater-fixture-version.mjs '0.0.6'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn desktop:package --target windows-x64 --output update-fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify Download and Restart in the installed Electron app
         shell: pwsh
         run: |
           $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
-          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.5/Muzo-0.0.5-windows-x64-setup.exe' -OutFile $legacy
-          if ((Get-FileHash $legacy).Hash -ne 'ffafa3745972ce6bac997057440e5ab0196489a05306ff733442fab0294897b9') {
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne '0a21cc92b92f39a0f8ee406284eb434ec45ab2ad3565cb648d69e356e31e53dc') {
             throw 'The legacy installer checksum changed.'
           }
           $candidate = Get-ChildItem update-fixture -Filter '*-setup.exe' | Select-Object -First 1
