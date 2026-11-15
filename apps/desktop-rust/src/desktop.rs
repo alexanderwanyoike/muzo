@@ -175,6 +175,7 @@ pub struct Desktop {
     row_covers: row_cover::Loader,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
+    dropbox_request_focus: Option<dropbox_panel::Control>,
     playback_request: u64,
     pending_track: Option<usize>,
     failed_track: Option<usize>,
@@ -257,6 +258,7 @@ impl Desktop {
                 row_covers: row_cover::Loader::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
+                dropbox_request_focus: None,
                 playback_request: 0,
                 pending_track: None,
                 failed_track: None,
@@ -456,7 +458,13 @@ impl Desktop {
                     }
                     _ => None,
                 };
+                let request_focus = (self.page == LibraryPage::Settings && !self.dropbox.busy)
+                    .then(|| self.dropbox.request_focus(&action))
+                    .flatten();
                 let task = self.dropbox.update(action, self.sources.paths());
+                if self.dropbox.busy && request_focus.is_some() {
+                    self.dropbox_request_focus = request_focus;
+                }
                 let focus = match field {
                     Some(control) if self.page == LibraryPage::Settings => {
                         self.focus_dropbox([control])
@@ -572,6 +580,7 @@ impl Desktop {
                 }
                 if self.windows.is_library(id) {
                     self.appearance_focus = None;
+                    self.dropbox_request_focus = None;
                     if let Some(picker) = &mut self.sources.playlist_picker
                         && picker.preview.is_none()
                     {
@@ -594,14 +603,22 @@ impl Desktop {
                 Task::none()
             }
             Message::DropboxReady(mut result) => {
-                let settings_visible = self.page == LibraryPage::Settings;
-                let submitted_code = settings_visible && self.dropbox.is_connecting();
-                let entered_folder = settings_visible
-                    && result.as_ref().is_ok_and(|snapshot| {
-                        snapshot.account == self.dropbox.snapshot.account
-                            && !snapshot.path.is_empty()
-                            && snapshot.path != self.dropbox.snapshot.path
-                    });
+                let launcher = self.dropbox_request_focus.take().filter(|launcher| {
+                    self.page == LibraryPage::Settings
+                        && self.appearance_focus.as_ref().is_none_or(|choice| {
+                            let appearance_focus::Choice::Dropbox(control) = choice else {
+                                return false;
+                            };
+                            control == launcher
+                                || (*launcher == dropbox_panel::Control::Connect
+                                    && *control == dropbox_panel::Control::Code)
+                        })
+                });
+                let entered_folder = result.as_ref().is_ok_and(|snapshot| {
+                    snapshot.account == self.dropbox.snapshot.account
+                        && !snapshot.path.is_empty()
+                        && snapshot.path != self.dropbox.snapshot.path
+                });
                 if let Ok(snapshot) = &mut result {
                     for library in std::mem::take(&mut snapshot.disconnected_libraries) {
                         self.remove_queued_library(&library);
@@ -609,20 +626,18 @@ impl Desktop {
                 }
                 self.dropbox.apply(result);
                 let reload = self.sources.reload();
-                let focus = if submitted_code {
-                    self.focus_dropbox([
-                        dropbox_panel::Control::Code,
-                        dropbox_panel::Control::Browse,
-                        dropbox_panel::Control::AppKey,
-                    ])
-                } else if entered_folder {
-                    self.focus_dropbox([
-                        dropbox_panel::Control::SelectCurrent,
-                        dropbox_panel::Control::Parent,
-                        dropbox_panel::Control::Browse,
-                    ])
-                } else {
-                    self.restore_dropbox_focus()
+                use dropbox_panel::Control;
+                let focus = match launcher {
+                    Some(Control::Connect) => {
+                        self.focus_dropbox([Control::Code, Control::Browse, Control::AppKey])
+                    }
+                    Some(_) if entered_folder => self.focus_dropbox([
+                        Control::SelectCurrent,
+                        Control::Parent,
+                        Control::Browse,
+                    ]),
+                    Some(control) => self.focus_dropbox([control, Control::Browse]),
+                    None => self.restore_dropbox_focus(),
                 };
                 Task::batch([reload, focus])
             }
@@ -1660,6 +1675,7 @@ impl Desktop {
     fn set_library_page(&mut self, page: LibraryPage) {
         self.page = page;
         self.appearance_focus = None;
+        self.dropbox_request_focus = None;
         self.editor_navigation.reset();
         self.sources.close_track_panels();
     }

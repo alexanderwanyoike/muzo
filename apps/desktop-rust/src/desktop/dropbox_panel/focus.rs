@@ -66,7 +66,7 @@ impl Control {
             Self::Cancel => Action::CancelAuthorization,
             Self::Parent => {
                 let (parent, _) = settings.snapshot.path.rsplit_once('/')?;
-                Action::Browse(if parent.is_empty() { "/" } else { parent }.into())
+                Action::BrowseParent(if parent.is_empty() { "/" } else { parent }.into())
             }
             Self::SelectCurrent => {
                 let path = &settings.snapshot.path;
@@ -95,6 +95,16 @@ impl Control {
 }
 
 impl Settings {
+    pub(in crate::desktop) fn request_focus(&self, action: &Action) -> Option<Control> {
+        match action {
+            Action::Connect => Some(Control::Connect),
+            Action::BrowseParent(_) => Some(Control::Parent),
+            Action::Browse(path) if path == "/" => Some(Control::Browse),
+            Action::Browse(path) => Some(Control::OpenFolder(path.clone())),
+            _ => None,
+        }
+    }
+
     pub(in crate::desktop) fn focus_stops(&self) -> Vec<Control> {
         use Control::*;
 

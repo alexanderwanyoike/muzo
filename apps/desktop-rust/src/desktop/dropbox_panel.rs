@@ -24,6 +24,7 @@ pub enum Action {
     CancelAuthorization,
     Disconnect,
     Browse(String),
+    BrowseParent(String),
     SelectFolder(String, String),
     AddSelected,
     AddFolders(String, Vec<(String, String)>),
@@ -299,10 +300,6 @@ impl Settings {
         self.refresh_status = Some((id, status));
     }
 
-    pub(super) fn is_connecting(&self) -> bool {
-        self.connecting
-    }
-
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
         let connecting = std::mem::take(&mut self.connecting);
@@ -431,7 +428,7 @@ fn run(
 
     let refresh_current = || client.refresh(&app_key, &refresh);
     match action {
-        Action::Browse(path) => {
+        Action::Browse(path) | Action::BrowseParent(path) => {
             if previous_account
                 .as_ref()
                 .is_some_and(|previous| previous != &account)
@@ -623,6 +620,7 @@ mod tests {
             "/Music/Records".into(),
         )));
 
+        desktop.dropbox_request_focus = Some(Control::OpenFolder("/Music/Records".into()));
         let next = Snapshot {
             path: "/Music/Records".into(),
             ..desktop.dropbox.snapshot.clone()
@@ -650,6 +648,7 @@ mod tests {
         desktop.page = LibraryPage::Settings;
         desktop.dropbox.app_key = "fixture-key".into();
         desktop.dropbox.connecting = true;
+        desktop.dropbox_request_focus = Some(Control::Connect);
         desktop.appearance_focus = Some(Choice::Dropbox(Control::Connect));
         let next = Snapshot {
             account: Some("fixture-account".into()),
@@ -735,6 +734,7 @@ mod tests {
         desktop.page = LibraryPage::Settings;
         desktop.dropbox.snapshot.account = Some("fixture".into());
         desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.dropbox_request_focus = Some(Control::OpenFolder("/Music/Records".into()));
         let next = Snapshot {
             path: "/Music/Records".into(),
             ..desktop.dropbox.snapshot.clone()
@@ -758,6 +758,7 @@ mod tests {
         let _ = desktop.update(Message::Dropbox(Action::Begin));
         desktop.appearance_focus = None;
         desktop.dropbox.connecting = true;
+        desktop.dropbox_request_focus = Some(Control::Connect);
 
         let _ = desktop.update(Message::DropboxReady(Err("Try again".into())));
 
