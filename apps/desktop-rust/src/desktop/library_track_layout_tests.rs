@@ -174,6 +174,37 @@ fn it_reserves_the_original_insets_before_and_after_the_track_list() {
     assert_eq!(content.height, 16.0 * 57.0 + 8.0 + 30.0);
 }
 
+#[test]
+fn it_only_lays_out_nearby_rows_but_keeps_the_full_library_scroll_extent() {
+    const TRACKS: usize = 1_382;
+    let mut desktop = track_table(1200.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    let template = tracks[0].clone();
+    *tracks = (0..TRACKS)
+        .map(|index| {
+            let title = format!("Fixture track {index:04}");
+            IndexedTrack {
+                id: title.clone(),
+                title,
+                ..template.clone()
+            }
+        })
+        .collect();
+
+    let Table { labels, scroll } = track_table_layout(&desktop, 1200.0);
+    let (_, content) = scroll.expect("indexed tracks");
+    assert_eq!(content.height, TRACKS as f32 * 57.0 + 8.0 + 30.0);
+    assert!(labels.contains_key("Fixture track 0000"));
+    let laid_out = labels
+        .keys()
+        .filter(|label| label.starts_with("Fixture track"))
+        .count();
+    assert!(
+        laid_out <= 48,
+        "laid out {laid_out} tracks for an 800px window"
+    );
+}
+
 fn pixel(frame: &[u8], width: usize, x: usize, y: usize) -> [u8; 4] {
     let offset = (y * width + x) * 4;
     frame[offset..offset + 4].try_into().unwrap()
