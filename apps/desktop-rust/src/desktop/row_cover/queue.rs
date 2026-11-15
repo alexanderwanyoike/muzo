@@ -16,6 +16,7 @@ use super::{
 struct QueuedVersion {
     library: String,
     artwork: MediaVersion,
+    download_cover_index: Option<Revision>,
 }
 
 #[derive(Clone)]
@@ -58,6 +59,7 @@ impl QueueArtwork {
                             size: track.file_size,
                             modified: track.file_mtime,
                         },
+                        download_cover_index: None,
                     },
                 )
             })
@@ -105,8 +107,24 @@ impl QueueArtwork {
 
     pub(in crate::desktop) fn remember(&mut self, id: &str, revision: Revision) {
         if let Some(version) = self.versions.get_mut(id) {
+            if version.download_cover_index.as_ref() != Some(&revision) {
+                version.download_cover_index = None;
+            }
             version.artwork = MediaVersion::Confirmed(revision);
         }
+    }
+
+    pub(in crate::desktop) fn keep_download_cover(&mut self, id: &str, indexed: Revision) {
+        if let Some(version) = self.versions.get_mut(id) {
+            version.download_cover_index = Some(indexed);
+        }
+    }
+
+    pub(in crate::desktop) fn protects_download_cover(&self, id: &str, indexed: &Revision) -> bool {
+        self.versions
+            .get(id)
+            .and_then(|version| version.download_cover_index.as_ref())
+            == Some(indexed)
     }
 
     pub(in crate::desktop) fn has_conflicting_revision(

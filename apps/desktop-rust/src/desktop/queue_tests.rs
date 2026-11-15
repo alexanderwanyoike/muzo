@@ -345,6 +345,7 @@ fn it_keeps_newer_row_artwork_when_an_older_playback_worker_finishes_late() {
         Ok(PreparedTrack {
             track: outdated,
             artwork_revision: Some(old),
+            indexed_download_revision: None,
         }),
     ));
 
