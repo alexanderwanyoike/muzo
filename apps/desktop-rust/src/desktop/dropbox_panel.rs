@@ -613,6 +613,28 @@ mod tests {
     }
 
     #[test]
+    fn it_keeps_pending_authorization_visible_while_a_connected_account_is_displayed() {
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("existing".into());
+        settings.app_key = "replacement-key".into();
+        settings.auth = Some(Arc::new(Authorization::new(&settings.app_key).unwrap()));
+        let labels = rendered_labels(&settings, 350.0);
+        for expected in [
+            "Connected to Dropbox",
+            "Browse folders",
+            "Authorization code",
+            "Finish connecting",
+            "Restart authorization",
+            "Cancel",
+        ] {
+            assert!(
+                labels.0.contains_key(expected),
+                "missing authorization action: {expected}"
+            );
+        }
+    }
+
+    #[test]
     fn it_reopens_authorization_when_the_displayed_account_needs_reconnecting() {
         let mut settings = Settings {
             snapshot: Snapshot {
