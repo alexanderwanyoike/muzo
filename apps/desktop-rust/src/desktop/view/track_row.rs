@@ -4,12 +4,11 @@ use iced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, overlay, renderer,
         widget::{Operation, Tree, tree},
     },
-    color,
 };
 
 use crate::appearance::Appearance;
 
-use super::{Message, compact::tint, selection_fill};
+use super::{Message, compact::tint, pulse_row_fills, selection_fill};
 
 #[derive(Clone, Copy)]
 pub(super) struct Colors {
@@ -24,11 +23,10 @@ impl Colors {
         const STRIPE_OPACITY: f32 = 0.02;
         const HOVER_OPACITY: f32 = 0.05;
         let palette = appearance.theme().palette();
-        let hover = match (appearance.theme.as_str(), appearance.mode.as_str()) {
-            ("pulse", "dark") => color!(0x2a2a2a),
-            ("pulse", _) => color!(0xdedede),
-            _ => tint(palette.background, palette.text, HOVER_OPACITY),
-        };
+        let hover = pulse_row_fills(appearance).map_or_else(
+            || tint(palette.background, palette.text, HOVER_OPACITY),
+            |fills| fills.hover,
+        );
         Self {
             base: palette.background,
             stripe: tint(palette.background, palette.text, STRIPE_OPACITY),

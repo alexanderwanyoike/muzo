@@ -1,8 +1,6 @@
 use iced::{
-    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, color, font,
-    widget::{
-        Space, button, column, container, row, scrollable, stack, svg, text, text_input, tooltip,
-    },
+    Alignment, Element, Fill, Theme, border,
+    widget::{Space, button, column, container, row, scrollable, stack, text, text_input},
 };
 
 use crate::{
@@ -15,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, control_opacity, ellipsized_label::EllipsizedLabel, icon_button,
-    icon_tinted, label_text::replace_embedded_breaks, library, panel, selection_fill,
+    Icon, action, bold, icon_button, icon_tinted, label_text::replace_embedded_breaks, library,
+    source_row,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -178,32 +176,9 @@ pub(super) fn indexed_sources<'a>(
 }
 
 pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a, Message> {
-    const SOURCE_ROW_HEIGHT: f32 = 32.0;
-    const SELECTION_EDGE: f32 = 2.0;
     const FRAME_BORDER: f32 = 1.0;
-    const HOVER_OPACITY: f32 = 0.04;
-    // The extra pixel in the top inset aligns Iced's text ink with the browser baseline.
-    const SOURCE_ROW_PADDING: iced::Padding = iced::Padding {
-        top: 6.0,
-        bottom: 4.0,
-        left: 6.0,
-        right: 6.0,
-    };
     let surfaces = appearance.surfaces();
-    let selected_fill = selection_fill(appearance);
-    let palette = appearance.theme().palette();
-    let accent = palette.primary;
-    let hover = match (appearance.theme.as_str(), appearance.mode.as_str()) {
-        ("pulse", "dark") => color!(0x2a2a2a),
-        ("pulse", _) => color!(0xdedede),
-        _ => palette.text.scale_alpha(HOVER_OPACITY),
-    };
-    let selection_ink = appearance.accent_ink();
-    let danger = if appearance.mode == "dark" {
-        color!(0xf1a49a)
-    } else {
-        color!(0xab3e36)
-    };
+    let row_colors = source_row::Colors::for_appearance(appearance);
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -215,76 +190,17 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .flat_map(|snapshot| &snapshot.libraries)
         .filter(|source| matches_source(source, &query))
         .map(|source| {
-            let current = selected_id == Some(source.id.as_str());
-            let glyph = if source.kind == "dropbox" {
-                Icon::Cloud
-            } else {
-                Icon::Folder
-            };
             let count = sources
                 .snapshot
                 .as_ref()
-                .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied())
-                .map(|count| format!("{count} {}", if count == 1 { "track" } else { "tracks" }));
-            let edge = if current { accent } else { Color::TRANSPARENT };
-            let background = if current {
-                selected_fill
-            } else {
-                Color::TRANSPARENT
-            };
-            container(
-                row![
-                    container(Space::new())
-                        .width(SELECTION_EDGE)
-                        .height(SOURCE_ROW_HEIGHT)
-                        .style(move |_| container::Style::default().background(edge)),
-                    button(
-                        row![
-                            icon_tinted(glyph, move |_| if current {
-                                selection_ink
-                            } else {
-                                surfaces.muted
-                            })
-                            .width(15)
-                            .height(15),
-                            Element::new(
-                                EllipsizedLabel::new(source.name.as_str(), 12.0)
-                                    .font(Font {
-                                        weight: font::Weight::Semibold,
-                                        ..Font::with_name("Manrope")
-                                    })
-                                    .line_height(Pixels(17.0))
-                            ),
-                            text(count.unwrap_or_default())
-                                .size(9)
-                                .font(crate::fonts::TABLE_FIGURES)
-                                .line_height(Pixels(13.0))
-                                .color(surfaces.muted),
-                        ]
-                        .spacing(7)
-                        .height(Fill)
-                        .align_y(Alignment::Center)
-                    )
-                    .width(Fill)
-                    .height(SOURCE_ROW_HEIGHT)
-                    .padding(SOURCE_ROW_PADDING)
-                    .style(move |theme, status| source_button(theme, status, hover))
-                    .on_press_maybe(
-                        (!sources.busy()).then(|| Message::SourceOperation(Operation::Select(
-                            source.id.clone()
-                        )))
-                    ),
-                    remove_button(
-                        (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone())),
-                        surfaces.muted,
-                        danger,
-                    ),
-                ]
-                .align_y(Alignment::Center),
+                .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied());
+            source_row::view(
+                source,
+                count,
+                selected_id == Some(source.id.as_str()),
+                !sources.busy(),
+                row_colors,
             )
-            .width(Fill)
-            .style(move |_| container::Style::default().background(background))
-            .into()
         })
         .collect();
     let libraries = source_count(sources);
@@ -414,6 +330,8 @@ fn it_does_not_report_zero_libraries_before_loading_the_catalogue() {
 }
 
 fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+    const SEARCH_MARGIN: f32 = 8.0;
+    const SEARCH_BOTTOM_MARGIN: f32 = 6.0;
     let input = text_input("Search sources", &sources.search)
         .id(SOURCE_SEARCH)
         .size(11)
@@ -439,8 +357,8 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
     }
     container(field)
         .padding(iced::Padding {
-            bottom: 6.0,
-            ..iced::Padding::new(8.0)
+            bottom: SEARCH_BOTTOM_MARGIN,
+            ..iced::Padding::new(SEARCH_MARGIN)
         })
         .into()
 }
@@ -520,49 +438,4 @@ fn search_style(
     style.background = surfaces.raised.into();
     style.border = border::rounded(4).width(1).color(surfaces.line);
     style
-}
-
-fn source_button(theme: &Theme, status: button::Status, hover: Color) -> button::Style {
-    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-    button::Style {
-        background: hovered.then(|| hover.into()),
-        border: border::rounded(0),
-        ..action(theme, status)
-    }
-}
-
-fn remove_button(
-    message: Option<Message>,
-    muted: Color,
-    danger: Color,
-) -> Element<'static, Message> {
-    const SIZE: u32 = 22;
-    const HOVER_OPACITY: f32 = 0.08;
-    const CLOSE: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 44 44" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg>"#;
-    let enabled = message.is_some();
-    let icon = svg(svg::Handle::from_memory(CLOSE))
-        .width(SIZE)
-        .height(SIZE)
-        .opacity(control_opacity(enabled))
-        .style(move |_, status| svg::Style {
-            color: Some(if enabled && status == svg::Status::Hovered {
-                danger
-            } else {
-                muted
-            }),
-        });
-    tooltip(
-        button(icon)
-            .padding(0)
-            .style(move |_, status| button::Style {
-                background: matches!(status, button::Status::Hovered | button::Status::Pressed)
-                    .then(|| danger.scale_alpha(HOVER_OPACITY).into()),
-                ..button::Style::default()
-            })
-            .on_press_maybe(message),
-        text("Remove source").size(12),
-        tooltip::Position::FollowCursor,
-    )
-    .style(panel)
-    .into()
 }

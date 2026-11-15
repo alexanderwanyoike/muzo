@@ -20,6 +20,7 @@ mod sidebar_divider;
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;
 mod sleeve_image;
+mod source_row;
 mod source_search_input;
 mod sources;
 mod track_list;
@@ -325,17 +326,36 @@ fn selected(theme: &Theme, status: button::Status) -> button::Style {
     }
 }
 
-fn selection_fill(appearance: &crate::appearance::Appearance) -> Color {
-    const ACCENT_OPACITY: f32 = 0.13;
+struct PulseRowFills {
+    hover: Color,
+    selected: Color,
+}
+
+fn pulse_row_fills(appearance: &crate::appearance::Appearance) -> Option<PulseRowFills> {
     match (appearance.theme.as_str(), appearance.mode.as_str()) {
-        ("pulse", "dark") => color!(0x2a2a2a),
-        ("pulse", _) => color!(0xd8d8d8),
-        _ => {
-            let palette = appearance.theme().palette();
-            compact::tint(palette.background, palette.primary, ACCENT_OPACITY)
-        }
+        ("pulse", "dark") => Some(PulseRowFills {
+            hover: color!(0x2a2a2a),
+            selected: color!(0x2a2a2a),
+        }),
+        ("pulse", _) => Some(PulseRowFills {
+            hover: color!(0xdedede),
+            selected: color!(0xd8d8d8),
+        }),
+        _ => None,
     }
 }
+
+fn selection_fill(appearance: &crate::appearance::Appearance) -> Color {
+    const ACCENT_OPACITY: f32 = 0.13;
+    pulse_row_fills(appearance).map_or_else(
+        || {
+            let palette = appearance.theme().palette();
+            compact::tint(palette.background, palette.primary, ACCENT_OPACITY)
+        },
+        |fills| fills.selected,
+    )
+}
+
 fn primary(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     let pair = if status == button::Status::Hovered {
