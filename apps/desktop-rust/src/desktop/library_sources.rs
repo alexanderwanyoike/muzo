@@ -605,18 +605,19 @@ impl Sources {
         }
     }
 
+    pub(super) fn confirm_removal(&mut self, id: &str) -> Task<Message> {
+        let Some(removal) = self
+            .removal
+            .as_mut()
+            .filter(|removal| removal.source.id == id && !removal.busy && self.paths.is_some())
+        else {
+            return Task::none();
+        };
+        removal.start();
+        self.start(Operation::Remove(id.to_owned()))
+    }
+
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
-        if let Operation::Remove(id) = &operation
-            && let Some(removal) = self
-                .removal
-                .as_mut()
-                .filter(|removal| removal.source.id == *id)
-        {
-            if removal.busy || self.paths.is_none() {
-                return Task::none();
-            }
-            removal.start();
-        }
         if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);
             return Task::none();

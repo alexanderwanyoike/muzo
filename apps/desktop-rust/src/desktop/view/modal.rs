@@ -9,17 +9,17 @@ use iced::{
 
 use super::Message;
 
-type HandleKey<'a> = Box<dyn Fn(&Event) -> Option<Message> + 'a>;
+type HandleKey = fn(&Event) -> Option<Message>;
 
 pub(super) struct Modal<'a> {
     layers: Vec<Element<'a, Message>>,
-    handle_key: Option<HandleKey<'a>>,
+    handle_key: Option<HandleKey>,
 }
 
 impl<'a> Modal<'a> {
     pub fn wrap(
         page: Element<'a, Message>,
-        dialog: Option<(Element<'a, Message>, HandleKey<'a>)>,
+        dialog: Option<(Element<'a, Message>, HandleKey)>,
     ) -> Element<'a, Message> {
         let mut layers = vec![page];
         let handle_key = dialog.map(|(dialog, handle_key)| {

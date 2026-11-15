@@ -1,4 +1,3 @@
-use super::{Message, Operation};
 use crate::catalogue::Library;
 
 pub(super) struct Removal {
@@ -36,9 +35,5 @@ impl Removal {
             self.cancel_focused = !self.cancel_focused;
             self.show_keyboard_focus = true;
         }
-    }
-
-    pub fn confirm(&self) -> Message {
-        Message::SourceOperation(Operation::Remove(self.source.id.clone()))
     }
 }

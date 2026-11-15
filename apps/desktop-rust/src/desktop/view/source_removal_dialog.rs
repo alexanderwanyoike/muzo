@@ -29,11 +29,7 @@ pub(in crate::desktop) fn layer<'a>(
 ) -> Element<'a, Message> {
     Modal::wrap(
         page,
-        removal.map(|removal| {
-            let dialog = view(removal, appearance);
-            let keys = Box::new(move |event: &Event| key_action(removal, event)) as Box<_>;
-            (dialog, keys)
-        }),
+        removal.map(|removal| (view(removal, appearance), key_action as _)),
     )
 }
 
@@ -92,7 +88,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         } else {
             "Remove source"
         },
-        (!removal.busy).then(|| removal.confirm()),
+        (!removal.busy).then(|| Message::ConfirmSourceRemoval(removal.source.id.clone())),
         removal.show_keyboard_focus && !removal.cancel_focused,
         (surfaces, accent, Some(danger)),
     );
@@ -175,10 +171,7 @@ fn action(
         .into()
 }
 
-fn key_action(removal: &Removal, event: &Event) -> Option<Message> {
-    if removal.busy {
-        return None;
-    }
+fn key_action(event: &Event) -> Option<Message> {
     let Event::Keyboard(keyboard::Event::KeyPressed {
         key,
         repeat,
@@ -194,11 +187,9 @@ fn key_action(removal: &Removal, event: &Event) -> Option<Message> {
     match key {
         Key::Named(Named::Escape) => Some(Message::CancelSourceRemoval),
         Key::Named(Named::Tab) => Some(Message::CycleSourceRemovalFocus),
-        Key::Named(Named::Enter | Named::Space) if !repeat => Some(if removal.cancel_focused {
-            Message::CancelSourceRemoval
-        } else {
-            removal.confirm()
-        }),
+        Key::Named(Named::Enter | Named::Space) if !repeat => {
+            Some(Message::ActivateSourceRemovalFocus)
+        }
         _ => None,
     }
 }

@@ -75,7 +75,9 @@ pub enum Message {
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
+    ConfirmSourceRemoval(String),
     CycleSourceRemovalFocus,
+    ActivateSourceRemovalFocus,
     PlayIndexed(usize),
     PlayPlaylist(String),
     StartPlaylist(String),
@@ -532,11 +534,24 @@ impl Desktop {
                 self.sources.cancel_removal();
                 Task::none()
             }
+            Message::ConfirmSourceRemoval(id) => self.sources.confirm_removal(&id),
             Message::CycleSourceRemovalFocus => {
                 if let Some(removal) = &mut self.sources.removal {
                     removal.focus_next();
                 }
                 Task::none()
+            }
+            Message::ActivateSourceRemovalFocus => {
+                if let Some(removal) = &self.sources.removal {
+                    let message = if removal.cancel_focused {
+                        Message::CancelSourceRemoval
+                    } else {
+                        Message::ConfirmSourceRemoval(removal.source.id.clone())
+                    };
+                    self.update(message)
+                } else {
+                    Task::none()
+                }
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
             Message::PlayPlaylist(entry) => {

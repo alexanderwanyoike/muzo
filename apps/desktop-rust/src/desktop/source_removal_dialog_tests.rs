@@ -10,7 +10,7 @@ use iced::{
 use iced_runtime::{UserInterface, user_interface::Cache};
 
 use super::{
-    CataloguePaths, Desktop, LibraryPage, Message, Operation, Sources,
+    CataloguePaths, Desktop, LibraryPage, Message, Sources,
     cover_layout_tests::paint,
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
@@ -214,9 +214,19 @@ fn it_preserves_the_panel_and_backdrop_when_only_the_focused_button_repaints() {
 fn it_keeps_the_confirmation_through_a_failed_removal_and_allows_retry() {
     let (mut desktop, _root) = desktop();
     request(&mut desktop);
-    let _ = desktop.update(Message::SourceOperation(Operation::Remove(
-        SOURCE_NAME.into(),
-    )));
+    let confirm = labels(&desktop)["Remove source"];
+    let click = [
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ];
+    let (_, messages) = dispatch(
+        &desktop,
+        &click,
+        Point::new(confirm.center_x(), confirm.center_y()),
+    );
+    for message in messages {
+        let _ = desktop.update(message);
+    }
 
     assert!(labels(&desktop).contains_key("Removing..."));
     send_key(&mut desktop, Named::Escape, Modifiers::empty());
