@@ -40,7 +40,7 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 iced_runtime = "0.14.0"
-iced_tiny_skia = "0.14.1"
+iced_tiny_skia = { version = "0.14.1", default-features = false }
 tiny-skia = { version = "0.11.4", default-features = false, features = ["std"] }
 
 [target.'cfg(unix)'.dependencies]
