@@ -82,3 +82,6 @@ impl Authorization {
         Ok(url)
     }
 }
+
+#[cfg(test)]
+mod artwork_tests;
