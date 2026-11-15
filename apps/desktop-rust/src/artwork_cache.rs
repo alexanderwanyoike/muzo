@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use image::{DynamicImage, ImageFormat, ImageReader, Limits};
+use image::{DynamicImage, ImageFormat, ImageReader, Limits, codecs::jpeg::JpegEncoder};
 use sha2::{Digest, Sha256};
 
 mod source;
@@ -16,10 +16,12 @@ pub(crate) use source::{ReadFailure, load_indexed};
 const BUDGET_BYTES: u64 = 128 * 1024 * 1024;
 const BUDGET_ENTRIES: usize = 4_096;
 const COVER_EDGE: u32 = 384;
+const JPEG_QUALITY: u8 = 84;
 const MAX_ARTWORK_EDGE: u32 = 8192;
 const DIGEST_BYTES: usize = 32;
 const ENTRY_EXT: &str = "cover";
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+const JPEG_SIGNATURE: &[u8] = b"\xff\xd8\xff";
 const MAX_CACHE_RECORD: u64 = 1_048_576;
 static PUBLISH: Mutex<()> = Mutex::new(());
 
@@ -105,7 +107,9 @@ impl ArtworkCache {
             return None;
         }
         let (digest, bytes) = record.split_at_checked(DIGEST_BYTES)?;
-        if (!bytes.is_empty() && !bytes.starts_with(PNG_SIGNATURE))
+        if (!bytes.is_empty()
+            && !bytes.starts_with(PNG_SIGNATURE)
+            && !bytes.starts_with(JPEG_SIGNATURE))
             || Sha256::digest(bytes).as_slice() != digest
         {
             return None;
@@ -170,9 +174,16 @@ impl ArtworkCache {
 
 pub(crate) fn thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
     let image = decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE);
-    let mut output = Cursor::new(Vec::new());
-    image.write_to(&mut output, ImageFormat::Png).ok()?;
-    Some(output.into_inner())
+    if image.color().has_alpha() {
+        let mut output = Cursor::new(Vec::new());
+        image.write_to(&mut output, ImageFormat::Png).ok()?;
+        return Some(output.into_inner());
+    }
+    let mut output = Vec::new();
+    JpegEncoder::new_with_quality(&mut output, JPEG_QUALITY)
+        .encode_image(&image.to_rgb8())
+        .ok()?;
+    Some(output)
 }
 
 pub(crate) fn decode_cover(bytes: &[u8]) -> Option<DynamicImage> {
