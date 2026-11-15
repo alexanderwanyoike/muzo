@@ -35,7 +35,7 @@ xdotool windowactivate --sync "$library" key ctrl+m
 mini=$(active_mini)
 capture "$mini" "$3/rust-mini-player.png"
 geometry "$mini" > mini-before
-xdotool mousemove --window "$mini" 355 25 click 1
+xdotool windowactivate --sync "$mini" key ctrl+q
 sleep 1
 geometry "$mini" > mini-queue
 capture "$mini" "$3/rust-mini-queue.png"
