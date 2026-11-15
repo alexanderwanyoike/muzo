@@ -81,11 +81,11 @@ it("exercises the packaged macOS mini player and retains screenshots for both ar
   );
 
   const screenshots = steps.find(
-    (step) => nested(step, "with", "name") === "muzo-macos-mini-${{ matrix.label }}",
+    (step) => nested(step, "with", "name") === `muzo-macos-mini-\${{ matrix.label }}`,
   );
   expect(steps.indexOf(screenshots)).toBeGreaterThan(steps.indexOf(smoke));
   expect(nested(screenshots, "if")).toContain("steps.macos-mini.outcome");
   expect(nested(screenshots, "with", "path")).toBe(
-    "${{ runner.temp }}/muzo-macos-mini-screenshots/*.png",
+    `\${{ runner.temp }}/muzo-macos-mini-screenshots/*.png`,
   );
 });
