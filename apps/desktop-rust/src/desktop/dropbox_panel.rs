@@ -604,6 +604,13 @@ mod tests {
         assert!(labels.0.contains_key("Sync now"));
         assert!(labels.0.contains_key("Sync interval"));
         assert!(labels.0.contains_key("minutes"));
+        assert!(labels.0.contains_key("Dropbox / Music"));
+        assert!(labels.0.contains_key("Parent folder"));
+        let name = labels
+            .0
+            .get(folder)
+            .expect("the folder name should be visible");
+        assert!(name.width > 0.0 && name.x + name.width <= 318.0);
         assert!(
             !labels
                 .0
