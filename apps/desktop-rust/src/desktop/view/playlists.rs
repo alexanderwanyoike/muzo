@@ -170,11 +170,7 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
         library::line(surfaces),
         search,
         library::line(surfaces),
-        scrollable(rows)
-            .direction(scrollable::Direction::Vertical(
-                scrollable::Scrollbar::new().spacing(0),
-            ))
-            .height(Fill),
+        scrollable(rows).spacing(0).height(Fill),
         library::line(surfaces),
         footer,
     ])
