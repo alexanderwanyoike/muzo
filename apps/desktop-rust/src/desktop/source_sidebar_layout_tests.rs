@@ -181,6 +181,30 @@ fn it_draws_source_name_and_count_ink_on_the_original_baselines() {
     assert_eq!(ink_rows(230..=274), (378, 383));
 }
 
+#[test]
+fn it_uses_the_pulse_button_hover_fill_only_in_the_selection_area() {
+    let mut desktop = desktop_with_sources();
+    desktop.appearance.theme = "pulse".into();
+
+    for (mode, hover, selected, panel) in [("light", 222, 216, 255), ("dark", 42, 42, 31)] {
+        desktop.appearance.mode = mode.into();
+        for (y, remove_fill) in [(FIRST_SOURCE_Y, selected), (SECOND_SOURCE_Y, panel)] {
+            let cursor = mouse::Cursor::Available(Point::new(180.0, y as f32));
+            let frame = paint_source_sidebar(&desktop, cursor);
+            let at = |x: usize| {
+                let start = (y * FRAME.width as usize + x) * 4;
+                &frame[start..start + 4]
+            };
+            assert_eq!(at(180), [hover, hover, hover, 255], "Pulse {mode}");
+            assert_eq!(
+                at(298),
+                [remove_fill, remove_fill, remove_fill, 255],
+                "Pulse {mode} remove cell at y={y}"
+            );
+        }
+    }
+}
+
 fn load_fonts() {
     let mut fonts = iced::advanced::graphics::text::font_system()
         .write()
