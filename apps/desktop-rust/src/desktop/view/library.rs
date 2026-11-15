@@ -13,9 +13,9 @@ use crate::{
 };
 
 use super::{
-    Icon, action, appearance, bold, clock_label, compact, control_opacity, error_line, icon_button,
-    icon_tinted, label_text::replace_embedded_breaks, library_content, playback_error, playlists,
-    sidebar_divider::Divider, sources,
+    Icon, LIBRARY_COMPACT_WIDTH, action, appearance, bold, clock_label, compact, control_opacity,
+    error_line, icon_button, icon_tinted, label_text::replace_embedded_breaks, library_content,
+    playback_error, playlists, sidebar_divider::Divider, sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -61,7 +61,14 @@ pub(in crate::desktop) fn library<'a>(
     .width(Fill)
     .height(Fill);
     let header = column![
-        transport(session, cover, retry, surfaces, preferences),
+        transport(
+            session,
+            cover,
+            retry,
+            surfaces,
+            preferences,
+            sidebar.viewport_width()
+        ),
         playback_error(error, retry, false, Message::RetryTrack),
     ];
     let footer = container(
@@ -82,13 +89,42 @@ pub(in crate::desktop) fn library<'a>(
     .into()
 }
 
+struct TransportColumns {
+    controls: f32,
+    volume: f32,
+    padding: f32,
+    gap: f32,
+}
+
+impl TransportColumns {
+    fn for_viewport(width: f32) -> Self {
+        if width <= LIBRARY_COMPACT_WIDTH {
+            Self {
+                controls: 150.0,
+                volume: 112.0,
+                padding: 17.0,
+                gap: 14.0,
+            }
+        } else {
+            Self {
+                controls: 218.0,
+                volume: 170.0,
+                padding: 24.0,
+                gap: 20.0,
+            }
+        }
+    }
+}
+
 fn transport<'a>(
     session: Option<&'a Session>,
     cover: Option<&image::Handle>,
     retry: bool,
     surfaces: Surfaces,
     preferences: &Appearance,
+    viewport_width: f32,
 ) -> Element<'a, Message> {
+    let columns = TransportColumns::for_viewport(viewport_width);
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
     let index = session.and_then(Session::current_index);
@@ -111,7 +147,7 @@ fn transport<'a>(
     ]
     .spacing(13)
     .align_y(Alignment::Center);
-    let controls = container(controls).center_x(218);
+    let controls = container(controls).center_x(columns.controls);
 
     let timeline = row![
         clock_label(position, surfaces.muted),
@@ -166,15 +202,17 @@ fn transport<'a>(
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    let volume = container(volume).align_x(Alignment::End).width(170);
+    let volume = container(volume)
+        .align_x(Alignment::End)
+        .width(columns.volume);
     let surface = iced::widget::stack![
         crate::desktop::material::chrome(preferences, surfaces, 81),
         container(
             row![controls, container(display).center_x(Fill), volume]
-                .spacing(20)
+                .spacing(columns.gap)
                 .align_y(Alignment::Center)
         )
-        .padding([0, 24])
+        .padding([0.0, columns.padding])
         .center_y(81),
     ];
     let mini = row![

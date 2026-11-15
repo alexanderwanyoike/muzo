@@ -28,6 +28,8 @@ mod track_row;
 
 use super::{Message, library_sources::Sources};
 
+const LIBRARY_COMPACT_WIDTH: f32 = 950.0;
+
 fn muted(theme: &Theme) -> iced::widget::text::Style {
     let palette = theme.palette();
     let mix = |foreground: f32, background: f32| foreground * 0.79 + background * 0.21;

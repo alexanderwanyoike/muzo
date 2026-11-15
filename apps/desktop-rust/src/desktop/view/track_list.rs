@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, control_opacity,
+    Icon, LIBRARY_COMPACT_WIDTH, action, bold, clock, control_opacity,
     ellipsized_label::EllipsizedLabel,
     icon_tinted,
     label_text::replace_embedded_breaks,
@@ -39,8 +39,7 @@ struct TrackRowMetrics {
 
 impl TrackRowMetrics {
     fn for_viewport(width: f32) -> Self {
-        const COMPACT_WIDTH: f32 = 950.0;
-        if width <= COMPACT_WIDTH {
+        if width <= LIBRARY_COMPACT_WIDTH {
             Self {
                 inset: 15.0,
                 gap: 7.0,
