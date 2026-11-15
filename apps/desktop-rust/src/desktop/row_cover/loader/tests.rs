@@ -22,7 +22,12 @@ fn it_loads_an_unplayed_local_cover_after_delivering_the_source_rows() {
     assert!(snapshot.covers.is_empty());
     let track = &snapshot.tracks[0];
 
-    let cover = load(&paths, &ArtworkAccess::default(), track, false).unwrap();
+    let cover = load(
+        &paths,
+        &ArtworkAccess::default(),
+        Candidate::indexed(track, &snapshot.libraries),
+    )
+    .unwrap();
     assert!(cover.is_some());
     assert!(paths.artwork_cache().exists());
     assert_eq!(track.plays, 0);
@@ -71,14 +76,16 @@ fn it_discards_artwork_completed_after_a_catalogue_revision() {
     let mut loader = Loader::default();
     loader.pending.insert((0, "track".into()));
     loader.catalogue_changed();
-    loader.complete(
+    let result = loader.complete(
         Complete {
             generation: 0,
             id: "track".into(),
+            target: Target::Library,
             cover: Ok(Some(Handle::from_rgba(1, 1, vec![255; 4]))),
         },
-        Some(&mut snapshot),
+        Some(&mut snapshot.covers),
     );
+    assert!(result.is_none());
     assert!(loader.pending.is_empty());
     assert!(snapshot.covers.is_empty());
 }
@@ -187,13 +194,14 @@ fn it_keeps_the_thumbnail_limit_after_refresh_preserves_loaded_covers() {
     let _ = loader.request(&paths, &mut source, LibraryPage::Songs);
     let next = ROW_LIMIT.to_string();
     assert!(loader.pending.contains(&(1, next.clone())));
-    loader.complete(
+    let _ = loader.complete(
         Complete {
             generation: 1,
             id: next.clone(),
+            target: Target::Library,
             cover: Ok(Some(cover)),
         },
-        Some(&mut source),
+        Some(&mut source.covers),
     );
     assert!(source.covers.contains_key(&next));
     assert!(
@@ -275,7 +283,7 @@ fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     };
     fs::remove_file(&audio).unwrap();
     let unavailable = loader.request(&paths, &mut snapshot, LibraryPage::Songs);
-    loader.complete(completed(unavailable), Some(&mut snapshot));
+    let _ = loader.complete(completed(unavailable), Some(&mut snapshot.covers));
     assert!(!snapshot.covers.contains_key(&track));
     assert_eq!(
         loader
@@ -289,7 +297,7 @@ fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     loader.visible(LibraryPage::Songs, 0..16);
     let restored = loader.request(&paths, &mut snapshot, LibraryPage::Songs);
     assert_eq!(restored.units(), 1, "the failed cover should be retried");
-    loader.complete(completed(restored), Some(&mut snapshot));
+    let _ = loader.complete(completed(restored), Some(&mut snapshot.covers));
     assert!(snapshot.covers.contains_key(&track));
 }
 

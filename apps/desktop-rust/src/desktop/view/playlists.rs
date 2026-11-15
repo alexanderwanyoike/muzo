@@ -338,10 +338,10 @@ pub fn tracks<'a>(
             });
         crate::desktop::row_cover::watch_fit(
             list,
-            page,
             snapshot.selected_playlist.as_deref(),
             count,
             row_height * count as f32,
+            move |rows| Message::ArtworkViewport(page, rows),
         )
     };
     column![

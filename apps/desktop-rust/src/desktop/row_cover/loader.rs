@@ -1,14 +1,16 @@
 use std::{
     collections::{HashMap, HashSet},
     ops::Range,
+    path::Path,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use crate::{
     artwork_cache::{ArtworkCache, ReadFailure, load_indexed},
-    catalogue::IndexedTrack,
+    catalogue::{IndexedTrack, Library},
     dropbox::ArtworkAccess,
+    track::Track,
 };
 use iced::{
     Task,
@@ -16,7 +18,7 @@ use iced::{
 };
 
 use super::super::{CataloguePaths, LibraryPage, Message, Snapshot};
-use super::{ROW_LIMIT, row_handle};
+use super::{Covers, ROW_LIMIT, row_handle};
 
 const CONCURRENT_READS: usize = 2;
 const DEFAULT_ROWS: Range<usize> = 0..16;
@@ -27,16 +29,57 @@ const RETRY_DELAY: Duration = Duration::from_secs(30);
 pub(in crate::desktop) struct Loader {
     generation: u64,
     visible: Option<(LibraryPage, Range<usize>)>,
+    queue_visible: Option<Range<usize>>,
     pending: HashSet<(u64, String)>,
     attempted: HashMap<String, Option<Instant>>,
     remote: Arc<ArtworkAccess>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::desktop) enum Target {
+    Library,
+    Queue,
+}
+
 #[derive(Debug, Clone)]
 pub struct Complete {
     generation: u64,
-    id: String,
+    pub(in crate::desktop) id: String,
+    pub(in crate::desktop) target: Target,
     cover: Result<Option<Handle>, ReadFailure>,
+}
+
+struct Candidate<'a> {
+    id: &'a str,
+    library: &'a str,
+    path: &'a Path,
+    remote: bool,
+}
+
+impl<'a> Candidate<'a> {
+    fn indexed(track: &'a IndexedTrack, libraries: &[Library]) -> Self {
+        Self {
+            id: &track.id,
+            library: &track.library_id,
+            path: &track.path,
+            remote: libraries
+                .iter()
+                .find(|source| source.id == track.library_id)
+                .is_some_and(|source| source.kind == "dropbox"),
+        }
+    }
+
+    fn queued(track: &'a Track) -> Option<Self> {
+        let (path, remote) = track
+            .remote()
+            .map_or((track.path(), false), |(_, path)| (Path::new(path), true));
+        Some(Self {
+            id: track.indexed_id()?,
+            library: track.library()?,
+            path,
+            remote,
+        })
+    }
 }
 
 pub(in crate::desktop) fn viewport_rows(
@@ -72,24 +115,31 @@ impl Loader {
     pub(in crate::desktop) fn complete(
         &mut self,
         result: Complete,
-        snapshot: Option<&mut Snapshot>,
-    ) {
+        covers: Option<&mut Covers>,
+    ) -> Option<(String, Handle)> {
         self.pending.remove(&(result.generation, result.id.clone()));
         if result.generation != self.generation {
-            return;
+            return None;
         }
         match result.cover {
             Ok(Some(cover)) => {
-                if let Some(snapshot) = snapshot {
-                    snapshot.covers.insert(result.id, cover);
+                self.attempted.remove(&result.id);
+                if let Some(covers) = covers {
+                    covers.insert(result.id.clone(), cover.clone());
                 }
+                Some((result.id, cover))
             }
-            Ok(None) => {}
+            Ok(None) => None,
             Err(_) => {
                 self.attempted
                     .insert(result.id, Some(Instant::now() + RETRY_DELAY));
+                None
             }
         }
+    }
+
+    pub(in crate::desktop) fn queue_visible(&mut self, rows: Option<Range<usize>>) {
+        self.queue_visible = rows;
     }
 
     pub(in crate::desktop) fn request(
@@ -112,17 +162,7 @@ impl Loader {
         } else {
             snapshot.playlist_entries.len()
         };
-        let visible = if visible.start >= last || last <= visible.len() {
-            0..visible.len().max(DEFAULT_ROWS.end)
-        } else {
-            visible
-        };
-        let first = visible.start.min(last);
-        let end = visible.end.min(last);
-        let indices = (first..end)
-            .chain(first.saturating_sub(OVERSCAN_ROWS)..first)
-            .chain(end..end.saturating_add(OVERSCAN_ROWS).min(last));
-        let candidates: Vec<_> = indices
+        let candidates = visible_indices(visible, last)
             .filter_map(|index| {
                 if page == LibraryPage::Songs {
                     snapshot.tracks.get(index)
@@ -130,37 +170,59 @@ impl Loader {
                     snapshot.playlist_entries.get(index)?.track.as_ref()
                 }
             })
+            .map(|track| Candidate::indexed(track, &snapshot.libraries))
             .collect();
-        if self.attempted.len().max(snapshot.covers.len()) + candidates.len() > ROW_LIMIT {
-            let visible_ids: HashSet<_> =
-                candidates.iter().map(|track| track.id.as_str()).collect();
+        self.schedule(paths, &mut snapshot.covers, candidates, Target::Library)
+    }
+
+    pub(in crate::desktop) fn request_queue(
+        &mut self,
+        paths: &CataloguePaths,
+        tracks: &[Track],
+        covers: &mut Covers,
+    ) -> Task<Message> {
+        let visible = self.queue_visible.clone().unwrap_or(DEFAULT_ROWS);
+        let candidates = visible_indices(visible, tracks.len())
+            .filter_map(|index| Candidate::queued(&tracks[index]))
+            .collect();
+        self.schedule(paths, covers, candidates, Target::Queue)
+    }
+
+    fn schedule(
+        &mut self,
+        paths: &CataloguePaths,
+        covers: &mut Covers,
+        candidates: Vec<Candidate<'_>>,
+        target: Target,
+    ) -> Task<Message> {
+        let available = CONCURRENT_READS.saturating_sub(self.pending.len());
+        if available == 0 {
+            return Task::none();
+        }
+        if self.attempted.len().max(covers.len()) + candidates.len() > ROW_LIMIT {
+            let visible_ids: HashSet<_> = candidates.iter().map(|track| track.id).collect();
             self.attempted
                 .retain(|id, _| visible_ids.contains(id.as_str()));
-            snapshot
-                .covers
-                .retain(|id, _| visible_ids.contains(id.as_str()));
+            covers.retain(|id, _| visible_ids.contains(id.as_str()));
         }
         let now = Instant::now();
         let mut requests = Vec::new();
         for track in candidates {
             let attempted = self
                 .attempted
-                .get(&track.id)
+                .get(track.id)
                 .is_some_and(|retry| retry.is_none_or(|time| time > now));
-            if snapshot.covers.contains_key(&track.id)
+            if covers.contains_key(track.id)
                 || attempted
-                || self.pending.contains(&(self.generation, track.id.clone()))
+                || self
+                    .pending
+                    .contains(&(self.generation, track.id.to_string()))
             {
                 continue;
             }
-            self.attempted.insert(track.id.clone(), None);
-            let remote = snapshot
-                .libraries
-                .iter()
-                .find(|source| source.id == track.library_id)
-                .is_some_and(|source| source.kind == "dropbox");
-            self.pending.insert((self.generation, track.id.clone()));
-            requests.push(self.read(paths.clone(), track.clone(), remote));
+            self.attempted.insert(track.id.to_string(), None);
+            self.pending.insert((self.generation, track.id.to_string()));
+            requests.push(self.read(paths.clone(), track, target));
             if requests.len() == available {
                 break;
             }
@@ -168,20 +230,35 @@ impl Loader {
         Task::batch(requests)
     }
 
-    fn read(&self, paths: CataloguePaths, track: IndexedTrack, remote: bool) -> Task<Message> {
+    fn read(&self, paths: CataloguePaths, track: Candidate<'_>, target: Target) -> Task<Message> {
         let reader = Arc::clone(&self.remote);
         let generation = self.generation;
-        let id = track.id.clone();
+        let id = track.id.to_string();
+        let library = track.library.to_string();
+        let path = track.path.to_path_buf();
+        let remote = track.remote;
         Task::perform(
             async move {
-                let cover =
-                    tokio::task::spawn_blocking(move || load(&paths, &reader, &track, remote))
-                        .await
-                        .map_err(|_| ReadFailure::Worker)
-                        .and_then(|result| result);
+                let track_id = id.clone();
+                let cover = tokio::task::spawn_blocking(move || {
+                    load(
+                        &paths,
+                        &reader,
+                        Candidate {
+                            id: &track_id,
+                            library: &library,
+                            path: &path,
+                            remote,
+                        },
+                    )
+                })
+                .await
+                .map_err(|_| ReadFailure::Worker)
+                .and_then(|result| result);
                 Complete {
                     generation,
                     id,
+                    target,
                     cover,
                 }
             },
@@ -190,18 +267,32 @@ impl Loader {
     }
 }
 
+fn visible_indices(visible: Range<usize>, last: usize) -> impl Iterator<Item = usize> {
+    let visible = if visible.start >= last || last <= visible.len() {
+        0..visible.len().max(DEFAULT_ROWS.end)
+    } else {
+        visible
+    };
+    let first = visible.start.min(last);
+    let end = visible.end.min(last);
+    (first..end)
+        .chain(first.saturating_sub(OVERSCAN_ROWS)..first)
+        .chain(end..end.saturating_add(OVERSCAN_ROWS).min(last))
+}
+
 fn load(
     paths: &CataloguePaths,
     reader: &ArtworkAccess,
-    track: &IndexedTrack,
-    remote: bool,
+    track: Candidate<'_>,
 ) -> Result<Option<Handle>, ReadFailure> {
     let catalogue = paths.open().map_err(|_| ReadFailure::Catalogue)?;
     let bytes = load_indexed(
         &ArtworkCache::new(paths.artwork_cache()),
         &catalogue,
-        track,
-        remote.then_some(reader),
+        track.library,
+        track.id,
+        track.path,
+        track.remote.then_some(reader),
     )?;
     Ok(bytes.as_deref().and_then(row_handle))
 }

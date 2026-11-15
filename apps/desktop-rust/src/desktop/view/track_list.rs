@@ -314,9 +314,9 @@ pub(super) fn view<'a>(
         });
     column![crate::desktop::row_cover::watch_fit(
         list,
-        page,
         snapshot.selected.as_deref(),
         snapshot.tracks.len(),
         plain_height,
+        move |rows| Message::ArtworkViewport(page, rows),
     )]
 }

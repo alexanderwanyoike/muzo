@@ -1,10 +1,8 @@
+use std::path::Path;
+
 use lofty::{config::ParseOptions, probe::Probe};
 
-use crate::{
-    catalogue::{Catalogue, IndexedTrack},
-    dropbox::ArtworkAccess,
-    local_track::embedded_cover,
-};
+use crate::{catalogue::Catalogue, dropbox::ArtworkAccess, local_track::embedded_cover};
 
 use super::ArtworkCache;
 
@@ -19,19 +17,21 @@ pub(crate) enum ReadFailure {
 pub(crate) fn load_indexed(
     cache: &ArtworkCache,
     catalogue: &Catalogue,
-    track: &IndexedTrack,
+    library: &str,
+    track: &str,
+    path: &Path,
     dropbox: Option<&ArtworkAccess>,
 ) -> Result<Option<Vec<u8>>, ReadFailure> {
     let revision = catalogue
-        .artwork_revision(&track.library_id, &track.id)
+        .artwork_revision(library, track)
         .map_err(|_| ReadFailure::Catalogue)?;
     cache.get_or_try_read(&revision, || {
         if let Some(dropbox) = dropbox {
             return dropbox
-                .read(catalogue, &track.library_id, &track.path.to_string_lossy())
+                .read(catalogue, library, &path.to_string_lossy())
                 .map_err(|_| ReadFailure::Dropbox);
         }
-        let file = Probe::open(&track.path)
+        let file = Probe::open(path)
             .map_err(|_| ReadFailure::File)?
             .options(ParseOptions::new().read_properties(false))
             .read()

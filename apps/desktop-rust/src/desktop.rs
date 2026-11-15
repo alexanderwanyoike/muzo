@@ -63,6 +63,7 @@ pub enum Message {
     SourcesUpdated(Result<Snapshot, library_sources::UpdateError>),
     SourceWatchTick,
     ArtworkViewport(LibraryPage, std::ops::Range<usize>),
+    QueueArtworkViewport(std::ops::Range<usize>),
     ArtworkReady(row_cover::Complete),
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
@@ -402,9 +403,37 @@ impl Desktop {
                 self.row_covers.visible(page, rows);
                 self.load_row_covers()
             }
+            Message::QueueArtworkViewport(rows) => {
+                if rows.is_empty() || !self.windows.queue_open() {
+                    return Task::none();
+                }
+                self.row_covers.queue_visible(Some(rows));
+                self.load_row_covers()
+            }
             Message::ArtworkReady(cover) => {
-                self.row_covers
-                    .complete(cover, self.sources.snapshot.as_mut());
+                let queued = self.session.as_ref().is_some_and(|session| {
+                    session
+                        .tracks()
+                        .iter()
+                        .any(|track| track.indexed_id() == Some(cover.id.as_str()))
+                });
+                let from_queue = cover.target == row_cover::Target::Queue;
+                let covers = if from_queue {
+                    queued.then_some(&mut self.queue_covers)
+                } else {
+                    self.sources
+                        .snapshot
+                        .as_mut()
+                        .map(|source| &mut source.covers)
+                };
+                let ready = self.row_covers.complete(cover, covers);
+                if !from_queue
+                    && queued
+                    && self.queue_covers.len() < row_cover::ROW_LIMIT
+                    && let Some((id, handle)) = ready
+                {
+                    self.queue_covers.insert(id, handle);
+                }
                 self.load_row_covers()
             }
             Message::SourceWatchTick => {
@@ -1097,7 +1126,11 @@ impl Desktop {
             Message::ToggleWindowMaximized(id) => window::toggle_maximize(id),
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
+                    let was_open = self.windows.queue_open();
                     self.windows.resized(id, size);
+                    if was_open != self.windows.queue_open() {
+                        return self.load_row_covers();
+                    }
                 }
                 Task::none()
             }
@@ -1350,6 +1383,7 @@ impl Desktop {
             })
             .collect();
         self.direct_covers.clear();
+        self.row_covers.queue_visible(None);
         let mut seeded = std::collections::HashSet::new();
         self.queue_covers = tracks
             .iter()
@@ -1530,8 +1564,20 @@ impl Desktop {
     }
 
     fn load_row_covers(&mut self) -> Task<Message> {
-        let (Some(paths), Some(snapshot)) = (self.sources.paths(), &mut self.sources.snapshot)
-        else {
+        let Some(paths) = self.sources.paths() else {
+            return Task::none();
+        };
+        if self.windows.queue_open()
+            && let Some(session) = &self.session
+        {
+            let queue =
+                self.row_covers
+                    .request_queue(&paths, session.tracks(), &mut self.queue_covers);
+            if queue.units() > 0 {
+                return queue;
+            }
+        }
+        let Some(snapshot) = &mut self.sources.snapshot else {
             return Task::none();
         };
         self.row_covers.request(&paths, snapshot, self.page)

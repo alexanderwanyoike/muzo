@@ -20,7 +20,7 @@ use super::{
 use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
     mini_focus::{Control, QUEUE_ROW_HEIGHT, QUEUE_ROW_SPACING, QUEUE_SCROLL},
-    row_cover::{Covers, DirectCovers},
+    row_cover::{Covers, DirectCovers, viewport_rows, watch_fit},
     windows::MiniPlayerLayout,
 };
 
@@ -472,10 +472,20 @@ fn queue<'a>(
             .into()
         }))
         .spacing(QUEUE_ROW_SPACING);
-        scrollable(container(list).padding([0, 8]))
+        let height = QUEUE_ROW_HEIGHT + QUEUE_ROW_SPACING;
+        let list = scrollable(container(list).padding([0, 8]))
             .id(QUEUE_SCROLL)
             .height(Fill)
-            .into()
+            .on_scroll(move |viewport| {
+                Message::QueueArtworkViewport(viewport_rows(viewport, height, 0.0, 0.0))
+            });
+        watch_fit(
+            list,
+            tracks.first().and_then(Track::indexed_id),
+            count,
+            height * count as f32 - QUEUE_ROW_SPACING,
+            Message::QueueArtworkViewport,
+        )
     };
     let width = if width <= 680.0 { 220 } else { 260 };
     container(column![heading, rows])
