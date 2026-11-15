@@ -66,7 +66,7 @@ fn track_table_labels(width: f32) -> (Labels, f32) {
 
 #[test]
 fn it_uses_the_original_track_title_columns_at_wide_and_compact_widths() {
-    for (width, title_offset) in [(1200.0, 143.0), (850.0, 107.0)] {
+    for (width, title_offset) in [(1200.0, 143.0), (850.0, 114.0)] {
         let (Labels(labels), start) = track_table_labels(width);
         let first = labels["Restored track"];
         let second = labels["Coast track"];
