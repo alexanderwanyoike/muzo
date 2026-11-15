@@ -636,7 +636,12 @@ impl Desktop {
                         Control::Parent,
                         Control::Browse,
                     ]),
-                    Some(control) => self.focus_dropbox([control, Control::Browse]),
+                    Some(control) => self.focus_dropbox([
+                        control,
+                        Control::Browse,
+                        Control::Code,
+                        Control::AppKey,
+                    ]),
                     None => self.restore_dropbox_focus(),
                 };
                 Task::batch([reload, focus])
