@@ -1642,4 +1642,45 @@ mod source_selection_tests {
         );
         assert_eq!(snapshot.selected.as_ref(), Some(&libraries.second.id));
     }
+
+    #[test]
+    fn it_selects_a_playlist_when_the_current_song_list_cannot_be_read() {
+        let libraries = Libraries::new();
+        let catalogue = libraries.paths.open().unwrap();
+        let conn = rusqlite::Connection::open(&libraries.paths.current).unwrap();
+        conn.execute(
+            "INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+             VALUES ('unreadable', ?1, 'Track', '', 60, '/broken.mp3', 0, 0)",
+            [&libraries.first.id],
+        ).unwrap();
+        let original = catalogue.create_playlist("Original Mix").unwrap();
+        let playlist = catalogue.create_playlist("Independent Mix").unwrap();
+        let previous = libraries.apply(Operation::Select(libraries.first.id.clone()), None);
+        assert_eq!(previous.selected_playlist.as_ref(), Some(&original.id));
+        conn.execute(
+            "UPDATE tracks SET duration_seconds='invalid' WHERE id='unreadable'",
+            [],
+        )
+        .unwrap();
+        let playlist_change = Operation::SelectPlaylist(playlist.id.clone());
+        let mut sources = Sources::new(Some(libraries.paths.clone()));
+        sources.snapshot = Some(previous);
+        let _ = sources.start(playlist_change.clone());
+
+        let result = run_with_selection(
+            &libraries.paths,
+            playlist_change,
+            Some(libraries.first.id.clone()),
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "unreadable songs should not block choosing a playlist: {result:?}"
+        );
+        sources.apply(result.map_err(|error| UpdateError::Operation(error.to_string())));
+        let snapshot = sources.snapshot.unwrap();
+        assert_eq!(snapshot.selected_playlist, Some(playlist.id));
+        assert_eq!(snapshot.selected, Some(libraries.first.id));
+        assert_eq!(snapshot.tracks[0].id, "unreadable");
+    }
 }
