@@ -525,3 +525,100 @@ fn it_draws_a_solid_rounded_panel_for_settings_sections() {
         "the rounded panel should leave the corner clear"
     );
 }
+
+#[cfg(test)]
+#[test]
+fn it_opens_songs_at_the_top_after_scrolling_to_source_setup_in_settings() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size, Vector,
+        advanced::widget::{
+            Id, Operation,
+            operation::scrollable::{AbsoluteOffset, Scrollable, scroll_to},
+        },
+    };
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use crate::desktop::{
+        appearance_focus::SCROLL as SETTINGS_SCROLL,
+        queue_tests::{setup, snapshot},
+        track_editor_focus::SONGS_SCROLL,
+    };
+
+    struct ReadOffset {
+        id: Id,
+        y: Option<f32>,
+    }
+
+    impl Operation for ReadOffset {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            translation: Vector,
+            _: &mut dyn Scrollable,
+        ) {
+            if id == Some(&self.id) {
+                self.y = Some(translation.y);
+            }
+        }
+    }
+
+    const SETTINGS_OFFSET: f32 = 420.0;
+    let (mut desktop, _) = setup();
+    let mut catalogue = snapshot(&["source"]);
+    catalogue.selected = Some("source".into());
+    for index in 0..40 {
+        catalogue.tracks.push(crate::catalogue::IndexedTrack {
+            id: index.to_string(),
+            library_id: "source".into(),
+            title: format!("Track {index}"),
+            artist: String::new(),
+            album: None,
+            metadata_overridden: false,
+            path: "demo.mp3".into(),
+            plays: 0,
+            duration_seconds: 0,
+        });
+    }
+    desktop.sources.snapshot = Some(catalogue);
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let size = Size::new(850.0, 620.0);
+    let id = desktop.windows.library_id();
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, Cache::default(), &mut renderer);
+    ui.operate(
+        &renderer,
+        &mut scroll_to(
+            SETTINGS_SCROLL.into(),
+            AbsoluteOffset {
+                x: Some(0.0),
+                y: Some(SETTINGS_OFFSET),
+            },
+        ),
+    );
+    let mut settings = ReadOffset {
+        id: SETTINGS_SCROLL.into(),
+        y: None,
+    };
+    ui.operate(&renderer, &mut settings);
+    assert!(settings.y.is_some_and(|offset| offset >= SETTINGS_OFFSET));
+
+    let cache = ui.into_cache();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Songs));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, cache, &mut renderer);
+    let mut songs = ReadOffset {
+        id: SONGS_SCROLL.into(),
+        y: None,
+    };
+    ui.operate(&renderer, &mut songs);
+    assert_eq!(
+        songs.y,
+        Some(0.0),
+        "Songs inherited the Settings scroll position"
+    );
+}
