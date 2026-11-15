@@ -5,7 +5,7 @@ use iced::{
 
 use crate::appearance::Surfaces;
 
-use super::{Action, Error, Message, Settings, folder_name, parse_interval};
+use super::{Action, Message, Settings, folder_name, parse_interval};
 use crate::desktop::view::{
     Icon, action, icon_tinted, panel, primary, settings_button, settings_input,
 };
@@ -112,8 +112,10 @@ impl Settings {
     fn sync_interval(&self, surfaces: Surfaces) -> Column<'_, Message> {
         let minutes = parse_interval(&self.interval);
         let save = minutes
-            .filter(|minutes| *minutes != self.snapshot.interval)
-            .and_then(|_| self.command(Action::SaveInterval));
+            .as_ref()
+            .is_ok_and(|minutes| *minutes != self.snapshot.interval)
+            .then(|| self.command(Action::SaveInterval))
+            .flatten();
         let mut controls = column![
             text("Sync interval").size(12).color(surfaces.muted),
             row![
@@ -130,8 +132,8 @@ impl Settings {
             .align_y(Alignment::Center),
         ]
         .spacing(5);
-        if minutes.is_none() {
-            controls = controls.push(text(Error::InvalidInterval.to_string()).size(12));
+        if let Err(error) = minutes {
+            controls = controls.push(text(error.to_string()).size(12));
         }
         controls
     }

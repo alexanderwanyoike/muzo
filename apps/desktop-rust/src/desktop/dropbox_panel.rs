@@ -333,7 +333,7 @@ fn run(
         Credentials::connect(&catalogue, &account, auth.client_id(), &refresh)?;
     }
     if let Action::SaveInterval = &action {
-        let minutes = parse_interval(interval).ok_or(Error::InvalidInterval)?;
+        let minutes = parse_interval(interval)?;
         catalogue.set_dropbox_interval(minutes)?;
     }
 
@@ -476,12 +476,13 @@ fn run(
     Ok(snapshot)
 }
 
-fn parse_interval(value: &str) -> Option<u16> {
-    value
-        .trim()
-        .parse()
-        .ok()
-        .filter(|minutes| (1..=60).contains(minutes))
+fn parse_interval(value: &str) -> Result<u16, Error> {
+    let minutes = value.trim().parse().map_err(|_| Error::InvalidInterval)?;
+    if (1..=60).contains(&minutes) {
+        Ok(minutes)
+    } else {
+        Err(Error::InvalidInterval)
+    }
 }
 
 fn folder_name(path: &str) -> String {
