@@ -23,6 +23,7 @@ const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
 const MAX_CACHE_RECORD: u64 = 1_048_576;
 static PUBLISH: Mutex<()> = Mutex::new(());
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Revision(String);
 
 impl Revision {

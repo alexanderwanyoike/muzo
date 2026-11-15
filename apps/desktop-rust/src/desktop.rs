@@ -65,6 +65,7 @@ pub enum Message {
     ArtworkViewport(LibraryPage, std::ops::Range<usize>),
     QueueArtworkViewport(std::ops::Range<usize>),
     ArtworkReady(row_cover::Complete),
+    QueueArtworkReconciled(row_cover::QueueReconciled),
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
@@ -171,6 +172,7 @@ pub struct Desktop {
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
     queue_covers: row_cover::Covers,
+    queue_artwork: row_cover::QueueArtwork,
     row_covers: row_cover::Loader,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
@@ -253,6 +255,7 @@ impl Desktop {
                 cover: Cover::default(),
                 direct_covers: Default::default(),
                 queue_covers: Default::default(),
+                queue_artwork: Default::default(),
                 row_covers: row_cover::Loader::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
@@ -384,9 +387,13 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
-                if result.is_ok() {
+                let revisions = if result.is_ok() {
                     self.row_covers.catalogue_changed();
-                }
+                    self.queue_artwork
+                        .reconcile(self.sources.paths(), &self.queue_covers)
+                } else {
+                    Task::none()
+                };
                 let reveal_added_folder = self.sources.apply(result);
                 let artwork = if reveal_added_folder && self.page == LibraryPage::Settings {
                     self.update(Message::LibraryPage(LibraryPage::Songs))
@@ -394,7 +401,11 @@ impl Desktop {
                     self.load_row_covers()
                 };
                 let queued = self.sources.start_pending().unwrap_or_else(Task::none);
-                Task::batch([queued, artwork])
+                Task::batch([queued, artwork, revisions])
+            }
+            Message::QueueArtworkReconciled(result) => {
+                self.queue_artwork.apply(result, &mut self.queue_covers);
+                self.load_row_covers()
             }
             Message::ArtworkViewport(page, rows) => {
                 if page != self.page || rows.is_empty() {
@@ -1356,6 +1367,8 @@ impl Desktop {
             .filter(|library| library.kind == "dropbox")
             .map(|library| library.id.clone())
             .collect();
+        self.queue_artwork
+            .replace(tracks.iter().map(|(track, _)| track));
         let tracks: Vec<_> = tracks
             .into_iter()
             .map(|(track, entry)| {
@@ -1403,6 +1416,7 @@ impl Desktop {
     }
 
     fn remove_queued_library(&mut self, library: &str) {
+        self.queue_artwork.remove_library(library);
         let Some(session) = self.session.as_mut() else {
             return;
         };

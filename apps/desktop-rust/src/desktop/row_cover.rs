@@ -15,8 +15,10 @@ use crate::{
 use super::{Message, Snapshot, cover::centered_square};
 
 mod loader;
+mod queue;
 
 pub(super) use loader::{Complete, Loader, Target, viewport_rows};
+pub(super) use queue::{QueueArtwork, QueueReconciled};
 
 const ROW_EDGE: u32 = 48;
 pub(super) const ROW_LIMIT: usize = 512;
