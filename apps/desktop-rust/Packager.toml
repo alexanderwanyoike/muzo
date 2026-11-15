@@ -1,7 +1,7 @@
 name = "muzo-desktop"
 product-name = "Muzo"
 identifier = "com.muzo.desktop"
-version = "0.0.6"
+version = "1.0.0"
 description = "Desktop music player"
 publisher = "Muzo"
 category = "Music"
