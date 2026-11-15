@@ -438,6 +438,7 @@ mod tests {
 
         let _ = windows.library_visibility_checked(initial_mini, true);
         let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
+        let _ = windows.mini_opened(windows.mini_id().unwrap());
 
         assert_ne!(windows.mini_id(), Some(library));
         let _ = windows.show_library();
@@ -458,6 +459,7 @@ mod tests {
         let size = iced::Size::new(1050.0, 750.0);
         let _ = windows.open_wayland_mini(id, size, true);
         let mini = windows.mini_id().unwrap();
+        let _ = windows.mini_opened(mini);
 
         let mut actions = task::into_stream(windows.show_library()).unwrap();
         assert!(matches!(
@@ -482,6 +484,7 @@ mod tests {
         let _ = windows.show_mini();
         let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
         let compact = windows.mini_id().unwrap();
+        let _ = windows.mini_opened(compact);
 
         let expanded = windows.toggle_queue();
         let id = windows.mini_id().unwrap();
