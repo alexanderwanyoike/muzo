@@ -131,7 +131,6 @@ pub enum Message {
     LibraryVisibilityKnown(window::Id, bool),
     LibraryVisibilityChecked(window::Id, bool),
     WaylandMiniPrepared(window::Id, iced::Size, bool),
-    WaylandMiniOpened(window::Id),
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
@@ -1061,7 +1060,14 @@ impl Desktop {
                     self.update(Message::SeekRelative(step * 5))
                 }
             }
-            Message::MiniOpened(id) => self.windows.mini_opened(id),
+            Message::MiniOpened(id) => {
+                let opened = self.windows.mini_opened(id);
+                if self.windows.is_mini(id) && self.windows.queue_open() {
+                    Task::batch([opened, self.load_row_covers()])
+                } else {
+                    opened
+                }
+            }
             Message::LibraryVisibilityKnown(id, wayland) => {
                 self.windows.library_visibility_known(id, wayland);
                 Task::none()
@@ -1071,13 +1077,6 @@ impl Desktop {
             }
             Message::WaylandMiniPrepared(id, size, maximized) => {
                 self.windows.open_wayland_mini(id, size, maximized)
-            }
-            Message::WaylandMiniOpened(id) => {
-                if self.windows.is_mini(id) {
-                    self.load_row_covers()
-                } else {
-                    Task::none()
-                }
             }
             Message::EscapePressed(id) => {
                 if self.windows.is_library(id)

@@ -20,6 +20,12 @@ enum LibraryVisibility {
     MinimizeAndRestore,
 }
 
+#[derive(PartialEq, Eq)]
+enum SurfaceTransition {
+    Preparing(window::Id),
+    Opening(window::Id),
+}
+
 impl LibraryVisibility {
     fn for_wayland(wayland: bool) -> Self {
         if wayland {
@@ -80,6 +86,7 @@ pub struct Windows {
     mini_size: Size,
     library_visibility: LibraryVisibility,
     library_geometry: Option<(Size, bool)>,
+    surface_transition: Option<SurfaceTransition>,
 }
 
 impl Windows {
@@ -95,6 +102,7 @@ impl Windows {
                 mini_size: MINI_SIZE,
                 library_visibility: LibraryVisibility::Unknown,
                 library_geometry: None,
+                surface_transition: None,
             },
             open.then(|id| {
                 window::run(id, move |handle| {
@@ -109,7 +117,8 @@ impl Windows {
     }
 
     pub(super) fn is_library(&self, id: window::Id) -> bool {
-        self.library == id && !self.is_mini(id)
+        self.library == id
+            && (self.library_visibility != LibraryVisibility::ReplaceSurface || self.mini.is_none())
     }
 
     pub(super) fn library_id(&self) -> window::Id {
@@ -132,7 +141,7 @@ impl Windows {
     }
 
     pub fn show_mini(&mut self) -> Task<Message> {
-        if self.mini.is_some() {
+        if self.mini.is_some() || self.surface_transition.is_some() {
             return Task::none();
         }
         self.mini_size = MINI_SIZE;
@@ -154,7 +163,7 @@ impl Windows {
 
     fn prepare_wayland_window(&mut self) -> Task<Message> {
         let id = self.library;
-        self.mini = Some(id);
+        self.surface_transition = Some(SurfaceTransition::Preparing(id));
         window::size(id).then(move |size| {
             window::is_maximized(id)
                 .map(move |maximized| Message::WaylandMiniPrepared(id, size, maximized))
@@ -167,7 +176,7 @@ impl Windows {
         size: Size,
         maximized: bool,
     ) -> Task<Message> {
-        if id != self.library || !self.is_mini(id) {
+        if self.surface_transition != Some(SurfaceTransition::Preparing(id)) {
             return Task::none();
         }
         self.library_geometry = Some((size, maximized));
@@ -182,10 +191,15 @@ impl Windows {
         self.mini = Some(id);
         self.queue_open = expanded;
         self.mini_size = size;
-        window::close(previous).chain(open.map(Message::WaylandMiniOpened))
+        self.surface_transition = Some(SurfaceTransition::Opening(id));
+        window::close(previous).chain(open.map(Message::MiniOpened))
     }
 
-    pub fn mini_opened(&self, id: window::Id) -> Task<Message> {
+    pub fn mini_opened(&mut self, id: window::Id) -> Task<Message> {
+        if self.surface_transition == Some(SurfaceTransition::Opening(id)) {
+            self.surface_transition = None;
+            return Task::none();
+        }
         if !self.is_mini(id) {
             return Task::none();
         }
@@ -200,6 +214,7 @@ impl Windows {
         }
         self.library_visibility = LibraryVisibility::for_wayland(wayland);
         if wayland {
+            self.mini = None;
             let compact = self.prepare_wayland_window();
             window::close(id).chain(compact)
         } else {
@@ -208,6 +223,9 @@ impl Windows {
     }
 
     pub fn show_library(&mut self) -> Task<Message> {
+        if self.surface_transition.is_some() {
+            return Task::none();
+        }
         self.mini.take().map_or_else(Task::none, |id| {
             self.queue_open = false;
             self.queue_resize = None;
@@ -219,7 +237,8 @@ impl Windows {
                 settings.maximized = maximized;
                 let (library, open) = window::open(settings);
                 self.library = library;
-                return window::close(id).chain(open.discard());
+                self.surface_transition = Some(SurfaceTransition::Opening(library));
+                return window::close(id).chain(open.map(Message::MiniOpened));
             }
             let restore = match self.library_visibility {
                 LibraryVisibility::Unknown | LibraryVisibility::ReplaceSurface => Task::none(),
@@ -236,16 +255,15 @@ impl Windows {
     }
 
     pub fn toggle_queue(&mut self) -> Task<Message> {
+        if self.surface_transition.is_some() {
+            return Task::none();
+        }
         let Some(id) = self.mini.filter(|_| self.queue_resize.is_none()) else {
             return Task::none();
         };
         let expanded = !self.queue_open;
         if self.library_visibility == LibraryVisibility::ReplaceSurface {
-            return if id == self.library {
-                Task::none()
-            } else {
-                self.replace_mini_surface(id, expanded)
-            };
+            return self.replace_mini_surface(id, expanded);
         }
         self.resize_generation += 1;
         let request = QueueResize {
@@ -306,8 +324,10 @@ impl Windows {
     pub fn close_requested(&mut self, id: window::Id) -> Task<Message> {
         if self.is_mini(id) {
             self.show_library()
-        } else {
+        } else if self.is_library(id) {
             iced::exit()
+        } else {
+            Task::none()
         }
     }
 }
