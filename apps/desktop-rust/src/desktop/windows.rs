@@ -435,6 +435,24 @@ mod tests {
     }
 
     #[test]
+    fn it_does_not_request_an_unmaximize_configure_for_a_floating_wayland_window() {
+        use iced::futures::{FutureExt, StreamExt};
+        use iced_runtime::{Action, task};
+
+        let (mut windows, _) = Windows::open();
+        let id = windows.library_id();
+        windows.library_visibility_known(id, true);
+        let _ = windows.show_mini();
+
+        let compact = windows.prepare_in_place_mini(id, super::LIBRARY_SIZE, false);
+        let mut actions = task::into_stream(compact).unwrap();
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Window(iced::window::Action::SetMinSize(window, _))) if window == id
+        ));
+    }
+
+    #[test]
     fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
         assert_eq!(
             LibraryVisibility::for_wayland(true),
