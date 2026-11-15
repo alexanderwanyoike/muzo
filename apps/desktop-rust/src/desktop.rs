@@ -129,7 +129,6 @@ pub enum Message {
     ToggleMini(window::Id),
     MiniOpened(window::Id),
     LibraryVisibilityKnown(window::Id, bool),
-    LibraryVisibilityChecked(window::Id, bool),
     WaylandMiniPrepared(window::Id, iced::Size, bool),
     WaylandLibraryResized(window::Id, iced::Size, bool),
     ShowLibrary,
@@ -200,7 +199,7 @@ impl Desktop {
             .as_ref()
             .map(|device| Session::new(Playback::new(device.mixer().clone())))
             .map_err(ToString::to_string);
-        let (mut desktop, open) = Self::with_session(session);
+        let (mut desktop, open) = Self::with_windows(session, Windows::open());
         desktop.output = output.ok();
         desktop.sources = Sources::new(CataloguePaths::from_environment());
         if let Some(path) = desktop.sources.paths().map(|paths| paths.appearance()) {
@@ -240,8 +239,15 @@ impl Desktop {
         )
     }
 
+    #[cfg(test)]
     pub fn with_session(session: Result<Session, String>) -> (Self, Task<Message>) {
-        let (windows, open) = Windows::open();
+        Self::with_windows(session, Windows::open_for_test())
+    }
+
+    fn with_windows(
+        session: Result<Session, String>,
+        (windows, open): (Windows, Task<Message>),
+    ) -> (Self, Task<Message>) {
         let (session, error) = match session {
             Ok(session) => (Some(session), None),
             Err(error) => (None, Some(error)),
@@ -1070,11 +1076,7 @@ impl Desktop {
                 }
             }
             Message::LibraryVisibilityKnown(id, wayland) => {
-                self.windows.library_visibility_known(id, wayland);
-                Task::none()
-            }
-            Message::LibraryVisibilityChecked(id, wayland) => {
-                self.windows.library_visibility_checked(id, wayland)
+                self.windows.library_visibility_known(id, wayland)
             }
             Message::WaylandMiniPrepared(id, size, maximized) => {
                 self.windows.open_wayland_mini(id, size, maximized)
