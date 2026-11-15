@@ -11,6 +11,7 @@ use crate::desktop::view::{
 };
 
 const FOLDER_LIST_HEIGHT: f32 = 240.0;
+const SELECTION_LIST_HEIGHT: f32 = 112.0;
 const FOLDER_SCROLLBAR_GAP: f32 = 6.0;
 const ACTION_GAP: f32 = 8.0;
 const FOLDER_ICON_EDGE: f32 = 15.0;
@@ -176,28 +177,33 @@ impl Settings {
                 .width(Fill),
             );
         }
-        let selected_elsewhere = self.selected_folders.iter().filter(|(selected, _)| {
-            !path.eq_ignore_ascii_case(selected)
-                && !self
-                    .snapshot
-                    .folders
-                    .iter()
-                    .any(|(visible, _)| visible.eq_ignore_ascii_case(selected))
-        });
-        for (selected, name) in selected_elsewhere {
-            browser = browser.push(
+        let count = self.selected_folders.len();
+        if count > 0 {
+            let rows = self.selected_folders.iter().map(|(selected, name)| {
                 row![
-                    text(selected).size(12).width(Fill),
+                    text(selected)
+                        .size(12)
+                        .width(Fill)
+                        .wrapping(text::Wrapping::WordOrGlyph),
                     quiet_button("Remove").on_press_maybe(
                         self.command(Action::SelectFolder(selected.clone(), name.clone()))
                     ),
                 ]
                 .spacing(ACTION_GAP)
-                .align_y(Alignment::Center),
-            );
-        }
-        let count = self.selected_folders.len();
-        if count > 0 {
+                .align_y(Alignment::Center)
+                .into()
+            });
+            browser = browser
+                .push(text("Selected folders").size(12).color(surfaces.muted))
+                .push(
+                    container(
+                        scrollable(column(rows).spacing(2))
+                            .spacing(FOLDER_SCROLLBAR_GAP)
+                            .height(Shrink),
+                    )
+                    .max_height(SELECTION_LIST_HEIGHT)
+                    .width(Fill),
+                );
             let label = if count == 1 {
                 "Add 1 folder".into()
             } else {
