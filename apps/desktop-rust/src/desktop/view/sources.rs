@@ -181,6 +181,13 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     const SOURCE_ROW_HEIGHT: f32 = 32.0;
     const SELECTION_EDGE: f32 = 2.0;
     const FRAME_BORDER: f32 = 1.0;
+    // The extra pixel in the top inset aligns Iced's text ink with the browser baseline.
+    const SOURCE_ROW_PADDING: iced::Padding = iced::Padding {
+        top: 6.0,
+        bottom: 4.0,
+        left: 6.0,
+        right: 6.0,
+    };
     let surfaces = appearance.surfaces();
     let selected_fill = selection_fill(appearance);
     let accent = appearance.theme().palette().primary;
@@ -248,11 +255,12 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                                 .color(surfaces.muted),
                         ]
                         .spacing(7)
+                        .height(Fill)
                         .align_y(Alignment::Center)
                     )
                     .width(Fill)
                     .height(SOURCE_ROW_HEIGHT)
-                    .padding([5, 6])
+                    .padding(SOURCE_ROW_PADDING)
                     .style(source_button)
                     .on_press_maybe(
                         (!sources.busy()).then(|| Message::SourceOperation(Operation::Select(
