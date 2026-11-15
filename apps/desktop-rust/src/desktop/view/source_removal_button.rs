@@ -26,7 +26,14 @@ struct State {
     id: Id,
     focused: bool,
     reveal: bool,
-    space_armed: bool,
+    keyboard: Keyboard,
+}
+
+#[derive(PartialEq, Eq)]
+enum Keyboard {
+    Ready,
+    SpaceArmed,
+    MovingFocus,
 }
 
 impl Focusable for State {
@@ -36,12 +43,13 @@ impl Focusable for State {
 
     fn focus(&mut self) {
         self.reveal |= !std::mem::replace(&mut self.focused, true);
+        self.keyboard = Keyboard::Ready;
     }
 
     fn unfocus(&mut self) {
         self.focused = false;
         self.reveal = false;
-        self.space_armed = false;
+        self.keyboard = Keyboard::Ready;
     }
 }
 
@@ -69,7 +77,7 @@ impl Widget<Message, Theme, Renderer> for RemovalButton<'_> {
             id: self.id.clone(),
             focused: false,
             reveal: false,
-            space_armed: false,
+            keyboard: Keyboard::Ready,
         })
     }
 
@@ -139,7 +147,7 @@ impl Widget<Message, Theme, Renderer> for RemovalButton<'_> {
                     state.unfocus();
                     shell.request_redraw();
                 }
-                Event::Window(window::Event::Unfocused) => state.space_armed = false,
+                Event::Window(window::Event::Unfocused) => state.keyboard = Keyboard::Ready,
                 Event::Window(window::Event::RedrawRequested(_))
                     if std::mem::take(&mut state.reveal) =>
                 {
@@ -225,13 +233,16 @@ impl State {
                 modifiers,
                 ..
             }) if !(modifiers.control() || modifiers.logo() || modifiers.alt()) => match key {
-                Key::Named(Named::Enter) => Some(!repeat),
+                Key::Named(Named::Enter) => Some(!repeat && self.keyboard != Keyboard::MovingFocus),
                 Key::Named(Named::Space) => {
-                    self.space_armed |= !repeat;
+                    if !repeat && self.keyboard == Keyboard::Ready {
+                        self.keyboard = Keyboard::SpaceArmed;
+                    }
                     Some(false)
                 }
                 Key::Named(Named::Tab) => {
-                    self.space_armed = false;
+                    // The focus operation runs after Iced delivers the rest of the input batch.
+                    self.keyboard = Keyboard::MovingFocus;
                     None
                 }
                 _ => None,
@@ -240,9 +251,9 @@ impl State {
                 key: Key::Named(Named::Space),
                 modifiers,
                 ..
-            }) => {
-                let armed = std::mem::take(&mut self.space_armed);
-                armed.then_some(!(modifiers.control() || modifiers.logo() || modifiers.alt()))
+            }) if self.keyboard == Keyboard::SpaceArmed => {
+                self.keyboard = Keyboard::Ready;
+                Some(!(modifiers.control() || modifiers.logo() || modifiers.alt()))
             }
             _ => None,
         }
