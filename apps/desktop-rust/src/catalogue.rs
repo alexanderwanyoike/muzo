@@ -23,6 +23,12 @@ pub enum CatalogueError {
     Io(#[from] io::Error),
     #[error("Could not read or update the music catalogue: {0}")]
     Database(#[from] rusqlite::Error),
+    #[error("{error}")]
+    TracksRead {
+        library_id: String,
+        #[source]
+        error: Box<CatalogueError>,
+    },
     #[error("This music catalogue's schema is unsupported.")]
     UnsupportedSchema,
     #[error("The selected location is not a folder.")]

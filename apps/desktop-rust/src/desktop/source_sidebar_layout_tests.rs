@@ -17,7 +17,7 @@ use crate::appearance::sidebar::SidebarWidth;
 use super::{
     CataloguePaths, Desktop, Message,
     cover_layout_tests::paint,
-    library_sources::{Operation, Sources, run},
+    library_sources::{Operation, Sources, UpdateError, run},
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
@@ -316,13 +316,16 @@ fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
         let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
             panic!("expected the catalogue response");
         };
-        let _ = desktop.update(updated);
+        desktop.update(updated)
     };
-    finish(&mut desktop, reload);
+    let selection = finish(&mut desktop, reload);
+    assert!(
+        selection.units() > 0,
+        "the next source read should start as soon as the scan finishes"
+    );
     assert!(labels(&desktop).contains_key("Loading tracks..."));
-    let selection = desktop.update(Message::SourceWatchTick);
     assert!(labels(&desktop).contains_key("Loading tracks..."));
-    finish(&mut desktop, selection);
+    let _ = finish(&mut desktop, selection);
 
     let snapshot = desktop.sources.snapshot.as_ref().unwrap();
     assert_eq!(snapshot.selected.as_ref(), Some(&target));
@@ -348,7 +351,10 @@ fn it_shows_the_source_read_error_instead_of_an_empty_track_list() {
     let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
     assert!(selection.units() > 0);
 
-    let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+    let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+        library_id: "Other library".into(),
+        reason: READ_ERROR.into(),
+    })));
 
     let labels = rendered_labels(
         &desktop,
@@ -380,7 +386,10 @@ fn it_discards_a_source_read_error_after_selection_changes() {
         assert!(selection.units() > 0);
         let _ = desktop.update(Message::SourceRowClicked(next.into()));
 
-        let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+        let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+            library_id: "Other library".into(),
+            reason: READ_ERROR.into(),
+        })));
 
         let labels = rendered_labels(
             &desktop,
@@ -627,4 +636,70 @@ fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
         );
     }
     messages
+}
+
+#[test]
+fn it_routes_reload_track_errors_only_to_the_source_still_selected() {
+    let directory = tempfile::tempdir().unwrap();
+    let track = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), Some(&track));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, task| {
+        let mut actions = task::into_stream(task).expect("catalogue command");
+        let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+            panic!("expected a catalogue result");
+        };
+        let _ = desktop.update(updated);
+    };
+    let select = desktop.update(Message::SourceRowClicked(target.clone()));
+    finish(&mut desktop, select);
+    let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
+    db.execute(
+        "UPDATE tracks SET duration_seconds='invalid' WHERE library_id=?1",
+        [&target],
+    )
+    .unwrap();
+
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    finish(&mut desktop, reload);
+    assert!(
+        desktop.sources.source_tracks_error.is_some(),
+        "the current track error belongs in Songs"
+    );
+    assert!(desktop.sources.error.is_none());
+
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    let _ = desktop.update(Message::SourceRowClicked(target));
+    finish(&mut desktop, reload);
+    assert!(desktop.sources.source_tracks_error.is_none());
+    assert!(
+        desktop.sources.error.is_none(),
+        "a stale read error escaped into the toolbar"
+    );
+}
+
+#[test]
+fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded() {
+    let directory = tempfile::tempdir().unwrap();
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), None);
+    let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
+    db.execute_batch("PRAGMA foreign_keys=OFF; DROP TABLE playlists")
+        .unwrap();
+    let select = desktop.update(Message::SourceRowClicked(target.clone()));
+    let _ = desktop.update(Message::SourceRowClicked(target));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut actions = task::into_stream(select).expect("source selection command");
+    let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+        panic!("expected a catalogue result");
+    };
+    let _ = desktop.update(updated);
+    assert!(
+        desktop.sources.error.is_some(),
+        "a shared catalogue failure was discarded"
+    );
+    assert!(desktop.sources.source_tracks_error.is_none());
 }

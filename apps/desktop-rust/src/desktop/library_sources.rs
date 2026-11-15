@@ -99,6 +99,21 @@ pub enum Operation {
     LoadTrackEditor(String, String),
 }
 
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum UpdateError {
+    #[error("{reason}")]
+    Tracks { library_id: String, reason: String },
+    #[error("{0}")]
+    Operation(String),
+}
+
+#[cfg(test)]
+impl From<&str> for UpdateError {
+    fn from(message: &str) -> Self {
+        Self::Operation(message.into())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub libraries: Vec<Library>,
@@ -324,7 +339,14 @@ fn read_snapshot(
         .unwrap_or_default();
     let tracks = selected
         .as_ref()
-        .map(|id| catalogue.tracks(id))
+        .map(|id| {
+            catalogue
+                .tracks(id)
+                .map_err(|error| CatalogueError::TracksRead {
+                    library_id: id.clone(),
+                    error: Box::new(error),
+                })
+        })
         .transpose()?
         .unwrap_or_default();
     Ok(Snapshot {
@@ -662,6 +684,13 @@ impl Sources {
         };
         let operation = queued.operation;
         self.selection_changed_during_operation = queued.selection_superseded;
+        let reports_track_read = matches!(
+            operation,
+            Operation::Select(_)
+                | Operation::Reload
+                | Operation::Refresh(_)
+                | Operation::Reconcile(..)
+        );
         self.loading_source = matches!(operation, Operation::Select(_));
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
@@ -699,11 +728,24 @@ impl Sources {
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
-                    run_with_selection(&paths, operation, selected, playlist)
-                        .map_err(|error| error.to_string())
+                    run_with_selection(&paths, operation, selected, playlist).map_err(|error| {
+                        match error {
+                            CatalogueError::TracksRead { library_id, error }
+                                if reports_track_read =>
+                            {
+                                UpdateError::Tracks {
+                                    library_id,
+                                    reason: error.to_string(),
+                                }
+                            }
+                            error => UpdateError::Operation(error.to_string()),
+                        }
+                    })
                 })
                 .await
-                .map_err(|error| format!("Could not update the music catalogue: {error}"))?
+                .map_err(|error| {
+                    UpdateError::Operation(format!("Could not update the music catalogue: {error}"))
+                })?
             },
             Message::SourcesUpdated,
         )
@@ -727,9 +769,9 @@ impl Sources {
         Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
     }
 
-    pub fn apply(&mut self, result: Result<Snapshot, String>) {
+    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
         self.busy = false;
-        let loading_source = std::mem::take(&mut self.loading_source);
+        self.loading_source = false;
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
@@ -739,13 +781,19 @@ impl Sources {
         let selection_changed = std::mem::take(&mut self.selection_changed_during_operation);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
-            Err(error) if loading_source => {
-                if !selection_changed {
-                    self.source_tracks_error = Some(error);
+            Err(UpdateError::Tracks { library_id, reason }) => {
+                if !selection_changed
+                    && self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|view| view.selected.as_ref())
+                        == Some(&library_id)
+                {
+                    self.source_tracks_error = Some(reason);
                 }
                 return;
             }
-            Err(error) => {
+            Err(UpdateError::Operation(error)) => {
                 if removing_source && let Some(removal) = &mut self.removal {
                     removal.failed(error);
                 } else if adding_folder {
@@ -864,13 +912,19 @@ impl Sources {
         self.snapshot = Some(snapshot);
     }
 
+    pub(super) fn start_pending(&mut self) -> Option<Task<Message>> {
+        self.pending
+            .pop_front()
+            .map(|operation| self.run_operation(operation))
+    }
+
     pub fn poll(&mut self) -> Task<Message> {
         if self.busy {
             return Task::none();
         }
         self.retry_watch_roots();
-        if let Some(operation) = self.pending.pop_front() {
-            return self.run_operation(operation);
+        if let Some(pending) = self.start_pending() {
+            return pending;
         }
         let selected = self
             .snapshot
