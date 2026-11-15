@@ -216,3 +216,26 @@ fn it_draws_the_original_glowing_play_control_when_a_track_is_available() {
         );
     }
 }
+
+#[test]
+fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
+    const SIZE: Size<u32> = Size::new(850, 800);
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let classic = paint(&desktop, id, SIZE);
+    desktop.appearance.accent = "glow-cyan".into();
+    let glow = paint(&desktop, id, SIZE);
+    let at = |x, y| (y * SIZE.width as usize + x) * 4;
+    for (x, y) in [(500, 59), (790, 37)] {
+        let green = at(x, y) + 1;
+        assert!(
+            glow[green] > classic[green] + 4,
+            "missing halo around the rail at ({x}, {y})"
+        );
+    }
+    let volume_fill = at(790, 40);
+    assert_eq!(&glow[volume_fill..volume_fill + 4], &[66, 233, 255, 255]);
+}
