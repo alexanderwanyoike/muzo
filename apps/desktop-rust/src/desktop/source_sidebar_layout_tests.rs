@@ -294,6 +294,16 @@ fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
         "The selected source is waiting for its read, but Songs displayed {pending:?}",
     );
 
+    const MAX_STATUS_ALIGNMENT_DELTA: f32 = 12.0;
+    const MAX_STATUS_GAP_BELOW_TOOLBAR: f32 = 80.0;
+    let toolbar = pending["LIBRARY"];
+    let loading = pending["Loading tracks..."];
+    assert!(
+        (loading.x - toolbar.x).abs() <= MAX_STATUS_ALIGNMENT_DELTA
+            && (toolbar.y..=toolbar.y + MAX_STATUS_GAP_BELOW_TOOLBAR).contains(&loading.y),
+        "the loading message should sit near the left edge under the toolbar: {loading:?}"
+    );
+
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
@@ -314,6 +324,65 @@ fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
     assert_eq!(snapshot.selected.as_ref(), Some(&target));
     assert_eq!(snapshot.tracks.len(), 1);
     assert!(!labels(&desktop).contains_key("Loading tracks..."));
+}
+
+#[test]
+fn it_shows_the_source_read_error_instead_of_an_empty_track_list() {
+    const READ_ERROR: &str = "The selected track catalogue could not be read.";
+    const EMPTY: &str = "No tracks yet. Muzo syncs filesystem libraries automatically.";
+
+    let directory = tempfile::tempdir().unwrap();
+    let mut desktop = desktop_with_sources();
+    let catalogue = desktop.sources.snapshot.take();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    desktop.sources.snapshot = catalogue;
+    let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
+    assert!(selection.units() > 0);
+
+    let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+
+    let labels = rendered_labels(
+        &desktop,
+        desktop.windows.library_id(),
+        (FRAME.width, FRAME.height).into(),
+    );
+    assert!(labels.contains_key(READ_ERROR));
+    assert!(
+        !labels.contains_key(EMPTY),
+        "a read error must not present the selected source as empty"
+    );
+    assert!(
+        desktop.sources.error.is_none(),
+        "track errors belong to the selected source's track list"
+    );
+}
+
+#[test]
+fn it_discards_a_source_read_error_after_selection_changes() {
+    const READ_ERROR: &str = "The earlier track catalogue could not be read.";
+
+    for next in ["Other library", "Selected library"] {
+        let directory = tempfile::tempdir().unwrap();
+        let mut desktop = desktop_with_sources();
+        let catalogue = desktop.sources.snapshot.take();
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+        desktop.sources.snapshot = catalogue;
+        let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
+        assert!(selection.units() > 0);
+        let _ = desktop.update(Message::SourceRowClicked(next.into()));
+
+        let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+
+        let labels = rendered_labels(
+            &desktop,
+            desktop.windows.library_id(),
+            (FRAME.width, FRAME.height).into(),
+        );
+        assert!(
+            !labels.contains_key(READ_ERROR),
+            "a failed read from the earlier selection must not appear after choosing {next}"
+        );
+    }
 }
 
 #[test]
