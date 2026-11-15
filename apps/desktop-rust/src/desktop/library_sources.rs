@@ -177,15 +177,19 @@ fn run_with_selection(
             None
         }
         Operation::Remove(id) => {
-            let mut snapshot = catalogue.remove_with_snapshot(&id, |catalogue| {
+            let snapshot = |catalogue: &Catalogue| {
                 read_snapshot(
                     catalogue,
-                    previous_source,
-                    selected_playlist,
+                    previous_source.clone(),
+                    selected_playlist.clone(),
                     None,
-                    warnings,
+                    Vec::new(),
                 )
-            })?;
+            };
+            let mut snapshot = match catalogue.remove_with_snapshot(&id, snapshot) {
+                Err(CatalogueError::UnknownFolder) => snapshot(&catalogue)?,
+                result => result?,
+            };
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
