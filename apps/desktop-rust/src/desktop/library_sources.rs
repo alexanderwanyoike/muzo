@@ -666,6 +666,7 @@ impl Sources {
             self.pending.push_back(queued);
             return Task::none();
         }
+        self.error = None;
         self.run_operation(queued)
     }
 
@@ -704,7 +705,6 @@ impl Sources {
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
-        self.error = None;
         let selected = self
             .snapshot
             .as_ref()
