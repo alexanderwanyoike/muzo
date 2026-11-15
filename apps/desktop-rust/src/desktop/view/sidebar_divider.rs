@@ -35,9 +35,9 @@ struct State {
 struct Drag {
     pointer: Pointer,
     start_x: f32,
-    last_position: Point,
+    last_x: f32,
     start_width: f32,
-    moved: bool,
+    resized: bool,
 }
 
 impl State {
@@ -45,7 +45,7 @@ impl State {
         self.drag = None;
         let previous = self.last_click.take();
         if drag.pointer == Pointer::Mouse
-            && !drag.moved
+            && !drag.resized
             && let Some(position) = release.filter(|&position| area.contains(position))
         {
             let click = mouse::Click::new(position, mouse::Button::Left, previous);
@@ -171,23 +171,25 @@ impl<'a> Divider<'a> {
                 state.drag = Some(Drag {
                     pointer,
                     start_x: position.x,
-                    last_position: position,
+                    last_x: position.x,
                     start_width: self.sidebar_width,
-                    moved: false,
+                    resized: false,
                 });
                 None
             }
             (Gesture::Move(pointer, position), Some(drag)) if drag.pointer == pointer => {
-                if drag.last_position != position {
+                if drag.last_x == position.x {
+                    None
+                } else {
                     state.drag = Some(Drag {
-                        last_position: position,
-                        moved: true,
+                        last_x: position.x,
+                        resized: true,
                         ..drag
                     });
+                    Some(Resize::Preview(
+                        drag.start_width + position.x - drag.start_x,
+                    ))
                 }
-                (drag.last_position.x != position.x).then_some(Resize::Preview(
-                    drag.start_width + position.x - drag.start_x,
-                ))
             }
             (Gesture::Release(pointer), Some(drag)) if drag.pointer == pointer => {
                 Some(state.finish_drag(drag, mouse_position, area))
