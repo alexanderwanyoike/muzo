@@ -76,6 +76,8 @@ pub enum Message {
     CancelInstallUpdate,
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
+    RequestSourceRemovalFromKeyboard(String),
+    RevealSourceRemovalLauncher(source_removal::Launcher),
     CancelSourceRemoval,
     CycleSourceRemovalFocus,
     ActivateSourceRemovalFocus,
@@ -532,9 +534,14 @@ impl Desktop {
                 }
             }
             Message::RequestSourceRemoval(id) => {
-                self.sources.request_removal(&id);
+                self.sources.request_removal(&id, false);
                 Task::none()
             }
+            Message::RequestSourceRemovalFromKeyboard(id) => {
+                self.sources.request_removal(&id, true);
+                Task::none()
+            }
+            Message::RevealSourceRemovalLauncher(launcher) => launcher.reveal(),
             Message::CancelSourceRemoval => {
                 self.sources.cancel_removal();
                 Task::none()
@@ -892,9 +899,14 @@ impl Desktop {
                     return self.editor_navigation.request(backwards);
                 }
                 if self.windows.is_library(id) && self.page == LibraryPage::Settings {
-                    let next = appearance_focus::Choice::next(self.appearance_focus, backwards);
+                    let next = appearance_focus::Choice::next(
+                        self.appearance_focus.as_ref(),
+                        backwards,
+                        &self.sources,
+                    );
+                    let task = next.take_focus();
                     self.appearance_focus = Some(next);
-                    return next.take_focus();
+                    return task;
                 }
                 if self.windows.is_library(id) {
                     use iced::advanced::widget::{
@@ -938,7 +950,7 @@ impl Desktop {
                 }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
-                    && let Some(choice) = self.appearance_focus
+                    && let Some(choice) = &self.appearance_focus
                 {
                     return choice
                         .message()
@@ -1534,7 +1546,7 @@ impl Desktop {
                     &self.update_status,
                     &self.sidebar,
                     self.page,
-                    self.appearance_focus,
+                    self.appearance_focus.as_ref(),
                 ),
                 self.session.as_ref(),
                 self.cover.thumbnail(),

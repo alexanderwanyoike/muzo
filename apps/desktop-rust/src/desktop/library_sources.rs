@@ -587,7 +587,7 @@ impl Sources {
         !self.choosing_folder && !self.folder_save_pending()
     }
 
-    pub(super) fn request_removal(&mut self, id: &str) {
+    pub(super) fn request_removal(&mut self, id: &str, keyboard: bool) {
         if self.removal.is_none()
             && let Some(source) = self
                 .snapshot
@@ -595,7 +595,7 @@ impl Sources {
                 .flat_map(|snapshot| &snapshot.libraries)
                 .find(|source| source.id == id)
         {
-            self.removal = Some(Removal::new(source.clone()));
+            self.removal = Some(Removal::new(source.clone(), keyboard));
         }
     }
 

@@ -1,12 +1,48 @@
 use crate::catalogue::Library;
 use iced::{
     Task,
+    advanced::widget::Id,
     widget::operation::{AbsoluteOffset, RelativeOffset, scroll_by, snap_to},
 };
 
 use super::Message;
 
 pub(super) const DETAILS: &str = "source-removal-details";
+pub(super) const SIDEBAR: &str = "sources-sidebar-list";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Launcher {
+    Sidebar(String),
+    Settings(String),
+}
+
+impl Launcher {
+    pub(super) fn widget_id(&self) -> Id {
+        match self {
+            Self::Sidebar(source) => format!("source-remove-sidebar:{source}"),
+            Self::Settings(source) => format!("source-remove-settings:{source}"),
+        }
+        .into()
+    }
+
+    pub(super) fn source_id(&self) -> &str {
+        match self {
+            Self::Sidebar(source) | Self::Settings(source) => source,
+        }
+    }
+
+    pub(super) fn reveal(&self) -> Task<Message> {
+        let scroll = match self {
+            Self::Sidebar(_) => SIDEBAR,
+            Self::Settings(_) => super::appearance_focus::SCROLL,
+        };
+        iced::advanced::widget::operate(super::track_editor_focus::reveal_scroll_item(
+            scroll,
+            self.widget_id(),
+        ))
+        .discard()
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Scroll {
@@ -40,13 +76,13 @@ pub(super) struct Removal {
 }
 
 impl Removal {
-    pub fn new(source: Library) -> Self {
+    pub fn new(source: Library, keyboard: bool) -> Self {
         Self {
             source,
             busy: false,
             error: None,
             cancel_focused: true,
-            show_keyboard_focus: false,
+            show_keyboard_focus: keyboard,
             space_armed: false,
         }
     }

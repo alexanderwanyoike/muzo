@@ -9,12 +9,13 @@ use crate::{
         Message,
         dropbox_panel::{Action, Settings as DropboxSettings},
         library_sources::{Operation, Sources},
+        source_removal::{Launcher, SIDEBAR},
     },
 };
 
 use super::{
     Icon, action, bold, icon_button, icon_tinted, label_text::replace_embedded_breaks, library,
-    source_row,
+    source_removal_button::RemovalButton, source_row,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -113,6 +114,11 @@ pub(super) fn indexed_sources<'a>(
         } else {
             None
         };
+        let remove = button(text("Remove").size(11))
+            .style(button_style)
+            .on_press_maybe(
+                (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone())),
+            );
         let controls = row![
             button(
                 text(if dropbox.refreshing.as_deref() == Some(&source.id) {
@@ -124,11 +130,12 @@ pub(super) fn indexed_sources<'a>(
             )
             .style(button_style)
             .on_press_maybe(refresh.filter(|_| !sources.busy())),
-            button(text("Remove").size(11))
-                .style(button_style)
-                .on_press_maybe(
-                    (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
-                ),
+            Element::new(RemovalButton::new(
+                remove,
+                Launcher::Settings(source.id.clone()),
+                !sources.busy(),
+                appearance.focus_ink(),
+            )),
         ]
         .spacing(8);
         body = body.push(library::line(surfaces)).push(
@@ -261,7 +268,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         (_, 0) => source_search_empty("No sources match your search.", surfaces).into(),
         _ => column(source_rows).into(),
     };
-    body = body.push(scrollable(list).height(Fill));
+    body = body.push(scrollable(list).id(SIDEBAR).height(Fill));
     if libraries.is_some() && sources.busy() {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));

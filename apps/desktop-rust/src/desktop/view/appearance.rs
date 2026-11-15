@@ -20,7 +20,7 @@ const DETAILS: [&str; 8] = [
     "Soft translucency and blurred colour",
 ];
 
-pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'static, Message> {
+pub fn controls(appearance: &Appearance, focus: Option<&Choice>) -> Element<'static, Message> {
     let surfaces = appearance.surfaces();
     let variants = MATERIALS
         .into_iter()
@@ -34,7 +34,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
                 name,
                 detail,
                 appearance.theme == id,
-                focus == Some(Choice::Material(id)),
+                focus == Some(&Choice::Material(id)),
             );
             container(choice).width(Fill).into()
         })
@@ -52,7 +52,7 @@ pub fn controls(appearance: &Appearance, focus: Option<Choice>) -> Element<'stat
 
     let modes = row(MODES.into_iter().map(|(id, label)| {
         let selected = appearance.mode == id;
-        let focused = focus == Some(Choice::Mode(id));
+        let focused = focus == Some(&Choice::Mode(id));
         button(container(text(label).size(12)).center_x(68))
             .padding([5, 0])
             .style(move |theme, status| {
@@ -228,14 +228,14 @@ fn accent_group(
     appearance: &Appearance,
     choices: &'static [(&'static str, &'static str)],
     surfaces: Surfaces,
-    focus: Option<Choice>,
+    focus: Option<&Choice>,
 ) -> Element<'static, Message> {
     row(choices.iter().map(|&(id, label)| {
         let mut sample = appearance.clone();
         sample.accent = id.into();
         let color = sample.theme().palette().primary;
         let selected = appearance.accent == id;
-        let focused = focus == Some(Choice::Accent(id));
+        let focused = focus == Some(&Choice::Accent(id));
         let glow = id.starts_with("glow-");
         let dot = container(Space::new()).center(19).style(move |_| {
             container::Style::default()

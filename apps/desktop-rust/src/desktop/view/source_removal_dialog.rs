@@ -1,5 +1,5 @@
 use iced::{
-    Color, ContentFit, Element, Event, Fill, Font, Length, Padding, Pixels, border, color,
+    Color, ContentFit, Element, Event, Fill, Font, Length, Padding, Pixels, border,
     keyboard::{self, Key, Modifiers, key::Named},
     widget::{button, column, container, row, scrollable, stack, svg, text},
     window,
@@ -47,17 +47,7 @@ pub(in crate::desktop) fn layer<'a>(
 
 fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Message> {
     let surfaces = appearance.surfaces();
-    let (outline, hover) = pulse_row_fills(appearance).map_or_else(
-        || (appearance.accent_ink(), None),
-        |fills| {
-            let neutral = if appearance.mode == "dark" {
-                Color::WHITE
-            } else {
-                color!(0x171717)
-            };
-            (neutral, Some(fills.hover))
-        },
-    );
+    let hover = pulse_row_fills(appearance).map(|fills| fills.hover);
     let danger = appearance.danger_ink();
     let title = format!(
         "Remove {}?",
@@ -96,7 +86,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
 
     let cancel_colors = ActionColors {
         surfaces,
-        outline,
+        outline: appearance.focus_ink(),
         hover,
         danger: None,
     };

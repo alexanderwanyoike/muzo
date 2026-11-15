@@ -21,6 +21,7 @@ mod sidebar_divider;
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;
 mod sleeve_image;
+mod source_removal_button;
 mod source_removal_dialog;
 mod source_row;
 mod source_search_input;
@@ -56,7 +57,7 @@ fn library_content<'a>(
     dropbox: &'a super::dropbox_panel::Settings,
     preferences: &'a crate::appearance::Appearance,
     session: Option<&'a Session>,
-    page: (super::LibraryPage, Option<super::appearance_focus::Choice>),
+    page: (super::LibraryPage, Option<&super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
     viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {
