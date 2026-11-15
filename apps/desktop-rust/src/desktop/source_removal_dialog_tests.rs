@@ -270,6 +270,20 @@ fn it_preserves_the_panel_and_backdrop_when_only_the_focused_button_repaints() {
     let mut frame = tiny_skia::Pixmap::new(size.width, size.height).unwrap();
     let window = desktop.windows.library_id();
     let theme = desktop.theme(window);
+    let labels = labels(&desktop);
+    let action = labels["Remove source"];
+    let title = labels[PROMPT];
+    let damage = Rectangle {
+        x: action.x - 18.0,
+        y: action.y - 12.0,
+        width: action.width + 36.0,
+        height: action.height + 24.0,
+    };
+    let inspect_button = |frame: &tiny_skia::Pixmap| {
+        let rows = damage.y as u32..(damage.y + damage.height) as u32;
+        rows.map(|y| frame.pixel(action.center_x() as u32, y).unwrap())
+            .collect::<Vec<_>>()
+    };
 
     let render =
         |desktop: &Desktop, frame: &mut tiny_skia::Pixmap, mask: &mut tiny_skia::Mask, damage| {
@@ -291,24 +305,18 @@ fn it_preserves_the_panel_and_backdrop_when_only_the_focused_button_repaints() {
             );
         };
     render(&desktop, &mut frame, &mut mask, Rectangle::with_size(FRAME));
-    let panel = frame.pixel(250, 300).unwrap();
-    let outside = frame.pixel(180, 400).unwrap();
+    let panel = (title.x as u32, (title.y - 8.0) as u32);
+    let backdrop = ((title.x - 50.0) as u32, (action.y - 65.0) as u32);
+    let inspect_surfaces =
+        |frame: &tiny_skia::Pixmap| [panel, backdrop].map(|(x, y)| frame.pixel(x, y).unwrap());
+    let surfaces = inspect_surfaces(&frame);
+    let unfocused_button = inspect_button(&frame);
 
     send_key(&mut desktop, Named::Tab, Modifiers::empty());
-    render(
-        &desktop,
-        &mut frame,
-        &mut mask,
-        Rectangle {
-            x: 495.0,
-            y: 451.0,
-            width: 132.0,
-            height: 62.0,
-        },
-    );
+    render(&desktop, &mut frame, &mut mask, damage);
 
-    assert_eq!(frame.pixel(250, 300).unwrap(), panel);
-    assert_eq!(frame.pixel(180, 400).unwrap(), outside);
+    assert_ne!(inspect_button(&frame), unfocused_button);
+    assert_eq!(inspect_surfaces(&frame), surfaces);
 }
 
 #[test]
