@@ -25,6 +25,7 @@ enum Shortcut: String {
     case mini
     case focusQueue
     case activate
+    case toggleQueue
     case restore
 }
 
@@ -114,6 +115,8 @@ func send(_ shortcut: Shortcut, to app: Process, arguments: [String] = []) throw
                 key code tabKey
             else if shortcutName is "activate" then
                 key code returnKey
+            else if shortcutName is "toggleQueue" then
+                keystroke "l" using {command down, shift down}
             else if shortcutName is "restore" then
                 key code escapeKey
             end if
@@ -197,8 +200,8 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
     }
     try capture(expanded, of: app, named: "macos-mini-queue", in: screenshots)
 
-    try send(.activate, to: app)
-    let collapsed = try waitForWindow("collapsed mini player queue", of: app) { window in
+    try send(.toggleQueue, to: app)
+    let collapsed = try waitForWindow("mini player queue collapsed with Command-Shift-L", of: app) { window in
         window.id == compact.id && window.hasContentSize(width: compactWidth, height: miniContentHeight)
     }
     try capture(collapsed, of: app, named: "macos-mini-collapsed", in: screenshots)
