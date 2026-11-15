@@ -210,6 +210,33 @@ fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
 }
 
 #[test]
+fn it_restores_a_revised_cover_when_replaying_downloaded_dropbox_audio() {
+    let (mut desktop, audio) = setup();
+    let prepared = audio
+        .clone()
+        .with_indexed_id("changed".into())
+        .with_remote("library".into(), "/Music/Track.mp3".into())
+        .without_artwork();
+    let session = desktop.session.as_mut().unwrap();
+    session.replace(vec![audio, prepared]);
+    session.select(0).unwrap();
+    let generation = session.start_generation();
+
+    let bytes = include_bytes!("../../assets/icons/muzo.png");
+    desktop
+        .queue_covers
+        .insert("changed".into(), row_cover::row_handle(bytes).unwrap());
+    desktop.apply_completed_cover("changed", bytes);
+    let _ = desktop.update(Message::Select(1));
+
+    assert_eq!(
+        desktop.session.as_ref().unwrap().start_generation(),
+        generation + 1
+    );
+    assert!(desktop.cover.sleeve().is_some());
+}
+
+#[test]
 fn it_starts_no_second_install_while_the_first_is_running() {
     let (mut desktop, _) = setup();
     let update = crate::distribution::Update {
