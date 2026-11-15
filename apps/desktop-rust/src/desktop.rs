@@ -10,7 +10,13 @@ mod settings_scroll;
 mod sidebar;
 #[cfg(test)]
 mod sidebar_tests;
+mod source_removal;
 
+#[cfg(test)]
+#[path = "desktop/source_removal_dialog_tests.rs"]
+mod source_removal_dialog_tests;
+#[cfg(test)]
+mod source_removal_focus_tests;
 #[cfg(test)]
 #[path = "desktop/source_sidebar_layout_tests.rs"]
 mod source_sidebar_layout_tests;
@@ -70,7 +76,14 @@ pub enum Message {
     CancelInstallUpdate,
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
+    RequestSourceRemovalFromKeyboard(source_removal::Launcher),
+    RevealSourceRemovalLauncher(source_removal::Launcher),
     CancelSourceRemoval,
+    CycleSourceRemovalFocus,
+    ActivateSourceRemovalFocus,
+    SetSourceRemovalSpaceArmed(bool),
+    ReleaseSourceRemovalSpace,
+    ScrollSourceRemoval(source_removal::Scroll),
     PlayIndexed(usize),
     PlayPlaylist(String),
     StartPlaylist(String),
@@ -315,7 +328,6 @@ impl Desktop {
             Message::LibraryPage(page) => {
                 self.page = page;
                 self.appearance_focus = None;
-                self.sources.pending_remove = None;
                 self.editor_navigation.reset();
                 self.sources.close_track_panels();
                 Task::none()
@@ -326,7 +338,6 @@ impl Desktop {
             }
             Message::SourceSearch(query) => {
                 self.sources.search = query;
-                self.sources.pending_remove = None;
                 Task::none()
             }
             Message::ClearSourceSearch => {
@@ -335,6 +346,7 @@ impl Desktop {
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
             }
+            Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
             Message::SourceOperation(operation) => {
                 if let Operation::Select(id) = &operation {
                     self.page = LibraryPage::Songs;
@@ -349,7 +361,6 @@ impl Desktop {
                         self.sources.close_track_panels();
                     }
                 }
-                self.sources.pending_remove = None;
                 self.sources.start(operation)
             }
             Message::SourcesUpdated(result) => {
@@ -482,6 +493,9 @@ impl Desktop {
                 self.save_appearance()
             }
             Message::AppearancePointerPressed(id) => {
+                if self.windows.is_library(id) && self.sources.removal.is_some() {
+                    return Task::none();
+                }
                 if self.windows.is_library(id)
                     && let Some(editor) = &mut self.sources.editing
                 {
@@ -520,12 +534,61 @@ impl Desktop {
                 }
             }
             Message::RequestSourceRemoval(id) => {
-                self.sources.pending_remove = Some(id);
+                self.sources.request_removal(&id, None);
                 Task::none()
             }
-            Message::CancelSourceRemoval => {
-                self.sources.pending_remove = None;
+            Message::RequestSourceRemovalFromKeyboard(launcher) => {
+                self.sources
+                    .request_removal(launcher.source_id(), Some(&launcher));
                 Task::none()
+            }
+            Message::RevealSourceRemovalLauncher(launcher) => launcher.reveal(),
+            Message::CancelSourceRemoval => self
+                .sources
+                .cancel_removal()
+                .map_or_else(Task::none, |launcher| launcher.focus()),
+            Message::CycleSourceRemovalFocus => {
+                if let Some(removal) = &mut self.sources.removal {
+                    removal.focus_next();
+                }
+                Task::none()
+            }
+            Message::ActivateSourceRemovalFocus => {
+                if let Some(removal) = &self.sources.removal {
+                    let message = if removal.cancel_focused {
+                        Message::CancelSourceRemoval
+                    } else {
+                        Message::SourceOperation(Operation::Remove(removal.source.id.clone()))
+                    };
+                    self.update(message)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::SetSourceRemovalSpaceArmed(armed) => {
+                if let Some(removal) = &mut self.sources.removal {
+                    removal.set_space_armed(armed);
+                }
+                Task::none()
+            }
+            Message::ReleaseSourceRemovalSpace => {
+                if self
+                    .sources
+                    .removal
+                    .as_mut()
+                    .is_some_and(source_removal::Removal::take_space_armed)
+                {
+                    self.update(Message::ActivateSourceRemovalFocus)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::ScrollSourceRemoval(scroll) => {
+                if self.sources.removal.is_some() {
+                    scroll.apply()
+                } else {
+                    Task::none()
+                }
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
             Message::PlayPlaylist(entry) => {
@@ -837,9 +900,14 @@ impl Desktop {
                     return self.editor_navigation.request(backwards);
                 }
                 if self.windows.is_library(id) && self.page == LibraryPage::Settings {
-                    let next = appearance_focus::Choice::next(self.appearance_focus, backwards);
+                    let next = appearance_focus::Choice::next(
+                        self.appearance_focus.as_ref(),
+                        backwards,
+                        &self.sources,
+                    );
+                    let task = next.take_focus();
                     self.appearance_focus = Some(next);
-                    return next.take_focus();
+                    return task;
                 }
                 if self.windows.is_library(id) {
                     use iced::advanced::widget::{
@@ -883,7 +951,7 @@ impl Desktop {
                 }
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Settings
-                    && let Some(choice) = self.appearance_focus
+                    && let Some(choice) = &self.appearance_focus
                 {
                     return choice
                         .message()
@@ -1471,7 +1539,7 @@ impl Desktop {
                 self.mini_focus,
             )
         } else {
-            view::library(
+            let library = view::library(
                 &self.sources,
                 &self.dropbox,
                 (
@@ -1479,12 +1547,13 @@ impl Desktop {
                     &self.update_status,
                     &self.sidebar,
                     self.page,
-                    self.appearance_focus,
+                    self.appearance_focus.as_ref(),
                 ),
                 self.session.as_ref(),
                 self.cover.thumbnail(),
                 (self.error.as_deref(), self.failed_track.is_some()),
-            )
+            );
+            view::source_removal_layer(library, self.sources.removal.as_ref(), &self.appearance)
         }
     }
 
