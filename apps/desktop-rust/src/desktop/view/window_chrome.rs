@@ -11,6 +11,9 @@ use super::{Icon, Message, bold, icon_tinted, panel};
 const TITLE_HEIGHT: u32 = 32;
 const CAPTION_WIDTH: u32 = 32;
 const CAPTION_GLYPH: u32 = 10;
+const CAPTION_HOVER_OPACITY: f32 = 0.08;
+const CLOSE_HOVER_FILL: Color = iced::color!(0xb44542);
+const CLOSE_HOVER_OPACITY: f32 = 0.82;
 pub(super) const PANE_GUTTER: f32 = 8.0;
 pub(super) const PANE_RADIUS: f32 = 12.0;
 
@@ -79,7 +82,7 @@ pub(in crate::desktop) fn resize_edges(
             EDGE,
             ResizingVertically,
         ))
-        .padding(padding::right(CAPTION_WIDTH * Caption::COUNT)),
+        .padding(padding::right(CAPTION_WIDTH * Caption::ALL.len() as u32)),
         grip(
             Direction::South,
             Middle,
@@ -141,18 +144,9 @@ pub(in crate::desktop) fn title_bar<'a>(
     .on_press(Message::DragWindow(id))
     .on_double_click(Message::ToggleWindowMaximized(id));
     container(
-        row![
-            drag,
-            tools,
-            caption(Caption::Minimize, "Minimize", Message::MinimizeWindow(id)),
-            caption(
-                Caption::Maximize,
-                "Maximize or restore",
-                Message::ToggleWindowMaximized(id)
-            ),
-            caption(Caption::Close, "Close", Message::CloseRequested(id)),
-        ]
-        .align_y(Alignment::Center),
+        row![drag, tools]
+            .extend(Caption::ALL.map(|kind| caption(kind, id)))
+            .align_y(Alignment::Center),
     )
     .width(Fill)
     .style(move |_| container::Style::default().background(background))
@@ -167,8 +161,7 @@ enum Caption {
 }
 
 impl Caption {
-    #[cfg(not(target_os = "macos"))]
-    const COUNT: u32 = 3;
+    const ALL: [Self; 3] = [Self::Minimize, Self::Maximize, Self::Close];
 
     fn glyph(self) -> svg::Svg<'static> {
         let path = match self {
@@ -188,7 +181,12 @@ impl Caption {
     }
 }
 
-fn caption(kind: Caption, name: &'static str, message: Message) -> Element<'static, Message> {
+fn caption(kind: Caption, id: window::Id) -> Element<'static, Message> {
+    let (name, message) = match kind {
+        Caption::Minimize => ("Minimize", Message::MinimizeWindow(id)),
+        Caption::Maximize => ("Maximize or restore", Message::ToggleWindowMaximized(id)),
+        Caption::Close => ("Close", Message::CloseRequested(id)),
+    };
     tooltip(
         button(container(kind.glyph()).center(Fill))
             .padding(0)
@@ -198,9 +196,9 @@ fn caption(kind: Caption, name: &'static str, message: Message) -> Element<'stat
             .style(move |theme, state| {
                 let active = matches!(state, button::Status::Hovered | button::Status::Pressed);
                 let fill = if matches!(kind, Caption::Close) {
-                    iced::color!(0xb44542).scale_alpha(0.82)
+                    CLOSE_HOVER_FILL.scale_alpha(CLOSE_HOVER_OPACITY)
                 } else {
-                    theme.palette().text.scale_alpha(0.08)
+                    theme.palette().text.scale_alpha(CAPTION_HOVER_OPACITY)
                 };
                 button::Style {
                     background: active.then(|| fill.into()),
