@@ -476,6 +476,33 @@ impl Settings {
     }
 }
 
+fn index_selected_folders(
+    catalogue: &mut Catalogue,
+    account: &str,
+    folders: Vec<(String, String)>,
+    snapshot: &mut Snapshot,
+    mut list: impl FnMut(&str) -> Result<Vec<Entry>, DropboxError>,
+) {
+    let mut failures = Vec::new();
+    for (path, name) in folders {
+        let result = (|| -> Result<(), Error> {
+            let entries = list(&path)?;
+            catalogue.add_dropbox_indexed(account, &path, &name, &entries)?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                snapshot.added_paths.push(path.clone());
+                snapshot.added_folders.push(path);
+            }
+            Err(error) => failures.push(format!("{name}: {error}")),
+        }
+    }
+    if !failures.is_empty() {
+        snapshot.folder_error = Some(failures.join("; "));
+    }
+}
+
 fn run(
     paths: &CataloguePaths,
     action: Action,
@@ -585,24 +612,9 @@ fn run(
                 }
                 Err(error) => return Err(error.into()),
             };
-            let mut failures = Vec::new();
-            for (path, name) in folders {
-                let result = (|| -> Result<(), Error> {
-                    let entries = client.list(&token.access_token, &path, true)?;
-                    catalogue.add_dropbox_indexed(&account, &path, &name, &entries)?;
-                    Ok(())
-                })();
-                match result {
-                    Ok(()) => {
-                        snapshot.added_paths.push(path.clone());
-                        snapshot.added_folders.push(path);
-                    }
-                    Err(error) => failures.push(format!("{name}: {error}")),
-                }
-            }
-            if !failures.is_empty() {
-                snapshot.folder_error = Some(failures.join("; "));
-            }
+            index_selected_folders(&mut catalogue, &account, folders, &mut snapshot, |path| {
+                client.list(&token.access_token, path, true)
+            });
         }
         Action::Sync => {
             for library in catalogue
