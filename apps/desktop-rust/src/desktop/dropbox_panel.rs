@@ -723,6 +723,52 @@ mod tests {
         );
     }
 
+    #[test]
+    fn it_tabs_from_the_dropbox_field_focused_by_the_pointer() {
+        use iced::{
+            advanced::widget::operation::focusable,
+            futures::{FutureExt, StreamExt},
+        };
+        use iced_runtime::{Action as UiAction, UserInterface, task, user_interface::Cache};
+
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.app_key = "fixture-key".into();
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let size = Size::new(1200.0, 800.0);
+        let cache = {
+            let mut ui =
+                UserInterface::build(desktop.view(window), size, Cache::default(), &mut renderer);
+            ui.operate(&renderer, &mut focusable::focus::<()>(Control::AppKey.id()));
+            ui.into_cache()
+        };
+
+        let pointer = desktop.update(Message::AppearancePointerPressed(window));
+        let mut actions =
+            task::into_stream(pointer).expect("look up the focused native Dropbox field");
+        let Some(UiAction::Widget(mut query)) = actions.next().now_or_never().flatten() else {
+            panic!("expected a widget query");
+        };
+        {
+            let mut ui = UserInterface::build(desktop.view(window), size, cache, &mut renderer);
+            ui.operate(&renderer, query.as_mut());
+            let _ = query.finish();
+        }
+        let Some(UiAction::Output(message)) = actions.next().now_or_never().flatten() else {
+            panic!("expected the focused app key field");
+        };
+        let _ = desktop.update(message);
+        let _ = desktop.update(Message::CycleMiniFocus(window, false));
+
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::Connect))
+        );
+    }
+
     use iced::{
         Element, Font, Pixels, Rectangle, Renderer, Size,
         advanced::{
