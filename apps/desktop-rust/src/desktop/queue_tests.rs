@@ -575,7 +575,7 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
 }
 
 #[test]
-fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
+fn it_clears_the_mini_player_artwork_when_the_next_song_has_no_cover() {
     let (mut desktop, plain) = setup();
     let fixture =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/embedded-cover.mp3");
@@ -588,11 +588,13 @@ fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
 
     let _ = desktop.update(Message::Select(0));
 
-    assert!(desktop.cover.background().is_some());
+    assert!(desktop.cover.sleeve().is_some());
+    assert!(desktop.cover.thumbnail().is_some());
 
     let _ = desktop.update(Message::Select(1));
 
-    assert!(desktop.cover.background().is_none());
+    assert!(desktop.cover.sleeve().is_none());
+    assert!(desktop.cover.thumbnail().is_none());
 }
 
 #[test]
