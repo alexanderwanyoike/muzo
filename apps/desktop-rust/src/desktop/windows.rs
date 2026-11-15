@@ -16,14 +16,14 @@ const QUEUE_MIN_WIDTH: f32 = 280.0;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LibraryVisibility {
     Unknown,
-    KeepMapped,
+    ReplaceSurface,
     MinimizeAndRestore,
 }
 
 impl LibraryVisibility {
     fn for_wayland(wayland: bool) -> Self {
         if wayland {
-            Self::KeepMapped
+            Self::ReplaceSurface
         } else {
             Self::MinimizeAndRestore
         }
@@ -138,8 +138,8 @@ impl Windows {
         self.mini_size = MINI_SIZE;
         self.queue_open = false;
         self.queue_resize = None;
-        if self.library_visibility == LibraryVisibility::KeepMapped {
-            return self.reuse_library_window();
+        if self.library_visibility == LibraryVisibility::ReplaceSurface {
+            return self.prepare_wayland_window();
         }
         let (id, open) = window::open(settings(MINI_SIZE, MINI_MIN));
         self.mini = Some(id);
@@ -152,8 +152,7 @@ impl Windows {
         }
     }
 
-    fn reuse_library_window(&mut self) -> Task<Message> {
-        // Wayland cannot restore a minimized window. Switch the existing window in place.
+    fn prepare_wayland_window(&mut self) -> Task<Message> {
         let id = self.library;
         self.mini = Some(id);
         window::size(id).then(move |size| {
@@ -172,12 +171,18 @@ impl Windows {
             return Task::none();
         }
         self.library_geometry = Some((size, maximized));
-        let resize = window::set_min_size(id, Some(MINI_MIN)).chain(window::resize(id, MINI_SIZE));
-        if maximized {
-            window::maximize(id, false).chain(resize)
-        } else {
-            resize
-        }
+        self.replace_mini_surface(id, false)
+    }
+
+    fn replace_mini_surface(&mut self, previous: window::Id, expanded: bool) -> Task<Message> {
+        // Iced 0.14 waits for an event that Winit omits after a synchronous Wayland resize.
+        let size = queue_bounds(MINI_SIZE, expanded, QUEUE_WIDTH);
+        let min = queue_bounds(MINI_MIN, expanded, QUEUE_MIN_WIDTH);
+        let (id, open) = window::open(settings(size, min));
+        self.mini = Some(id);
+        self.queue_open = expanded;
+        self.mini_size = size;
+        window::close(previous).chain(open.map(Message::WaylandMiniOpened))
     }
 
     pub fn mini_opened(&self, id: window::Id) -> Task<Message> {
@@ -195,8 +200,8 @@ impl Windows {
         }
         self.library_visibility = LibraryVisibility::for_wayland(wayland);
         if wayland {
-            let compact = self.reuse_library_window();
-            Task::batch([window::close(id), compact])
+            let compact = self.prepare_wayland_window();
+            window::close(id).chain(compact)
         } else {
             window::minimize(self.library, true)
         }
@@ -206,22 +211,18 @@ impl Windows {
         self.mini.take().map_or_else(Task::none, |id| {
             self.queue_open = false;
             self.queue_resize = None;
-            if id == self.library {
-                return self.library_geometry.take().map_or_else(
-                    Task::none,
-                    |(size, maximized)| {
-                        let resize = window::set_min_size(id, Some(LIBRARY_MIN))
-                            .chain(window::resize(id, size));
-                        if maximized {
-                            resize.chain(window::maximize(id, true))
-                        } else {
-                            resize
-                        }
-                    },
-                );
+            if self.library_visibility == LibraryVisibility::ReplaceSurface {
+                let Some((size, maximized)) = self.library_geometry.take() else {
+                    return Task::none();
+                };
+                let mut settings = settings(size, LIBRARY_MIN);
+                settings.maximized = maximized;
+                let (library, open) = window::open(settings);
+                self.library = library;
+                return window::close(id).chain(open.discard());
             }
             let restore = match self.library_visibility {
-                LibraryVisibility::Unknown | LibraryVisibility::KeepMapped => Task::none(),
+                LibraryVisibility::Unknown | LibraryVisibility::ReplaceSurface => Task::none(),
                 LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, false),
             };
             restore
@@ -239,6 +240,13 @@ impl Windows {
             return Task::none();
         };
         let expanded = !self.queue_open;
+        if self.library_visibility == LibraryVisibility::ReplaceSurface {
+            return if id == self.library {
+                Task::none()
+            } else {
+                self.replace_mini_surface(id, expanded)
+            };
+        }
         self.resize_generation += 1;
         let request = QueueResize {
             generation: self.resize_generation,
@@ -494,7 +502,7 @@ mod tests {
     fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
         assert_eq!(
             LibraryVisibility::for_wayland(true),
-            LibraryVisibility::KeepMapped
+            LibraryVisibility::ReplaceSurface
         );
         assert_eq!(
             LibraryVisibility::for_wayland(false),
