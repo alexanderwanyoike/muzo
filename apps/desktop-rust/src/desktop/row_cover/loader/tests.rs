@@ -203,6 +203,50 @@ fn it_keeps_the_thumbnail_limit_after_refresh_preserves_loaded_covers() {
 }
 
 #[test]
+fn it_loads_an_unplayed_cover_when_opening_the_mini_queue_away_from_songs() {
+    use iced::{Size, futures::StreamExt};
+    use iced_runtime::{Action, task};
+
+    use crate::desktop::{library_sources::Sources, queue_tests::setup};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let folder = root.path().join("music");
+    fs::create_dir(&folder).unwrap();
+    for name in ["first.mp3", "second.mp3"] {
+        fs::write(
+            folder.join(name),
+            include_bytes!("../../../../tests/fixtures/embedded-cover.mp3"),
+        )
+        .unwrap();
+    }
+    let source = run(&paths, Operation::Add(folder)).unwrap();
+    let next = source.tracks[1].id.clone();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(source);
+    let _ = desktop.update(Message::PlayIndexed(0));
+    assert!(desktop.queue_covers.is_empty());
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let _ = desktop.update(Message::ShowMini);
+    let _ = desktop.update(Message::ToggleQueue);
+    let id = desktop.windows.mini_id().unwrap();
+    desktop.windows.resized(id, Size::new(740.0, 560.0));
+    assert!(desktop.windows.queue_open());
+
+    let mut stream = task::into_stream(desktop.load_row_covers())
+        .expect("the expanded queue should schedule its own visible cover reads");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    while let Some(Action::Output(message)) = runtime.block_on(stream.next()) {
+        let _ = desktop.update(message);
+    }
+    assert!(desktop.queue_covers.contains_key(&next));
+    assert_ne!(desktop.session.as_ref().unwrap().current_index(), Some(1));
+}
+
+#[test]
 fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     use iced::futures::StreamExt;
     use iced_runtime::{Action, task};
