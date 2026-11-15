@@ -176,3 +176,6 @@ fn load(
     })?;
     row_handle(&bytes)
 }
+
+#[cfg(test)]
+mod tests;
