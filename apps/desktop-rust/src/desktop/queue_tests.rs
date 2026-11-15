@@ -160,6 +160,51 @@ fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
 }
 
 #[test]
+fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let entry = |version| {
+        serde_json::from_value(serde_json::json!({
+            ".tag": "file", "name": "Track.mp3", "path_display": "/Music/Track.mp3", "size": 48, "rev": version
+        })).unwrap()
+    };
+    catalogue
+        .sync_dropbox(&library.id, &[entry("old")])
+        .unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let old = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    let audio = root.path().join("download.mp3");
+    std::fs::write(
+        &audio,
+        include_bytes!("../../tests/fixtures/embedded-cover.mp3"),
+    )
+    .unwrap();
+    let track = Track::new(PathBuf::new(), row.title, None, None, None)
+        .with_indexed_id(row.id.clone())
+        .with_library(library.id.clone());
+
+    catalogue
+        .sync_dropbox(&library.id, &[entry("new")])
+        .unwrap();
+    let current = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    assert_ne!(old, current);
+    let prepared = prepare_dropbox_track(&paths, track, audio);
+    let cache = crate::artwork_cache::ArtworkCache::new(paths.artwork_cache());
+
+    assert!(prepared.artwork().is_some());
+    assert!(
+        cache.lookup(&current).is_none(),
+        "the old download must not mark a newer cover as current"
+    );
+    assert!(cache.lookup(&old).is_some());
+}
+
+#[test]
 fn it_starts_no_second_install_while_the_first_is_running() {
     let (mut desktop, _) = setup();
     let update = crate::distribution::Update {
