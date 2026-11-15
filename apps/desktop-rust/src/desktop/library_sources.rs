@@ -1356,7 +1356,10 @@ mod playlist_entry_transactions {
 
         data.repair_source();
         remove().unwrap();
-        assert_eq!(data.saved_entries(), [second.clone()]);
+        assert_eq!(
+            data.saved_entries().as_slice(),
+            std::slice::from_ref(second)
+        );
     }
 }
 
