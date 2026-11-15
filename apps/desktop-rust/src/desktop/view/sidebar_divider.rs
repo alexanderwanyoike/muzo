@@ -55,21 +55,34 @@ struct Drag {
     resized: bool,
 }
 
+impl Drag {
+    fn target_width(self) -> f32 {
+        self.start_width + self.last_x - self.start_x
+    }
+}
+
 impl State {
-    fn finish_drag(&mut self, drag: Drag, release: Option<Point>, area: Rectangle) -> Resize {
+    fn finish_drag(
+        &mut self,
+        drag: Drag,
+        release: Option<Point>,
+        area: Rectangle,
+    ) -> Option<Resize> {
         self.drag = None;
         let previous = self.last_click.take();
+        if drag.resized {
+            return Some(Resize::Commit(drag.target_width()));
+        }
         if drag.pointer == Pointer::Mouse
-            && !drag.resized
             && let Some(position) = release.filter(|&position| area.contains(position))
         {
             let click = mouse::Click::new(position, mouse::Button::Left, previous);
             if click.kind() == mouse::click::Kind::Double {
-                return Resize::Reset;
+                return Some(Resize::Reset);
             }
             self.last_click = Some(click);
         }
-        Resize::Commit
+        None
     }
 }
 
@@ -174,6 +187,9 @@ impl<'a> Divider<'a> {
             && let Some(adjustment) = adjustment(event)
         {
             state.last_click = None;
+            if let Some(drag) = &mut state.drag {
+                drag.resized = true;
+            }
             shell.publish(Message::ResizeSidebar(Resize::Adjust(adjustment)));
             shell.capture_event();
             return;
@@ -225,18 +241,17 @@ impl<'a> Divider<'a> {
                 if drag.last_x == position.x {
                     None
                 } else {
-                    state.drag = Some(Drag {
+                    let drag = Drag {
                         last_x: position.x,
                         resized: true,
                         ..drag
-                    });
-                    Some(Resize::Preview(
-                        drag.start_width + position.x - drag.start_x,
-                    ))
+                    };
+                    state.drag = Some(drag);
+                    Some(Resize::Preview(drag.target_width()))
                 }
             }
             (Gesture::Release(pointer), Some(drag)) if drag.pointer == pointer => {
-                Some(state.finish_drag(drag, mouse_position, area))
+                state.finish_drag(drag, mouse_position, area)
             }
             (Gesture::Lose(pointer), Some(drag)) if drag.pointer == pointer => {
                 state.drag = None;

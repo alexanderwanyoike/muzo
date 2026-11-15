@@ -16,7 +16,7 @@ pub enum Adjustment {
 pub enum Resize {
     Viewport(f32),
     Preview(f32),
-    Commit,
+    Commit(f32),
     Cancel,
     Reset,
     Adjust(Adjustment),
@@ -57,9 +57,9 @@ impl Sidebar {
                 self.preview = Some(SidebarWidth::new(requested));
                 None
             }
-            Resize::Commit => {
-                let preview = self.preview.take()?;
-                Some(self.commit(preview))
+            Resize::Commit(requested) => {
+                self.preview = None;
+                Some(self.commit(SidebarWidth::new(requested)))
             }
             Resize::Cancel => {
                 self.preview = None;

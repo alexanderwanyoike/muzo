@@ -320,7 +320,7 @@ fn it_rebases_mini_queue_focus_after_a_source_is_removed() {
 fn it_uses_the_resized_sidebar_in_the_library_without_changing_mini_geometry() {
     let (mut desktop, _) = setup();
     let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Preview(300.0)));
-    let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Commit));
+    let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Commit(300.0)));
     assert_eq!(desktop.sidebar.visible_width(), 300.0);
     let _ = desktop.update(Message::ShowMini);
     let window = desktop.windows.mini_id().unwrap();
@@ -344,7 +344,7 @@ fn it_saves_the_completed_sidebar_resize_even_when_the_library_closes_immediatel
     let paths = CataloguePaths::in_directory(temp.path());
     desktop.sources = Sources::new(Some(paths.clone()));
     let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Preview(360.0)));
-    let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Commit));
+    let _ = desktop.update(Message::ResizeSidebar(sidebar::Resize::Commit(360.0)));
     let _ = desktop.update(Message::CloseRequested(desktop.windows.library_id()));
 
     assert_eq!(
