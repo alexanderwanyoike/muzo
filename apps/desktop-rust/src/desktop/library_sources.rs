@@ -869,15 +869,22 @@ mod tests {
                     ('broken', 'source', 'Broken', '', 'invalid', '/songs/broken.mp3', 0, 0);",
         ).unwrap();
         let playlist = catalogue.create_playlist("Evening").unwrap();
-        let add = Operation::AddToPlaylist(playlist.id.clone(), "song".into());
+        let add = || {
+            run_with_selection(
+                &paths,
+                Operation::AddToPlaylist(playlist.id.clone(), "song".into()),
+                Some("source".into()),
+                None,
+            )
+        };
 
-        assert!(run(&paths, add.clone()).is_err());
+        assert!(add().is_err());
         assert!(catalogue.playlist_entries(&playlist.id).unwrap().is_empty());
 
         connection
             .execute("UPDATE tracks SET duration_seconds=1 WHERE id='broken'", [])
             .unwrap();
-        let snapshot = run(&paths, add).unwrap();
+        let snapshot = add().unwrap();
         assert_eq!(snapshot.playlist_entries.len(), 1);
     }
 
