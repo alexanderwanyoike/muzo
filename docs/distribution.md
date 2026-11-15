@@ -8,8 +8,7 @@ existing installer identity.
 
 The build follows the installer and validated-release-set pattern in sibling
 Showbiz and Jolt: build native artifacts, verify them, assemble one complete set,
-then create a draft for a maintainer to test and publish. Version 0.0.3 adds explicit
-download and restart updates; see [ADR 0009](adr/0009-explicit-desktop-updates.md).
+then create a draft for a maintainer to test and publish. [ADR 0009](adr/0009-explicit-desktop-updates.md) describes explicit download and restart updates.
 
 ## Installer contract
 
@@ -30,14 +29,14 @@ so the website can validate the same contract without copying it.
 ```json
 {
   "schemaVersion": 1,
-  "tag": "v0.0.3",
-  "version": "0.0.3",
+  "tag": "v1.0.0",
+  "version": "1.0.0",
   "sourceCommit": "<exact 40-character lowercase commit SHA>",
   "artifacts": [
     {
       "platform": "linux",
       "arch": "x64",
-      "name": "Muzo-0.0.3-linux-x64.AppImage",
+      "name": "Muzo-1.0.0-linux-x64.AppImage",
       "size": 123,
       "sha256": "<64-character lowercase SHA-256>"
     }
@@ -78,13 +77,13 @@ The Rust desktop installers workflow runs on relevant pull requests, annotated
 version-tag pushes and manual runs. It validates the root version, the Rust
 workspace version, Cargo and Packager against the exact checkout before launching four
 native installer jobs. It builds the Linux AppImage, Windows NSIS installer and
-both macOS DMGs described in [the Rust distribution card](cards/rust-rewrite/006-distribution.md).
+both macOS DMGs.
 
 The Rust workflow extracts the AppImage and checks for its launcher and binary.
 It mounts each DMG and verifies the application identity, executable architecture
 and binary contents. Both macOS jobs exercise a copy of the installed profile.
-The Windows job installs the native NSIS package over the published Electron
-release in a temporary directory and verifies the executable and profile.
+The Windows job installs the native NSIS package over v0.0.6 in a temporary
+directory and verifies the executable and profile.
 The upgrade tests use checksum-verified copies of the published v0.0.6
 installers.
 
@@ -104,12 +103,11 @@ Merge feature PRs into dev with merge commits, then promote dev to main through 
 release PR. After all checks pass, tag the merged main release commit with the
 matching annotated version. Review the resulting four installers and SHA256SUMS,
 then publish the draft. The separate website workflow consumes published releases.
-Preview installers are currently unsigned; macOS builds are not notarized. Present
-that status alongside downloads. Windows and Linux AppImage builds offer explicit
-download and Restart to install. Unsigned macOS builds open the release page for
-manual installation. Users on v0.0.2 must install v0.0.3 manually once to enable
-future updates.
-Linux users mark the downloaded AppImage executable before opening it.
+The installers are unsigned, and macOS builds are unnotarized. Windows and Linux
+AppImage builds offer explicit download and restart. macOS builds open the release
+page for manual installation. Linux users mark the downloaded AppImage executable
+before opening it.
+
 
 ## Project licence
 
@@ -160,5 +158,5 @@ The Rust updater consumes the published release manifest. Release assembly
 validates both update YAML files against their installers so existing releases
 can use their established update feed to install the Rust build.
 The restart adapter spawns the retained outer AppImage during final shutdown and
-preserves launch arguments. See ADR 0010. On the first upgrade from 0.0.3, its old
+preserves launch arguments. See ADR 0010. On the first upgrade from 1.0.0, its old
 restart code may require reopening the existing AppImage after replacement.
