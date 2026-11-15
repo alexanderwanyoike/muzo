@@ -21,6 +21,7 @@ mod sidebar_name_tests;
 mod sleeve_image;
 mod source_search_input;
 mod sources;
+mod track_list;
 mod track_metadata;
 mod track_playlist;
 mod track_row;
@@ -78,7 +79,7 @@ fn library_content<'a>(
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(
+        track_list::view(
             snapshot,
             session,
             cover,
