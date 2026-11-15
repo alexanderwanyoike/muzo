@@ -1,6 +1,6 @@
 # Muzo
 
-Your music, from your folders and Dropbox, in one desktop player.
+Muzo is a native desktop music player for local folders and Dropbox, built with Rust and Iced.
 
 Build a library, make a playlist and settle into an album. Muzo keeps your
 collection in sync, remembers your artwork and gives you a workspace you can
@@ -10,7 +10,7 @@ make your own.
 
 *The desktop player, shown with fictional tracks and original demo artwork.*
 
-[Download Muzo](https://alexanderwanyoike.github.io/muzo/#downloads) ·
+[Download Muzo](https://muzo.alphaneuron.net/#downloads) ·
 [Release notes](https://github.com/alexanderwanyoike/muzo/releases) ·
 [Report a problem](https://github.com/alexanderwanyoike/muzo/issues)
 
@@ -24,7 +24,7 @@ make your own.
 
 ## Download and listen
 
-Choose your platform on the [download page](https://alexanderwanyoike.github.io/muzo/#downloads),
+Choose your platform on the [download page](https://muzo.alphaneuron.net/#downloads),
 or get the same files from [GitHub Releases](https://github.com/alexanderwanyoike/muzo/releases/latest).
 You do not need to build Muzo yourself.
 
@@ -34,9 +34,11 @@ You do not need to build Muzo yourself.
 | macOS | Apple silicon or Intel disk image (`.dmg`) | Open the disk image and drag Muzo into Applications. |
 | Linux | x64 AppImage | Allow the file to run as a program, then open it. |
 
-Muzo is an early desktop preview. Packages are currently unsigned, and macOS
-builds are not notarized, so your operating system may show a security prompt.
-Checksums are included with each release.
+Muzo 1.0.0 is the first stable release. The installers are unsigned, and macOS
+builds are unnotarized. Each release includes checksums.
+
+If you upgrade from v0.0.6, Muzo imports your libraries, playlists, play history,
+metadata edits and appearance settings on first launch.
 
 1. Open **Settings** and add a music folder. Subfolders are included automatically.
 2. Choose a source under **Sources**, then play a song or build a playlist.
@@ -50,7 +52,6 @@ versions and download progress. Click it to download, then choose **Restart to
 install** when you are ready. Playback continues during the download. Windows installers
 and Linux AppImages can update in place; the AppImage keeps its existing filename
 and location. Unsigned macOS builds open the release page for manual installation.
-If you use v0.0.2, install the first updater-enabled release manually once.
 
 <details>
 <summary>Connecting Dropbox</summary>
@@ -84,9 +85,8 @@ and consent; automated tests exercise the API boundary with fixtures.
 
 ![Muzo Settings showing the satin aluminium material, light appearance and Rose accent](./site/public/images/muzo-personalization.jpg)
 
-Studio, Brushed aluminium, Warm paper, Carbon fibre, Walnut, Porcelain and Frosted
-glass each have light and dark variants. Frosted glass softens the artwork inside
-the app; the desktop window remains opaque. Your choices are saved between sessions.
+Studio, Pulse, Brushed aluminium, Warm paper, Carbon fibre, Walnut, Porcelain and
+Frosted glass each have light and dark variants. Your choices are saved between sessions.
 
 </details>
 
@@ -95,7 +95,7 @@ the app; the desktop window remains opaque. Your choices are saved between sessi
 Found something that feels off? [Open an issue](https://github.com/alexanderwanyoike/muzo/issues)
 with your operating system, Muzo version and what happened. Screenshots are welcome.
 
-The native Muzo desktop uses Rust and Iced. Install Rust 1.95 or newer,
+Install Rust 1.95 or newer,
 Node.js 22.12 or newer and Yarn Classic 1.22.22 or newer, then run:
 
 ```sh
@@ -122,10 +122,9 @@ Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev
 to `main`. We use merge commits and preserve the red, green and refactor commits.
 See [AGENTS.md](./AGENTS.md) for the engineering conventions.
 
-- [Electron comparison smoke tests](./docs/testing/desktop-ui-smoke-test.md)
+- [Native desktop smoke tests](./docs/testing/desktop-ui-smoke-test.md)
 - [Native packaging and releases](./docs/distribution.md)
 - [Project site](./docs/project-site.md)
-- [Planned and completed work](./docs/cards)
 - [Architecture decisions](./docs/adr)
 - [Screenshot provenance](./docs/screenshots.md)
 

@@ -60,21 +60,14 @@ job would not satisfy the main-only environment policy. Deployment checks out ma
 then rebuilds against the current complete published release. Main/release runs
 share one production concurrency group so Pages deployments cannot race.
 
-The feature PR does not merge dev/main, enable hosting or publish a release.
-Merge prerequisites using merge commits, then promote dev through a release PR.
-The distribution workflow prepares installers from the new immutable main tag;
-publish the reviewed draft release with all its assets. In Settings > Pages,
-select GitHub Actions and keep the github-pages environment limited to main.
-A published release event dispatches the main rebuild automatically. If Pages is configured
-later, run Project site manually on main.
+GitHub Pages uses the github-pages environment restricted to main. A published
+release event dispatches the main rebuild automatically. The Project site workflow
+can also run manually on main.
 
-Intended address: https://alexanderwanyoike.github.io/muzo/
-The existing v0.0.1 tag stays immutable. Current development captures can contain
-changes after that tag; download versions always come from the published manifest.
-Muzo is MIT licensed. The footer links to `site/public/LICENSE.txt`, an exact
-copy of the root `LICENSE`, so the licence is available on the deployed site.
-Third-party font and icon notices retain their original terms. Initial packages
-are unsigned.
+The site is served at https://muzo.alphaneuron.net/. The footer links to
+`site/public/LICENSE.txt`, a copy of the root `LICENSE`. Third-party font and
+icon notices are included with the assets.
+
 
 ## Visual assets
 
