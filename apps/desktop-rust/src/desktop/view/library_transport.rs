@@ -243,6 +243,12 @@ fn transport_button(
         Icon::Mini => (MINI_GLYPH_EDGE, MINI_BUTTON_WIDTH, MINI_BUTTON_HEIGHT),
         _ => (SKIP_GLYPH_EDGE, SKIP_BUTTON_EDGE, SKIP_BUTTON_EDGE),
     };
+    const PLAYBACK_TOOLTIP_GAP: f32 = 6.0;
+    let (position, gap) = if matches!(kind, Icon::Play | Icon::Pause) {
+        (tooltip::Position::Bottom, PLAYBACK_TOOLTIP_GAP)
+    } else {
+        (tooltip::Position::FollowCursor, 0.0)
+    };
     let glyph = icon_tinted(kind, move |theme| {
         color.unwrap_or_else(|| theme.palette().text)
     })
@@ -255,13 +261,9 @@ fn transport_button(
             .style(style)
             .on_press_maybe(message),
         text(label).size(12),
-        if matches!(kind, Icon::Mini) {
-            tooltip::Position::FollowCursor
-        } else {
-            tooltip::Position::Bottom
-        },
+        position,
     )
-    .gap(6)
+    .gap(gap)
     .style(panel)
     .into()
 }

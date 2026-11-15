@@ -446,13 +446,8 @@ fn focusable_icon(
             .style(move |theme, status| focus_ring(style(theme, status), theme, focused && active))
             .on_press_maybe(message),
         text(label).size(ICON_TOOLTIP_TEXT_SIZE),
-        if prominent {
-            tooltip::Position::Bottom
-        } else {
-            tooltip::Position::FollowCursor
-        },
+        tooltip::Position::FollowCursor,
     )
-    .gap(6)
     .style(panel)
     .into()
 }
