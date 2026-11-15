@@ -22,26 +22,30 @@ fn it_reads_embedded_dropbox_artwork_before_playback_using_only_a_byte_range() {
     let mut tag = Id3v2Tag::new();
     tag.insert_picture(Picture::from_reader(&mut cover.as_slice()).unwrap());
     tag.save_to_path(&path, WriteOptions::default()).unwrap();
-    let mut data = std::fs::read(path).unwrap();
+    let data = std::fs::read(path).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = format!("http://{}", listener.local_addr().unwrap());
     let server = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().unwrap();
-        let (start, end, headers) = range_request(&stream);
-        assert_eq!(start, 0);
-        assert!(end < FILE_LENGTH / 10);
-        assert!(headers.contains("authorization: bearer fixture-token"));
-        assert!(headers.contains(r#"dropbox-api-arg: {"path":"/music/track.mp3"}"#));
-        data.resize(end + 1, 0);
-        write!(
-            stream,
-            "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {start}-{end}/{FILE_LENGTH}\r\nConnection: close\r\n\r\n",
-            data.len()
-        )
-        .unwrap();
-        stream.write_all(&data).unwrap();
-        stream.flush().unwrap();
+        for expected_start in [0, FILE_LENGTH - 64 * 1024] {
+            let (mut stream, _) = listener.accept().unwrap();
+            let (start, end, headers) = range_request(&stream);
+            assert_eq!(start, expected_start);
+            assert!(end - start < FILE_LENGTH / 10);
+            assert!(headers.contains("authorization: bearer fixture-token"));
+            assert!(headers.contains(r#"dropbox-api-arg: {"path":"/music/track.mp3"}"#));
+            let mut body = vec![0; end - start + 1];
+            if start == 0 {
+                body[..data.len()].copy_from_slice(&data);
+            }
+            write!(
+                stream,
+                "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {start}-{end}/{FILE_LENGTH}\r\nConnection: close\r\n\r\n",
+                body.len()
+            )
+            .unwrap();
+            stream.write_all(&body).unwrap();
+        }
     });
 
     let client = Client::for_endpoint(&address).unwrap();
