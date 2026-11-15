@@ -31,11 +31,10 @@ async function nativeVersions() {
   };
 }
 
-export async function readReleaseVersions(native: boolean) {
-  const rootVersion = await workspaceVersion("package.json");
-  if (native) return { rootVersion, native: await nativeVersions() };
-  return {
-    rootVersion,
-    desktopVersion: await workspaceVersion("apps/desktop/package.json"),
-  };
+export async function readReleaseVersions() {
+  const [rootVersion, native] = await Promise.all([
+    workspaceVersion("package.json"),
+    nativeVersions(),
+  ]);
+  return { rootVersion, native };
 }

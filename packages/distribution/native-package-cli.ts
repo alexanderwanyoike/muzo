@@ -177,7 +177,7 @@ async function packageNative(): Promise<DistributionResult<string>> {
         "Build the requested Muzo installer on its native operating system and architecture.",
       );
 
-    const version = releaseVersion(await readReleaseVersions(true));
+    const version = releaseVersion(await readReleaseVersions());
     if (!version.ok) return version;
 
     const output = values.output
