@@ -1,4 +1,16 @@
+import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
+import { promisify } from "node:util";
 import { expect, it } from "vitest";
 
 it("builds Muzo's native executable from the root desktop build command", () => {
@@ -70,3 +82,48 @@ it("keeps the Electron runtime out of a desktop checkout", () => {
   );
   expect(existsSync(legacyWorkspace)).toBe(false);
 });
+
+it.skipIf(process.platform === "win32")(
+  "cleans Muzo's Cargo artifacts and generated installers",
+  async () => {
+    const workspace = await mkdtemp(join(tmpdir(), "muzo-clean-"));
+    try {
+      const cargoArgs = join(workspace, "cargo-args");
+      const installers = join(workspace, "out");
+      const music = join(workspace, "music.mp3");
+      await mkdir(installers);
+      await Promise.all([
+        copyFile(
+          new URL("../../apps/desktop-rust/package.json", import.meta.url),
+          join(workspace, "package.json"),
+        ),
+        writeFile(
+          join(workspace, "cargo"),
+          '#!/bin/sh\nprintf "%s\\n" "$@" > cargo-args\n',
+          { mode: 0o700 },
+        ),
+        writeFile(join(installers, "Muzo.AppImage"), "fixture installer"),
+        writeFile(music, "fixture track"),
+      ]);
+
+      await promisify(execFile)("yarn", ["run", "clean"], {
+        cwd: workspace,
+        env: {
+          ...process.env,
+          PATH: [workspace, process.env.PATH ?? ""].join(delimiter),
+        },
+      });
+
+      expect(existsSync(installers)).toBe(false);
+      expect((await readFile(cargoArgs, "utf8")).trim().split("\n")).toEqual([
+        "clean",
+        "--locked",
+        "--package",
+        "muzo-desktop",
+      ]);
+      expect(await readFile(music, "utf8")).toBe("fixture track");
+    } finally {
+      await rm(workspace, { recursive: true, force: true });
+    }
+  },
+);
