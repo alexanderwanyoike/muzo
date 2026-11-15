@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Element, Fill, Length, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, slider, text},
+    Alignment, Color, Element, Fill, Length, Theme, border,
+    widget::{Space, button, column, container, image, row, scrollable, slider, text, tooltip},
 };
 
 use crate::{
@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     Icon, LIBRARY_COMPACT_WIDTH, action, appearance, bold, clock_label, compact, control_opacity,
-    error_line, icon_button, icon_tinted, label_text::replace_embedded_breaks, library_content,
+    error_line, icon_tinted, label_text::replace_embedded_breaks, library_content, panel,
     playback_error, playlists, sidebar_divider::Divider, sources,
 };
 
@@ -133,22 +133,24 @@ fn transport<'a>(
     let index = session.and_then(Session::current_index);
     let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
     let controls = row![
-        icon_button(
+        transport_button(
             Icon::Previous,
             "Previous track",
-            index.is_some_and(|i| i > 0).then_some(Message::Previous)
+            index.is_some_and(|i| i > 0).then_some(Message::Previous),
+            None,
         ),
         chrome_play(playing, retry || active.is_some()),
-        icon_button(
+        transport_button(
             Icon::Next,
             "Next track",
             index
                 .zip(session)
                 .is_some_and(|(i, s)| i + 1 < s.tracks().len())
-                .then_some(Message::Next)
+                .then_some(Message::Next),
+            None,
         ),
     ]
-    .spacing(13)
+    .spacing(17)
     .align_y(Alignment::Center);
     let controls = container(controls).center_x(columns.controls);
 
@@ -223,27 +225,61 @@ fn transport<'a>(
     ];
     let mini = row![
         Space::new().width(Fill),
-        icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini)),
+        transport_button(
+            Icon::Mini,
+            "Mini player",
+            Some(Message::ShowMini),
+            Some(surfaces.muted)
+        ),
     ];
     column![
-        iced::widget::stack![surface, container(mini).padding([2, 10])],
+        iced::widget::stack![surface, container(mini).padding([4, 12])],
         line(surfaces),
     ]
     .into()
 }
 
 fn chrome_play(playing: bool, enabled: bool) -> Element<'static, Message> {
-    let glyph = icon_tinted(if playing { Icon::Pause } else { Icon::Play }, |theme| {
-        theme.palette().text
+    let (icon, label) = if playing {
+        (Icon::Pause, "Pause")
+    } else {
+        (Icon::Play, "Play")
+    };
+    transport_button(
+        icon,
+        label,
+        enabled.then_some(Message::TogglePlayback),
+        None,
+    )
+}
+
+fn transport_button(
+    kind: Icon,
+    label: &'static str,
+    message: Option<Message>,
+    color: Option<Color>,
+) -> Element<'static, Message> {
+    let (glyph_edge, width, height) = match kind {
+        Icon::Play | Icon::Pause => (26.0, 38.0, 38.0),
+        Icon::Mini => (16.0, 28.0, 24.0),
+        _ => (18.0, 30.0, 30.0),
+    };
+    let glyph = icon_tinted(kind, move |theme| {
+        color.unwrap_or_else(|| theme.palette().text)
     })
-    .opacity(control_opacity(enabled))
-    .width(26)
-    .height(26);
-    button(container(glyph).center(34))
-        .padding(0)
-        .style(action)
-        .on_press_maybe(enabled.then_some(Message::TogglePlayback))
-        .into()
+    .opacity(control_opacity(message.is_some()))
+    .width(glyph_edge)
+    .height(glyph_edge);
+    tooltip(
+        button(container(glyph).center_x(width).center_y(height))
+            .padding(0)
+            .style(action)
+            .on_press_maybe(message),
+        text(label).size(12),
+        tooltip::Position::FollowCursor,
+    )
+    .style(panel)
+    .into()
 }
 
 fn navigation<'a>(
