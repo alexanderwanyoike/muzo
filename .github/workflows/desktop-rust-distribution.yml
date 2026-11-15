@@ -116,7 +116,13 @@ jobs:
           out/rust-distribution/*.AppImage --appimage-extract >/dev/null
           test -f squashfs-root/AppRun
           find squashfs-root -name muzo-desktop -type f | grep .
-          bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
+          inherited_profile=$(mktemp -d "$RUNNER_TEMP/muzo-inherited.XXXXXXXX")
+          trap 'rm -rf -- "$inherited_profile"' EXIT
+          MUZO_DATA_DIR="$inherited_profile" bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
+          if [[ -n "$(find "$inherited_profile" -mindepth 1 -print -quit)" ]]; then
+            echo "The startup check wrote outside its temporary profile." >&2
+            exit 1
+          fi
       - name: Verify macOS disk image
         if: runner.os == 'macOS'
         id: macos-mini
