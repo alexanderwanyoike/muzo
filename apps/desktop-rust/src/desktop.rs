@@ -10,6 +10,7 @@ mod settings_scroll;
 mod sidebar;
 #[cfg(test)]
 mod sidebar_tests;
+mod source_removal;
 
 #[cfg(test)]
 #[path = "desktop/source_removal_dialog_tests.rs"]
@@ -74,6 +75,7 @@ pub enum Message {
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
+    CycleSourceRemovalFocus,
     PlayIndexed(usize),
     PlayPlaylist(String),
     StartPlaylist(String),
@@ -318,7 +320,6 @@ impl Desktop {
             Message::LibraryPage(page) => {
                 self.page = page;
                 self.appearance_focus = None;
-                self.sources.pending_remove = None;
                 self.editor_navigation.reset();
                 self.sources.close_track_panels();
                 Task::none()
@@ -329,7 +330,6 @@ impl Desktop {
             }
             Message::SourceSearch(query) => {
                 self.sources.search = query;
-                self.sources.pending_remove = None;
                 Task::none()
             }
             Message::ClearSourceSearch => {
@@ -352,7 +352,6 @@ impl Desktop {
                         self.sources.close_track_panels();
                     }
                 }
-                self.sources.pending_remove = None;
                 self.sources.start(operation)
             }
             Message::SourcesUpdated(result) => {
@@ -485,6 +484,9 @@ impl Desktop {
                 self.save_appearance()
             }
             Message::AppearancePointerPressed(id) => {
+                if self.windows.is_library(id) && self.sources.removal.is_some() {
+                    return Task::none();
+                }
                 if self.windows.is_library(id)
                     && let Some(editor) = &mut self.sources.editing
                 {
@@ -523,11 +525,17 @@ impl Desktop {
                 }
             }
             Message::RequestSourceRemoval(id) => {
-                self.sources.pending_remove = Some(id);
+                self.sources.request_removal(&id);
                 Task::none()
             }
             Message::CancelSourceRemoval => {
-                self.sources.pending_remove = None;
+                self.sources.cancel_removal();
+                Task::none()
+            }
+            Message::CycleSourceRemovalFocus => {
+                if let Some(removal) = &mut self.sources.removal {
+                    removal.focus_next();
+                }
                 Task::none()
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
@@ -1474,7 +1482,7 @@ impl Desktop {
                 self.mini_focus,
             )
         } else {
-            view::library(
+            let library = view::library(
                 &self.sources,
                 &self.dropbox,
                 (
@@ -1487,7 +1495,8 @@ impl Desktop {
                 self.session.as_ref(),
                 self.cover.thumbnail(),
                 (self.error.as_deref(), self.failed_track.is_some()),
-            )
+            );
+            view::source_removal_layer(library, self.sources.removal.as_ref(), &self.appearance)
         }
     }
 

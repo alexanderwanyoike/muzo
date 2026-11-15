@@ -104,7 +104,6 @@ pub(super) fn indexed_sources<'a>(
         .iter()
         .flat_map(|snapshot| &snapshot.libraries)
     {
-        let removing = sources.pending_remove.as_deref() == Some(&source.id);
         let refresh = if source.kind == "filesystem" {
             Some(Message::SourceOperation(Operation::Refresh(
                 source.id.clone(),
@@ -114,12 +113,7 @@ pub(super) fn indexed_sources<'a>(
         } else {
             None
         };
-        let remove = if removing {
-            Message::SourceOperation(Operation::Remove(source.id.clone()))
-        } else {
-            Message::RequestSourceRemoval(source.id.clone())
-        };
-        let mut controls = row![
+        let controls = row![
             button(
                 text(if dropbox.refreshing.as_deref() == Some(&source.id) {
                     "Refreshing…"
@@ -130,25 +124,13 @@ pub(super) fn indexed_sources<'a>(
             )
             .style(button_style)
             .on_press_maybe(refresh.filter(|_| !sources.busy())),
-            button(
-                text(if removing {
-                    "Confirm removal"
-                } else {
-                    "Remove"
-                })
-                .size(11)
-            )
-            .style(button_style)
-            .on_press_maybe((!sources.busy()).then_some(remove)),
+            button(text("Remove").size(11))
+                .style(button_style)
+                .on_press_maybe(
+                    (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
+                ),
         ]
         .spacing(8);
-        if removing {
-            controls = controls.push(
-                button(text("Cancel").size(11))
-                    .style(button_style)
-                    .on_press(Message::CancelSourceRemoval),
-            );
-        }
         body = body.push(library::line(surfaces)).push(
             row![
                 column![
@@ -283,34 +265,6 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     if libraries.is_some() && sources.busy() {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
-    }
-    if let Some(source) = sources.pending_remove.as_ref().and_then(|id| {
-        sources
-            .snapshot
-            .as_ref()?
-            .libraries
-            .iter()
-            .find(|row| &row.id == id)
-    }) {
-        body = body.push(
-            row![
-                button(
-                    text(format!(
-                        "Remove {}?",
-                        replace_embedded_breaks(source.name.as_str())
-                    ))
-                    .size(10)
-                )
-                .style(action)
-                .on_press(Message::SourceOperation(Operation::Remove(
-                    source.id.clone()
-                ))),
-                button(text("Cancel").size(10))
-                    .style(action)
-                    .on_press(Message::CancelSourceRemoval),
-            ]
-            .spacing(3),
-        );
     }
     container(
         container(body.push(library::line(surfaces)).push(add))

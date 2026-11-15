@@ -13,6 +13,7 @@ mod ellipsized_label;
 mod label_text;
 mod library;
 mod library_transport;
+mod modal;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
@@ -20,6 +21,7 @@ mod sidebar_divider;
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;
 mod sleeve_image;
+mod source_removal_dialog;
 mod source_row;
 mod source_search_input;
 mod sources;
@@ -46,6 +48,7 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
 
 pub(super) use library::library;
 pub(super) use library::{settings_button, settings_input};
+pub(super) use source_removal_dialog::layer as source_removal_layer;
 pub(super) use sources::SOURCE_SEARCH;
 
 fn library_content<'a>(
