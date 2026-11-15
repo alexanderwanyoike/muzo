@@ -1322,7 +1322,7 @@ mod playlist_entry_transactions {
     }
 
     #[test]
-    fn it_keeps_playlist_order_when_the_updated_songs_cannot_be_read() {
+    fn it_keeps_playlist_order_when_a_refreshed_track_cannot_be_read() {
         let data = PlaylistFixture::new();
         let [first, second] = &data.entries;
         let move_entry = || {
@@ -1342,7 +1342,7 @@ mod playlist_entry_transactions {
     }
 
     #[test]
-    fn it_keeps_a_playlist_entry_when_the_updated_songs_cannot_be_read() {
+    fn it_keeps_a_playlist_entry_when_a_refreshed_track_cannot_be_read() {
         let data = PlaylistFixture::new();
         let [first, second] = &data.entries;
         let remove = || {
