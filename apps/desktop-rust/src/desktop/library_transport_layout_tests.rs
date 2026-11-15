@@ -1,6 +1,9 @@
-use iced::Size;
+use iced::{
+    Event, Font, Pixels, Point, Rectangle, Renderer, Size,
+    advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree},
+};
 
-use super::{cover_layout_tests::paint, queue_tests::setup};
+use super::{Desktop, Message, cover_layout_tests::paint, queue_tests::setup};
 
 #[test]
 fn it_places_the_transport_display_at_the_original_window_breakpoint() {
@@ -38,5 +41,48 @@ fn it_places_the_transport_display_at_the_original_window_breakpoint() {
         for x in [display_x - 1, display_x + display_width] {
             assert_ne!(at(x), border, "frame outside display at {x} for {width}px");
         }
+    }
+}
+
+fn click_header(desktop: &mut Desktop, width: f32, position: Point) -> Vec<Message> {
+    desktop.sidebar.layout_width(width);
+    let mut view = desktop.view(desktop.windows.library_id());
+    let mut tree = Tree::new(&view);
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let bounds = Rectangle::with_size(Size::new(width, 800.0));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(bounds.size(), bounds.size()),
+    );
+    let mut messages = Vec::new();
+    for event in [
+        mouse::Event::ButtonPressed(mouse::Button::Left),
+        mouse::Event::ButtonReleased(mouse::Button::Left),
+    ] {
+        widget.update(
+            &mut tree,
+            &Event::Mouse(event),
+            Layout::new(&node),
+            mouse::Cursor::Available(position),
+            &renderer,
+            &mut clipboard::Null,
+            &mut Shell::new(&mut messages),
+            &bounds,
+        );
+    }
+    messages
+}
+
+#[test]
+fn it_uses_the_original_volume_slider_width_and_position_in_each_layout() {
+    let (mut desktop, _) = setup();
+    for (width, x) in [(850.0, 781.0), (1200.0, 1111.33)] {
+        let messages = click_header(&mut desktop, width, Point::new(x, 40.0));
+        assert!(
+            matches!(messages.as_slice(), [Message::SetVolume(value)] if (value - 0.33).abs() < 0.005),
+            "click on the reference slider at {width}px gave {messages:?}"
+        );
     }
 }
