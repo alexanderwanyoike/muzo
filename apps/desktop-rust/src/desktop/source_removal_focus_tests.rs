@@ -48,13 +48,7 @@ fn it_reveals_the_indexed_source_action_in_settings_and_opens_it_with_space_rele
 
     library.press(Named::Space, Modifiers::empty());
     assert!(library.desktop.sources.removal.is_none());
-    library.input(Event::Keyboard(iced::keyboard::Event::KeyReleased {
-        key: Key::Named(Named::Space),
-        modified_key: Key::Named(Named::Space),
-        physical_key: Physical::Unidentified(NativeCode::Unidentified),
-        location: Location::Standard,
-        modifiers: Modifiers::empty(),
-    }));
+    library.input(release_space());
     library.assert_confirmation_for("Harbour Rehearsals");
     library.press(Named::Enter, Modifiers::empty());
     assert!(
@@ -62,6 +56,42 @@ fn it_reveals_the_indexed_source_action_in_settings_and_opens_it_with_space_rele
         "Cancel is focused on entry"
     );
     assert_eq!(library.focus().id, Some(target.to_owned().into()));
+}
+
+#[test]
+fn it_does_not_open_the_previous_source_when_tab_and_space_release_arrive_together() {
+    let mut library = KeyboardLibrary::new(LibraryPage::Songs);
+    library.tab_to("source-remove-sidebar:Canal Sessions", Modifiers::empty());
+    library.press(Named::Space, Modifiers::empty());
+    library.inputs(&[key_press(Named::Tab, Modifiers::empty()), release_space()]);
+
+    assert!(library.desktop.sources.removal.is_none());
+    assert_eq!(
+        library.focus().id,
+        Some("source-remove-sidebar:Harbour Rehearsals".to_owned().into()),
+    );
+}
+
+fn key_press(name: Named, modifiers: Modifiers) -> Event {
+    Event::Keyboard(iced::keyboard::Event::KeyPressed {
+        key: Key::Named(name),
+        modified_key: Key::Named(name),
+        physical_key: Physical::Unidentified(NativeCode::Unidentified),
+        location: Location::Standard,
+        modifiers,
+        text: None,
+        repeat: false,
+    })
+}
+
+fn release_space() -> Event {
+    Event::Keyboard(iced::keyboard::Event::KeyReleased {
+        key: Key::Named(Named::Space),
+        modified_key: Key::Named(Named::Space),
+        physical_key: Physical::Unidentified(NativeCode::Unidentified),
+        location: Location::Standard,
+        modifiers: Modifiers::empty(),
+    })
 }
 
 struct KeyboardLibrary {
@@ -108,18 +138,14 @@ impl KeyboardLibrary {
     }
 
     fn press(&mut self, name: Named, modifiers: Modifiers) {
-        self.input(Event::Keyboard(iced::keyboard::Event::KeyPressed {
-            key: Key::Named(name),
-            modified_key: Key::Named(name),
-            physical_key: Physical::Unidentified(NativeCode::Unidentified),
-            location: Location::Standard,
-            modifiers,
-            text: None,
-            repeat: false,
-        }));
+        self.input(key_press(name, modifiers));
     }
 
     fn input(&mut self, event: Event) {
+        self.inputs(&[event]);
+    }
+
+    fn inputs(&mut self, events: &[Event]) {
         let id = self.desktop.windows.library_id();
         let mut ui = UserInterface::build(
             self.desktop.view(id),
@@ -129,14 +155,20 @@ impl KeyboardLibrary {
         );
         let mut messages = Vec::new();
         let (_, statuses) = ui.update(
-            std::slice::from_ref(&event),
+            events,
             mouse::Cursor::Unavailable,
             &mut self.renderer,
             &mut clipboard::Null,
             &mut messages,
         );
         self.cache = ui.into_cache();
-        messages.extend(input_message(event, statuses[0], id));
+        messages.extend(
+            events
+                .iter()
+                .cloned()
+                .zip(statuses)
+                .filter_map(|(event, status)| input_message(event, status, id)),
+        );
         let tasks = Task::batch(
             messages
                 .into_iter()
