@@ -680,8 +680,16 @@ fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded()
     let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
     db.execute_batch("PRAGMA foreign_keys=OFF; DROP TABLE playlists")
         .unwrap();
-    let select = desktop.update(Message::SourceRowClicked(target.clone()));
-    let _ = desktop.update(Message::SourceRowClicked(target));
+    let previous = desktop
+        .sources
+        .snapshot
+        .as_ref()
+        .unwrap()
+        .selected
+        .clone()
+        .unwrap();
+    let select = desktop.update(Message::SourceRowClicked(target));
+    let _ = desktop.update(Message::SourceRowClicked(previous));
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
@@ -689,7 +697,8 @@ fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded()
     let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
         panic!("expected a catalogue result");
     };
-    let _ = desktop.update(updated);
+    let queued = desktop.update(updated);
+    assert!(queued.units() > 0, "the new source should start loading");
     assert!(
         desktop.sources.error.is_some(),
         "a shared catalogue failure was discarded"
