@@ -605,6 +605,37 @@ mod tests {
         assert_eq!(authorization.client_id(), "keyboard-fixture-key");
     }
 
+    #[test]
+    fn it_keeps_keyboard_focus_in_the_folder_opened_from_settings() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::OpenFolder(
+            "/Music/Records".into(),
+        )));
+
+        let next = Snapshot {
+            path: "/Music/Records".into(),
+            ..desktop.dropbox.snapshot.clone()
+        };
+        let _ = desktop.update(Message::DropboxReady(Ok(next)));
+
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::SelectCurrent)),
+            "keyboard focus should move into the newly opened folder"
+        );
+        let _ = desktop.update(Message::ActivateMiniFocus(window, false));
+        assert_eq!(
+            desktop.dropbox.selected_folders,
+            [("/Music/Records".into(), "Records".into())]
+        );
+    }
+
     use iced::{
         Element, Font, Pixels, Rectangle, Renderer, Size,
         advanced::{
