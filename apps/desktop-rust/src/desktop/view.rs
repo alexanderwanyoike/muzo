@@ -62,11 +62,11 @@ fn library_content<'a>(
     page: (super::LibraryPage, Option<&super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
     viewport_width: f32,
-) -> iced::widget::Column<'a, Message> {
+) -> Element<'a, Message> {
     use super::LibraryPage;
     let (page, focus) = page;
     if page == LibraryPage::Settings {
-        return library::settings(preferences, dropbox, sources, session.is_some(), focus);
+        return library::settings(preferences, dropbox, sources, session.is_some(), focus).into();
     }
     if page == LibraryPage::Playlists {
         let Some(snapshot) = sources
@@ -74,7 +74,9 @@ fn library_content<'a>(
             .as_ref()
             .filter(|snapshot| snapshot.selected_playlist.is_some())
         else {
-            return column![container(text("No playlists yet").size(18).font(bold())).center(Fill)];
+            return container(text("No playlists yet").size(18).font(bold()))
+                .center(Fill)
+                .into();
         };
         return playlists::tracks(
             snapshot,
@@ -82,7 +84,8 @@ fn library_content<'a>(
             session,
             cover,
             preferences.surfaces(),
-        );
+        )
+        .into();
     }
     if let Some(snapshot) = sources
         .snapshot
@@ -97,6 +100,7 @@ fn library_content<'a>(
             preferences,
             viewport_width,
         )
+        .into()
     } else if let Some(list) = session.and_then(direct_file_rows) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
@@ -104,9 +108,11 @@ fn library_content<'a>(
         ]
         .padding([5, 10])
         .spacing(8);
-        column![heading, scrollable(list).height(Fill)].spacing(5)
+        column![heading, scrollable(list).height(Fill)]
+            .spacing(5)
+            .into()
     } else {
-        column![library::empty(preferences.surfaces())]
+        column![library::empty(preferences.surfaces())].into()
     }
 }
 
@@ -172,8 +178,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         (super::LibraryPage::Songs, None),
         None,
         super::windows::LIBRARY_SIZE.width,
-    )
-    .into();
+    );
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&body);
     let widget = body.as_widget_mut();
@@ -311,7 +316,7 @@ pub(super) fn panel(theme: &Theme) -> container::Style {
                 .width(1),
         )
 }
-fn action(theme: &Theme, status: button::Status) -> button::Style {
+pub(super) fn action(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     button::Style {
         background: match status {
@@ -376,7 +381,7 @@ fn tint(base: Color, overlay: Color, amount: f32) -> Color {
     )
 }
 
-fn primary(theme: &Theme, status: button::Status) -> button::Style {
+pub(super) fn primary(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     let pair = if status == button::Status::Hovered {
         palette.primary.strong
@@ -393,7 +398,7 @@ fn primary(theme: &Theme, status: button::Status) -> button::Style {
 const ICON_TOOLTIP_TEXT_SIZE: f32 = 12.0;
 
 #[derive(Clone, Copy)]
-enum Icon {
+pub(super) enum Icon {
     Library,
     Mini,
     Queue,
@@ -489,7 +494,10 @@ fn icon(kind: Icon) -> Element<'static, Message> {
     icon_tinted(kind, |theme| theme.palette().text.scale_alpha(0.68)).into()
 }
 
-fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg<'static> {
+pub(super) fn icon_tinted(
+    kind: Icon,
+    tint: impl Fn(&Theme) -> Color + 'static,
+) -> svg::Svg<'static> {
     let path = match kind {
         Icon::Library => "<path d='M15 3h6v6m0-6-7 7M3 21l7-7m-1 7H3v-6'/>",
         Icon::Mini => "<path d='m14 10 7-7m-1 7h-6V4M3 21l7-7m-6 0h6v6'/>",

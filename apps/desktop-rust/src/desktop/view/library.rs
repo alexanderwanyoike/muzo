@@ -15,7 +15,7 @@ use super::{
     library_content, library_transport, playback_error, playlists,
     sidebar_divider::Divider,
     sources, tint,
-    window_chrome::{PANE_GUTTER, pane_style},
+    window_chrome::{PANE_GUTTER, PANE_RADIUS, pane_style},
 };
 
 const NAV_SUMMARY_HEIGHT: f32 = 33.0;
@@ -55,7 +55,7 @@ pub(in crate::desktop) fn library<'a>(
             container(column![
                 toolbar(sources, page, surfaces),
                 error_line(sources.error.as_deref().map(replace_embedded_breaks)),
-                library_content(
+                container(library_content(
                     sources,
                     dropbox,
                     preferences,
@@ -63,7 +63,8 @@ pub(in crate::desktop) fn library<'a>(
                     (page, focus),
                     cover,
                     sidebar.viewport_width(),
-                )
+                ))
+                .width(Fill)
                 .height(Fill),
             ])
             .padding(iced::padding::bottom(PANE_GUTTER))
@@ -264,7 +265,7 @@ pub(super) fn settings<'a>(
     sources: &'a Sources,
     audio: bool,
     focus: Option<&crate::desktop::appearance_focus::Choice>,
-) -> iced::widget::Column<'a, Message> {
+) -> iced::widget::Scrollable<'a, Message> {
     let surfaces = preferences.surfaces();
     let body = column![
         appearance::controls(preferences, focus),
@@ -274,11 +275,11 @@ pub(super) fn settings<'a>(
             dropbox.view(surfaces).into(),
             preferences,
         ))
-            .id(crate::desktop::settings_scroll::SOURCE_SETUP)
-            .width(Fill),
+        .id(crate::desktop::settings_scroll::SOURCE_SETUP)
+        .width(Fill),
         settings_section(
             "Library folders",
-            "Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.",
+            "Filesystem libraries sync automatically while Muzo is open and when it starts.",
             sources::folder_form(sources, surfaces),
             preferences,
         ),
@@ -287,11 +288,9 @@ pub(super) fn settings<'a>(
     .spacing(20)
     .width(Fill)
     .max_width(850);
-    column![
-        scrollable(container(body).padding([24, 28]).center_x(Fill))
-            .id(crate::desktop::appearance_focus::SCROLL)
-            .height(Fill)
-    ]
+    scrollable(container(body).padding([24, 28]).center_x(Fill))
+        .id(crate::desktop::appearance_focus::SCROLL)
+        .height(Fill)
 }
 
 pub(super) fn settings_section<'a>(
@@ -310,16 +309,16 @@ pub(super) fn settings_section<'a>(
     )
     .padding([16, 20])
     .width(Fill);
-    let header = iced::widget::stack![header]
-        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
-        .clip(true);
     container(column![
         header,
         line(surfaces),
         container(body).padding(20).width(Fill)
     ])
     .width(Fill)
-    .style(move |_| framed(surfaces.raised, surfaces, 4))
+    .style(move |_| {
+        pane_style(surfaces.raised)
+            .border(border::rounded(PANE_RADIUS).width(1).color(surfaces.line))
+    })
     .into()
 }
 
@@ -377,9 +376,13 @@ pub(in crate::desktop) fn settings_button(
     label: &str,
     surfaces: Surfaces,
 ) -> button::Button<'_, Message> {
-    button(text(label).size(13))
-        .height(31)
-        .padding([5, 11])
+    const BUTTON_HEIGHT: f32 = 31.0;
+    let label = container(text(label).size(13).align_y(iced::Center))
+        .center_y(BUTTON_HEIGHT)
+        .padding([0, 11]);
+    button(label)
+        .height(BUTTON_HEIGHT)
+        .padding(0)
         .style(move |theme, status| bordered_button(theme, status, surfaces))
 }
 
@@ -401,4 +404,220 @@ pub(in crate::desktop) fn settings_input(
             }
             style
         })
+}
+
+#[cfg(test)]
+#[test]
+fn it_centres_the_label_in_a_fixed_height_settings_button() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    let appearance = Appearance::default();
+    let surfaces = appearance.surfaces();
+    let theme = appearance.theme();
+    let mut view: Element<'_, Message> = settings_button("Browse folders", surfaces).into();
+    let mut tree = Tree::new(&view);
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(180.0, 40.0)),
+    );
+    let layout = Layout::new(&node);
+    let bounds = layout.bounds();
+    widget.draw(
+        &tree,
+        &mut renderer,
+        &theme,
+        &Style::default(),
+        layout,
+        mouse::Cursor::Unavailable,
+        &Rectangle::with_size(bounds.size()),
+    );
+    let size = Size::new(bounds.width.ceil() as u32, bounds.height as u32);
+    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+    let stride = size.width as usize * 4;
+    let background = surfaces.raised.into_rgba8()[0];
+    let ink: Vec<_> = pixels
+        .chunks_exact(stride)
+        .enumerate()
+        .skip(2)
+        .take(size.height as usize - 4)
+        .filter(|(_, row)| {
+            row[9 * 4..stride - 9 * 4]
+                .chunks_exact(4)
+                .any(|pixel| pixel[0].abs_diff(background) > 65)
+        })
+        .map(|(y, _)| y)
+        .collect();
+    let top = *ink.first().expect("rendered button label");
+    let bottom = size.height as usize - 1 - ink.last().unwrap();
+    assert!(
+        top.abs_diff(bottom) <= 2,
+        "Settings button label has {top} px above and {bottom} px below"
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn it_draws_a_solid_rounded_panel_for_settings_sections() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    let appearance = Appearance {
+        theme: "carbon".into(),
+        mode: "dark".into(),
+        ..Default::default()
+    };
+    let theme = appearance.theme();
+    let mut view = settings_section(
+        "Library folders",
+        "Filesystem libraries sync automatically.",
+        text("Settings").into(),
+        &appearance,
+    );
+    let mut tree = Tree::new(&view);
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let size = Size::new(480, 160);
+    let bounds = Rectangle::with_size(Size::new(size.width as f32, size.height as f32));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, bounds.size()),
+    );
+    widget.draw(
+        &tree,
+        &mut renderer,
+        &theme,
+        &Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &bounds,
+    );
+    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+    let pixel = |x: usize, y: usize| {
+        let start = (y * size.width as usize + x) * 4;
+        &pixels[start..start + 4]
+    };
+    let fill = appearance.surfaces().raised.into_rgba8();
+    assert!(
+        (320..400).all(|x| pixel(x, 17) == fill),
+        "the Settings header should be solid"
+    );
+    assert_eq!(
+        pixel(3, 2),
+        theme.palette().background.into_rgba8(),
+        "the rounded panel should leave the corner clear"
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn it_opens_songs_at_the_top_after_scrolling_to_source_setup_in_settings() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size, Vector,
+        advanced::widget::{
+            Id, Operation,
+            operation::scrollable::{AbsoluteOffset, Scrollable, scroll_to},
+        },
+    };
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use crate::desktop::{
+        appearance_focus::SCROLL as SETTINGS_SCROLL,
+        queue_tests::{setup, snapshot},
+        track_editor_focus::SONGS_SCROLL,
+    };
+
+    struct ReadOffset {
+        id: Id,
+        y: Option<f32>,
+    }
+
+    impl Operation for ReadOffset {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            translation: Vector,
+            _: &mut dyn Scrollable,
+        ) {
+            if id == Some(&self.id) {
+                self.y = Some(translation.y);
+            }
+        }
+    }
+
+    const SETTINGS_OFFSET: f32 = 420.0;
+    let (mut desktop, _) = setup();
+    let mut catalogue = snapshot(&["source"]);
+    catalogue.selected = Some("source".into());
+    for index in 0..40 {
+        catalogue.tracks.push(crate::catalogue::IndexedTrack {
+            id: index.to_string(),
+            library_id: "source".into(),
+            title: format!("Track {index}"),
+            artist: String::new(),
+            album: None,
+            metadata_overridden: false,
+            path: "demo.mp3".into(),
+            plays: 0,
+            duration_seconds: 0,
+        });
+    }
+    desktop.sources.snapshot = Some(catalogue);
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let size = Size::new(850.0, 620.0);
+    let id = desktop.windows.library_id();
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, Cache::default(), &mut renderer);
+    ui.operate(
+        &renderer,
+        &mut scroll_to(
+            SETTINGS_SCROLL.into(),
+            AbsoluteOffset {
+                x: Some(0.0),
+                y: Some(SETTINGS_OFFSET),
+            },
+        ),
+    );
+    let mut settings = ReadOffset {
+        id: SETTINGS_SCROLL.into(),
+        y: None,
+    };
+    ui.operate(&renderer, &mut settings);
+    assert!(settings.y.is_some_and(|offset| offset >= SETTINGS_OFFSET));
+
+    let cache = ui.into_cache();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Songs));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, cache, &mut renderer);
+    let mut songs = ReadOffset {
+        id: SONGS_SCROLL.into(),
+        y: None,
+    };
+    ui.operate(&renderer, &mut songs);
+    assert_eq!(
+        songs.y,
+        Some(0.0),
+        "Songs inherited the Settings scroll position"
+    );
 }

@@ -1,21 +1,15 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use iced::{
-    Task,
-    widget::{button, checkbox, column, row, scrollable, text, text_input},
-};
+use iced::Task;
 
 use crate::{
-    appearance::Surfaces,
     catalogue::{Catalogue, CatalogueError, Library},
     dropbox::{Authorization, Client, Credentials, DropboxError, Entry, cache},
 };
 
-use super::{
-    Message,
-    library_sources::CataloguePaths,
-    view::{settings_button, settings_input},
-};
+use super::{Message, library_sources::CataloguePaths};
+
+mod view;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -318,162 +312,6 @@ impl Settings {
             }
         }
     }
-
-    pub fn view(&self, surfaces: Surfaces) -> iced::widget::Column<'_, Message> {
-        let mut inner = column![].spacing(14);
-        let msg = Message::Dropbox;
-        if self.snapshot.account.is_some() {
-            inner = inner.push(
-                text(if self.snapshot.reconnect {
-                    "Reconnect Dropbox"
-                } else {
-                    "Connected to Dropbox."
-                })
-                .size(13),
-            );
-        }
-        if self.snapshot.account.is_none() || self.snapshot.reconnect || self.auth.is_some() {
-            inner = inner
-                .push(
-                    column![
-                        text("Dropbox app key").size(11).color(surfaces.muted),
-                        settings_input(&self.app_key, surfaces).on_input_maybe(
-                            (!self.busy && self.auth.is_none())
-                                .then_some(move |value| msg(Action::Key(value)))
-                        ),
-                    ]
-                    .spacing(6),
-                )
-                .push(
-                    settings_button(
-                        if self.auth.is_some() {
-                            "Restart authorization"
-                        } else {
-                            "Connect Dropbox"
-                        },
-                        surfaces,
-                    )
-                    .on_press_maybe(
-                        (!self.busy && !self.app_key.trim().is_empty())
-                            .then_some(msg(Action::Begin)),
-                    ),
-                );
-        }
-        if self.auth.is_some() {
-            inner = inner.push(
-                column![
-                    text("Approve access in your browser, then paste the authorization code here.")
-                        .size(11),
-                    text("Authorization code").size(11).color(surfaces.muted),
-                    settings_input(&self.code, surfaces)
-                        .secure(true)
-                        .on_input_maybe(
-                            (!self.busy).then_some(move |value| msg(Action::Code(value)))
-                        ),
-                    settings_button("Finish connecting", surfaces).on_press_maybe(
-                        (!self.busy && !self.code.trim().is_empty())
-                            .then_some(msg(Action::Connect))
-                    ),
-                    settings_button("Cancel connection", surfaces)
-                        .on_press_maybe((!self.busy).then_some(msg(Action::CancelAuthorization))),
-                ]
-                .spacing(7),
-            );
-        }
-        if self.snapshot.account.is_some() && !self.snapshot.reconnect {
-            inner = inner.push(
-                row![
-                    button("Browse Dropbox folders")
-                        .on_press_maybe((!self.busy).then(|| msg(Action::Browse("/".into())))),
-                    button("Refresh").on_press_maybe((!self.busy).then(|| msg(Action::Sync))),
-                    button("Disconnect")
-                        .on_press_maybe((!self.busy).then(|| msg(Action::Disconnect))),
-                ]
-                .spacing(7),
-            );
-            inner = inner.push(
-                row![
-                    text_input("Sync interval in minutes", &self.interval)
-                        .on_input(move |value| msg(Action::Interval(value)))
-                        .width(190),
-                    button("Save interval")
-                        .on_press_maybe((!self.busy).then(|| msg(Action::SaveInterval))),
-                ]
-                .spacing(7),
-            );
-            if !self.snapshot.path.is_empty() {
-                let path = &self.snapshot.path;
-                let up = path
-                    .rsplit_once('/')
-                    .map(|(up, _)| if up.is_empty() { "/" } else { up })
-                    .unwrap_or("/");
-                inner = inner.push(
-                    row![
-                        button("Up").on_press(msg(Action::Browse(up.into()))),
-                        text(path).size(13),
-                        self.folder_checkbox(path, &folder_name(path)),
-                    ]
-                    .spacing(7),
-                );
-                let rows = self.snapshot.folders.iter().map(|(path, name)| {
-                    row![
-                        self.folder_checkbox(path, name),
-                        button(text(name)).on_press_maybe(
-                            (!self.busy).then(|| msg(Action::Browse(path.clone())))
-                        ),
-                    ]
-                    .spacing(7)
-                    .into()
-                });
-                inner = inner.push(scrollable(column(rows).spacing(4)).height(iced::Fill));
-                if !self.selected_folders.is_empty() {
-                    for (path, name) in &self.selected_folders {
-                        inner = inner.push(
-                            row![
-                                text(path).size(12),
-                                button("Remove").on_press_maybe((!self.busy).then(|| {
-                                    msg(Action::SelectFolder(path.clone(), name.clone()))
-                                }))
-                            ]
-                            .spacing(7),
-                        );
-                    }
-                    inner = inner.push(
-                        button("Add selected folders")
-                            .on_press_maybe((!self.busy).then_some(msg(Action::AddSelected))),
-                    );
-                }
-            }
-        }
-        if self.busy {
-            inner = inner.push(text("Connecting…").size(12));
-        }
-        if let Some(error) = &self.error {
-            inner = inner.push(text(error).size(12));
-        }
-        inner.width(iced::Fill)
-    }
-
-    fn folder_checkbox(&self, path: &str, name: &str) -> iced::widget::Checkbox<'_, Message> {
-        let added = self
-            .snapshot
-            .added_paths
-            .iter()
-            .any(|added| added.eq_ignore_ascii_case(path));
-        let selected = self
-            .selected_folders
-            .iter()
-            .any(|(item, _)| item.eq_ignore_ascii_case(path));
-        let label = if added {
-            format!("{name} (added)")
-        } else {
-            format!("Select {name}")
-        };
-        let action = Action::SelectFolder(path.to_owned(), name.to_owned());
-        checkbox(added || selected).label(label).on_toggle_maybe(
-            (!self.busy && !added).then_some(move |_| Message::Dropbox(action.clone())),
-        )
-    }
 }
 
 fn run(
@@ -495,12 +333,7 @@ fn run(
         Credentials::connect(&catalogue, &account, auth.client_id(), &refresh)?;
     }
     if let Action::SaveInterval = &action {
-        let minutes = interval
-            .trim()
-            .parse::<u16>()
-            .ok()
-            .filter(|value| (1..=60).contains(value))
-            .ok_or(Error::InvalidInterval)?;
+        let minutes = parse_interval(interval)?;
         catalogue.set_dropbox_interval(minutes)?;
     }
 
@@ -643,6 +476,15 @@ fn run(
     Ok(snapshot)
 }
 
+fn parse_interval(value: &str) -> Result<u16, Error> {
+    let minutes = value.trim().parse().map_err(|_| Error::InvalidInterval)?;
+    if (1..=60).contains(&minutes) {
+        Ok(minutes)
+    } else {
+        Err(Error::InvalidInterval)
+    }
+}
+
 fn folder_name(path: &str) -> String {
     path.rsplit('/')
         .find(|name| !name.is_empty())
@@ -717,6 +559,160 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use iced::{
+        Element, Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout,
+            widget::{Id, Operation, Tree},
+        },
+    };
+
+    #[derive(Default)]
+    struct Labels(std::collections::HashMap<String, Rectangle>);
+
+    impl Operation for Labels {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+            self.0.insert(value.into(), bounds);
+        }
+    }
+
+    fn rendered_labels(settings: &Settings, width: f32) -> Labels {
+        let appearance = crate::appearance::Appearance::default();
+        let mut element: Element<'_, Message> = settings.view(appearance.surfaces()).into();
+        let mut tree = Tree::new(&element);
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let size = Size::new(width, 660.0);
+        let widget = element.as_widget_mut();
+        let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, size));
+        let mut labels = Labels::default();
+        widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+        labels
+    }
+
+    #[test]
+    fn it_labels_sync_controls_and_fits_the_folder_name_at_a_narrow_width() {
+        let folder = "A long folder name for a whole record collection";
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = "/Music".into();
+        settings.snapshot.folders = vec![("/Music/Long".into(), folder.into())];
+        let labels = rendered_labels(&settings, 318.0);
+        assert!(labels.0.contains_key("Sync now"));
+        assert!(labels.0.contains_key("Sync interval"));
+        assert!(labels.0.contains_key("minutes"));
+        assert!(labels.0.contains_key("Dropbox / Music"));
+        assert!(labels.0.contains_key("Parent folder"));
+        let name = labels
+            .0
+            .get(folder)
+            .expect("the folder name should be visible");
+        assert!(name.width > 0.0 && name.x + name.width <= 318.0);
+        assert!(
+            !labels
+                .0
+                .keys()
+                .any(|label| label == &format!("Select {folder}"))
+        );
+    }
+
+    #[test]
+    fn it_wraps_a_long_folder_name_beside_the_parent_folder_action() {
+        let mut settings = Settings::default();
+        let name = "M".repeat(100);
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = format!("/Music/{name}");
+
+        let labels = rendered_labels(&settings, 318.0);
+        let breadcrumb = labels.0.get(&format!("Dropbox / Music / {name}")).unwrap();
+        let parent = labels.0.get("Parent folder").unwrap();
+        assert!(
+            breadcrumb.height > 3.0 * parent.height,
+            "the unbroken folder name should wrap into the available width"
+        );
+    }
+
+    #[test]
+    fn it_shows_all_selected_paths_next_to_the_dropbox_add_action() {
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = "/Library".into();
+        for number in 1..=12 {
+            let name = format!("Folder {number}");
+            settings
+                .snapshot
+                .folders
+                .push((format!("/Library/{name}"), name));
+        }
+        settings.selected_folders = vec![
+            ("/Library/Folder 12".into(), "Folder 12".into()),
+            ("/Archive/Folder 12".into(), "Folder 12".into()),
+        ];
+
+        let labels = rendered_labels(&settings, 318.0);
+        for label in [
+            "/Library/Folder 12",
+            "/Archive/Folder 12",
+            "Remove",
+            "Add 2 folders",
+        ] {
+            assert!(
+                labels.0.contains_key(label),
+                "missing from selection summary: {label}"
+            );
+        }
+    }
+
+    #[test]
+    fn it_keeps_pending_authorization_visible_while_a_connected_account_is_displayed() {
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("existing".into());
+        settings.app_key = "replacement-key".into();
+        settings.auth = Some(Arc::new(Authorization::new(&settings.app_key).unwrap()));
+        let labels = rendered_labels(&settings, 350.0);
+        for expected in [
+            "Connected to Dropbox",
+            "Browse folders",
+            "Authorization code",
+            "Finish connecting",
+            "Restart authorization",
+            "Cancel",
+        ] {
+            assert!(
+                labels.0.contains_key(expected),
+                "missing authorization action: {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn it_reserves_a_gutter_for_the_scrollbar_inside_a_long_folder_list() {
+        const WIDTH: f32 = 318.0;
+        const ARROW_RIGHT_GUTTER: f32 = 22.0;
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("account".into());
+        settings.snapshot.path = "/Music".into();
+        for index in 0..12 {
+            let name = format!("Album {index}");
+            settings
+                .snapshot
+                .folders
+                .push((format!("/Music/{name}"), name));
+        }
+        let labels = rendered_labels(&settings, WIDTH);
+        let chevron = labels
+            .0
+            .get("›")
+            .expect("the folder should have a navigation cue");
+        assert!(
+            chevron.x + chevron.width <= WIDTH - ARROW_RIGHT_GUTTER,
+            "the scrollbar covers the folder navigation cue: {chevron:?}"
+        );
+    }
 
     #[test]
     fn it_reopens_authorization_when_the_displayed_account_needs_reconnecting() {
