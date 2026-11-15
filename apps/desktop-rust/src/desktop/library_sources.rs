@@ -769,7 +769,7 @@ impl Sources {
         Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
     }
 
-    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
+    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) -> bool {
         self.busy = false;
         self.loading_source = false;
         let removing_source = std::mem::take(&mut self.removing_source);
@@ -791,7 +791,7 @@ impl Sources {
                 {
                     self.source_tracks_error = Some(reason);
                 }
-                return;
+                return false;
             }
             Err(UpdateError::Operation(error)) => {
                 if removing_source && let Some(removal) = &mut self.removal {
@@ -816,7 +816,7 @@ impl Sources {
                 } else if !loading_editor || self.pending_editor.take().is_some() {
                     self.error = Some(error);
                 }
-                return;
+                return false;
             }
         };
         if selection_changed {
@@ -910,6 +910,7 @@ impl Sources {
             }
         }
         self.snapshot = Some(snapshot);
+        adding_folder && !selection_changed
     }
 
     pub(super) fn start_pending(&mut self) -> Option<Task<Message>> {

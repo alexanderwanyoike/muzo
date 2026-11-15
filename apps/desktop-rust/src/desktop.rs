@@ -382,8 +382,14 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
-                self.sources.apply(result);
-                self.sources.start_pending().unwrap_or_else(Task::none)
+                let added_folder = self.sources.apply(result);
+                let reveal_folder = if added_folder && self.page == LibraryPage::Settings {
+                    self.update(Message::LibraryPage(LibraryPage::Songs))
+                } else {
+                    Task::none()
+                };
+                let queued = self.sources.start_pending().unwrap_or_else(Task::none);
+                Task::batch([reveal_folder, queued])
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();
