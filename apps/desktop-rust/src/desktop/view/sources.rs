@@ -17,8 +17,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, control_opacity, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library, panel, sidebar_name::SidebarName, track_metadata,
+    Icon, action, bold, clock, compact, control_opacity, ellipsized_label::EllipsizedLabel,
+    icon_button, icon_tinted, label_text::replace_embedded_breaks, library, panel, track_metadata,
     track_playlist,
 };
 
@@ -209,7 +209,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                         })
                         .width(15)
                         .height(15),
-                        Element::new(SidebarName(&source.name)),
+                        Element::new(EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())),
                         text(count.unwrap_or_default())
                             .size(9)
                             .color(surfaces.muted),
@@ -600,18 +600,13 @@ pub fn tracks<'a>(
             .album
             .as_deref()
             .or(track.metadata_overridden.then_some("Edited in Muzo"));
+        let artist = match song_detail {
+            Some(detail) if !detail.is_empty() => format!("{} - {detail}", track.artist).into(),
+            _ => std::borrow::Cow::Borrowed(track.artist.as_str()),
+        };
         let metadata = column![
-            text(&track.title)
-                .size(12)
-                .font(bold())
-                .wrapping(text::Wrapping::None),
-            text(match song_detail {
-                Some(detail) if !detail.is_empty() => format!("{} - {detail}", track.artist),
-                _ => track.artist.clone(),
-            })
-            .size(10)
-            .color(surfaces.muted)
-            .wrapping(text::Wrapping::None),
+            Element::new(EllipsizedLabel::new(track.title.as_str(), 12.0).font(bold())),
+            Element::new(EllipsizedLabel::new(artist, 10.0).color(surfaces.muted)),
         ]
         .spacing(4)
         .width(Fill);

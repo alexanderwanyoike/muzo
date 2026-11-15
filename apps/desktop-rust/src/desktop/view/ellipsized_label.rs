@@ -1,6 +1,8 @@
-use super::{Message, bold, label_text::single_line};
+use std::borrow::Cow;
+
+use super::{Message, label_text::single_line};
 use iced::{
-    Length, Pixels, Point, Rectangle, Renderer, Size, Theme,
+    Color, Font, Length, Pixels, Point, Rectangle, Renderer, Size, Theme,
     advanced::{
         Layout, Widget, layout, mouse, renderer,
         text::{self, Paragraph as _, Renderer as _},
@@ -9,19 +11,45 @@ use iced::{
     alignment,
 };
 
-#[path = "sidebar_name_fit.rs"]
+#[path = "ellipsized_label_fit.rs"]
 mod fit;
 
-const FONT_SIZE: Pixels = Pixels(11.0);
 const ELLIPSIS: &str = "…";
 type Paragraph = <Renderer as text::Renderer>::Paragraph;
 
-pub(super) struct SidebarName<'a>(pub(super) &'a str);
+pub(super) struct EllipsizedLabel<'a> {
+    content: Cow<'a, str>,
+    size: Pixels,
+    font: Option<Font>,
+    color: Option<Color>,
+}
+
+impl<'a> EllipsizedLabel<'a> {
+    pub(super) fn new(content: impl Into<Cow<'a, str>>, size: f32) -> Self {
+        Self {
+            content: content.into(),
+            size: Pixels(size),
+            font: None,
+            color: None,
+        }
+    }
+
+    pub(super) fn font(mut self, font: Font) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub(super) fn color(mut self, color: Color) -> Self {
+        self.color = Some(color);
+        self
+    }
+}
 
 #[derive(Default)]
 struct State {
     original: String,
     width: f32,
+    typography: Option<(Pixels, Font)>,
     visible: String,
     paragraph: Paragraph,
     ellipsis: Option<Ellipsis>,
@@ -32,13 +60,13 @@ struct Ellipsis {
     offset: f32,
 }
 
-fn shape(content: &str) -> Paragraph {
+fn shape(content: &str, size: Pixels, font: Font) -> Paragraph {
     let mut paragraph = Paragraph::with_text(text::Text {
         content,
         bounds: Size::INFINITE,
-        size: FONT_SIZE,
+        size,
         line_height: text::LineHeight::default(),
-        font: bold(),
+        font,
         align_x: text::Alignment::Left,
         align_y: alignment::Vertical::Top,
         shaping: text::Shaping::Advanced,
@@ -52,20 +80,22 @@ fn shape(content: &str) -> Paragraph {
 }
 
 impl State {
-    fn update(&mut self, name: &str, width: f32) {
-        if self.original == name && self.width == width {
+    fn update(&mut self, content: &str, width: f32, size: Pixels, font: Font) {
+        if self.original == content && self.width == width && self.typography == Some((size, font))
+        {
             return;
         }
-        name.clone_into(&mut self.original);
+        content.clone_into(&mut self.original);
         self.width = width;
-        self.visible = single_line(name);
-        self.paragraph = shape(&self.visible);
+        self.typography = Some((size, font));
+        self.visible = single_line(content);
+        self.paragraph = shape(&self.visible, size, font);
         self.ellipsis = None;
         if self.paragraph.min_width() <= width {
             return;
         }
 
-        let paragraph = shape(ELLIPSIS);
+        let paragraph = shape(ELLIPSIS, size, font);
         let (visible, offset) = fit::visible_text(
             &self.paragraph,
             &self.visible,
@@ -77,7 +107,7 @@ impl State {
     }
 }
 
-impl Widget<Message, Theme, Renderer> for SidebarName<'_> {
+impl Widget<Message, Theme, Renderer> for EllipsizedLabel<'_> {
     fn size(&self) -> Size<Length> {
         Size::new(Length::Fill, Length::Shrink)
     }
@@ -93,11 +123,16 @@ impl Widget<Message, Theme, Renderer> for SidebarName<'_> {
     fn layout(
         &mut self,
         tree: &mut Tree,
-        _renderer: &Renderer,
+        renderer: &Renderer,
         limits: &layout::Limits,
     ) -> layout::Node {
         let state = tree.state.downcast_mut::<State>();
-        state.update(self.0, limits.max().width);
+        state.update(
+            &self.content,
+            limits.max().width,
+            self.size,
+            self.font.unwrap_or_else(|| renderer.default_font()),
+        );
         layout::Node::new(limits.resolve(
             Length::Fill,
             Length::Shrink,
@@ -132,6 +167,7 @@ impl Widget<Message, Theme, Renderer> for SidebarName<'_> {
         let bounds = layout.bounds();
         if let Some(clip) = bounds.intersection(viewport) {
             let state = tree.state.downcast_ref::<State>();
+            let color = self.color.unwrap_or(style.text_color);
             let text_clip = state.ellipsis.as_ref().map_or(Some(clip), |marker| {
                 clip.intersection(&Rectangle {
                     width: marker.offset,
@@ -139,18 +175,13 @@ impl Widget<Message, Theme, Renderer> for SidebarName<'_> {
                 })
             });
             if let Some(text_clip) = text_clip {
-                renderer.fill_paragraph(
-                    &state.paragraph,
-                    bounds.position(),
-                    style.text_color,
-                    text_clip,
-                );
+                renderer.fill_paragraph(&state.paragraph, bounds.position(), color, text_clip);
             }
             if let Some(marker) = &state.ellipsis {
                 renderer.fill_paragraph(
                     &marker.paragraph,
                     Point::new(bounds.x + marker.offset, bounds.y),
-                    style.text_color,
+                    color,
                     clip,
                 );
             }
