@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
@@ -41,9 +41,11 @@ it("makes the verified Rust installer workflow the sole tagged release publisher
   expect(releaseSteps).toContain("verify-release-tag.sh");
   expect(releaseSteps).toContain("--verify-tag --draft");
 
-  const legacy = workflow("distribution.yml");
-  expect(legacy).not.toHaveProperty("on.push");
-  expect(legacy).not.toHaveProperty("jobs.release");
+  expect(
+    existsSync(
+      new URL("../../.github/workflows/distribution.yml", import.meta.url),
+    ),
+  ).toBe(false);
 });
 
 it("runs the root native installer command for every release target", () => {
@@ -88,7 +90,7 @@ it("starts the packaged AppImage on the Linux upgrade baseline", () => {
   );
 });
 
-it("builds each native installer with the Electron workspace omitted", () => {
+it("builds each native installer from the complete Rust-only checkout", () => {
   const native = workflow("desktop-rust-distribution.yml");
   const configured = nested(native, "jobs", "package", "steps");
   expect(Array.isArray(configured)).toBe(true);
@@ -97,10 +99,8 @@ it("builds each native installer with the Electron workspace omitted", () => {
     const action = nested(step, "uses");
     return typeof action === "string" && action.startsWith("actions/checkout@");
   });
-  expect(nested(checkout, "with", "sparse-checkout-cone-mode")).toBe(false);
-  expect(nested(checkout, "with", "sparse-checkout")).toBe(
-    "/*\n!/apps/desktop/\n",
-  );
+  expect(checkout).toBeDefined();
+  expect(nested(checkout, "with", "sparse-checkout")).toBeUndefined();
   const build = steps.find(
     (step) => nested(step, "name") === "Build the native installer",
   );

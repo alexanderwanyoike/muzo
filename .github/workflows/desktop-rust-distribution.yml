@@ -50,7 +50,7 @@ jobs:
       - run: yarn install --frozen-lockfile
       - name: Resolve matching native release versions
         id: release
-        run: yarn release:context --native --source-commit "$(git rev-parse HEAD)" --github-output "$GITHUB_OUTPUT"
+        run: yarn release:context --source-commit "$(git rev-parse HEAD)" --github-output "$GITHUB_OUTPUT"
 
   package:
     needs: context
@@ -80,10 +80,6 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.context.outputs.sourceCommit }}
-          sparse-checkout: |
-            /*
-            !/apps/desktop/
-          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -107,6 +103,7 @@ jobs:
           RUSTUP_TOOLCHAIN: "1.95"
         run: |
           test ! -e apps/desktop
+          if [[ "$RUNNER_OS" != Linux ]]; then yarn desktop:build; fi
           yarn desktop:package --target ${{ matrix.label }}
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'

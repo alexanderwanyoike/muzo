@@ -8,7 +8,7 @@
 - [x] Return to the library with its previous bounds and without restarting audio.
 - [x] Test playback failures and recovery.
 - [x] Exercise the native Linux window and capture screenshots.
-- [ ] Verify Windows and macOS builds and run native window checks.
+- [x] Verify Windows and macOS builds and run native window checks. [Installer evidence](https://github.com/alexanderwanyoike/muzo/pull/183)
 
 ## Established patterns
 

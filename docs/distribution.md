@@ -66,11 +66,11 @@ Windows uses `windows-x64` and macOS uses `macos-arm64` or `macos-x64`.
 `desktop:package`, `desktop:make`, and `desktop:distribute` all build the host
 installer. Omit `--target` to select it automatically. The default output is
 `apps/desktop-rust/out/rust-distribution/`. Pass `--output /path/to/installers`
-to use another filesystem. Cargo's `CARGO_TARGET_DIR` controls where the compiled
-binaries are kept. These commands produce local files only.
-
-The corresponding `desktop:legacy:*` commands build the Electron reference
-packages in `apps/desktop/out/`.
+to use another filesystem. Packaging reuses Cargo's build directory for
+intermediate files and stages final executables privately below Cargo's target
+directory. Installer output is staged separately on the selected filesystem,
+which can be mounted with execution disabled. Packaging removes both temporary
+directories when it ends. These commands produce local files only.
 
 ## CI and release promotion
 
@@ -79,18 +79,14 @@ version-tag pushes and manual runs. It validates the root version, the Rust
 workspace version, Cargo and Packager against the exact checkout before launching four
 native installer jobs. It builds the Linux AppImage, Windows NSIS installer and
 both macOS DMGs described in [the Rust distribution card](cards/rust-rewrite/006-distribution.md).
-The Electron distribution workflow remains available on relevant PRs to dev/main
-and manual runs to verify the existing application while the port is in progress.
 
 The Rust workflow extracts the AppImage and checks for its launcher and binary.
 It mounts each DMG and verifies the application identity, executable architecture
-and binary contents. The Windows job installs the native NSIS package over the
-previous Electron release in a temporary directory and verifies the updated
-executable and profile marker.
-
-The Electron verification workflow checks the packaged renderer, `main.cjs` and
-`sql-wasm.wasm` against the Forge build. Its payload includes the Electron and
-Chromium notices alongside the Manrope font licence.
+and binary contents. Both macOS jobs exercise a copy of the installed profile.
+The Windows job installs the native NSIS package over the published Electron
+release in a temporary directory and verifies the executable and profile.
+The upgrade tests use checksum-verified copies of the published v0.0.6
+installers.
 
 Assembly validates native installer containers, rejects missing/corrupt files and
 wrong-CPU AppImages, streams SHA-256 hashes, writes the manifest and checksums, and
@@ -119,8 +115,8 @@ Linux users mark the downloaded AppImage executable before opening it.
 
 Muzo is MIT licensed. The complete project licence ships as
 `assets/licenses/Muzo-MIT.txt` inside the app, matching the root `LICENSE`.
-Third-party notices, including Manrope OFL and the Electron/Chromium runtime
-notices, remain under their original terms and are retained in the payload.
+Third-party notices under `apps/desktop-rust/assets`, including Manrope OFL,
+are retained under their original terms.
 
 ## Established tools and licences
 
@@ -152,38 +148,17 @@ This does not move the AppImage, require root, alter desktop preferences or chan
 Muzo's profile and credential identity. If registration cannot be saved, Muzo
 continues running and reports the problem with a retry instruction.
 
-The Linux distribution job runs `appimage:verify-menu` against the real packaged
-AppImage in isolated XDG directories, with clean and broken-shortcut scenarios.
-The test validates desktop syntax and Gio discovery, checks the icon and launch
-path, and matches the actual X11 window class. The startup guard skips other
-platforms and non-AppImage launches. Normal unit checks also exercise native menu
-launching and desktop argument escaping. Linux CI installs desktop-file-utils and
-Python Gio as verification tools, not bundled runtime requirements.
-
-## Installed updater configuration
-
-Forge's prepackaged payload skips electron-builder's general afterPack hook. The
-distribution command writes a fixed GitHub feed and updater cache configuration
-into `resources/app-update.yml` before native installer creation. The AppImage
-target may regenerate that file using its standard cache identity. Native installer
-checks verify the shipped configuration; release assembly verifies both update
-YAML files against the installers before publication.
-
-## AppImage update regression
-
-The Linux installer job runs `electron/appimage-update.test.ts` with
-`MUZO_TEST_APPIMAGE` set to the installer it just produced. This builds an older
-copy of the complete player with a local HTTP provider, downloads the actual new
-AppImage and checks process exit, replacement window, version, saved library and
-menu entry. Test data stays in isolated XDG directories.
-
-For a local FUSE-mounted check after `yarn desktop:legacy:distribute --target linux-x64`:
+The Linux installer check starts the packaged app under Xvfb with isolated
+XDG directories. Rust tests exercise native menu registration, migration and
+desktop argument escaping. Run the isolated startup check after packaging with:
 
 ```sh
-MUZO_TEST_FUSE=1 MUZO_TEST_APPIMAGE="$PWD/apps/desktop/out/distribution/Muzo-0.0.4-linux-x64.AppImage" xvfb-run -a yarn workspace @muzo/desktop test electron/appimage-update.test.ts
+bash apps/desktop-rust/tests/manual/linux-appimage-start.sh /path/to/Muzo-X.Y.Z-linux-x64.AppImage
 ```
 
-Omit `MUZO_TEST_FUSE` to use the AppImage runtime's extraction mode, as CI does.
+The Rust updater consumes the published release manifest. Release assembly
+validates both update YAML files against their installers so existing releases
+can use their established update feed to install the Rust build.
 The restart adapter spawns the retained outer AppImage during final shutdown and
 preserves launch arguments. See ADR 0010. On the first upgrade from 0.0.3, its old
 restart code may require reopening the existing AppImage after replacement.

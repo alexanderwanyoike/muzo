@@ -9,8 +9,7 @@ import {
 
 interface ReleaseContextInput {
   rootVersion: unknown;
-  desktopVersion?: unknown;
-  native?: { workspace: unknown; binary: unknown; packager: unknown };
+  native: { workspace: unknown; binary: unknown; packager: unknown };
   sourceCommit: unknown;
   tag?: unknown;
 }
@@ -21,14 +20,17 @@ export interface ReleaseContext {
 }
 export function releaseVersion({
   rootVersion,
-  desktopVersion,
   native,
 }: Omit<
   ReleaseContextInput,
   "sourceCommit" | "tag"
 >): DistributionResult<string> {
+  if (!isStableReleaseVersion(rootVersion))
+    return distributionFailure(
+      "invalidRelease",
+      "Root version must be a stable release version.",
+    );
   if (
-    native !== undefined &&
     [native.workspace, native.binary, native.packager].some(
       (version) => version !== rootVersion,
     )
@@ -36,14 +38,6 @@ export function releaseVersion({
     return distributionFailure(
       "invalidRelease",
       "The native workspace, Cargo and Packager versions must match the root version.",
-    );
-  if (
-    !isStableReleaseVersion(rootVersion) ||
-    (native === undefined && rootVersion !== desktopVersion)
-  )
-    return distributionFailure(
-      "invalidRelease",
-      "Root and desktop versions must match a stable release version.",
     );
   return { ok: true, value: rootVersion };
 }
@@ -60,7 +54,7 @@ export function releaseContext(
   )
     return distributionFailure(
       "invalidRelease",
-      "Root and desktop versions must match a stable release tag and exact source commit.",
+      "The release requires a matching tag and the exact source commit.",
     );
   return {
     ok: true,
