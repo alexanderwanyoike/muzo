@@ -182,9 +182,24 @@ mod tests {
 
     #[derive(Default)]
     struct ScrollPositions {
-        settings: f32,
-        folders: f32,
+        settings: Option<(Rectangle, f32)>,
+        folders: Option<(Rectangle, f32)>,
         folder_list: Option<Id>,
+        target_id: Option<Id>,
+        target: Option<Rectangle>,
+    }
+
+    impl ScrollPositions {
+        fn target_visible(&self) -> bool {
+            let (outer, outer_offset) = self.settings.expect("Settings viewport");
+            let (mut inner, inner_offset) = self.folders.expect("Dropbox folder viewport");
+            let mut target = self.target.expect("focused folder control");
+            inner.y -= outer_offset;
+            target.y -= outer_offset + inner_offset;
+            [outer, inner].iter().all(|viewport| {
+                target.y >= viewport.y && target.y + target.height <= viewport.y + viewport.height
+            })
+        }
     }
 
     impl Operation for ScrollPositions {
@@ -192,18 +207,24 @@ mod tests {
             visit(self);
         }
 
+        fn container(&mut self, id: Option<&Id>, bounds: Rectangle) {
+            if id.is_some() && id == self.target_id.as_ref() {
+                self.target = Some(bounds);
+            }
+        }
+
         fn scrollable(
             &mut self,
             id: Option<&Id>,
-            _: Rectangle,
+            bounds: Rectangle,
             _: Rectangle,
             offset: Vector,
             _: &mut dyn Scrollable,
         ) {
             if id == Some(&SCROLL.into()) {
-                self.settings = offset.y;
+                self.settings = Some((bounds, offset.y));
             } else if id.is_some() && id == self.folder_list.as_ref() {
-                self.folders = offset.y;
+                self.folders = Some((bounds, offset.y));
             }
         }
     }
@@ -241,10 +262,14 @@ mod tests {
         );
         let mut positions = ScrollPositions {
             folder_list: target.nested_scroll(),
+            target_id: Some(target.id()),
             ..Default::default()
         };
         ui.operate(&renderer, &mut positions);
-        assert_eq!((positions.settings, positions.folders), (0.0, 0.0));
+        assert!(
+            !positions.target_visible(),
+            "the last folder starts outside the scroll areas"
+        );
 
         let mut actions = task::into_stream(next).unwrap();
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -270,12 +295,8 @@ mod tests {
 
         ui.operate(&renderer, &mut positions);
         assert!(
-            positions.settings > 0.0,
-            "the outer Settings scroll should reveal Dropbox"
-        );
-        assert!(
-            positions.folders > 0.0,
-            "the inner folder list should reveal the focused row"
+            positions.target_visible(),
+            "the focused control should be visible inside both scroll areas"
         );
     }
 }
