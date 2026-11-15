@@ -973,7 +973,17 @@ mod tests {
         let first_path = root.path().join("first");
         let other_path = root.path().join("other");
         std::fs::create_dir(&first_path).unwrap();
+        std::fs::write(
+            first_path.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&other_path).unwrap();
+        std::fs::write(
+            other_path.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let first = catalogue.add_folder(&first_path).unwrap();
         let other = catalogue.add_folder(&other_path).unwrap();
         catalogue.remove(&first.id).unwrap();
@@ -1327,9 +1337,21 @@ mod navigation_tests {
         let selected = directory.path().join("selected");
         let refreshed = directory.path().join("refreshed");
         std::fs::create_dir(&selected).unwrap();
+        std::fs::write(
+            selected.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&refreshed).unwrap();
+        let previous_track = refreshed.join("previous.mp3");
+        std::fs::write(
+            &previous_track,
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let selected = catalogue.add_folder(&selected).unwrap().id;
         let target = catalogue.add_folder(&refreshed).unwrap().id;
+        std::fs::remove_file(previous_track).unwrap();
         std::fs::copy(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
             refreshed.join("tone.mp3"),
@@ -1356,6 +1378,11 @@ mod navigation_tests {
         let first = directory.path().join("first");
         let second = directory.path().join("second");
         std::fs::create_dir(&first).unwrap();
+        std::fs::write(
+            first.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&second).unwrap();
         std::fs::copy(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
@@ -1567,6 +1594,14 @@ mod source_selection_tests {
             let second = directory.path().join("Harbour Rehearsals");
             std::fs::create_dir(&first).unwrap();
             std::fs::create_dir(&second).unwrap();
+
+            for folder in [&first, &second] {
+                std::fs::write(
+                    folder.join("tone.mp3"),
+                    include_bytes!("../../tests/fixtures/tone.mp3"),
+                )
+                .unwrap();
+            }
             let first = catalogue.add_folder(&first).unwrap();
             let second = catalogue.add_folder(&second).unwrap();
             Self {
