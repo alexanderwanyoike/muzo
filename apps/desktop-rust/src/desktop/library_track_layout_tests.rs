@@ -345,6 +345,13 @@ fn it_aligns_different_digits_in_the_index_duration_and_history_columns() {
         for font in crate::fonts::settings().fonts {
             fonts.load_font(font);
         }
+        assert!(
+            fonts.raw().db().faces().any(|face| face
+                .families
+                .iter()
+                .any(|(family, _)| family == "Muzo Table Text")),
+            "startup must bundle the Manrope-derived table face"
+        );
     }
     let Table { labels, .. } = track_table_layout(&track_table(1200.0), 1200.0);
     for (first, second) in [("1", "4"), ("0:11", "0:44"), ("2 plays", "8 plays")] {
