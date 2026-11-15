@@ -1,25 +1,51 @@
-use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
+use std::{collections::HashMap, ops::Range, path::PathBuf};
+
+use iced::{
+    Element, Size,
+    widget::{image::Handle, sensor},
 };
 
-use iced::widget::image::Handle;
-
 use crate::{
-    artwork_cache::{ArtworkCache, decode_cover, thumbnail},
-    catalogue::{Catalogue, IndexedTrack, Library},
+    artwork_cache::{decode_cover, thumbnail},
+    catalogue::IndexedTrack,
     local_track::read_track,
     track::Track,
 };
 
-use super::{CataloguePaths, cover::centered_square};
+use super::{Message, Snapshot, cover::centered_square};
+
+mod loader;
+
+pub(super) use loader::{Complete, Loader, Target, viewport_rows};
 
 const ROW_EDGE: u32 = 48;
 pub(super) const ROW_LIMIT: usize = 512;
-const PROBE_LIMIT: usize = 768;
 
 pub type Covers = HashMap<String, Handle>;
 pub type DirectCovers = HashMap<PathBuf, Handle>;
+
+pub(in crate::desktop) fn watch_fit<'a>(
+    list: impl Into<Element<'a, Message>>,
+    identity: Option<&str>,
+    count: usize,
+    content_height: f32,
+    message: impl Fn(Range<usize>) -> Message + Copy + 'a,
+) -> Element<'a, Message> {
+    // Iced does not report a scroll viewport when its contents already fit.
+    let report = move |size: Size| {
+        let rows = if content_height <= size.height {
+            count
+        } else {
+            0
+        };
+        message(0..rows)
+    };
+    sensor(list)
+        .key((identity.map(str::to_owned), count))
+        .on_show(report)
+        .on_resize(report)
+        .into()
+}
 
 #[derive(Debug, Clone)]
 pub struct OpenedFiles {
@@ -46,43 +72,33 @@ pub(super) fn open_files(paths: Vec<PathBuf>) -> OpenedFiles {
     OpenedFiles { tracks, covers }
 }
 
-pub(super) fn indexed<'a>(
-    paths: &CataloguePaths,
-    catalogue: &Catalogue,
-    libraries: &[Library],
-    tracks: impl IntoIterator<Item = &'a IndexedTrack>,
-) -> Covers {
-    let local: HashSet<_> = libraries
-        .iter()
-        .filter(|library| library.kind == "filesystem")
-        .map(|library| library.id.as_str())
-        .collect();
-    let cache = ArtworkCache::new(paths.artwork_cache());
-    let mut covers = Covers::new();
-    let mut visited = HashSet::new();
-    let candidates = tracks
-        .into_iter()
-        .filter(|track| visited.insert(&track.id))
-        .take(PROBE_LIMIT);
-    for track in candidates {
-        if covers.len() >= ROW_LIMIT {
-            break;
-        }
-        let Ok(revision) = catalogue.artwork_revision(&track.library_id, &track.id) else {
-            continue;
-        };
-        let art = if local.contains(track.library_id.as_str()) {
-            cache.get_or_read(&revision, || {
-                read_track(track.path.clone()).artwork().map(<[u8]>::to_vec)
-            })
-        } else {
-            cache.lookup(&revision)
-        };
-        if let Some(handle) = art.as_deref().and_then(row_handle) {
-            covers.insert(track.id.clone(), handle);
-        }
+pub(super) fn retain_unchanged(previous: &Snapshot, next: &mut Snapshot) {
+    if previous.covers.is_empty() {
+        return;
     }
-    covers
+    let covered: HashMap<_, _> = snapshot_tracks(previous)
+        .filter_map(|track| Some((track.id.as_str(), (track, previous.covers.get(&track.id)?))))
+        .collect();
+    let unchanged: Covers = snapshot_tracks(next)
+        .filter_map(|track| {
+            let (before, handle) = covered.get(track.id.as_str())?;
+            (before.library_id == track.library_id
+                && before.path == track.path
+                && before.file_size == track.file_size
+                && before.file_mtime == track.file_mtime)
+                .then(|| (track.id.clone(), (*handle).clone()))
+        })
+        .collect();
+    next.covers.extend(unchanged);
+}
+
+fn snapshot_tracks(snapshot: &Snapshot) -> impl Iterator<Item = &IndexedTrack> {
+    snapshot.tracks.iter().chain(
+        snapshot
+            .playlist_entries
+            .iter()
+            .filter_map(|entry| entry.track.as_ref()),
+    )
 }
 
 pub(super) fn row_handle(bytes: &[u8]) -> Option<Handle> {

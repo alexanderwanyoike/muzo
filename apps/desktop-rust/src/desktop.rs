@@ -62,6 +62,9 @@ pub enum Message {
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, library_sources::UpdateError>),
     SourceWatchTick,
+    ArtworkViewport(LibraryPage, std::ops::Range<usize>),
+    QueueArtworkViewport(std::ops::Range<usize>),
+    ArtworkReady(row_cover::Complete),
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
@@ -168,6 +171,7 @@ pub struct Desktop {
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
     queue_covers: row_cover::Covers,
+    row_covers: row_cover::Loader,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
@@ -249,6 +253,7 @@ impl Desktop {
                 cover: Cover::default(),
                 direct_covers: Default::default(),
                 queue_covers: Default::default(),
+                row_covers: row_cover::Loader::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
@@ -332,14 +337,11 @@ impl Desktop {
                 ))
             }
             Message::LibraryPage(page) => {
-                self.page = page;
-                self.appearance_focus = None;
-                self.editor_navigation.reset();
-                self.sources.close_track_panels();
-                Task::none()
+                self.set_library_page(page);
+                self.load_row_covers()
             }
             Message::OpenSourceSettings => {
-                let _ = self.update(Message::LibraryPage(LibraryPage::Settings));
+                self.set_library_page(LibraryPage::Settings);
                 settings_scroll::reveal_sources()
             }
             Message::SourceSearch(query) => {
@@ -354,7 +356,7 @@ impl Desktop {
             }
             Message::SourceRowClicked(id) => {
                 if let Some(task) = self.sources.toggle_selection(&id) {
-                    let _ = self.update(Message::LibraryPage(LibraryPage::Songs));
+                    self.set_library_page(LibraryPage::Songs);
                     task
                 } else {
                     Task::none()
@@ -382,25 +384,67 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
+                if result.is_ok() {
+                    self.row_covers.catalogue_changed();
+                }
                 let reveal_added_folder = self.sources.apply(result);
-                let reveal_folder = if reveal_added_folder && self.page == LibraryPage::Settings {
+                let artwork = if reveal_added_folder && self.page == LibraryPage::Settings {
                     self.update(Message::LibraryPage(LibraryPage::Songs))
                 } else {
-                    Task::none()
+                    self.load_row_covers()
                 };
                 let queued = self.sources.start_pending().unwrap_or_else(Task::none);
-                Task::batch([reveal_folder, queued])
+                Task::batch([queued, artwork])
+            }
+            Message::ArtworkViewport(page, rows) => {
+                if page != self.page || rows.is_empty() {
+                    return Task::none();
+                }
+                self.row_covers.visible(page, rows);
+                self.load_row_covers()
+            }
+            Message::QueueArtworkViewport(rows) => {
+                if rows.is_empty() || !self.windows.queue_open() {
+                    return Task::none();
+                }
+                self.row_covers.queue_visible(Some(rows));
+                self.load_row_covers()
+            }
+            Message::ArtworkReady(cover) => {
+                let queued = self.session.as_ref().is_some_and(|session| {
+                    session
+                        .tracks()
+                        .iter()
+                        .any(|track| track.indexed_id() == Some(cover.id.as_str()))
+                });
+                let from_queue = cover.target == row_cover::Target::Queue;
+                let covers = if from_queue {
+                    queued.then_some(&mut self.queue_covers)
+                } else {
+                    self.sources
+                        .snapshot
+                        .as_mut()
+                        .map(|source| &mut source.covers)
+                };
+                let ready = self.row_covers.complete(cover, covers);
+                if !from_queue
+                    && queued
+                    && self.queue_covers.len() < row_cover::ROW_LIMIT
+                    && let Some((id, handle)) = ready
+                {
+                    self.queue_covers.insert(id, handle);
+                }
+                self.load_row_covers()
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();
-                if self.dropbox.due() {
-                    let remote = self
-                        .dropbox
-                        .update(dropbox_panel::Action::Sync, self.sources.paths());
-                    Task::batch([local, remote])
+                let remote = if self.dropbox.due() {
+                    self.dropbox
+                        .update(dropbox_panel::Action::Sync, self.sources.paths())
                 } else {
-                    local
-                }
+                    Task::none()
+                };
+                Task::batch([local, remote, self.load_row_covers()])
             }
             Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
             Message::AppImageIntegration(result) => {
@@ -1082,7 +1126,11 @@ impl Desktop {
             Message::ToggleWindowMaximized(id) => window::toggle_maximize(id),
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
+                    let was_open = self.windows.queue_open();
                     self.windows.resized(id, size);
+                    if was_open != self.windows.queue_open() {
+                        return self.load_row_covers();
+                    }
                 }
                 Task::none()
             }
@@ -1335,6 +1383,7 @@ impl Desktop {
             })
             .collect();
         self.direct_covers.clear();
+        self.row_covers.queue_visible(None);
         let mut seeded = std::collections::HashSet::new();
         self.queue_covers = tracks
             .iter()
@@ -1512,6 +1561,33 @@ impl Desktop {
             },
             move |result| Message::PlayRecorded(id, result),
         )
+    }
+
+    fn set_library_page(&mut self, page: LibraryPage) {
+        self.page = page;
+        self.appearance_focus = None;
+        self.editor_navigation.reset();
+        self.sources.close_track_panels();
+    }
+
+    fn load_row_covers(&mut self) -> Task<Message> {
+        let Some(paths) = self.sources.paths() else {
+            return Task::none();
+        };
+        if self.windows.queue_open()
+            && let Some(session) = &self.session
+        {
+            let queue =
+                self.row_covers
+                    .request_queue(&paths, session.tracks(), &mut self.queue_covers);
+            if queue.units() > 0 {
+                return queue;
+            }
+        }
+        let Some(snapshot) = &mut self.sources.snapshot else {
+            return Task::none();
+        };
+        self.row_covers.request(&paths, snapshot, self.page)
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

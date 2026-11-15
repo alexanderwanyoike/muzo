@@ -177,18 +177,15 @@ fn run_with_selection(
     let selected = match operation {
         Operation::Add(path) => Some(catalogue.add_folder(&path)?.id),
         Operation::AddNamedFolder(name, path) => {
-            let mut snapshot =
-                catalogue.add_named_folder_with_snapshot(&path, &name, |catalogue, library| {
-                    read_snapshot(
-                        catalogue,
-                        Some(library.id),
-                        selected_playlist,
-                        None,
-                        warnings,
-                    )
-                })?;
-            load_covers(paths, &catalogue, &mut snapshot);
-            return Ok(snapshot);
+            return catalogue.add_named_folder_with_snapshot(&path, &name, |catalogue, library| {
+                read_snapshot(
+                    catalogue,
+                    Some(library.id),
+                    selected_playlist,
+                    None,
+                    warnings,
+                )
+            });
         }
         Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
@@ -205,17 +202,15 @@ fn run_with_selection(
                     Vec::new(),
                 )
             };
-            let mut snapshot = match catalogue.remove_with_snapshot(&id, snapshot) {
-                Err(CatalogueError::UnknownFolder) => snapshot(&catalogue)?,
-                result => result?,
+            return match catalogue.remove_with_snapshot(&id, snapshot) {
+                Err(CatalogueError::UnknownFolder) => snapshot(&catalogue),
+                result => result,
             };
-            load_covers(paths, &catalogue, &mut snapshot);
-            return Ok(snapshot);
         }
         Operation::CreatePlaylist(name) => {
             let transaction = catalogue.begin_write()?;
             let playlist = catalogue.create_playlist(&name)?;
-            let mut snapshot = read_snapshot(
+            let snapshot = read_snapshot(
                 &catalogue,
                 previous_source,
                 Some(playlist.id),
@@ -223,20 +218,18 @@ fn run_with_selection(
                 warnings,
             )?;
             transaction.commit()?;
-            load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
         Operation::SelectPlaylist(id) => {
             let mut snapshot = read_snapshot(&catalogue, None, Some(id), None, warnings)?;
             snapshot.selected = previous_source
                 .filter(|id| snapshot.libraries.iter().any(|source| source.id == *id));
-            load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
         Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
             catalogue.insert_playlist_entry(&playlist, &track)?;
-            let mut snapshot = read_snapshot(
+            let snapshot = read_snapshot(
                 &catalogue,
                 previous_source,
                 selected_playlist.or(Some(playlist)),
@@ -244,24 +237,17 @@ fn run_with_selection(
                 warnings,
             )?;
             transaction.commit()?;
-            load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
         Operation::MovePlaylistEntry(id, entry, delta) => {
-            let mut snapshot =
-                catalogue.move_playlist_entry_with_snapshot(&id, &entry, delta, |catalogue| {
-                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
-                })?;
-            load_covers(paths, &catalogue, &mut snapshot);
-            return Ok(snapshot);
+            return catalogue.move_playlist_entry_with_snapshot(&id, &entry, delta, |catalogue| {
+                read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+            });
         }
         Operation::RemovePlaylistEntry(id, entry) => {
-            let mut snapshot =
-                catalogue.remove_playlist_entry_with_snapshot(&id, &entry, |catalogue| {
-                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
-                })?;
-            load_covers(paths, &catalogue, &mut snapshot);
-            return Ok(snapshot);
+            return catalogue.remove_playlist_entry_with_snapshot(&id, &entry, |catalogue| {
+                read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+            });
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let metadata = catalogue.track_metadata(&id, &library_id)?;
@@ -286,7 +272,7 @@ fn run_with_selection(
         Operation::EditTrack(id, library_id, edit) => {
             let transaction = catalogue.begin_write()?;
             catalogue.override_library_track(&id, &library_id, &edit)?;
-            let mut snapshot = read_snapshot(
+            let snapshot = read_snapshot(
                 &catalogue,
                 previous_source.or(Some(library_id)),
                 selected_playlist,
@@ -294,7 +280,6 @@ fn run_with_selection(
                 warnings,
             )?;
             transaction.commit()?;
-            load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
         Operation::Reload => previous_source,
@@ -317,9 +302,7 @@ fn run_with_selection(
             }
         }
     };
-    let mut snapshot = read_snapshot(&catalogue, selected, selected_playlist, editor, warnings)?;
-    load_covers(paths, &catalogue, &mut snapshot);
-    Ok(snapshot)
+    read_snapshot(&catalogue, selected, selected_playlist, editor, warnings)
 }
 
 fn read_snapshot(
@@ -365,21 +348,6 @@ fn read_snapshot(
         playlist_entries,
         editor,
     })
-}
-
-fn load_covers(paths: &CataloguePaths, catalogue: &Catalogue, snapshot: &mut Snapshot) {
-    let playlist_covers = super::row_cover::indexed(
-        paths,
-        catalogue,
-        &snapshot.libraries,
-        snapshot
-            .playlist_entries
-            .iter()
-            .filter_map(|entry| entry.track.as_ref()),
-    );
-    snapshot.covers =
-        super::row_cover::indexed(paths, catalogue, &snapshot.libraries, &snapshot.tracks);
-    snapshot.covers.extend(playlist_covers);
 }
 
 struct QueuedOperation {
@@ -863,6 +831,7 @@ impl Sources {
                 }
             }
             preserve_play_counts(&mut snapshot, previous);
+            super::row_cover::retain_unchanged(previous, &mut snapshot);
         }
         if !preserved_songs {
             self.source_tracks_error = None;
@@ -1538,7 +1507,7 @@ mod artwork_tests {
     use super::*;
 
     #[test]
-    fn it_prepares_bounded_cover_art_for_an_unplayed_catalogued_song() {
+    fn it_delivers_source_rows_before_reading_embedded_covers() {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("songs");
         std::fs::create_dir(&source).unwrap();
@@ -1551,8 +1520,9 @@ mod artwork_tests {
 
         let snapshot = run(&paths, Operation::Add(source)).unwrap();
         let row = &snapshot.tracks[0];
-        assert!(snapshot.covers.contains_key(&row.id));
         assert_eq!(row.plays, 0);
+        assert!(snapshot.covers.is_empty(), "source rows waited for artwork");
+        assert!(!paths.artwork_cache().exists());
     }
 }
 

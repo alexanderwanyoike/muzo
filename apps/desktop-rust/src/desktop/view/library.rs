@@ -322,9 +322,11 @@ pub(super) fn settings_section<'a>(
     .into()
 }
 
+pub(super) const DIVIDER_HEIGHT: f32 = 1.0;
+
 pub(super) fn line(surfaces: Surfaces) -> Element<'static, Message> {
     container(Space::new())
-        .height(1)
+        .height(DIVIDER_HEIGHT)
         .width(Fill)
         .style(move |_| container::Style::default().background(surfaces.line))
         .into()
@@ -582,6 +584,8 @@ fn it_opens_songs_at_the_top_after_scrolling_to_source_setup_in_settings() {
             path: "demo.mp3".into(),
             plays: 0,
             duration_seconds: 0,
+            file_size: 0,
+            file_mtime: 0,
         });
     }
     desktop.sources.snapshot = Some(catalogue);

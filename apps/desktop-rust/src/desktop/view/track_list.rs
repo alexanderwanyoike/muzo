@@ -293,5 +293,30 @@ pub(super) fn view<'a>(
             container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
         );
     }
-    column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
+    let row_height = ROW_CONTENT_HEIGHT + library::DIVIDER_HEIGHT;
+    let plain_height =
+        LIST_TOP_INSET + LIST_BOTTOM_INSET + row_height * snapshot.tracks.len() as f32;
+    let page = crate::desktop::LibraryPage::Songs;
+    let list = scrollable(songs)
+        .id(SONGS_SCROLL)
+        .height(Fill)
+        .on_scroll(move |viewport| {
+            let extra_height = (viewport.content_bounds().height - plain_height).max(0.0);
+            Message::ArtworkViewport(
+                page,
+                crate::desktop::row_cover::viewport_rows(
+                    viewport,
+                    row_height,
+                    LIST_TOP_INSET,
+                    extra_height,
+                ),
+            )
+        });
+    column![crate::desktop::row_cover::watch_fit(
+        list,
+        snapshot.selected.as_deref(),
+        snapshot.tracks.len(),
+        plain_height,
+        move |rows| Message::ArtworkViewport(page, rows),
+    )]
 }

@@ -1,6 +1,10 @@
 use std::{path::PathBuf, sync::Arc};
 
-use lofty::{file::TaggedFileExt, picture::PictureType, tag::Accessor};
+use lofty::{
+    file::{TaggedFile, TaggedFileExt},
+    picture::{Picture, PictureType},
+    tag::Accessor,
+};
 
 use crate::track::Track;
 
@@ -24,14 +28,9 @@ pub(crate) fn read_track_with_embedded_title(path: PathBuf) -> (Track, Option<St
             .to_string_lossy()
             .into_owned()
     });
-    let artwork = tag
-        .and_then(|tag| {
-            let pictures = tag.pictures();
-            pictures
-                .iter()
-                .find(|picture| picture.pic_type() == PictureType::CoverFront)
-                .or_else(|| pictures.first())
-        })
+    let artwork = file
+        .as_ref()
+        .and_then(embedded_cover)
         .map(|picture| Arc::from(picture.data()));
 
     let track = Track::new(
@@ -44,4 +43,13 @@ pub(crate) fn read_track_with_embedded_title(path: PathBuf) -> (Track, Option<St
         artwork,
     );
     (track, embedded_title)
+}
+
+pub(crate) fn embedded_cover(file: &TaggedFile) -> Option<&Picture> {
+    let tag = file.primary_tag().or_else(|| file.first_tag())?;
+    let pictures = tag.pictures();
+    pictures
+        .iter()
+        .find(|picture| picture.pic_type() == PictureType::CoverFront)
+        .or_else(|| pictures.first())
 }

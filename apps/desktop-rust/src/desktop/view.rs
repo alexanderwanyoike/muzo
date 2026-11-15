@@ -158,6 +158,8 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         plays: 0,
         duration_seconds: 1,
         library_id: "source".into(),
+        file_size: 0,
+        file_mtime: 0,
     });
     sources.snapshot = Some(snapshot);
     sources.editing = Some(Box::new(super::library_sources::TrackEditor {

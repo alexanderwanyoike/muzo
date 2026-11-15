@@ -161,6 +161,8 @@ impl Windows {
 
     pub fn show_library(&mut self) -> Task<Message> {
         self.mini.take().map_or_else(Task::none, |id| {
+            self.queue_open = false;
+            self.queue_resize = None;
             let restore = match self.library_visibility {
                 LibraryVisibility::KeepMapped => Task::none(),
                 LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, false),

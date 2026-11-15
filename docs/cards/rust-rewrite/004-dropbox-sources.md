@@ -27,3 +27,12 @@ If either desktop opener fails, Muzo tries the registered HTTPS handler through
 Other Linux desktops use GIO first and fall back to xdg-open if GIO is absent.
 On macOS and Windows, authorization uses the platform URL opener. Muzo can quit
 while the browser stays open.
+
+Visible songs, playlist entries and mini queue rows load embedded covers after
+the rows appear. An [Iced Sensor](https://docs.rs/iced/0.14.0/iced/widget/struct.Sensor.html)
+reports when a list fits without scrolling. The same two-worker loader handles
+the measured rows when a list scrolls or fits.
+The reader follows the [original Electron range reader](https://github.com/alexanderwanyoike/muzo/blob/980252b/apps/desktop/electron/infrastructure/metadata/http-metadata-artwork-reader.ts)
+and the [Dropbox content-download API](https://www.dropbox.com/developers/documentation/http/documentation#formats).
+It checks returned ranges, bounds each artwork read, and uses the existing
+thumbnail cache.

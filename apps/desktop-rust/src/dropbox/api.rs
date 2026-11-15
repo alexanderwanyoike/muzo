@@ -1,6 +1,10 @@
 use std::{collections::HashSet, time::Duration};
 
-use reqwest::blocking::{Client as Http, Response};
+use reqwest::{
+    Method,
+    blocking::{Client as Http, RequestBuilder, Response},
+    header::RANGE,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -59,10 +63,18 @@ impl Client {
     }
 
     pub(super) fn with_endpoints(api: &str, content: &str) -> Result<Self, DropboxError> {
+        Self::with_timeout(api, content, Duration::from_secs(120))
+    }
+
+    pub(crate) fn for_artwork(timeout: Duration) -> Result<Self, DropboxError> {
+        Self::with_timeout(API, CONTENT, timeout)
+    }
+
+    fn with_timeout(api: &str, content: &str, timeout: Duration) -> Result<Self, DropboxError> {
         let http = Http::builder()
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(120))
+            .timeout(timeout)
             .build()?;
         Ok(Self {
             http,
@@ -168,6 +180,28 @@ impl Client {
     }
 
     pub fn download(&self, token: &str, path: &str) -> Result<Response, DropboxError> {
+        Ok(self
+            .download_request(Method::POST, token, path)
+            .send()?
+            .error_for_status()?)
+    }
+
+    pub(super) fn download_range(
+        &self,
+        token: &str,
+        path: &str,
+        start: u64,
+        end: u64,
+        timeout: Duration,
+    ) -> Result<Response, reqwest::Error> {
+        self.download_request(Method::GET, token, path)
+            .header(RANGE, format!("bytes={start}-{end}"))
+            .timeout(timeout)
+            .send()?
+            .error_for_status()
+    }
+
+    fn download_request(&self, method: Method, token: &str, path: &str) -> RequestBuilder {
         let json = json!({ "path": path }).to_string();
         let header: String = json
             .chars()
@@ -183,12 +217,9 @@ impl Client {
                 }
             })
             .collect();
-        Ok(self
-            .http
-            .post(format!("{}/2/files/download", self.content))
+        self.http
+            .request(method, format!("{}/2/files/download", self.content))
             .bearer_auth(token)
             .header("Dropbox-API-Arg", header)
-            .send()?
-            .error_for_status()?)
     }
 }

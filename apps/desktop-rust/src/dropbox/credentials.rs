@@ -7,6 +7,17 @@ static LIFECYCLE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 pub struct Credentials;
 
 impl Credentials {
+    pub(crate) fn account(
+        catalogue: &Catalogue,
+        account: &str,
+    ) -> Result<(String, String), DropboxError> {
+        let key = catalogue
+            .dropbox_client(account)?
+            .ok_or(DropboxError::Reconnect)?;
+        let refresh = Self::read_or_migrate(catalogue, account)?.ok_or(DropboxError::Reconnect)?;
+        Ok((key, refresh))
+    }
+
     pub fn read_or_migrate(
         catalogue: &Catalogue,
         account: &str,
