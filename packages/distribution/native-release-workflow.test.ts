@@ -160,7 +160,7 @@ it("passes the existing Mac target to the installed profile check", () => {
   expect(steps.indexOf(upgrade)).toBeGreaterThan(steps.indexOf(build));
   expect(nested(upgrade, "if")).toBe("runner.os == 'macOS'");
   expect(nested(upgrade, "env", "MUZO_LEGACY_TARGET")).toBe(
-    "${{ matrix.label }}",
+    `\${{ matrix.label }}`,
   );
   expect(nested(upgrade, "run")).toContain(
     'bash tests/manual/macos-upgrade.sh "$MUZO_LEGACY_TARGET"',
