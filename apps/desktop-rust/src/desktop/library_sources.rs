@@ -16,7 +16,11 @@ use crate::catalogue::{
     Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
 };
 
-use super::{Message, track_editor_focus::Control};
+use super::{
+    Message,
+    source_removal::{Launcher, Removal},
+    track_editor_focus::Control,
+};
 
 #[derive(Clone)]
 pub(crate) struct CataloguePaths {
@@ -177,15 +181,19 @@ fn run_with_selection(
             previous_source
         }
         Operation::Remove(id) => {
-            let mut snapshot = catalogue.remove_with_snapshot(&id, |catalogue| {
+            let snapshot = |catalogue: &Catalogue| {
                 read_snapshot(
                     catalogue,
-                    previous_source,
-                    selected_playlist,
+                    previous_source.clone(),
+                    selected_playlist.clone(),
                     None,
-                    warnings,
+                    Vec::new(),
                 )
-            })?;
+            };
+            let mut snapshot = match catalogue.remove_with_snapshot(&id, snapshot) {
+                Err(CatalogueError::UnknownFolder) => snapshot(&catalogue)?,
+                result => result?,
+            };
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
@@ -347,7 +355,7 @@ pub(super) struct Sources {
     paths: Option<CataloguePaths>,
     pub snapshot: Option<Snapshot>,
     pub search: String,
-    pub pending_remove: Option<String>,
+    pub removal: Option<Removal>,
     pub error: Option<String>,
     pub playlist_name: String,
     pub playlist_search: String,
@@ -356,6 +364,7 @@ pub(super) struct Sources {
     pub folder_location: String,
     pub choosing_folder: bool,
     adding_folder: bool,
+    removing_source: bool,
     creating_playlist: bool,
     pub editing: Option<Box<TrackEditor>>,
     pub playlist_picker: Option<PlaylistPicker>,
@@ -381,7 +390,7 @@ impl Sources {
             paths,
             snapshot: None,
             search: String::new(),
-            pending_remove: None,
+            removal: None,
             error: None,
             playlist_name: String::new(),
             playlist_search: String::new(),
@@ -390,6 +399,7 @@ impl Sources {
             folder_location: String::new(),
             choosing_folder: false,
             adding_folder: false,
+            removing_source: false,
             creating_playlist: false,
             editing: None,
             playlist_picker: None,
@@ -570,6 +580,38 @@ impl Sources {
         !self.choosing_folder && !self.folder_save_pending()
     }
 
+    pub(super) fn request_removal(&mut self, id: &str, launcher: Option<&Launcher>) {
+        if self.removal.is_none()
+            && let Some(source) = self
+                .snapshot
+                .iter()
+                .flat_map(|snapshot| &snapshot.libraries)
+                .find(|source| source.id == id)
+        {
+            self.removal = Some(Removal::new(source.clone(), launcher.cloned()));
+        }
+    }
+
+    pub(super) fn cancel_removal(&mut self) -> Option<Launcher> {
+        if self.removal.as_ref().is_some_and(|removal| !removal.busy) {
+            self.removal.take().and_then(|removal| removal.launcher)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn confirm_removal(&mut self, id: &str) -> Task<Message> {
+        let Some(removal) = self
+            .removal
+            .as_mut()
+            .filter(|removal| removal.source.id == id && !removal.busy && self.paths.is_some())
+        else {
+            return Task::none();
+        };
+        removal.start();
+        self.start(Operation::Remove(id.to_owned()))
+    }
+
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
         if self.busy || !self.pending.is_empty() {
             self.pending.push_back(operation);
@@ -583,6 +625,10 @@ impl Sources {
             return Task::none();
         };
         self.busy = true;
+        self.removing_source = matches!(&operation, Operation::Remove(id) if self
+            .removal
+            .as_ref()
+            .is_some_and(|removal| removal.busy && removal.source.id == *id));
         if let Operation::AddToPlaylist(playlist, track) = &operation
             && let Some(picker) = self
                 .playlist_picker
@@ -635,6 +681,7 @@ impl Sources {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
+        let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
         let saving_editor = std::mem::take(&mut self.saving_editor);
@@ -644,7 +691,9 @@ impl Sources {
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
-                if let Some(adding_track) = adding_track {
+                if removing_source && let Some(removal) = &mut self.removal {
+                    removal.failed(error);
+                } else if let Some(adding_track) = adding_track {
                     match self
                         .playlist_picker
                         .as_mut()
@@ -668,6 +717,9 @@ impl Sources {
         if deselected.is_some() && snapshot.selected == deselected {
             snapshot.selected = None;
             snapshot.tracks.clear();
+        }
+        if removing_source {
+            self.removal = None;
         }
         if creating_playlist {
             self.show_playlist_form = false;
@@ -861,6 +913,31 @@ fn preserve_play_counts(snapshot: &mut Snapshot, previous: &Snapshot) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_returns_the_current_catalogue_if_the_confirmed_source_has_already_gone() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let mut catalogue = paths.open().unwrap();
+        let first_path = root.path().join("first");
+        let other_path = root.path().join("other");
+        std::fs::create_dir(&first_path).unwrap();
+        std::fs::create_dir(&other_path).unwrap();
+        let first = catalogue.add_folder(&first_path).unwrap();
+        let other = catalogue.add_folder(&other_path).unwrap();
+        catalogue.remove(&first.id).unwrap();
+
+        let result = run_with_selection(
+            &paths,
+            Operation::Remove(first.id.clone()),
+            Some(first.id),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(result.selected, None);
+        assert_eq!(result.libraries, [other]);
+    }
 
     #[test]
     fn it_rolls_back_a_track_add_when_the_resulting_snapshot_cannot_be_read() {

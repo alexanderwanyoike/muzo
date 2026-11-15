@@ -13,6 +13,7 @@ mod ellipsized_label;
 mod label_text;
 mod library;
 mod library_transport;
+mod modal;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
@@ -20,6 +21,8 @@ mod sidebar_divider;
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;
 mod sleeve_image;
+mod source_removal_button;
+mod source_removal_dialog;
 mod source_row;
 mod source_search_input;
 mod sources;
@@ -31,6 +34,7 @@ mod track_row;
 use super::{Message, library_sources::Sources};
 
 const LIBRARY_COMPACT_WIDTH: f32 = 950.0;
+const SOURCE_ACTION_FOCUS_TINT: f32 = 0.15;
 
 fn muted(theme: &Theme) -> iced::widget::text::Style {
     let palette = theme.palette();
@@ -46,6 +50,7 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
 
 pub(super) use library::library;
 pub(super) use library::{settings_button, settings_input};
+pub(super) use source_removal_dialog::layer as source_removal_layer;
 pub(super) use sources::SOURCE_SEARCH;
 
 fn library_content<'a>(
@@ -53,7 +58,7 @@ fn library_content<'a>(
     dropbox: &'a super::dropbox_panel::Settings,
     preferences: &'a crate::appearance::Appearance,
     session: Option<&'a Session>,
-    page: (super::LibraryPage, Option<super::appearance_focus::Choice>),
+    page: (super::LibraryPage, Option<&super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
     viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {

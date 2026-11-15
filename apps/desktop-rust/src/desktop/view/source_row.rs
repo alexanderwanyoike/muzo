@@ -1,17 +1,17 @@
 use iced::{
-    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, color, font,
+    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, font,
     widget::{Space, button, container, row, svg, text, tooltip},
 };
 
 use crate::{
     appearance::Appearance,
     catalogue::Library,
-    desktop::{Message, library_sources::Operation},
+    desktop::{Message, library_sources::Operation, source_removal::Launcher},
 };
 
 use super::{
     ICON_TOOLTIP_TEXT_SIZE, Icon, action, control_opacity, ellipsized_label::EllipsizedLabel,
-    icon_tinted, panel, pulse_row_fills, selection_fill,
+    icon_tinted, panel, pulse_row_fills, selection_fill, source_removal_button::RemovalButton,
 };
 
 const HEIGHT: f32 = 32.0;
@@ -55,11 +55,7 @@ impl Colors {
             selected_fill: selection_fill(appearance),
             hover,
             muted: appearance.surfaces().muted,
-            danger: if appearance.mode == "dark" {
-                color!(0xf1a49a)
-            } else {
-                color!(0xab3e36)
-            },
+            danger: appearance.danger_ink(),
         }
     }
 }
@@ -121,11 +117,7 @@ pub(super) fn view(
                 .padding(ROW_PADDING)
                 .style(move |theme, status| source_button(theme, status, colors.hover))
                 .on_press_maybe(selection),
-            remove_button(
-                enabled.then(|| Message::RequestSourceRemoval(source.id.clone())),
-                colors.muted,
-                colors.danger,
-            ),
+            remove_button(&source.id, enabled, colors),
         ]
         .align_y(Alignment::Center),
     )
@@ -143,16 +135,12 @@ fn source_button(theme: &Theme, status: button::Status, hover: Color) -> button:
     }
 }
 
-fn remove_button(
-    message: Option<Message>,
-    muted: Color,
-    danger: Color,
-) -> Element<'static, Message> {
+fn remove_button(source_id: &str, enabled: bool, colors: Colors) -> Element<'static, Message> {
     const SIZE: u32 = 22;
     const HOVER_OPACITY: f32 = 0.08;
     // The SVG covers the button so its ink responds throughout the hit area.
     const CLOSE: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 44 44" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg>"#;
-    let enabled = message.is_some();
+    let Colors { muted, danger, .. } = colors;
     let icon = svg(svg::Handle::from_memory(CLOSE))
         .width(SIZE)
         .height(SIZE)
@@ -165,14 +153,17 @@ fn remove_button(
             }),
         });
     tooltip(
-        button(icon)
-            .padding(0)
-            .style(move |_, status| button::Style {
-                background: matches!(status, button::Status::Hovered | button::Status::Pressed)
-                    .then(|| danger.scale_alpha(HOVER_OPACITY).into()),
-                ..button::Style::default()
-            })
-            .on_press_maybe(message),
+        Element::new(RemovalButton::new(
+            button(icon)
+                .padding(0)
+                .style(move |_, status| button::Style {
+                    background: matches!(status, button::Status::Hovered | button::Status::Pressed)
+                        .then(|| danger.scale_alpha(HOVER_OPACITY).into()),
+                    ..button::Style::default()
+                }),
+            Launcher::Sidebar(source_id.to_owned()),
+            enabled,
+        )),
         text("Remove source").size(ICON_TOOLTIP_TEXT_SIZE),
         tooltip::Position::FollowCursor,
     )

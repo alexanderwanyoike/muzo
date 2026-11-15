@@ -9,12 +9,13 @@ use crate::{
         Message,
         dropbox_panel::{Action, Settings as DropboxSettings},
         library_sources::{Operation, Sources},
+        source_removal::{Launcher, SIDEBAR},
     },
 };
 
 use super::{
     Icon, action, bold, icon_button, icon_tinted, label_text::replace_embedded_breaks, library,
-    source_row,
+    source_removal_button::RemovalButton, source_row,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -104,7 +105,6 @@ pub(super) fn indexed_sources<'a>(
         .iter()
         .flat_map(|snapshot| &snapshot.libraries)
     {
-        let removing = sources.pending_remove.as_deref() == Some(&source.id);
         let refresh = if source.kind == "filesystem" {
             Some(Message::SourceOperation(Operation::Refresh(
                 source.id.clone(),
@@ -114,12 +114,8 @@ pub(super) fn indexed_sources<'a>(
         } else {
             None
         };
-        let remove = if removing {
-            Message::SourceOperation(Operation::Remove(source.id.clone()))
-        } else {
-            Message::RequestSourceRemoval(source.id.clone())
-        };
-        let mut controls = row![
+        let remove = button(text("Remove").size(11)).style(button_style);
+        let controls = row![
             button(
                 text(if dropbox.refreshing.as_deref() == Some(&source.id) {
                     "Refreshing…"
@@ -130,25 +126,13 @@ pub(super) fn indexed_sources<'a>(
             )
             .style(button_style)
             .on_press_maybe(refresh.filter(|_| !sources.busy())),
-            button(
-                text(if removing {
-                    "Confirm removal"
-                } else {
-                    "Remove"
-                })
-                .size(11)
-            )
-            .style(button_style)
-            .on_press_maybe((!sources.busy()).then_some(remove)),
+            Element::new(RemovalButton::new(
+                remove,
+                Launcher::Settings(source.id.clone()),
+                !sources.busy(),
+            )),
         ]
         .spacing(8);
-        if removing {
-            controls = controls.push(
-                button(text("Cancel").size(11))
-                    .style(button_style)
-                    .on_press(Message::CancelSourceRemoval),
-            );
-        }
         body = body.push(library::line(surfaces)).push(
             row![
                 column![
@@ -279,38 +263,10 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         (_, 0) => source_search_empty("No sources match your search.", surfaces).into(),
         _ => column(source_rows).into(),
     };
-    body = body.push(scrollable(list).height(Fill));
+    body = body.push(scrollable(list).id(SIDEBAR).height(Fill));
     if libraries.is_some() && sources.busy() {
         body =
             body.push(container(text("Scanning…").size(10).color(surfaces.muted)).padding([4, 8]));
-    }
-    if let Some(source) = sources.pending_remove.as_ref().and_then(|id| {
-        sources
-            .snapshot
-            .as_ref()?
-            .libraries
-            .iter()
-            .find(|row| &row.id == id)
-    }) {
-        body = body.push(
-            row![
-                button(
-                    text(format!(
-                        "Remove {}?",
-                        replace_embedded_breaks(source.name.as_str())
-                    ))
-                    .size(10)
-                )
-                .style(action)
-                .on_press(Message::SourceOperation(Operation::Remove(
-                    source.id.clone()
-                ))),
-                button(text("Cancel").size(10))
-                    .style(action)
-                    .on_press(Message::CancelSourceRemoval),
-            ]
-            .spacing(3),
-        );
     }
     container(
         container(body.push(library::line(surfaces)).push(add))
