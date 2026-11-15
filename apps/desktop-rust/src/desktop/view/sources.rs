@@ -1,6 +1,8 @@
 use iced::{
     Alignment, Element, Fill, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, stack, text, text_input},
+    widget::{
+        Space, button, column, container, image, row, scrollable, stack, text, text_input, tooltip,
+    },
 };
 
 use crate::{
@@ -15,8 +17,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library, sidebar_name::SidebarName, track_metadata,
+    Icon, action, bold, clock, compact, control_opacity, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, panel, sidebar_name::SidebarName, track_metadata,
     track_playlist,
 };
 
@@ -518,6 +520,40 @@ impl TrackRowMetrics {
     }
 }
 
+fn track_row_control(
+    kind: Icon,
+    label: &'static str,
+    width: f32,
+    message: Option<Message>,
+    surfaces: Surfaces,
+) -> Element<'static, Message> {
+    const HIT_HEIGHT: f32 = 27.0;
+    const PLAY_GLYPH: f32 = 13.0;
+    const ACTION_GLYPH: f32 = 16.0;
+    let playback = matches!(kind, Icon::Play | Icon::Pause);
+    let edge = if playback { PLAY_GLYPH } else { ACTION_GLYPH };
+    let glyph = icon_tinted(kind, move |theme| {
+        if playback {
+            theme.palette().primary
+        } else {
+            surfaces.muted
+        }
+    })
+    .width(edge)
+    .height(edge)
+    .opacity(control_opacity(message.is_some()));
+    tooltip(
+        button(container(glyph).center_x(width).center_y(HIT_HEIGHT))
+            .padding(0)
+            .style(action)
+            .on_press_maybe(message),
+        text(label).size(11),
+        tooltip::Position::Top,
+    )
+    .style(panel)
+    .into()
+}
+
 pub fn tracks<'a>(
     snapshot: &'a Snapshot,
     session: Option<&Session>,
@@ -530,6 +566,8 @@ pub fn tracks<'a>(
     const ARTWORK_EDGE: f32 = 38.0;
     const LIST_TOP_INSET: f32 = 8.0;
     const LIST_BOTTOM_INSET: f32 = 30.0;
+    const STRIPE_OPACITY: f32 = 0.02;
+    const DIVIDER_OPACITY: f32 = 0.5;
     let metrics = TrackRowMetrics::for_viewport(viewport_width);
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
@@ -542,18 +580,20 @@ pub fn tracks<'a>(
                 .indexed_id()
                 .map_or_else(|| current.path() == track.path, |id| id == track.id)
         });
-        let play = super::track_play_button(
+        let play = track_row_control(
             if active && playing {
                 Icon::Pause
             } else {
                 Icon::Play
             },
             if active && playing { "Pause" } else { "Play" },
+            metrics.play,
             Some(if active {
                 Message::TogglePlayback
             } else {
                 Message::PlayIndexed(index)
             }),
+            surfaces,
         );
         let song_detail = track
             .album
@@ -574,20 +614,28 @@ pub fn tracks<'a>(
         ]
         .spacing(4)
         .width(Fill);
-        let body = row![
-            container(play).center_x(metrics.play),
-            container(text(index + 1).size(10).color(surfaces.muted))
-                .align_x(Alignment::End)
-                .width(metrics.number),
+        let artwork_column = metrics.artwork.max(ARTWORK_EDGE);
+        let title_gap = metrics.gap + metrics.artwork - artwork_column;
+        let track_details = row![
             container(library::small_cover(
                 cover
                     .filter(|_| active)
                     .or_else(|| snapshot.covers.get(&track.id)),
-                ARTWORK_EDGE.min(metrics.artwork),
+                ARTWORK_EDGE,
                 surfaces
             ))
-            .width(metrics.artwork),
+            .width(artwork_column),
             metadata,
+        ]
+        .width(Fill)
+        .spacing(title_gap)
+        .align_y(Alignment::Center);
+        let body = row![
+            play,
+            container(text(index + 1).size(10).color(surfaces.muted))
+                .align_x(Alignment::End)
+                .width(metrics.number),
+            track_details,
             container(
                 text(clock(std::time::Duration::from_secs(
                     track.duration_seconds.into()
@@ -608,20 +656,22 @@ pub fn tracks<'a>(
             )
             .align_x(Alignment::End)
             .width(metrics.history),
-            container(icon_button(
+            track_row_control(
                 Icon::Edit,
                 "Edit track",
+                metrics.action,
                 (!busy && !saving_editor && !adding_track)
-                    .then(|| Message::EditTrack(track.clone()))
-            ))
-            .center_x(metrics.action),
-            container(icon_button(
+                    .then(|| Message::EditTrack(track.clone())),
+                surfaces
+            ),
+            track_row_control(
                 Icon::AddToPlaylist,
                 "Add to playlist",
+                metrics.action,
                 (!busy && !saving_editor && !adding_track)
-                    .then(|| Message::OpenPlaylistPicker(track.clone()))
-            ))
-            .center_x(metrics.action),
+                    .then(|| Message::OpenPlaylistPicker(track.clone())),
+                surfaces
+            ),
         ]
         .spacing(metrics.gap)
         .align_y(Alignment::Center);
@@ -659,14 +709,14 @@ pub fn tracks<'a>(
                     let background = if active {
                         compact::tint(base, theme.palette().primary, 0.09)
                     } else if index % 2 == 1 {
-                        compact::tint(base, theme.palette().text, 0.02)
+                        compact::tint(base, theme.palette().text, STRIPE_OPACITY)
                     } else {
                         base
                     };
                     container::Style::default().background(background)
                 }),
             library::line(Surfaces {
-                line: surfaces.line.scale_alpha(0.5),
+                line: surfaces.line.scale_alpha(DIVIDER_OPACITY),
                 ..surfaces
             }),
         ]
