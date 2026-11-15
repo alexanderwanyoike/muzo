@@ -205,6 +205,32 @@ fn it_uses_the_pulse_button_hover_fill_only_in_the_selection_area() {
     }
 }
 
+#[test]
+fn it_preserves_the_original_gap_between_filtered_count_and_source_list() {
+    const ACCENT: [u8; 4] = [0, 217, 237, 255];
+    let mut desktop = desktop_with_sources();
+    desktop.appearance.accent = "glow-cyan".into();
+    desktop.sources.search = "Selected".into();
+    let labels = rendered_labels(
+        &desktop,
+        desktop.windows.library_id(),
+        (FRAME.width, FRAME.height).into(),
+    );
+    let count = labels["1 of 2 sources"];
+    assert!((count.x - 18.0).abs() < 0.25, "{count:?}");
+    assert!((count.y - 363.0).abs() < 0.5, "{count:?}");
+    assert!((count.height - 14.0).abs() < 0.25, "{count:?}");
+
+    let frame = paint_source_sidebar(&desktop, mouse::Cursor::Unavailable);
+    let marked_rows: Vec<_> = (350..430)
+        .filter(|&y| {
+            let start = (y * FRAME.width as usize + 9) * 4;
+            frame[start..start + 4] == ACCENT
+        })
+        .collect();
+    assert_eq!(marked_rows, (385..417).collect::<Vec<_>>());
+}
+
 fn load_fonts() {
     let mut fonts = iced::advanced::graphics::text::font_system()
         .write()
