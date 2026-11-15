@@ -234,6 +234,10 @@ impl State {
                     self.space_armed |= !repeat;
                     Some(false)
                 }
+                Key::Named(Named::Tab) => {
+                    self.space_armed = false;
+                    None
+                }
                 _ => None,
             },
             Event::Keyboard(keyboard::Event::KeyReleased {
