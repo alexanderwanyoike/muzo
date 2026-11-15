@@ -68,7 +68,9 @@ function fixture(t) {
   return {
     profile,
     candidate,
-    baseline: captureLegacyProfile(profile, preferences),
+    baseline: JSON.parse(
+      JSON.stringify(captureLegacyProfile(profile, preferences)),
+    ),
   };
 }
 
