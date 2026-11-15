@@ -260,14 +260,13 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
         guard app.isRunning else {
             throw SmokeError(description: "Muzo exited while minimizing the mini player.")
         }
-        let visible = try visibleWindows(ownedBy: app.processIdentifier)
-        if !visible.contains(where: { $0.id == minimizeTarget.id }) {
+        if try visibleWindows(ownedBy: app.processIdentifier).isEmpty {
             print("Verified the macOS title bar controls, mini player queue and restored library geometry.")
             return
         }
         RunLoop.current.run(until: Date(timeIntervalSinceNow: windowPollInterval))
     } while ProcessInfo.processInfo.systemUptime < deadline
-    throw SmokeError(description: "The mini player stayed visible after clicking Minimize.")
+    throw SmokeError(description: "Muzo still had a visible window after clicking Minimize.")
 }
 
 do {
