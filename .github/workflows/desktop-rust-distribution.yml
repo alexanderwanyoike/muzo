@@ -108,6 +108,7 @@ jobs:
         run: yarn desktop:package --target ${{ matrix.label }}
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'
+        timeout-minutes: 2
         shell: bash
         run: |
           set -euo pipefail
@@ -115,7 +116,7 @@ jobs:
           out/rust-distribution/*.AppImage --appimage-extract >/dev/null
           test -f squashfs-root/AppRun
           find squashfs-root -name muzo-desktop -type f | grep .
-          xvfb-run -a dbus-run-session -- bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
+          bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
       - name: Verify macOS disk image
         if: runner.os == 'macOS'
         id: macos-mini

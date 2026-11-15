@@ -83,7 +83,7 @@ it("starts the packaged AppImage on the Linux upgrade baseline", () => {
   expect(steps.indexOf(smoke)).toBeGreaterThan(steps.indexOf(build));
   expect(nested(smoke, "if")).toBe("runner.os == 'Linux'");
   expect(nested(smoke, "run")).toMatch(
-    /xvfb-run -a dbus-run-session -- bash tests\/manual\/linux-appimage-start\.sh/u,
+    /bash tests\/manual\/linux-appimage-start\.sh out\/rust-distribution\/\*\.AppImage/u,
   );
 });
 
