@@ -2,9 +2,7 @@ use std::time::Duration;
 
 use iced::{
     Alignment, Color, ContentFit, Element, Fill, Size, Theme, border,
-    widget::{
-        Space, button, column, container, image, responsive, row, scrollable, slider, stack, text,
-    },
+    widget::{Space, button, column, container, image, responsive, row, scrollable, slider, text},
     window,
 };
 
@@ -17,7 +15,7 @@ use crate::{
 use super::{
     Icon, Message, action, bold, clock_label, control_opacity, focus_ring, focusable_icon, icon,
     icon_tinted, playback_error,
-    window_chrome::{PANE_GUTTER, PANE_RADIUS, pane_style, title_bar},
+    window_chrome::{PANE_GUTTER, pane_style, title_bar},
 };
 use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
@@ -159,19 +157,7 @@ fn mini_at_size<'a>(
     )
     .height(Fill)
     .width(Fill);
-    let artwork: Element<'_, Message> = cover.background().map_or_else(
-        || Space::new().width(Fill).height(Fill).into(),
-        |background| {
-            image(background.clone())
-                .content_fit(ContentFit::Cover)
-                .opacity(0.12)
-                .border_radius(PANE_RADIUS)
-                .width(Fill)
-                .height(Fill)
-                .into()
-        },
-    );
-    let player = container(stack![artwork, body].clip(true))
+    let player = container(body)
         .width(Fill)
         .height(Fill)
         .style(move |_| pane_style(surfaces.raised));
