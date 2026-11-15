@@ -2,7 +2,9 @@ use std::time::Duration;
 
 use iced::{
     Alignment, Color, ContentFit, Element, Fill, Size, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
+    widget::{
+        Space, button, column, container, image, responsive, row, scrollable, slider, stack, text,
+    },
     window,
 };
 
@@ -20,9 +22,37 @@ use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
     mini_focus::{Control, QUEUE_ROW_HEIGHT, QUEUE_ROW_SPACING, QUEUE_SCROLL},
     row_cover::{Covers, DirectCovers},
+    windows::MiniPlayerLayout,
 };
 
 pub(in crate::desktop) fn mini<'a>(
+    id: window::Id,
+    session: Option<&'a Session>,
+    layout: MiniPlayerLayout,
+    covers: (&'a Cover, Option<&'a Covers>, &'a DirectCovers),
+    appearance: &'a Appearance,
+    playback: (Option<&'a str>, bool),
+    focus: Option<Control>,
+) -> Element<'a, Message> {
+    responsive(move |viewport| {
+        mini_at_size(
+            id,
+            session,
+            (
+                layout.queue_open_at(viewport),
+                layout.is_resizing(),
+                viewport,
+            ),
+            covers,
+            appearance,
+            playback,
+            focus,
+        )
+    })
+    .into()
+}
+
+fn mini_at_size<'a>(
     id: window::Id,
     session: Option<&'a Session>,
     window: (bool, bool, Size),
