@@ -139,6 +139,7 @@ pub struct Desktop {
     session: Option<Session>,
     output: Option<MixerDeviceSink>,
     error: Option<String>,
+    queue_resize_error: Option<String>,
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
     queue_covers: row_cover::Covers,
@@ -219,6 +220,7 @@ impl Desktop {
                 session,
                 output: None,
                 error,
+                queue_resize_error: None,
                 cover: Cover::default(),
                 direct_covers: Default::default(),
                 queue_covers: Default::default(),
@@ -797,12 +799,12 @@ impl Desktop {
                 if self.windows.is_mini(id) {
                     self.windows.show_library()
                 } else {
-                    self.mini_focus = None;
-                    self.windows.show_mini()
+                    self.update(Message::ShowMini)
                 }
             }
             Message::ShowMini => {
                 self.mini_focus = None;
+                self.queue_resize_error = None;
                 self.windows.show_mini()
             }
             Message::CycleFocusFromSidebarDivider(backwards) => {
@@ -948,7 +950,7 @@ impl Desktop {
             }
             Message::ShowLibrary => self.windows.show_library(),
             Message::ToggleQueue => {
-                self.error = None;
+                self.queue_resize_error = None;
                 if self.windows.queue_open()
                     && matches!(self.mini_focus, Some(MiniControl::Track(_)))
                 {
@@ -962,7 +964,7 @@ impl Desktop {
             Message::QueueResizeTimedOut(id, generation, size) => {
                 let (task, result) = self.windows.resize_timed_out(id, generation, size);
                 if let Err(error) = result {
-                    self.error = Some(error.to_string());
+                    self.queue_resize_error = Some(error.to_string());
                 }
                 task
             }
@@ -1453,12 +1455,13 @@ impl Desktop {
 
     pub fn view(&self, id: window::Id) -> Element<'_, Message> {
         if self.windows.is_mini(id) {
+            let error = self.error.as_deref().or(self.queue_resize_error.as_deref());
             view::mini(
                 self.session.as_ref(),
                 self.windows.mini_view(),
                 (&self.cover, Some(&self.queue_covers), &self.direct_covers),
                 &self.appearance,
-                (self.error.as_deref(), self.failed_track.is_some()),
+                (error, self.failed_track.is_some()),
                 self.mini_focus,
             )
         } else {
