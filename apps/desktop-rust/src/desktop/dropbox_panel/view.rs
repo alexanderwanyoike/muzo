@@ -1,6 +1,8 @@
 use iced::{
     Alignment, Element, Fill, Shrink, border,
-    widget::{Column, button, checkbox, column, container, row, scrollable, text, tooltip},
+    widget::{
+        Column, Space, button, checkbox, column, container, row, scrollable, stack, text, tooltip,
+    },
 };
 
 use crate::appearance::Surfaces;
@@ -19,6 +21,9 @@ const SELECTION_LIST_HEIGHT: f32 = 112.0;
 const FOLDER_SCROLLBAR_GAP: f32 = 6.0;
 const ACTION_GAP: f32 = 8.0;
 const FOLDER_ICON_EDGE: f32 = 15.0;
+const FOCUS_RULE_WIDTH: f32 = 14.0;
+const FOCUS_RULE_HEIGHT: f32 = 2.0;
+const FOCUS_RULE_INSET: f32 = 3.0;
 
 impl Settings {
     #[cfg(test)]
@@ -351,11 +356,9 @@ impl Settings {
             .on_toggle_maybe(command.map(|message| move |_| message.clone()));
         if focus == Some(&target) {
             control = control.style(|theme, status| {
-                let style = checkbox::primary(theme, status);
-                checkbox::Style {
-                    background: theme.palette().primary.scale_alpha(0.21).into(),
-                    ..style
-                }
+                let mut style = checkbox::primary(theme, status);
+                style.border.color = theme.palette().text;
+                style
             });
         }
         if let Some(label) = label {
@@ -384,19 +387,32 @@ fn keyboard_button<'a>(
     target: Control,
     focus: Option<&Control>,
 ) -> Element<'a, Message> {
-    let button = if focus == Some(&target) {
-        button.style(|theme, status| {
-            let style = action(theme, status);
-            button::Style {
-                background: Some(theme.palette().primary.scale_alpha(0.19).into()),
-                border: border::rounded(5),
-                ..style
-            }
+    let focused = focus == Some(&target);
+    let primary_button = matches!(target, Control::Connect | Control::AddSelected);
+    let rule = container(
+        Space::new()
+            .width(FOCUS_RULE_WIDTH)
+            .height(FOCUS_RULE_HEIGHT),
+    )
+    .style(move |theme: &iced::Theme| {
+        let style = container::Style::default();
+        if !focused {
+            return style;
+        }
+        let palette = theme.extended_palette().primary.base;
+        style.background(if primary_button {
+            palette.text
+        } else {
+            palette.color
         })
-    } else {
-        button
-    };
-    container(button).id(target.id()).into()
+    });
+    let overlay = container(rule)
+        .width(Fill)
+        .height(Fill)
+        .align_x(iced::alignment::Horizontal::Center)
+        .align_y(iced::alignment::Vertical::Bottom)
+        .padding(iced::padding::bottom(FOCUS_RULE_INSET));
+    container(stack![button, overlay]).id(target.id()).into()
 }
 
 fn quiet_button(label: &str) -> button::Button<'_, Message> {
