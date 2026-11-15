@@ -673,6 +673,7 @@ mod tests {
             ("default", &["gio", "open"][..]),
             ("handler-fails", &["gio", "open"][..]),
             ("without-gio", &["xdg-open"][..]),
+            ("desktop-default", &["xdg-open"][..]),
         ] {
             let fixture = tempfile::tempdir().unwrap();
             let capture = fixture.path().join("invocation");
@@ -686,9 +687,14 @@ mod tests {
                     0
                 };
                 let path = fixture.path().join(launcher);
+                let use_registered_default = if launcher == "xdg-open" {
+                    "if [ -n \"${BROWSER:-}\" ]; then printf '%s\\n' 'environment-override'; fi\n"
+                } else {
+                    ""
+                };
                 fs::write(
                     &path,
-                    format!("#!/bin/sh\nprintf '%s\\n' '{launcher}' \"$@\" > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
+                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
                 ).unwrap();
                 fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
             }
@@ -699,6 +705,8 @@ mod tests {
                 ])
                 .env(CAPTURE, &capture)
                 .env(FIXTURE, mode)
+                .env("BROWSER", "inherited-override")
+                .env("XDG_CURRENT_DESKTOP", if mode == "desktop-default" { "KDE" } else { "X-Generic" })
                 .env("PATH", fixture.path())
                 .output()
                 .unwrap();
