@@ -323,9 +323,11 @@ pub(super) fn settings_section<'a>(
     .into()
 }
 
+pub(super) const DIVIDER_HEIGHT: f32 = 1.0;
+
 pub(super) fn line(surfaces: Surfaces) -> Element<'static, Message> {
     container(Space::new())
-        .height(1)
+        .height(DIVIDER_HEIGHT)
         .width(Fill)
         .style(move |_| container::Style::default().background(surfaces.line))
         .into()

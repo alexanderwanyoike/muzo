@@ -331,7 +331,12 @@ pub fn tracks<'a>(
             .on_scroll(|viewport| {
                 Message::ArtworkViewport(
                     crate::desktop::LibraryPage::Playlists,
-                    crate::desktop::row_cover::viewport_rows(viewport, TRACK_HEIGHT + 1.0, 0.0),
+                    crate::desktop::row_cover::viewport_rows(
+                        viewport,
+                        TRACK_HEIGHT + library::DIVIDER_HEIGHT,
+                        0.0,
+                        0.0,
+                    ),
                 )
             })
             .into()

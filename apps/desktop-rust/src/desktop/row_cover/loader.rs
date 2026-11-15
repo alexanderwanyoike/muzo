@@ -49,10 +49,13 @@ pub(in crate::desktop) fn viewport_rows(
     viewport: Viewport,
     row_height: f32,
     inset: f32,
+    extra_content_height: f32,
 ) -> Range<usize> {
     let top = (viewport.absolute_offset().y - inset).max(0.0);
     let bottom = top + viewport.bounds().height;
-    (top / row_height).floor() as usize..(bottom / row_height).ceil() as usize
+    // An expanded editor or picker can sit before or after the viewport.
+    let first_possible_row = (top - extra_content_height).max(0.0);
+    (first_possible_row / row_height).floor() as usize..(bottom / row_height).ceil() as usize
 }
 
 impl Loader {

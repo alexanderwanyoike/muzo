@@ -293,17 +293,24 @@ pub(super) fn view<'a>(
             container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
         );
     }
+    let row_height = ROW_CONTENT_HEIGHT + library::DIVIDER_HEIGHT;
+    let plain_height =
+        LIST_TOP_INSET + LIST_BOTTOM_INSET + row_height * snapshot.tracks.len() as f32;
     column![
         scrollable(songs)
             .id(SONGS_SCROLL)
             .height(Fill)
-            .on_scroll(|viewport| Message::ArtworkViewport(
-                crate::desktop::LibraryPage::Songs,
-                crate::desktop::row_cover::viewport_rows(
-                    viewport,
-                    ROW_CONTENT_HEIGHT + 1.0,
-                    LIST_TOP_INSET
-                ),
-            ))
+            .on_scroll(move |viewport| {
+                let extra_height = (viewport.content_bounds().height - plain_height).max(0.0);
+                Message::ArtworkViewport(
+                    crate::desktop::LibraryPage::Songs,
+                    crate::desktop::row_cover::viewport_rows(
+                        viewport,
+                        row_height,
+                        LIST_TOP_INSET,
+                        extra_height,
+                    ),
+                )
+            })
     ]
 }
