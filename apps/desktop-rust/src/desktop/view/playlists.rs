@@ -13,6 +13,7 @@ use crate::{
     track::Track,
 };
 
+use super::sidebar_name::SidebarName;
 use super::{Icon, action, bold, compact, icon_button, icon_tinted, library, track_play_button};
 
 #[cfg(test)]
@@ -42,14 +43,7 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
                 })
                 .width(15)
                 .height(15),
-                container(
-                    text(&playlist.name)
-                        .size(11)
-                        .font(bold())
-                        .width(Fill)
-                        .wrapping(text::Wrapping::None),
-                )
-                .clip(true),
+                Element::new(SidebarName(&playlist.name)),
                 text(count.unwrap_or_default())
                     .size(9)
                     .color(surfaces.muted),

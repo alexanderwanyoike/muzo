@@ -13,6 +13,7 @@ mod library;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
+mod sidebar_name;
 #[cfg(test)]
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;

@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, icon_button, icon_tinted, library, track_metadata,
-    track_playlist,
+    Icon, action, bold, clock, compact, icon_button, icon_tinted, library,
+    sidebar_name::SidebarName, track_metadata, track_playlist,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -202,11 +202,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                         })
                         .width(15)
                         .height(15),
-                        text(&source.name)
-                            .size(11)
-                            .font(bold())
-                            .width(Fill)
-                            .wrapping(text::Wrapping::None),
+                        Element::new(SidebarName(&source.name)),
                         text(count.unwrap_or_default())
                             .size(9)
                             .color(surfaces.muted),
