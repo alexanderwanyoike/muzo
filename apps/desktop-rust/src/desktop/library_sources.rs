@@ -898,13 +898,19 @@ impl Sources {
         self.snapshot = Some(snapshot);
     }
 
+    pub(super) fn start_pending(&mut self) -> Option<Task<Message>> {
+        self.pending
+            .pop_front()
+            .map(|operation| self.run_operation(operation))
+    }
+
     pub fn poll(&mut self) -> Task<Message> {
         if self.busy {
             return Task::none();
         }
         self.retry_watch_roots();
-        if let Some(operation) = self.pending.pop_front() {
-            return self.run_operation(operation);
+        if let Some(pending) = self.start_pending() {
+            return pending;
         }
         let selected = self
             .snapshot

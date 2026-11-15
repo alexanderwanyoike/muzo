@@ -385,7 +385,7 @@ impl Desktop {
                     }
                 }
                 self.sources.apply(result);
-                Task::none()
+                self.sources.start_pending().unwrap_or_else(Task::none)
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();
