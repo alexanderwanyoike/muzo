@@ -46,9 +46,9 @@ impl Choice {
             .map(|(id, _)| Self::Material(id))
             .chain(MODES.into_iter().map(|(id, _)| Self::Mode(id)))
             .chain(ACCENTS.into_iter().map(|(id, _)| Self::Accent(id)))
-            .chain(dropbox.focus_stops().into_iter().map(Self::Dropbox))
             .chain(remove_actions)
             .chain([Self::Divider])
+            .chain(dropbox.focus_stops().into_iter().map(Self::Dropbox))
             .collect::<Vec<_>>();
         let length = choices.len();
         let index = match (
@@ -57,7 +57,10 @@ impl Choice {
         ) {
             (Some(index), true) => (index + length - 1) % length,
             (Some(index), false) => (index + 1) % length,
-            (None, true) => length - 1,
+            (None, true) => choices
+                .iter()
+                .position(|choice| *choice == Self::Divider)
+                .unwrap_or(length - 1),
             (None, false) => 0,
         };
         choices.swap_remove(index)
