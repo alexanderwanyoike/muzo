@@ -5,26 +5,41 @@ use iced::{
         operation::{focusable, scope},
     },
     widget::operation::{AbsoluteOffset, scroll_to},
+    window,
 };
 
 use crate::appearance::{ACCENTS, MATERIALS, MODES};
 
-use super::{Message, library_sources::Sources, sidebar::DIVIDER, source_removal::Launcher};
+use super::{
+    Message, dropbox_panel, library_sources::Sources, settings_scroll, sidebar::DIVIDER,
+    source_removal::Launcher,
+};
 
 pub(super) const SCROLL: &str = "appearance-settings";
 pub(super) const LIBRARY: &str = "library-window";
+
+pub(super) fn focused_settings_field(window: window::Id) -> Task<Message> {
+    operate(scope(LIBRARY.into(), focusable::find_focused()))
+        .map(move |field| Message::SettingsFieldFocused(window, field))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Choice {
     Material(&'static str),
     Mode(&'static str),
     Accent(&'static str),
+    Dropbox(dropbox_panel::Control),
     RemoveSource(Launcher),
     Divider,
 }
 
 impl Choice {
-    pub(super) fn next(current: Option<&Self>, backwards: bool, sources: &Sources) -> Self {
+    pub(super) fn next(
+        current: Option<&Self>,
+        backwards: bool,
+        sources: &Sources,
+        dropbox: &dropbox_panel::Settings,
+    ) -> Self {
         let remove_actions = sources
             .snapshot
             .as_ref()
@@ -39,6 +54,7 @@ impl Choice {
             .chain(ACCENTS.into_iter().map(|(id, _)| Self::Accent(id)))
             .chain(remove_actions)
             .chain([Self::Divider])
+            .chain(dropbox.focus_stops().into_iter().map(Self::Dropbox))
             .collect::<Vec<_>>();
         let length = choices.len();
         let index = match (
@@ -47,17 +63,27 @@ impl Choice {
         ) {
             (Some(index), true) => (index + length - 1) % length,
             (Some(index), false) => (index + 1) % length,
-            (None, true) => length - 1,
+            (None, true) => choices
+                .iter()
+                .position(|choice| *choice == Self::Divider)
+                .unwrap_or(length - 1),
             (None, false) => 0,
         };
         choices.swap_remove(index)
     }
 
-    pub(super) fn message(&self) -> Option<Message> {
+    pub(super) fn message(&self, dropbox: &dropbox_panel::Settings) -> Option<Message> {
         Some(match self {
             Self::Material(id) => Message::Material(id),
             Self::Mode(id) => Message::AppearanceMode(id),
             Self::Accent(id) => Message::Accent(id),
+            Self::Dropbox(control) => {
+                return dropbox
+                    .focus_stops()
+                    .contains(control)
+                    .then(|| dropbox.control_message(control))
+                    .flatten();
+            }
             Self::RemoveSource(_) | Self::Divider => return None,
         })
     }
@@ -73,6 +99,17 @@ impl Choice {
             }
             Self::Mode(_) => 380.0,
             Self::Accent(_) => 440.0,
+            Self::Dropbox(control) => {
+                let focus = if control.is_field() {
+                    operate(scope(LIBRARY.into(), focusable::focus::<()>(control.id()))).discard()
+                } else {
+                    operate(scope(LIBRARY.into(), focusable::unfocus::<()>())).discard()
+                };
+                return Task::batch([
+                    focus,
+                    settings_scroll::reveal_control(control.id(), control.nested_scroll()),
+                ]);
+            }
             Self::RemoveSource(launcher) => return launcher.focus(),
             Self::Divider => {
                 return operate(scope(
