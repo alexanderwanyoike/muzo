@@ -90,7 +90,7 @@ it("starts the packaged AppImage on the Linux upgrade baseline", () => {
   );
 });
 
-it("builds each native installer with the Electron workspace omitted", () => {
+it("builds each native installer from the complete Rust-only checkout", () => {
   const native = workflow("desktop-rust-distribution.yml");
   const configured = nested(native, "jobs", "package", "steps");
   expect(Array.isArray(configured)).toBe(true);
@@ -99,10 +99,8 @@ it("builds each native installer with the Electron workspace omitted", () => {
     const action = nested(step, "uses");
     return typeof action === "string" && action.startsWith("actions/checkout@");
   });
-  expect(nested(checkout, "with", "sparse-checkout-cone-mode")).toBe(false);
-  expect(nested(checkout, "with", "sparse-checkout")).toBe(
-    "/*\n!/apps/desktop/\n",
-  );
+  expect(checkout).toBeDefined();
+  expect(nested(checkout, "with", "sparse-checkout")).toBeUndefined();
   const build = steps.find(
     (step) => nested(step, "name") === "Build the native installer",
   );
