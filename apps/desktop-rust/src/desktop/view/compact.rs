@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    Icon, Message, action, bold, clock, control_opacity, focus_ring, focusable_icon, icon,
+    Icon, Message, action, bold, clock_label, control_opacity, focus_ring, focusable_icon, icon,
     icon_tinted, playback_error,
 };
 use crate::desktop::{
@@ -207,7 +207,7 @@ fn transport(
     let index = session.and_then(Session::current_index);
     let playing = session.is_some_and(Session::is_playing);
     let timeline = row![
-        container(text(clock(position)).size(9).color(surfaces.muted)).center_x(27),
+        clock_label(position, surfaces.muted),
         slider(
             0.0..=duration.as_secs_f32().max(0.1),
             position.as_secs_f32(),
@@ -216,7 +216,7 @@ fn transport(
         .step(0.1)
         .height(14)
         .style(move |theme, _| slider_style(theme, surfaces, false)),
-        container(text(clock(duration)).size(9).color(surfaces.muted)).center_x(27),
+        clock_label(duration, surfaces.muted),
     ]
     .spacing(7)
     .align_y(Alignment::Center);

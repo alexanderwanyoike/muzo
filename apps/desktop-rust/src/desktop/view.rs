@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Color, Element, Fill, Font, Theme, border, color, font,
+    Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
     widget::{Space, button, column, container, image, row, scrollable, svg, text, tooltip},
 };
 
@@ -228,6 +228,25 @@ fn clock(duration: Duration) -> String {
     }
     let minutes = total_minutes % MINUTES_PER_HOUR;
     format!("{hours}:{minutes:02}:{seconds:02}")
+}
+
+fn clock_label(duration: Duration, color: Color) -> Element<'static, Message> {
+    const SHORT_TIME_WIDTH: f32 = 27.0;
+    let label = clock(duration);
+    let width = if label.len() <= "00:00".len() {
+        Length::Fixed(SHORT_TIME_WIDTH)
+    } else {
+        Length::Shrink
+    };
+    container(
+        text(label)
+            .font(crate::fonts::TABLE_FIGURES)
+            .size(9)
+            .color(color)
+            .wrapping(text::Wrapping::None),
+    )
+    .center_x(width)
+    .into()
 }
 
 fn error_line<'a>(error: Option<impl text::IntoFragment<'a>>) -> Element<'a, Message> {

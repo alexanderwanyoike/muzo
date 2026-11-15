@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    Icon, action, appearance, bold, clock, compact, control_opacity, error_line, icon_button,
+    Icon, action, appearance, bold, clock_label, compact, control_opacity, error_line, icon_button,
     icon_tinted, label_text::replace_embedded_breaks, library_content, playback_error, playlists,
     sidebar_divider::Divider, sources,
 };
@@ -114,7 +114,7 @@ fn transport<'a>(
     let controls = container(controls).center_x(218);
 
     let timeline = row![
-        container(text(clock(position)).size(9).color(surfaces.muted)).center_x(27),
+        clock_label(position, surfaces.muted),
         slider(
             0.0..=duration.as_secs_f32().max(0.1),
             position.as_secs_f32(),
@@ -123,7 +123,7 @@ fn transport<'a>(
         .height(13)
         .step(0.1)
         .style(move |theme, _| compact::slider_style(theme, surfaces, false)),
-        container(text(clock(duration)).size(9).color(surfaces.muted)).center_x(27),
+        clock_label(duration, surfaces.muted),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
