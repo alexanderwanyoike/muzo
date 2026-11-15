@@ -110,3 +110,77 @@ it.each([
     }
   },
 );
+
+it.skipIf(process.platform !== "linux" || process.arch !== "x64")(
+  "passes Cargo's external build directory in the packager configuration",
+  async () => {
+    const fixture = await mkdtemp(join(tmpdir(), "muzo-external-build-"));
+    try {
+      const binaries = join(fixture, "external build", "release");
+      await mkdir(binaries, { recursive: true });
+      const namer = join(binaries, "name-installer");
+      const configPath = join(fixture, "packager-config");
+      const cargoMessages = ["muzo-desktop", "name-installer"]
+        .map((name) =>
+          JSON.stringify({
+            reason: "compiler-artifact",
+            executable: join(binaries, name),
+            target: { name },
+          }),
+        )
+        .join("\n");
+      await Promise.all([
+        writeFile(
+          join(fixture, "cargo"),
+          [
+            "#!/bin/sh",
+            'if [ "$1" = "-vV" ]; then',
+            '  printf "host: x86_64-unknown-linux-gnu\\n"',
+            "else",
+            '  printf "%s\\n" "$MUZO_FIXTURE_CARGO_MESSAGES"',
+            "fi\n",
+          ].join("\n"),
+          { mode: 0o700 },
+        ),
+        writeFile(namer, "#!/bin/sh\nprintf 'linux-x64\\n'\n", { mode: 0o700 }),
+        writeFile(
+          join(fixture, "cargo-packager"),
+          [
+            "#!/bin/sh",
+            'printf "%s\\n" "$2" > "$MUZO_FIXTURE_PACKAGER_CONFIG"',
+            'printf "%s\\n" "packager fixture reached" >&2',
+            "exit 43\n",
+          ].join("\n"),
+          { mode: 0o700 },
+        ),
+      ]);
+
+      await expect(
+        execute(
+          process.execPath,
+          [
+            "--import",
+            pathToFileURL(createRequire(import.meta.url).resolve("tsx/esm"))
+              .href,
+            fileURLToPath(new URL("native-package-cli.ts", import.meta.url)),
+            "--output",
+            join(fixture, "installers"),
+          ],
+          {
+            env: {
+              ...process.env,
+              PATH: fixture,
+              MUZO_FIXTURE_CARGO_MESSAGES: cargoMessages,
+              MUZO_FIXTURE_PACKAGER_CONFIG: configPath,
+            },
+          },
+        ),
+      ).rejects.toThrow("packager fixture reached");
+      const config: unknown = JSON.parse(await readFile(configPath, "utf8"));
+      expect(config).toHaveProperty("binaries-dir", binaries);
+      expect(config).toHaveProperty("appimage.libs", ["libxkbcommon-x11.so.0"]);
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  },
+);
