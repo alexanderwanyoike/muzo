@@ -2,6 +2,15 @@ use super::windows::LIBRARY_SIZE;
 use crate::appearance::sidebar::SidebarWidth;
 
 pub(super) const SPLITTER_WIDTH: f32 = 1.0;
+const KEYBOARD_STEP: f32 = 8.0;
+
+#[derive(Debug, Clone, Copy)]
+pub enum Adjustment {
+    Narrower,
+    Wider,
+    Minimum,
+    Maximum,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Resize {
@@ -10,6 +19,7 @@ pub enum Resize {
     Commit,
     Cancel,
     Reset,
+    Adjust(Adjustment),
 }
 
 pub(super) struct Sidebar {
@@ -58,6 +68,16 @@ impl Sidebar {
             Resize::Reset => {
                 self.preview = None;
                 Some(self.commit(SidebarWidth::default()))
+            }
+            Resize::Adjust(direction) => {
+                let target = match direction {
+                    Adjustment::Narrower => SidebarWidth::new(self.visible_width() - KEYBOARD_STEP),
+                    Adjustment::Wider => SidebarWidth::new(self.visible_width() + KEYBOARD_STEP),
+                    Adjustment::Minimum => SidebarWidth::MINIMUM,
+                    Adjustment::Maximum => SidebarWidth::MAXIMUM,
+                };
+                self.preview = None;
+                Some(self.commit(target))
             }
         }
     }

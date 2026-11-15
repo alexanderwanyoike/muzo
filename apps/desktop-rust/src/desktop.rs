@@ -823,6 +823,18 @@ impl Desktop {
                     self.appearance_focus = Some(next);
                     return next.take_focus();
                 }
+                if self.windows.is_library(id) {
+                    use iced::advanced::widget::{
+                        operate,
+                        operation::{focusable, scope},
+                    };
+                    let library = appearance_focus::LIBRARY.into();
+                    return if backwards {
+                        operate(scope(library, focusable::focus_previous::<()>())).discard()
+                    } else {
+                        operate(scope(library, focusable::focus_next::<()>())).discard()
+                    };
+                }
                 if self.windows.is_mini(id) {
                     let queue_len = self
                         .session

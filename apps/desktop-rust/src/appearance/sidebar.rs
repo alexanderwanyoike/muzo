@@ -6,8 +6,6 @@ use std::{
 
 use super::{AppearanceError, legacy};
 
-const MINIMUM: f32 = 192.0;
-const MAXIMUM: f32 = 360.0;
 const DEFAULT: f32 = 240.0;
 const MINIMUM_CONTENT: f32 = 520.0;
 const STORAGE_KEY: &[u8] = b"muzo.sidebar-width.v1";
@@ -22,9 +20,12 @@ impl Default for SidebarWidth {
 }
 
 impl SidebarWidth {
+    pub(crate) const MINIMUM: Self = Self(192.0);
+    pub(crate) const MAXIMUM: Self = Self(360.0);
+
     pub fn new(width: f32) -> Self {
         if width.is_finite() {
-            Self(width.round().clamp(MINIMUM, MAXIMUM))
+            Self(width.round().clamp(Self::MINIMUM.0, Self::MAXIMUM.0))
         } else {
             Self::default()
         }
@@ -32,7 +33,7 @@ impl SidebarWidth {
 
     pub fn visible(self, viewport: f32) -> f32 {
         self.0
-            .min((viewport - MINIMUM_CONTENT).clamp(MINIMUM, MAXIMUM))
+            .min((viewport - MINIMUM_CONTENT).clamp(Self::MINIMUM.0, Self::MAXIMUM.0))
     }
 }
 
@@ -57,7 +58,7 @@ pub fn load_or_import(
 
 fn decode(data: &[u8]) -> Result<SidebarWidth, AppearanceError> {
     let width = serde_json::from_slice::<f32>(data)?;
-    if !width.is_finite() || !(MINIMUM..=MAXIMUM).contains(&width) {
+    if !width.is_finite() || !(SidebarWidth::MINIMUM.0..=SidebarWidth::MAXIMUM.0).contains(&width) {
         return Err(AppearanceError::Invalid);
     }
     Ok(SidebarWidth::new(width))

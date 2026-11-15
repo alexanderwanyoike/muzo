@@ -2,7 +2,7 @@ use iced::{
     Color, Element, Event, Length, Point, Rectangle, Renderer, Size, Theme, Vector,
     advanced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, overlay, renderer,
-        widget::{self, Operation, Tree},
+        widget::{self, Operation, Tree, operation::focusable},
     },
     keyboard::{self, Key, key::Named},
     touch,
@@ -11,7 +11,7 @@ use iced::{
 };
 
 use super::Message;
-use crate::desktop::sidebar::{Resize, SPLITTER_WIDTH};
+use crate::desktop::sidebar::{Adjustment, Resize, SPLITTER_WIDTH};
 
 const HIT_SLOP: f32 = 4.5;
 const ACTIVE_LINE_WIDTH: f32 = 3.0;
@@ -27,8 +27,23 @@ pub(super) struct Divider<'a> {
 struct State {
     drag: Option<Drag>,
     hovered: bool,
+    focused: bool,
     mouse_position: Option<Point>,
     last_click: Option<mouse::Click>,
+}
+
+impl focusable::Focusable for State {
+    fn is_focused(&self) -> bool {
+        self.focused
+    }
+
+    fn focus(&mut self) {
+        self.focused = true;
+    }
+
+    fn unfocus(&mut self) {
+        self.focused = false;
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -106,6 +121,23 @@ fn hit_area(bounds: Rectangle) -> Rectangle {
     }
 }
 
+fn adjustment(event: &Event) -> Option<Adjustment> {
+    let Event::Keyboard(keyboard::Event::KeyPressed {
+        key: Key::Named(key),
+        ..
+    }) = event
+    else {
+        return None;
+    };
+    match key {
+        Named::ArrowLeft => Some(Adjustment::Narrower),
+        Named::ArrowRight => Some(Adjustment::Wider),
+        Named::Home => Some(Adjustment::Minimum),
+        Named::End => Some(Adjustment::Maximum),
+        _ => None,
+    }
+}
+
 impl<'a> Divider<'a> {
     pub(super) fn around(
         header: Element<'a, Message>,
@@ -138,6 +170,14 @@ impl<'a> Divider<'a> {
             shell.publish(Message::ResizeSidebar(Resize::Viewport(size.width)));
             return;
         }
+        if state.focused
+            && let Some(adjustment) = adjustment(event)
+        {
+            state.last_click = None;
+            shell.publish(Message::ResizeSidebar(Resize::Adjust(adjustment)));
+            shell.capture_event();
+            return;
+        }
         let area = hit_area(bounds);
         let hovered = cursor.is_over(area);
         if state.hovered != hovered {
@@ -166,8 +206,12 @@ impl<'a> Divider<'a> {
             (Gesture::Press(pointer, position), None) => {
                 if cursor.is_levitating() || !area.contains(position) {
                     state.last_click = None;
+                    if std::mem::replace(&mut state.focused, false) {
+                        shell.request_redraw();
+                    }
                     return;
                 }
+                state.focused = true;
                 state.drag = Some(Drag {
                     pointer,
                     start_x: position.x,
@@ -281,7 +325,16 @@ impl Widget<Message, Theme, Renderer> for Divider<'_> {
     ) {
         let (body, divider) = regions(layout);
         let state = tree.state.downcast_mut::<State>();
+        let was_focused = state.focused;
         self.handle_input(state, event, divider.bounds(), cursor, shell);
+        if !was_focused && state.focused {
+            self.body.as_widget_mut().operate(
+                &mut tree.children[0],
+                body,
+                renderer,
+                &mut focusable::unfocus(),
+            );
+        }
         if !shell.is_event_captured() {
             let cursor = if divider_active(state, divider.bounds(), cursor) {
                 cursor.levitate()
@@ -324,7 +377,7 @@ impl Widget<Message, Theme, Renderer> for Divider<'_> {
             if active { cursor.levitate() } else { cursor },
             viewport,
         );
-        let (width, color) = if active {
+        let (width, color) = if active || state.focused {
             (ACTIVE_LINE_WIDTH, self.ink)
         } else {
             (bounds.width, self.line)
@@ -371,12 +424,11 @@ impl Widget<Message, Theme, Renderer> for Divider<'_> {
         renderer: &Renderer,
         operation: &mut dyn Operation,
     ) {
-        self.body.as_widget_mut().operate(
-            &mut tree.children[0],
-            regions(layout).0,
-            renderer,
-            operation,
-        );
+        let (body, divider) = regions(layout);
+        self.body
+            .as_widget_mut()
+            .operate(&mut tree.children[0], body, renderer, operation);
+        operation.focusable(None, divider.bounds(), tree.state.downcast_mut::<State>());
     }
 
     fn overlay<'b>(
