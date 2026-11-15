@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Color, Element, Fill,
+    Alignment, Color, Element, Fill, Theme,
     widget::{Space, button, column, container, image, row, slider, text, tooltip},
 };
 
@@ -18,6 +18,9 @@ use super::{
     library::{framed, line, small_cover},
     panel,
 };
+
+mod glow;
+use glow::Glow;
 
 const TRANSPORT_HEIGHT: f32 = 81.0;
 const DISPLAY_MAX_WIDTH: f32 = 610.0;
@@ -71,6 +74,7 @@ pub(super) fn view<'a>(
     const TIMELINE_GAP: f32 = 7.0;
     const VOLUME_STEP: f32 = 0.05;
     let columns = TransportColumns::for_viewport(viewport_width);
+    let glow = Glow::for_appearance(preferences);
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
     let index = session.and_then(Session::current_index);
@@ -81,8 +85,9 @@ pub(super) fn view<'a>(
             "Previous track",
             index.is_some_and(|i| i > 0).then_some(Message::Previous),
             None,
+            action,
         ),
-        chrome_play(playing, retry || active.is_some()),
+        chrome_play(playing, retry || active.is_some(), glow),
         transport_button(
             Icon::Next,
             "Next track",
@@ -91,6 +96,7 @@ pub(super) fn view<'a>(
                 .is_some_and(|(i, s)| i + 1 < s.tracks().len())
                 .then_some(Message::Next),
             None,
+            action,
         ),
     ]
     .spacing(CONTROL_GAP)
@@ -179,7 +185,8 @@ pub(super) fn view<'a>(
             Icon::Mini,
             "Mini player",
             Some(Message::ShowMini),
-            Some(surfaces.muted)
+            Some(surfaces.muted),
+            action,
         ),
     ];
     column![
@@ -189,18 +196,26 @@ pub(super) fn view<'a>(
     .into()
 }
 
-fn chrome_play(playing: bool, enabled: bool) -> Element<'static, Message> {
+fn chrome_play(playing: bool, enabled: bool, glow: Option<Glow>) -> Element<'static, Message> {
     let (icon, label) = if playing {
         (Icon::Pause, "Pause")
     } else {
         (Icon::Play, "Play")
     };
-    transport_button(
+    let glow = glow.filter(|_| enabled);
+    let control = transport_button(
         icon,
         label,
         enabled.then_some(Message::TogglePlayback),
-        None,
-    )
+        glow.map(|_| Glow::FOREGROUND),
+        move |theme, status| {
+            glow.map_or_else(|| action(theme, status), |glow| glow.playback_style(status))
+        },
+    );
+    match glow {
+        Some(glow) => glow.surround_playback(control),
+        None => control,
+    }
 }
 
 fn transport_button(
@@ -208,6 +223,7 @@ fn transport_button(
     label: &'static str,
     message: Option<Message>,
     color: Option<Color>,
+    style: impl Fn(&Theme, button::Status) -> button::Style + 'static,
 ) -> Element<'static, Message> {
     let (glyph_edge, width, height) = match kind {
         Icon::Play | Icon::Pause => (26.0, PLAY_BUTTON_EDGE, PLAY_BUTTON_EDGE),
@@ -223,7 +239,7 @@ fn transport_button(
     tooltip(
         button(container(glyph).center_x(width).center_y(height))
             .padding(0)
-            .style(action)
+            .style(style)
             .on_press_maybe(message),
         text(label).size(12),
         tooltip::Position::FollowCursor,
@@ -246,7 +262,7 @@ mod tests {
     use super::*;
 
     fn play_icon_pixels(enabled: bool) -> Vec<u8> {
-        let mut button = chrome_play(false, enabled);
+        let mut button = chrome_play(false, enabled, None);
         let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
         let mut tree = Tree::new(&button);
         let widget = button.as_widget_mut();
