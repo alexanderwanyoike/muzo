@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, Theme, border,
+    Alignment, Color, Element, Fill, Theme, border,
     widget::{Space, button, column, container, row, scrollable, stack, text, text_input},
 };
 
@@ -53,9 +53,13 @@ const FILTERED_COUNT_MARGIN: iced::Padding = iced::Padding {
     right: 9.0,
 };
 
-pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+pub(super) fn folder_form(
+    sources: &Sources,
+    surfaces: Surfaces,
+    error_ink: Color,
+) -> Element<'_, Message> {
     let can_edit = sources.folder_editable();
-    let can_submit = can_edit && !sources.busy();
+    let can_submit = sources.can_submit_folder();
     let browse = library::settings_button("Browse", surfaces)
         .on_press_maybe(can_edit.then_some(Message::AddFolder));
     let name = library::settings_input(&sources.folder_name, surfaces)
@@ -64,13 +68,23 @@ pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, 
     let location = library::settings_input(&sources.folder_location, surfaces)
         .on_input_maybe(can_edit.then_some(Message::FolderLocation))
         .on_submit_maybe(can_submit.then_some(Message::SubmitFolder));
-    column![
+    let mut form = column![
         column![text("Name").size(11).color(surfaces.muted), name].spacing(6),
         column![
             text("Location").size(11).color(surfaces.muted),
             row![location, browse].spacing(8).align_y(Alignment::Center),
         ]
         .spacing(6),
+    ]
+    .spacing(14);
+    if let Some(error) = &sources.folder_error {
+        form = form.push(
+            text(replace_embedded_breaks(error))
+                .size(12)
+                .color(error_ink),
+        );
+    }
+    form.push(
         library::settings_button(
             if sources.folder_save_pending() {
                 "Adding…"
@@ -80,8 +94,7 @@ pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, 
             surfaces,
         )
         .on_press_maybe(can_submit.then_some(Message::SubmitFolder)),
-    ]
-    .spacing(14)
+    )
     .into()
 }
 

@@ -170,6 +170,9 @@ impl Catalogue {
         entries: &[Entry],
     ) -> Result<Library, CatalogueError> {
         let files = scanned_files(entries);
+        if files.is_empty() {
+            return Err(CatalogueError::NoSupportedAudio);
+        }
         let transaction = self.database.transaction_with_behavior(Immediate)?;
         let library = insert_library(&transaction, account, path, name)?;
         reconcile(&transaction, &library.id, &files)?;

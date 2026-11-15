@@ -279,7 +279,7 @@ pub(super) fn settings<'a>(
         settings_section(
             "Library folders",
             "Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.",
-            sources::folder_form(sources, surfaces),
+            sources::folder_form(sources, surfaces, preferences.danger_ink()),
             preferences,
         ),
         sources::indexed_sources(sources, preferences, audio, dropbox),

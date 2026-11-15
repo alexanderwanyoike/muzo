@@ -374,6 +374,7 @@ pub(super) struct Sources {
     pub show_playlist_form: bool,
     pub folder_name: String,
     pub folder_location: String,
+    pub folder_error: Option<String>,
     pub choosing_folder: bool,
     adding_folder: bool,
     removing_source: bool,
@@ -411,6 +412,7 @@ impl Sources {
             show_playlist_form: false,
             folder_name: String::new(),
             folder_location: String::new(),
+            folder_error: None,
             choosing_folder: false,
             adding_folder: false,
             removing_source: false,
@@ -603,6 +605,13 @@ impl Sources {
         !self.choosing_folder && !self.folder_save_pending()
     }
 
+    pub(super) fn can_submit_folder(&self) -> bool {
+        self.folder_editable()
+            && !self.busy()
+            && !self.folder_name.trim().is_empty()
+            && !self.folder_location.trim().is_empty()
+    }
+
     pub(super) fn request_removal(&mut self, id: &str, launcher: Option<&Launcher>) {
         if self.removal.is_none()
             && let Some(source) = self
@@ -675,6 +684,9 @@ impl Sources {
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
+        if self.adding_folder {
+            self.folder_error = None;
+        }
         self.error = None;
         let selected = self
             .snapshot
@@ -736,6 +748,8 @@ impl Sources {
             Err(error) => {
                 if removing_source && let Some(removal) = &mut self.removal {
                     removal.failed(error);
+                } else if adding_folder {
+                    self.folder_error = Some(error);
                 } else if let Some(adding_track) = adding_track {
                     match self
                         .playlist_picker
