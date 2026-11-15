@@ -133,14 +133,16 @@ impl Settings {
         let breadcrumb = if path == "/" {
             "Dropbox".into()
         } else {
-            format!("Dropbox{path}")
+            let folders = path.trim_start_matches('/').replace('/', " / ");
+            format!("Dropbox / {folders}")
         };
         let mut heading = row![text(breadcrumb).size(12).width(Fill),].spacing(ACTION_GAP);
         if path != "/" {
             let (parent, _) = path.rsplit_once('/').unwrap_or(("/", ""));
             let parent = if parent.is_empty() { "/" } else { parent };
             heading = heading.push(
-                quiet_button("Up").on_press_maybe(self.command(Action::Browse(parent.into()))),
+                quiet_button("Parent folder")
+                    .on_press_maybe(self.command(Action::Browse(parent.into()))),
             );
         }
         let heading = heading.align_y(Alignment::Center);
