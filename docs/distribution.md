@@ -122,8 +122,6 @@ are retained under their original terms.
   https://github.com/electron-userland/electron-builder
 - Its documented prepackaged native formats:
   https://www.electron.build/v26/docs/cli/
-- AppImage format and execution:
-  https://github.com/electron-userland/electron-builder/blob/master/website/docs/appimage.md
 
 No third-party implementation is copied into Muzo. Existing native container and
 runtime notices remain in the standard tool-generated payload.
@@ -158,5 +156,4 @@ The Rust updater consumes the published release manifest. Release assembly
 validates both update YAML files against their installers so existing releases
 can use their established update feed to install the Rust build.
 The restart adapter spawns the retained outer AppImage during final shutdown and
-preserves launch arguments. See ADR 0010. On the first upgrade from 1.0.0, its old
-restart code may require reopening the existing AppImage after replacement.
+preserves launch arguments.
