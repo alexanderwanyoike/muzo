@@ -136,6 +136,35 @@ fn it_fills_the_playing_queue_thumbnail_with_the_centre_of_wide_artwork() {
 }
 
 #[test]
+fn it_keeps_the_mini_playback_panel_solid_with_album_artwork() {
+    let mut desktop = play_with_artwork(COVER_LONG_SIDE, COVER_SHORT_SIDE);
+    desktop.appearance.theme = "pulse".into();
+    desktop.appearance.mode = "dark".into();
+    let fill = desktop.appearance.surfaces().raised.into_rgba8();
+    let _ = desktop.update(Message::ShowMini);
+    let mini = desktop.windows.mini_id().unwrap();
+    let compact_frame = Size::new(420, MINI_FRAME.height);
+
+    let compact = paint(&desktop, mini, compact_frame);
+    let compact_pixel = (44 * compact_frame.width as usize + 28) * 4;
+    assert_eq!(
+        &compact[compact_pixel..compact_pixel + 4],
+        fill,
+        "compact panel fill"
+    );
+
+    let _ = desktop.update(Message::ToggleQueue);
+    let _ = desktop.update(Message::MiniResized(mini, Size::new(740.0, 560.0)));
+    let expanded = paint(&desktop, mini, MINI_FRAME);
+    let expanded_pixel = (44 * MINI_FRAME.width as usize + 300) * 4;
+    assert_eq!(
+        &expanded[expanded_pixel..expanded_pixel + 4],
+        fill,
+        "expanded panel fill"
+    );
+}
+
+#[test]
 fn it_fills_the_library_transport_thumbnail_with_the_centre_of_tall_artwork() {
     let desktop = play_with_artwork(COVER_SHORT_SIDE, COVER_LONG_SIDE);
     let pixels = paint(&desktop, desktop.windows.library_id(), LIBRARY_FRAME);
