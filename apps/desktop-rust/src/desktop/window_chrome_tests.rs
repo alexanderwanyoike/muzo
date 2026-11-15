@@ -35,6 +35,28 @@ fn it_draws_the_close_control_inside_both_muzo_windows() {
     }
 }
 
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn it_starts_native_resizing_from_the_edges_of_both_muzo_windows() {
+    let (mut desktop, _) = Desktop::with_session(Err(String::new()));
+    let _ = desktop.update(Message::ShowMini);
+    for (id, size) in [
+        (desktop.windows.library_id(), Size::new(1200.0, 800.0)),
+        (desktop.windows.mini_id().unwrap(), Size::new(420.0, 560.0)),
+    ] {
+        let [message]: [Message; 1] =
+            click(&desktop, id, size, Point::new(size.width - 2.0, 240.0))
+                .try_into()
+                .expect("pressing the outside edge must request a native resize");
+        let mut actions = task::into_stream(desktop.update(message)).expect("native resize action");
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Window(window::Action::DragResize(window, window::Direction::East)))
+                if window == id
+        ));
+    }
+}
+
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {
     let mut view = desktop.view(id);
     let mut tree = Tree::new(&view);
