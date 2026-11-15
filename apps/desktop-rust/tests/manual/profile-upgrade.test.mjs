@@ -124,3 +124,14 @@ test("waits for the first scan before accepting the migrated catalogue", (t) => 
   }
   assert.doesNotThrow(() => verifyProfileUpgrade(profile, baseline));
 });
+
+test("allows Chromium shutdown diagnostics while preserving its stored data", (t) => {
+  const { profile, baseline } = fixture(t);
+  writeFileSync(join(profile.leveldb, "LOG"), "Closing local storage");
+  assert.doesNotThrow(() => verifyProfileUpgrade(profile, baseline));
+  writeFileSync(join(profile.leveldb, "000004.log"), "lost preferences");
+  assert.throws(
+    () => verifyProfileUpgrade(profile, baseline),
+    /legacy.*changed/i,
+  );
+});

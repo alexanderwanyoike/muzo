@@ -191,7 +191,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          yarn exec -- node --test tests/manual/profile-upgrade.test.mjs
+          yarn node --test tests/manual/profile-upgrade.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
           Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
@@ -226,6 +226,52 @@ jobs:
             apps/desktop-rust/out/rust-distribution/Muzo-*.dmg
             apps/desktop-rust/out/rust-distribution/latest*.yml
           if-no-files-found: error
+
+  windows-in-app-upgrade:
+    needs: context
+    if: github.ref_type != 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: rustup toolchain install 1.95 --profile minimal
+      - name: Build a successor to the published Electron app
+        shell: pwsh
+        env:
+          RUSTUP_TOOLCHAIN: "1.95"
+        run: |
+          yarn node --test apps/desktop-rust/tests/manual/windows-updater-fixture-version.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-updater-fixture-version.mjs '0.0.6'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn desktop:package --target windows-x64 --output update-fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Download and Restart in the installed Electron app
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne '0a21cc92b92f39a0f8ee406284eb434ec45ab2ad3565cb648d69e356e31e53dc') {
+            throw 'The legacy installer checksum changed.'
+          }
+          $candidate = Get-ChildItem update-fixture -Filter '*-setup.exe' | Select-Object -First 1
+          $install = Join-Path $env:RUNNER_TEMP 'muzo-in-app-upgrade'
+          $setup = Start-Process -FilePath $legacy -ArgumentList '/S', "/D=$install" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Legacy installer exited with code $($setup.ExitCode)" }
+          yarn node --test apps/desktop-rust/tests/manual/legacy-update-feed.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-in-app-upgrade.mjs `
+            (Join-Path $install 'muzo.exe') $candidate.FullName (Join-Path $candidate.DirectoryName 'latest.yml') `
+            (Join-Path $env:RUNNER_TEMP 'muzo-updater-profile')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   assemble:
     needs: [context, package]
