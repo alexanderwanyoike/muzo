@@ -29,7 +29,10 @@ function readCatalogue(path) {
     return Object.fromEntries(
       Object.entries(queries).map(([table, query]) => [
         table,
-        database.prepare(query).all(),
+        database
+          .prepare(query)
+          .all()
+          .map((row) => ({ ...row })),
       ]),
     );
   } finally {
