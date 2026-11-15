@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
@@ -35,6 +35,24 @@ fn desktop_with_sources() -> Desktop {
     desktop.sidebar.set(SidebarWidth::new(312.0));
     desktop.sidebar.layout_width(FRAME.width as f32);
     desktop
+}
+
+fn desktop_with_two_indexed_sources(root: &Path, track: Option<&Path>) -> (Desktop, String) {
+    let paths = CataloguePaths::in_directory(root);
+    let first = root.join("Harbour Rehearsals");
+    let second = root.join("Holloway Sessions");
+    std::fs::create_dir(&first).unwrap();
+    std::fs::create_dir(&second).unwrap();
+    if let Some(track) = track {
+        std::fs::copy(track, second.join("Recording.mp3")).unwrap();
+    }
+    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
+    let mut catalogue = run(&paths, Operation::Add(second)).unwrap();
+    let target = catalogue.selected.replace(previous.unwrap()).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(catalogue);
+    (desktop, target)
 }
 
 #[test]
@@ -201,17 +219,7 @@ fn it_clears_the_selected_source_while_the_catalogue_is_loading() {
 #[test]
 fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
     let directory = tempfile::tempdir().unwrap();
-    let paths = CataloguePaths::in_directory(directory.path());
-    let first = directory.path().join("Harbour Rehearsals");
-    let second = directory.path().join("Holloway Sessions");
-    std::fs::create_dir(&first).unwrap();
-    std::fs::create_dir(&second).unwrap();
-    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
-    let mut snapshot = run(&paths, Operation::Add(second)).unwrap();
-    let target = snapshot.selected.replace(previous.unwrap()).unwrap();
-    let mut desktop = desktop_with_sources();
-    desktop.sources = Sources::new(Some(paths));
-    desktop.sources.snapshot = Some(snapshot);
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), None);
     let reload = desktop.update(Message::SourceOperation(Operation::Reload));
 
     for expected in [Some(target.as_str()), None] {
@@ -254,19 +262,8 @@ fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
 #[test]
 fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
     let directory = tempfile::tempdir().unwrap();
-    let paths = CataloguePaths::in_directory(directory.path());
-    let first = directory.path().join("Harbour Rehearsals");
-    let second = directory.path().join("Holloway Sessions");
-    std::fs::create_dir(&first).unwrap();
-    std::fs::create_dir(&second).unwrap();
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
-    std::fs::copy(fixture, second.join("Recording.mp3")).unwrap();
-    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
-    let mut catalogue = run(&paths, Operation::Add(second)).unwrap();
-    let target = catalogue.selected.replace(previous.unwrap()).unwrap();
-    let mut desktop = desktop_with_sources();
-    desktop.sources = Sources::new(Some(paths));
-    desktop.sources.snapshot = Some(catalogue);
+    let track = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), Some(&track));
     let reload = desktop.update(Message::SourceOperation(Operation::Reload));
     assert!(reload.units() > 0);
     let [choice]: [Message; 1] = click(
@@ -322,7 +319,12 @@ fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
 
     let snapshot = desktop.sources.snapshot.as_ref().unwrap();
     assert_eq!(snapshot.selected.as_ref(), Some(&target));
-    assert_eq!(snapshot.tracks.len(), 1);
+    assert_eq!(
+        snapshot.tracks.len(),
+        1,
+        "the selected source was not read: {:?}",
+        desktop.sources.source_tracks_error
+    );
     assert!(!labels(&desktop).contains_key("Loading tracks..."));
 }
 
