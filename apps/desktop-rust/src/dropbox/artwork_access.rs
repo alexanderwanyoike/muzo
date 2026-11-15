@@ -6,16 +6,14 @@ use std::{
 
 use crate::{
     catalogue::Catalogue,
-    dropbox::{Client, DropboxError},
+    dropbox::{Client, Credentials, DropboxError},
 };
-
-use super::super::dropbox_panel::account_credentials;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const TOKEN_EXPIRY_MARGIN: u64 = 30;
 
 #[derive(Default)]
-pub(super) struct Remote(Mutex<Authorizations>);
+pub(crate) struct ArtworkAccess(Mutex<Authorizations>);
 
 #[derive(Default)]
 struct Authorizations {
@@ -29,8 +27,8 @@ struct Access {
     expires: Instant,
 }
 
-impl Remote {
-    pub(super) fn read(
+impl ArtworkAccess {
+    pub(crate) fn read(
         &self,
         catalogue: &Catalogue,
         library: &str,
@@ -62,7 +60,7 @@ impl Remote {
         {
             return Ok((client, Arc::clone(&access.token)));
         }
-        let (key, refresh) = account_credentials(catalogue, account)?;
+        let (key, refresh) = Credentials::account(catalogue, account)?;
         let token = client.refresh(&key, &refresh)?;
         let expires = Instant::now()
             + Duration::from_secs(token.expires_in.saturating_sub(TOKEN_EXPIRY_MARGIN));

@@ -677,7 +677,7 @@ fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), 
         },
         other => RefreshError::Failed(other.to_string()),
     };
-    let (key, refresh) = account_credentials(&catalogue, &account).map_err(remote_error)?;
+    let (key, refresh) = Credentials::account(&catalogue, &account).map_err(remote_error)?;
     let client = Client::new().map_err(remote_error)?;
     let token = client.refresh(&key, &refresh).map_err(remote_error)?;
     let entries = list_library(&client, &token.access_token, &library).map_err(remote_error)?;
@@ -685,24 +685,12 @@ fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), 
     Ok((library.name, tracks))
 }
 
-pub(super) fn account_credentials(
-    catalogue: &Catalogue,
-    account: &str,
-) -> Result<(String, String), DropboxError> {
-    let key = catalogue
-        .dropbox_client(account)?
-        .ok_or(DropboxError::Reconnect)?;
-    let refresh =
-        Credentials::read_or_migrate(catalogue, account)?.ok_or(DropboxError::Reconnect)?;
-    Ok((key, refresh))
-}
-
 pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
     let catalogue: Catalogue = paths.open()?;
     let account = catalogue
         .dropbox_account_for(library)?
         .ok_or(DropboxError::Reconnect)?;
-    let (client_id, refresh) = account_credentials(&catalogue, &account)?;
+    let (client_id, refresh) = Credentials::account(&catalogue, &account)?;
     let client = Client::new()?;
     let token = client.refresh(&client_id, &refresh)?;
     Ok(cache::download(

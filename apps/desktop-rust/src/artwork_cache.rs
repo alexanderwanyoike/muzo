@@ -9,6 +9,10 @@ use std::{
 use image::{DynamicImage, ImageFormat, ImageReader, Limits};
 use sha2::{Digest, Sha256};
 
+mod source;
+
+pub(crate) use source::{ReadFailure, load_indexed};
+
 const BUDGET_BYTES: u64 = 128 * 1024 * 1024;
 const BUDGET_ENTRIES: usize = 4_096;
 const COVER_EDGE: u32 = 384;

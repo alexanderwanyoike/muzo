@@ -5,16 +5,18 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::{
+    artwork_cache::{ArtworkCache, ReadFailure, load_indexed},
+    catalogue::IndexedTrack,
+    dropbox::ArtworkAccess,
+};
 use iced::{
     Task,
     widget::{image::Handle, scrollable::Viewport},
 };
-use lofty::{config::ParseOptions, probe::Probe};
-
-use crate::{artwork_cache::ArtworkCache, catalogue::IndexedTrack, local_track::embedded_cover};
 
 use super::super::{CataloguePaths, LibraryPage, Message, Snapshot};
-use super::{ROW_LIMIT, remote::Remote, row_handle};
+use super::{ROW_LIMIT, row_handle};
 
 const CONCURRENT_READS: usize = 2;
 const DEFAULT_ROWS: Range<usize> = 0..16;
@@ -27,7 +29,7 @@ pub(in crate::desktop) struct Loader {
     visible: Option<(LibraryPage, Range<usize>)>,
     pending: HashSet<(u64, String)>,
     attempted: HashMap<String, Option<Instant>>,
-    remote: Arc<Remote>,
+    remote: Arc<ArtworkAccess>,
 }
 
 #[derive(Debug, Clone)]
@@ -35,14 +37,6 @@ pub struct Complete {
     generation: u64,
     id: String,
     cover: Result<Option<Handle>, ReadFailure>,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ReadFailure {
-    Catalogue,
-    File,
-    Dropbox,
-    Worker,
 }
 
 pub(in crate::desktop) fn viewport_rows(
@@ -198,28 +192,17 @@ impl Loader {
 
 fn load(
     paths: &CataloguePaths,
-    reader: &Remote,
+    reader: &ArtworkAccess,
     track: &IndexedTrack,
     remote: bool,
 ) -> Result<Option<Handle>, ReadFailure> {
     let catalogue = paths.open().map_err(|_| ReadFailure::Catalogue)?;
-    let revision = catalogue
-        .artwork_revision(&track.library_id, &track.id)
-        .map_err(|_| ReadFailure::Catalogue)?;
-    let cache = ArtworkCache::new(paths.artwork_cache());
-    let bytes = cache.get_or_try_read(&revision, || {
-        if remote {
-            return reader
-                .read(&catalogue, &track.library_id, &track.path.to_string_lossy())
-                .map_err(|_| ReadFailure::Dropbox);
-        }
-        let file = Probe::open(&track.path)
-            .map_err(|_| ReadFailure::File)?
-            .options(ParseOptions::new().read_properties(false))
-            .read()
-            .map_err(|_| ReadFailure::File)?;
-        Ok(embedded_cover(&file).map(|picture| picture.data().to_vec()))
-    })?;
+    let bytes = load_indexed(
+        &ArtworkCache::new(paths.artwork_cache()),
+        &catalogue,
+        track,
+        remote.then_some(reader),
+    )?;
     Ok(bytes.as_deref().and_then(row_handle))
 }
 

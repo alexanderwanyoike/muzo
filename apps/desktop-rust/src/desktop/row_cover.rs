@@ -12,7 +12,6 @@ use crate::{
 use super::{Snapshot, cover::centered_square};
 
 mod loader;
-mod remote;
 
 pub(super) use loader::{Complete, Loader, viewport_rows};
 

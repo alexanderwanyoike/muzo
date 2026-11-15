@@ -22,7 +22,7 @@ fn it_loads_an_unplayed_local_cover_after_delivering_the_source_rows() {
     assert!(snapshot.covers.is_empty());
     let track = &snapshot.tracks[0];
 
-    let cover = load(&paths, &Remote::default(), track, false).unwrap();
+    let cover = load(&paths, &ArtworkAccess::default(), track, false).unwrap();
     assert!(cover.is_some());
     assert!(paths.artwork_cache().exists());
     assert_eq!(track.plays, 0);

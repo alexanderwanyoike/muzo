@@ -1,5 +1,6 @@
 mod api;
 mod artwork;
+mod artwork_access;
 pub mod cache;
 mod credentials;
 mod legacy_credentials;
@@ -10,6 +11,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub use api::{Client, Entry, Token};
+pub(crate) use artwork_access::ArtworkAccess;
 pub use credentials::Credentials;
 
 #[derive(Debug, thiserror::Error)]
