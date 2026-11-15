@@ -50,7 +50,7 @@ it("runs the root native installer command for every release target", () => {
   const packageJob = nested(native, "jobs", "package");
   const targets = nested(packageJob, "strategy", "matrix", "include");
   expect(targets).toEqual([
-    { os: "ubuntu-24.04", label: "linux-x64" },
+    { os: "ubuntu-22.04", label: "linux-x64" },
     { os: "windows-latest", label: "windows-x64" },
     { os: "macos-15", label: "macos-arm64", macho: "arm64" },
     { os: "macos-15-intel", label: "macos-x64", macho: "x86_64" },
@@ -67,6 +67,24 @@ it("runs the root native installer command for every release target", () => {
   expect(nested(buildStep, "env", "RUSTUP_TOOLCHAIN")).toBe("1.95");
   expect(JSON.stringify(steps)).not.toContain("hdiutil create");
   expect(JSON.stringify(steps)).not.toContain("--prepackaged");
+});
+
+it("starts the packaged AppImage on the Linux upgrade baseline", () => {
+  const native = workflow("desktop-rust-distribution.yml");
+  const configured = nested(native, "jobs", "package", "steps");
+  expect(Array.isArray(configured)).toBe(true);
+  const steps = configured as unknown[];
+  const build = steps.find(
+    (step) => nested(step, "name") === "Build the native installer",
+  );
+  const smoke = steps.find(
+    (step) => nested(step, "name") === "Verify Linux AppImage",
+  );
+  expect(steps.indexOf(smoke)).toBeGreaterThan(steps.indexOf(build));
+  expect(nested(smoke, "if")).toBe("runner.os == 'Linux'");
+  expect(nested(smoke, "run")).toMatch(
+    /xvfb-run -a dbus-run-session -- bash tests\/manual\/linux-appimage-start\.sh/u,
+  );
 });
 
 it("exercises the packaged macOS mini player and retains screenshots for both architectures", () => {
