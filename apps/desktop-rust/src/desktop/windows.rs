@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use iced::{Size, Task, window};
 
-use window::raw_window_handle::RawWindowHandle;
+use window::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
 use super::Message;
 
@@ -15,6 +15,7 @@ const QUEUE_MIN_WIDTH: f32 = 280.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LibraryVisibility {
+    Unknown,
     KeepMapped,
     MinimizeAndRestore,
 }
@@ -78,6 +79,7 @@ pub struct Windows {
     resize_generation: u64,
     mini_size: Size,
     library_visibility: LibraryVisibility,
+    library_geometry: Option<(Size, bool)>,
 }
 
 impl Windows {
@@ -91,9 +93,14 @@ impl Windows {
                 queue_resize: None,
                 resize_generation: 0,
                 mini_size: MINI_SIZE,
-                library_visibility: LibraryVisibility::KeepMapped,
+                library_visibility: LibraryVisibility::Unknown,
+                library_geometry: None,
             },
-            open.discard(),
+            open.then(|id| {
+                window::run(id, move |handle| {
+                    Message::LibraryVisibilityKnown(id, is_wayland(handle))
+                })
+            }),
         )
     }
 
@@ -102,7 +109,7 @@ impl Windows {
     }
 
     pub(super) fn is_library(&self, id: window::Id) -> bool {
-        self.library == id
+        self.library == id && !self.is_mini(id)
     }
 
     pub(super) fn library_id(&self) -> window::Id {
@@ -128,12 +135,46 @@ impl Windows {
         if self.mini.is_some() {
             return Task::none();
         }
-        let (id, open) = window::open(settings(MINI_SIZE, MINI_MIN));
         self.mini_size = MINI_SIZE;
-        self.mini = Some(id);
         self.queue_open = false;
         self.queue_resize = None;
+        if self.library_visibility == LibraryVisibility::KeepMapped {
+            return self.reuse_library_window();
+        }
+        let (id, open) = window::open(settings(MINI_SIZE, MINI_MIN));
+        self.mini = Some(id);
         open.map(Message::MiniOpened)
+    }
+
+    pub fn library_visibility_known(&mut self, id: window::Id, wayland: bool) {
+        if id == self.library && self.mini.is_none() {
+            self.library_visibility = LibraryVisibility::for_wayland(wayland);
+        }
+    }
+
+    fn reuse_library_window(&mut self) -> Task<Message> {
+        // Wayland cannot restore a minimized window. Switch the existing window in place.
+        let id = self.library;
+        self.mini = Some(id);
+        window::size(id).then(move |size| {
+            window::is_maximized(id)
+                .map(move |maximized| Message::InPlaceMiniPrepared(id, size, maximized))
+        })
+    }
+
+    pub fn prepare_in_place_mini(
+        &mut self,
+        id: window::Id,
+        size: Size,
+        maximized: bool,
+    ) -> Task<Message> {
+        if id != self.library || !self.is_mini(id) {
+            return Task::none();
+        }
+        self.library_geometry = Some((size, maximized));
+        window::maximize(id, false)
+            .chain(window::set_min_size(id, Some(MINI_MIN)))
+            .chain(window::resize(id, MINI_SIZE))
     }
 
     pub fn mini_opened(&self, id: window::Id) -> Task<Message> {
@@ -141,10 +182,7 @@ impl Windows {
             return Task::none();
         }
         window::run(self.library, move |handle| {
-            let wayland = handle
-                .window_handle()
-                .is_ok_and(|handle| matches!(handle.as_raw(), RawWindowHandle::Wayland(_)));
-            Message::LibraryVisibilityChecked(id, wayland)
+            Message::LibraryVisibilityChecked(id, is_wayland(handle))
         })
     }
 
@@ -153,9 +191,11 @@ impl Windows {
             return Task::none();
         }
         self.library_visibility = LibraryVisibility::for_wayland(wayland);
-        match self.library_visibility {
-            LibraryVisibility::KeepMapped => Task::none(),
-            LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, true),
+        if wayland {
+            let compact = self.reuse_library_window();
+            Task::batch([window::close(id), compact])
+        } else {
+            window::minimize(self.library, true)
         }
     }
 
@@ -163,8 +203,18 @@ impl Windows {
         self.mini.take().map_or_else(Task::none, |id| {
             self.queue_open = false;
             self.queue_resize = None;
+            if id == self.library {
+                return self.library_geometry.take().map_or_else(
+                    Task::none,
+                    |(size, maximized)| {
+                        window::set_min_size(id, Some(LIBRARY_MIN))
+                            .chain(window::resize(id, size))
+                            .chain(window::maximize(id, maximized))
+                    },
+                );
+            }
             let restore = match self.library_visibility {
-                LibraryVisibility::KeepMapped => Task::none(),
+                LibraryVisibility::Unknown | LibraryVisibility::KeepMapped => Task::none(),
                 LibraryVisibility::MinimizeAndRestore => window::minimize(self.library, false),
             };
             restore
@@ -245,6 +295,12 @@ impl Windows {
             iced::exit()
         }
     }
+}
+
+fn is_wayland(handle: &dyn HasWindowHandle) -> bool {
+    handle
+        .window_handle()
+        .is_ok_and(|handle| matches!(handle.as_raw(), RawWindowHandle::Wayland(_)))
 }
 
 fn queue_bounds(base: Size, expanded: bool, queue_width: f32) -> Size {

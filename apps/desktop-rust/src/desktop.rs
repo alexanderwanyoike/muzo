@@ -128,7 +128,9 @@ pub enum Message {
     ShowMini,
     ToggleMini(window::Id),
     MiniOpened(window::Id),
+    LibraryVisibilityKnown(window::Id, bool),
     LibraryVisibilityChecked(window::Id, bool),
+    InPlaceMiniPrepared(window::Id, iced::Size, bool),
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
@@ -1059,8 +1061,15 @@ impl Desktop {
                 }
             }
             Message::MiniOpened(id) => self.windows.mini_opened(id),
+            Message::LibraryVisibilityKnown(id, wayland) => {
+                self.windows.library_visibility_known(id, wayland);
+                Task::none()
+            }
             Message::LibraryVisibilityChecked(id, wayland) => {
                 self.windows.library_visibility_checked(id, wayland)
+            }
+            Message::InPlaceMiniPrepared(id, size, maximized) => {
+                self.windows.prepare_in_place_mini(id, size, maximized)
             }
             Message::EscapePressed(id) => {
                 if self.windows.is_library(id)
