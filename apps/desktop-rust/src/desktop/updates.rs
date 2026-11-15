@@ -257,6 +257,10 @@ mod tests {
             },
         };
 
+        const HORIZONTAL_SAMPLE_INSET: usize = 9;
+        const BORDER_SAMPLE_INSET: usize = 2;
+        const GLYPH_CONTRAST: u8 = 65;
+        const VERTICAL_TOLERANCE: usize = 2;
         let appearance = crate::appearance::Appearance::default();
         let surfaces = appearance.surfaces();
         let theme = appearance.theme();
@@ -285,17 +289,21 @@ mod tests {
                 .chunks_exact(stride)
                 .enumerate()
                 .filter(|(_, row)| {
-                    row[9 * 4..stride - 9 * 4]
+                    row[HORIZONTAL_SAMPLE_INSET * 4..stride - HORIZONTAL_SAMPLE_INSET * 4]
                         .chunks_exact(4)
-                        .any(|pixel| pixel[0].abs_diff(surfaces.raised.into_rgba8()[0]) > 65)
+                        .any(|pixel| {
+                            pixel[0].abs_diff(surfaces.raised.into_rgba8()[0]) > GLYPH_CONTRAST
+                        })
                 })
                 .map(|(y, _)| y)
-                .filter(|y| (2..size.height as usize - 2).contains(y))
+                .filter(|y| {
+                    (BORDER_SAMPLE_INSET..size.height as usize - BORDER_SAMPLE_INSET).contains(y)
+                })
                 .collect();
             let top = *ink.first().expect("rendered status label");
             let bottom = size.height as usize - 1 - ink.last().unwrap();
             assert!(
-                top.abs_diff(bottom) <= 2,
+                top.abs_diff(bottom) <= VERTICAL_TOLERANCE,
                 "{label} has {top} px above its glyphs and {bottom} px below"
             );
         }

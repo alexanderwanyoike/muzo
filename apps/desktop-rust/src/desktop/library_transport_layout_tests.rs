@@ -242,7 +242,7 @@ fn it_abbreviates_now_playing_labels_inside_the_original_display_column() {
 }
 
 #[test]
-fn it_draws_the_original_glowing_play_control_when_a_track_is_available() {
+fn it_keeps_a_soft_glow_around_the_play_control_when_a_track_is_available() {
     const SIZE: Size<u32> = Size::new(850, 800);
     const CYAN: [u8; 4] = [0, 217, 237, 255];
     let (mut desktop, _) = setup();
@@ -273,10 +273,14 @@ fn it_draws_the_original_glowing_play_control_when_a_track_is_available() {
             "active control needs the accent fill"
         );
         const EDGE_SAMPLE: (usize, usize) = (70, 40);
+        const MIN_HALO_BOOST: u8 = 4;
         const MAX_HALO_BOOST: u8 = 22;
         let (x, y) = EDGE_SAMPLE;
         let halo = pixel(frame, x, y)[1].saturating_sub(pixel(&idle, x, y)[1]);
-        assert!(halo > 4, "the halo should extend just beyond the button");
+        assert!(
+            halo > MIN_HALO_BOOST,
+            "the halo should extend just beyond the button"
+        );
         assert!(
             halo <= MAX_HALO_BOOST,
             "the halo competes with the glyph: {halo}"
