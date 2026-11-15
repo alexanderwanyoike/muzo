@@ -62,7 +62,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          # Build against the same glibc baseline as the previous AppImage.
+          - os: ubuntu-22.04
             label: linux-x64
           - os: windows-latest
             label: windows-x64
@@ -91,7 +92,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libfuse2t64 file
+          sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libfuse2 file xvfb xauth xdotool dbus
       - run: rustup toolchain install 1.95 --profile minimal
       - name: Install Cargo Packager
         if: runner.os != 'Windows'
@@ -114,6 +115,7 @@ jobs:
           out/rust-distribution/*.AppImage --appimage-extract >/dev/null
           test -f squashfs-root/AppRun
           find squashfs-root -name muzo-desktop -type f | grep .
+          xvfb-run -a dbus-run-session -- bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
       - name: Verify macOS disk image
         if: runner.os == 'macOS'
         id: macos-mini
