@@ -97,6 +97,21 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
     }
 }
 
+#[test]
+fn it_uses_a_cloud_glyph_for_dropbox_sources() {
+    let mut desktop = desktop_with_sources();
+    let id = desktop.windows.library_id();
+    let cloud = paint(&desktop, id, FRAME);
+    desktop.sources.snapshot.as_mut().unwrap().libraries[0].kind = "filesystem".into();
+    let folder = paint(&desktop, id, FRAME);
+
+    assert!((372..388).any(|y| {
+        let row = y * FRAME.width as usize * 4;
+        let glyph = row + 17 * 4..row + 34 * 4;
+        cloud[glyph.clone()] != folder[glyph]
+    }));
+}
+
 fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
     let mut view = desktop.view(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
