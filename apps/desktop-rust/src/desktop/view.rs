@@ -23,6 +23,7 @@ mod source_search_input;
 mod sources;
 mod track_metadata;
 mod track_playlist;
+mod track_row;
 
 use super::{Message, library_sources::Sources};
 

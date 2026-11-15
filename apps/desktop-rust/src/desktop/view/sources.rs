@@ -17,9 +17,12 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, control_opacity, ellipsized_label::EllipsizedLabel,
-    icon_button, icon_tinted, label_text::replace_embedded_breaks, library, panel, track_metadata,
-    track_playlist,
+    Icon, action, bold, clock, compact, control_opacity,
+    ellipsized_label::EllipsizedLabel,
+    icon_button, icon_tinted,
+    label_text::replace_embedded_breaks,
+    library, panel, track_metadata, track_playlist,
+    track_row::{Colors as TrackRowColors, TrackRow},
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -560,11 +563,11 @@ pub fn tracks<'a>(
     const ARTWORK_EDGE: f32 = 38.0;
     const LIST_TOP_INSET: f32 = 8.0;
     const LIST_BOTTOM_INSET: f32 = 30.0;
-    const STRIPE_OPACITY: f32 = 0.02;
     const DIVIDER_OPACITY: f32 = 0.5;
     const TABLE_TEXT: Font = Font::with_name("Muzo Table Text");
     let surfaces = appearance.surfaces();
     let accent_ink = appearance.accent_ink();
+    let row_colors = TrackRowColors::for_appearance(appearance);
     let metrics = TrackRowMetrics::for_viewport(viewport_width);
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
@@ -700,20 +703,12 @@ pub fn tracks<'a>(
             ));
         }
         column![
-            container(content)
-                .width(Fill)
-                .padding([0.0, metrics.inset])
-                .style(move |theme: &Theme| {
-                    let base = theme.palette().background;
-                    let background = if active {
-                        compact::tint(base, theme.palette().primary, 0.09)
-                    } else if index % 2 == 1 {
-                        compact::tint(base, theme.palette().text, STRIPE_OPACITY)
-                    } else {
-                        base
-                    };
-                    container::Style::default().background(background)
-                }),
+            Element::new(TrackRow::new(
+                container(content).width(Fill).padding([0.0, metrics.inset]),
+                row_colors,
+                active,
+                index % 2 == 1,
+            )),
             library::line(Surfaces {
                 line: surfaces.line.scale_alpha(DIVIDER_OPACITY),
                 ..surfaces
