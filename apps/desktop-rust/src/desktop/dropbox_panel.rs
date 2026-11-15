@@ -620,6 +620,22 @@ mod tests {
     }
 
     #[test]
+    fn it_wraps_a_long_folder_name_beside_the_parent_folder_action() {
+        let mut settings = Settings::default();
+        let name = "M".repeat(100);
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = format!("/Music/{name}");
+
+        let labels = rendered_labels(&settings, 318.0);
+        let breadcrumb = labels.0.get(&format!("Dropbox / Music / {name}")).unwrap();
+        let parent = labels.0.get("Parent folder").unwrap();
+        assert!(
+            breadcrumb.height > 3.0 * parent.height,
+            "the unbroken folder name should wrap into the available width"
+        );
+    }
+
+    #[test]
     fn it_shows_all_selected_paths_next_to_the_dropbox_add_action() {
         let mut settings = Settings::default();
         settings.snapshot.account = Some("fixture".into());
