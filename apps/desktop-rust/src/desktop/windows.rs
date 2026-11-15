@@ -477,7 +477,14 @@ mod tests {
         windows.library_visibility_known(id, true);
         let _ = windows.show_mini();
         let size = iced::Size::new(1050.0, 750.0);
-        let _ = windows.open_wayland_mini(id, size, true);
+        let _ = windows.open_wayland_mini(id, size, false);
+        let _ = windows.mini_opened(windows.mini_id().unwrap());
+        let _ = windows.show_library();
+
+        let library = windows.library_id();
+        let _ = windows.mini_opened(library);
+        let _ = windows.show_mini();
+        let _ = windows.open_wayland_mini(library, iced::Size::new(1440.0, 900.0), true);
         let mini = windows.mini_id().unwrap();
         let _ = windows.mini_opened(mini);
 
