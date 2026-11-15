@@ -10,10 +10,14 @@ use iced::{
 use super::{Desktop, Message, input_message_for_platform, queue_tests::setup};
 
 fn press(key: &str, modifiers: Modifiers, macos: bool, mini: window::Id) -> Option<Message> {
-    let key = Key::Character(key.into());
+    let modified_key = if modifiers.shift() {
+        Key::Character(key.to_ascii_uppercase().into())
+    } else {
+        Key::Character(key.into())
+    };
     let shortcut = Event::Keyboard(keyboard::Event::KeyPressed {
-        key: key.clone(),
-        modified_key: key,
+        key: Key::Character(key.into()),
+        modified_key,
         physical_key: Physical::Unidentified(NativeCode::Unidentified),
         location: Location::Standard,
         modifiers,
