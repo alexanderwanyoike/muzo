@@ -768,6 +768,53 @@ mod tests {
     }
 
     #[test]
+    fn it_keeps_the_newer_settings_focus_when_a_folder_request_finishes() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+        let root = tempfile::tempdir().unwrap();
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        desktop.sources = crate::desktop::library_sources::Sources::new(Some(
+            CataloguePaths::in_directory(root.path()),
+        ));
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        let _ = desktop.update(Message::Dropbox(Action::Browse("/Music/Records".into())));
+        desktop.appearance_focus = Some(Choice::Divider);
+        let next = Snapshot {
+            path: "/Music/Records".into(),
+            ..desktop.dropbox.snapshot.clone()
+        };
+
+        let _ = desktop.update(Message::DropboxReady(Ok(next)));
+
+        assert_eq!(desktop.appearance_focus, Some(Choice::Divider));
+    }
+
+    #[test]
+    fn it_returns_focus_to_the_folder_button_when_browsing_fails() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+        let root = tempfile::tempdir().unwrap();
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        desktop.sources = crate::desktop::library_sources::Sources::new(Some(
+            CataloguePaths::in_directory(root.path()),
+        ));
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.dropbox.snapshot.folders = vec![("/Music/Records".into(), "Records".into())];
+        let _ = desktop.update(Message::Dropbox(Action::Browse("/Music/Records".into())));
+
+        let _ = desktop.update(Message::DropboxReady(Err("Offline".into())));
+
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::OpenFolder(
+                "/Music/Records".into()
+            )))
+        );
+    }
+
+    #[test]
     fn it_tabs_from_the_dropbox_field_focused_by_the_pointer() {
         use iced::{
             advanced::widget::operation::{Outcome, focusable},
