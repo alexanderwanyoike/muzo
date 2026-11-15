@@ -166,6 +166,18 @@ jobs:
         with:
           name: muzo-macos-mini-${{ matrix.label }}
           path: ${{ runner.temp }}/muzo-macos-mini-screenshots/*.png
+      - name: Verify an installed macOS profile upgrade
+        if: runner.os == 'macOS'
+        timeout-minutes: 4
+        shell: bash
+        env:
+          MUZO_LEGACY_TARGET: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          candidate=(out/rust-distribution/*.dmg)
+          test "${#candidate[@]}" -eq 1
+          root=$(mktemp -d "$RUNNER_TEMP/muzo-macos-profile.XXXXXXXX")
+          bash tests/manual/macos-upgrade.sh "$MUZO_LEGACY_TARGET" "${candidate[0]}" "$root/profile-fixture"
       - name: Verify Windows installer container
         if: runner.os == 'Windows'
         shell: pwsh

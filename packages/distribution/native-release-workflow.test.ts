@@ -144,3 +144,25 @@ it("exercises the packaged macOS mini player and retains screenshots for both ar
   );
   expect(nested(smoke, "timeout-minutes")).toBe(3);
 });
+
+it("passes the existing Mac target to the installed profile check", () => {
+  const native = workflow("desktop-rust-distribution.yml");
+  const configured = nested(native, "jobs", "package", "steps");
+  expect(Array.isArray(configured)).toBe(true);
+  const steps = configured as unknown[];
+  const build = steps.find(
+    (step) => nested(step, "name") === "Build the native installer",
+  );
+  const upgrade = steps.find(
+    (step) =>
+      nested(step, "name") === "Verify an installed macOS profile upgrade",
+  );
+  expect(steps.indexOf(upgrade)).toBeGreaterThan(steps.indexOf(build));
+  expect(nested(upgrade, "if")).toBe("runner.os == 'macOS'");
+  expect(nested(upgrade, "env", "MUZO_LEGACY_TARGET")).toBe(
+    `\${{ matrix.label }}`,
+  );
+  expect(nested(upgrade, "run")).toContain(
+    'bash tests/manual/macos-upgrade.sh "$MUZO_LEGACY_TARGET"',
+  );
+});
