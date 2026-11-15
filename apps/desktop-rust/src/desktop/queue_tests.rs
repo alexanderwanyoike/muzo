@@ -427,6 +427,32 @@ fn it_saves_a_successful_play_before_the_next_background_poll() {
 }
 
 #[test]
+fn it_schedules_dropbox_playback_without_waiting_for_catalogue_reads() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    drop(paths.open().unwrap());
+    let database = rusqlite::Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database
+        .execute_batch("PRAGMA journal_mode = DELETE; BEGIN EXCLUSIVE")
+        .unwrap();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths));
+    let track = Track::new(PathBuf::new(), "Remote fixture".into(), None, None, None)
+        .with_indexed_id("track".into())
+        .with_library("library".into())
+        .with_remote("library".into(), "/Music/Track.mp3".into());
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+
+    let start = std::time::Instant::now();
+    let _ = desktop.update(Message::Select(0));
+
+    assert!(
+        start.elapsed() < Duration::from_secs(1),
+        "selecting remote audio should not block on a locked catalogue"
+    );
+}
+
+#[test]
 fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
     let root = tempfile::tempdir().unwrap();
     let paths = CataloguePaths::in_directory(root.path());
