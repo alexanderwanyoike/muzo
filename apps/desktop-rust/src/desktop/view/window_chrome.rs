@@ -12,6 +12,107 @@ pub(in crate::desktop) const LIBRARY_TITLE_HEIGHT: u32 = 40;
 pub(super) const MINI_TITLE_HEIGHT: u32 = 50;
 const CAPTION_WIDTH: u32 = 32;
 
+#[cfg(not(target_os = "macos"))]
+pub(in crate::desktop) fn resize_edges(
+    id: window::Id,
+    content: Element<'_, Message>,
+) -> Element<'_, Message> {
+    use iced::{
+        Length::Fixed,
+        alignment::{Horizontal, Vertical},
+        mouse::Interaction,
+        widget::stack,
+        window::Direction,
+    };
+
+    const EDGE: iced::Length = Fixed(5.0);
+    let grip = |direction, horizontal, vertical, width, height, cursor| {
+        container(
+            mouse_area(Space::new().width(width).height(height))
+                .on_press(Message::ResizeWindow(id, direction))
+                .interaction(cursor),
+        )
+        .align_x(horizontal)
+        .align_y(vertical)
+        .width(Fill)
+        .height(Fill)
+    };
+    use Horizontal::{Center as Middle, Left, Right};
+    use Interaction::{
+        ResizingDiagonallyDown, ResizingDiagonallyUp, ResizingHorizontally, ResizingVertically,
+    };
+    use Vertical::{Bottom, Center, Top};
+    let fill = iced::Length::Fill;
+    stack![
+        content,
+        grip(
+            Direction::West,
+            Left,
+            Center,
+            EDGE,
+            fill,
+            ResizingHorizontally
+        ),
+        grip(
+            Direction::East,
+            Right,
+            Center,
+            EDGE,
+            fill,
+            ResizingHorizontally
+        ),
+        grip(
+            Direction::North,
+            Middle,
+            Top,
+            fill,
+            EDGE,
+            ResizingVertically
+        ),
+        grip(
+            Direction::South,
+            Middle,
+            Bottom,
+            fill,
+            EDGE,
+            ResizingVertically
+        ),
+        grip(
+            Direction::NorthWest,
+            Left,
+            Top,
+            EDGE,
+            EDGE,
+            ResizingDiagonallyDown
+        ),
+        grip(
+            Direction::NorthEast,
+            Right,
+            Top,
+            EDGE,
+            EDGE,
+            ResizingDiagonallyUp
+        ),
+        grip(
+            Direction::SouthWest,
+            Left,
+            Bottom,
+            EDGE,
+            EDGE,
+            ResizingDiagonallyUp
+        ),
+        grip(
+            Direction::SouthEast,
+            Right,
+            Bottom,
+            EDGE,
+            EDGE,
+            ResizingDiagonallyDown
+        ),
+    ]
+    .into()
+}
+
 pub(in crate::desktop) fn title_bar<'a>(
     id: window::Id,
     appearance: &Appearance,

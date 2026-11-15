@@ -136,6 +136,8 @@ pub enum Message {
     ClickMiniControl(MiniControl),
     CloseRequested(window::Id),
     DragWindow(window::Id),
+    #[cfg(not(target_os = "macos"))]
+    ResizeWindow(window::Id, window::Direction),
     MinimizeWindow(window::Id),
     ToggleWindowMaximized(window::Id),
     MiniResized(window::Id, iced::Size),
@@ -1076,6 +1078,8 @@ impl Desktop {
                 self.windows.close_requested(id)
             }
             Message::DragWindow(id) => window::drag(id),
+            #[cfg(not(target_os = "macos"))]
+            Message::ResizeWindow(id, direction) => window::drag_resize(id, direction),
             Message::MinimizeWindow(id) => window::minimize(id, true),
             Message::ToggleWindowMaximized(id) => window::toggle_maximize(id),
             Message::MiniResized(id, size) => {
@@ -1537,7 +1541,7 @@ impl Desktop {
 
     pub fn view(&self, id: window::Id) -> Element<'_, Message> {
         let workspace = self.workspace(id);
-        if self.windows.is_library(id) {
+        let content = if self.windows.is_library(id) {
             iced::widget::column![
                 view::window_chrome::title_bar(
                     id,
@@ -1551,7 +1555,10 @@ impl Desktop {
             .into()
         } else {
             workspace
-        }
+        };
+        #[cfg(not(target_os = "macos"))]
+        let content = view::window_chrome::resize_edges(id, content);
+        content
     }
 
     fn workspace(&self, id: window::Id) -> Element<'_, Message> {
