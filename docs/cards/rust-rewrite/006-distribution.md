@@ -5,8 +5,10 @@
 - [ ] Exercise installed upgrades and explicit download and restart.
 - [ ] Preserve catalogue and preferences on upgrade.
 
-Cargo Packager builds the AppImage and macOS app bundle. The macOS job stages
-the bundle with an Applications link, then creates a read-only DMG with
+Cargo Packager builds the AppImage and macOS app bundle. The Linux release job
+builds and opens the AppImage on Ubuntu 22.04, matching the previous release's
+glibc baseline and following [AppImage's build-host guidance](https://docs.appimage.org/introduction/concepts.html#build-on-old-systems-run-on-newer-systems).
+The macOS job stages the bundle with an Applications link, then creates a read-only DMG with
 `hdiutil`, following [Apple-Actions' disk image example](https://github.com/Apple-Actions/Example-macOS#running-locally).
 Windows uses the existing
 electron-builder NSIS configuration to package the Rust executable and retain
