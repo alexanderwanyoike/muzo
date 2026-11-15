@@ -96,7 +96,7 @@ fn it_reevaluates_a_pending_track_index_when_an_unrelated_source_is_removed() {
     let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["second"]))));
     let _ = desktop.update(Message::RemoteTrackReady(
         0,
-        Ok(local.with_library("second".into())),
+        Ok(local.with_library("second".into()).into()),
     ));
 
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(0));
@@ -138,9 +138,9 @@ fn it_keeps_the_catalogued_title_when_a_cached_download_has_no_embedded_title() 
 
     let track = Track::new(PathBuf::new(), indexed.title.clone(), None, None, None)
         .with_indexed_id(indexed.id);
-    let played = prepare_dropbox_track(&paths, track, local);
+    let played = prepare_dropbox_track(&paths, track, local, None);
 
-    assert_eq!(played.title(), indexed.title);
+    assert_eq!(played.track.title(), indexed.title);
     assert_eq!(
         catalogue.tracks(&library.id).unwrap()[0].title,
         indexed.title
@@ -154,9 +154,223 @@ fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
     std::fs::create_dir(root.path().join("muzo-rust.sqlite")).unwrap();
     let (_, audio) = setup();
     let path = audio.path().to_path_buf();
-    let result = prepare_dropbox_track(&paths, audio.with_indexed_id("track".into()), path.clone());
+    let result = prepare_dropbox_track(
+        &paths,
+        audio.with_indexed_id("track".into()),
+        path.clone(),
+        None,
+    );
 
-    assert_eq!(result.path(), path);
+    assert_eq!(result.track.path(), path);
+}
+
+#[test]
+fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue
+        .save_dropbox_account("account", "app-key")
+        .unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let entry = |version| {
+        serde_json::from_value(serde_json::json!({
+            ".tag": "file", "name": "Track.mp3", "path_display": "/Music/Track.mp3", "size": 48, "rev": version
+        })).unwrap()
+    };
+    catalogue
+        .sync_dropbox(&library.id, &[entry("old")])
+        .unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let old = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    let audio = root.path().join("download.mp3");
+    std::fs::write(
+        &audio,
+        include_bytes!("../../tests/fixtures/embedded-cover.mp3"),
+    )
+    .unwrap();
+    let track = Track::new(PathBuf::new(), row.title, None, None, None)
+        .with_indexed_id(row.id.clone())
+        .with_library(library.id.clone());
+
+    catalogue
+        .sync_dropbox(&library.id, &[entry("new")])
+        .unwrap();
+    let current = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    assert_ne!(old, current);
+    let prepared = prepare_dropbox_track(&paths, track, audio, Some(old.clone()));
+    let cache = crate::artwork_cache::ArtworkCache::new(paths.artwork_cache());
+
+    assert!(prepared.track.artwork().is_some());
+    assert!(
+        cache.lookup(&current).is_none(),
+        "the old download must not mark a newer cover as current"
+    );
+    assert!(cache.lookup(&old).is_some());
+}
+
+#[test]
+fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+    };
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue.save_dropbox_account("account", "key").unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let path = "/Music/Track.mp3";
+    let body = include_bytes!("../../tests/fixtures/embedded-cover.mp3");
+    let entry = serde_json::from_value(serde_json::json!({
+        ".tag":"file", "name":"Track.mp3", "path_display":path, "size":body.len(), "rev":"old"
+    }))
+    .unwrap();
+    catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let old = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    let track = Track::new(PathBuf::new(), row.title, None, None, None)
+        .with_indexed_id(row.id)
+        .with_library(library.id.clone())
+        .with_remote(library.id, path.into());
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let client =
+        crate::dropbox::Client::for_endpoint(&format!("http://{}", listener.local_addr().unwrap()))
+            .unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let mut request = [0; 1024];
+        assert!(stream.read(&mut request).unwrap() > 0);
+        let metadata = serde_json::json!({"rev":"new", "size":body.len()});
+        write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nDropbox-API-Result: {metadata}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+        stream.write_all(body).unwrap();
+    });
+    let downloaded = crate::dropbox::cache::download(
+        &client,
+        "fixture-token",
+        &paths.dropbox_cache(),
+        "account",
+        path,
+    )
+    .unwrap();
+    server.join().unwrap();
+    let track = prepare_downloaded_dropbox_track(&paths, track, downloaded, Some(old.clone()));
+
+    assert!(track.track.artwork().is_some());
+    assert!(
+        ArtworkCache::new(paths.artwork_cache())
+            .lookup(&old)
+            .is_none()
+    );
+}
+
+#[test]
+fn it_restores_a_revised_cover_when_replaying_downloaded_dropbox_audio() {
+    let (mut desktop, audio) = setup();
+    let prepared = audio
+        .clone()
+        .with_indexed_id("changed".into())
+        .with_remote("library".into(), "/Music/Track.mp3".into())
+        .without_artwork();
+    let session = desktop.session.as_mut().unwrap();
+    session.replace(vec![audio, prepared]);
+    session.select(0).unwrap();
+    let generation = session.start_generation();
+
+    let bytes = include_bytes!("../../assets/icons/muzo.png");
+    desktop
+        .queue_covers
+        .insert("changed".into(), row_cover::row_handle(bytes).unwrap());
+    desktop.apply_completed_cover("changed", bytes);
+    let _ = desktop.update(Message::Select(1));
+
+    assert_eq!(
+        desktop.session.as_ref().unwrap().start_generation(),
+        generation + 1
+    );
+    assert!(desktop.cover.sleeve().is_some());
+}
+
+#[test]
+fn it_keeps_newer_row_artwork_when_an_older_playback_worker_finishes_late() {
+    let (mut desktop, audio) = setup();
+    let row = crate::catalogue::IndexedTrack {
+        id: "changed".into(),
+        title: "Track".into(),
+        artist: String::new(),
+        album: None,
+        metadata_overridden: false,
+        path: audio.path().into(),
+        plays: 0,
+        library_id: "library".into(),
+        file_size: 1,
+        file_mtime: 1,
+        duration_seconds: 1,
+    };
+    let old = Revision::new("library", "changed", "track.mp3", 1, 1);
+    let latest = Revision::new("library", "changed", "track.mp3", 1, 2);
+    desktop.queue_artwork.replace([&row]);
+    desktop.queue_artwork.remember("changed", latest);
+    let fresh = include_bytes!("../../assets/icons/muzo.png");
+    let previous = audio.with_indexed_id(row.id).with_artwork(fresh.to_vec());
+    let outdated = previous.clone().with_artwork(vec![0]);
+    desktop.session.as_mut().unwrap().replace(vec![previous]);
+    desktop.pending_track = Some(0);
+
+    let _ = desktop.update(Message::RemoteTrackReady(
+        0,
+        Ok(PreparedTrack {
+            track: outdated,
+            artwork_revision: Some(old),
+        }),
+    ));
+
+    let current = desktop.session.as_ref().unwrap().current().unwrap();
+    assert!(current.artwork() == Some(fresh.as_slice()));
+}
+
+#[test]
+fn it_updates_visible_songs_and_the_player_when_full_audio_provides_artwork() {
+    let (mut desktop, audio) = setup();
+    let mut source = snapshot(&["library"]);
+    source.tracks.push(crate::catalogue::IndexedTrack {
+        id: "track".into(),
+        title: "Track".into(),
+        artist: String::new(),
+        album: None,
+        metadata_overridden: false,
+        path: audio.path().into(),
+        plays: 0,
+        library_id: "library".into(),
+        file_size: 1,
+        file_mtime: 1,
+        duration_seconds: 1,
+    });
+    desktop.sources.snapshot = Some(source);
+    let prepared = audio.with_indexed_id("track".into());
+    let session = desktop.session.as_mut().unwrap();
+    session.replace(vec![prepared.clone()]);
+    session.select(0).unwrap();
+    desktop.pending_track = Some(0);
+
+    let ready = prepared.with_artwork(include_bytes!("../../assets/icons/muzo.png").to_vec());
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(ready.into())));
+
+    assert!(
+        desktop
+            .sources
+            .snapshot
+            .as_ref()
+            .unwrap()
+            .covers
+            .contains_key("track")
+    );
+    assert!(desktop.cover.sleeve().is_some());
 }
 
 #[test]
@@ -226,7 +440,7 @@ fn it_ignores_late_audio_from_a_disconnected_dropbox_account() {
     };
 
     let _ = desktop.update(Message::DropboxReady(Ok(snapshot)));
-    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(remote_audio)));
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(remote_audio.into())));
 
     let session = desktop.session.as_ref().unwrap();
     assert_eq!(session.current_index(), None);
@@ -387,10 +601,10 @@ fn it_can_reopen_cached_catalogue_artwork_without_the_original_audio() {
         .with_library(library.id);
 
     let first = prepare_local_track(Some(&paths), item.clone());
-    assert!(first.artwork().is_some());
+    assert!(first.track.artwork().is_some());
     std::fs::remove_file(file).unwrap();
     let reopened = prepare_local_track(Some(&paths), item);
-    assert_eq!(reopened.artwork(), first.artwork());
+    assert_eq!(reopened.track.artwork(), first.track.artwork());
 }
 
 #[test]
@@ -427,7 +641,36 @@ fn it_saves_a_successful_play_before_the_next_background_poll() {
 }
 
 #[test]
+fn it_schedules_dropbox_playback_without_waiting_for_catalogue_reads() {
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    drop(paths.open().unwrap());
+    let database = rusqlite::Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database
+        .execute_batch("PRAGMA journal_mode = DELETE; BEGIN EXCLUSIVE")
+        .unwrap();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths));
+    let track = Track::new(PathBuf::new(), "Remote fixture".into(), None, None, None)
+        .with_indexed_id("track".into())
+        .with_library("library".into())
+        .with_remote("library".into(), "/Music/Track.mp3".into());
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+
+    let start = std::time::Instant::now();
+    let _ = desktop.update(Message::Select(0));
+
+    assert!(
+        start.elapsed() < Duration::from_secs(1),
+        "selecting remote audio should not block on a locked catalogue"
+    );
+}
+
+#[test]
 fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
     let root = tempfile::tempdir().unwrap();
     let paths = CataloguePaths::in_directory(root.path());
     let mut catalogue = paths.open().unwrap();
@@ -453,9 +696,44 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
         .with_remote(library.id, "/Music/Track.mp3".into());
     desktop.session.as_mut().unwrap().replace(vec![track]);
     desktop.sources = Sources::new(Some(paths));
-    let _ = desktop.update(Message::Select(0));
+    let selection = desktop.update(Message::Select(0));
     let request = desktop.playback_request;
+    let mut actions = task::into_stream(selection).expect("the remote track should be prepared");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    while let Some(Action::Output(message)) = runtime.block_on(actions.next()) {
+        let message = match message {
+            Message::RemoteTrackReady(..) => {
+                Message::RemoteTrackReady(request, Err("Offline".into()))
+            }
+            message => message,
+        };
+        let _ = desktop.update(message);
+    }
+
+    assert!(desktop.cover.thumbnail().is_some());
+    assert_eq!(desktop.error.as_deref(), Some("Offline"));
+}
+
+#[test]
+fn it_shows_a_cached_dropbox_cover_when_audio_fails_before_the_cover_read_finishes() {
+    let (mut desktop, _) = setup();
+    let track = Track::new(PathBuf::new(), "DropBox fixture".into(), None, None, None)
+        .with_remote("library".into(), "/Music/Track.mp3".into());
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+    desktop.pending_track = Some(0);
+    let request = desktop.playback_request;
+
     let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
+    let _ = desktop.update(Message::RemoteCachedCoverReady(
+        request,
+        Ok(Some(CachedCover {
+            revision: Revision::new("library", "track", "/Music/Track.mp3", 1, 1),
+            bytes: include_bytes!("../../assets/icons/muzo.png").to_vec(),
+        })),
+    ));
 
     assert!(desktop.cover.thumbnail().is_some());
     assert_eq!(desktop.error.as_deref(), Some("Offline"));
@@ -542,7 +820,7 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
         let ready = desktop.session.as_ref().unwrap().tracks()[index].clone();
         let _ = desktop.update(Message::RemoteTrackReady(
             desktop.playback_request,
-            Ok(ready),
+            Ok(ready.into()),
         ));
         let session = desktop.session.as_ref().unwrap();
         assert_eq!(session.current().unwrap().playlist_entry(), Some(entry));
@@ -638,7 +916,7 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
     let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
     let _ = desktop.update(Message::RemoteTrackReady(
         desktop.playback_request,
-        Ok(ready),
+        Ok(ready.into()),
     ));
     let generation = desktop.session.as_ref().unwrap().start_generation();
 
@@ -647,7 +925,7 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
     let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
     let _ = desktop.update(Message::RemoteTrackReady(
         desktop.playback_request,
-        Ok(ready),
+        Ok(ready.into()),
     ));
     let session = desktop.session.as_ref().unwrap();
     assert_eq!(session.start_generation(), generation + 1);

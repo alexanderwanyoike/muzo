@@ -132,6 +132,67 @@ fn m4a_cover_in_second_range(cover: &[u8], boundary: usize) -> Vec<u8> {
     [ftyp, atom(b"moov", &[padding, udta].concat())].concat()
 }
 
+#[test]
+fn it_suppresses_retries_for_m4a_artwork_beyond_the_range_budget() {
+    const RANGE: usize = 64 * 1024;
+    const MAX_RANGES: usize = 128;
+
+    let mut cover = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba8(RgbaImage::from_pixel(4, 4, Rgba([31, 85, 124, 255])))
+        .write_to(&mut cover, ImageFormat::Png)
+        .unwrap();
+    let mut data = m4a_cover_in_second_range(&cover.into_inner(), RANGE);
+    let tail = data.split_off(RANGE);
+    let mut padding = vec![0; RANGE];
+    padding[..4].copy_from_slice(&(RANGE as u32).to_be_bytes());
+    padding[4..8].copy_from_slice(b"free");
+    for _ in 1..MAX_RANGES {
+        data.extend_from_slice(&padding);
+    }
+    data.extend_from_slice(&tail);
+    let movie_header = u32::from_be_bytes(data[..4].try_into().unwrap()) as usize;
+    let movie_length = u32::try_from(data.len() - movie_header).unwrap();
+    data[movie_header..movie_header + 4].copy_from_slice(&movie_length.to_be_bytes());
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        use std::{
+            io::ErrorKind,
+            time::{Duration, Instant},
+        };
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let io_timeout = Some(Duration::from_secs(2));
+        for index in 0..MAX_RANGES {
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                        assert!(Instant::now() < deadline, "received only {index} ranges");
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => panic!("could not accept artwork range: {error}"),
+                }
+            };
+            stream.set_read_timeout(io_timeout).unwrap();
+            stream.set_write_timeout(io_timeout).unwrap();
+            let (start, end, _) = range_request(&stream);
+            assert_eq!((start, end), (index * RANGE, (index + 1) * RANGE - 1));
+            write!(stream, "HTTP/1.1 206 Partial Content\r\nContent-Length: {RANGE}\r\nContent-Range: bytes {start}-{end}/{}\r\nConnection: close\r\n\r\n", data.len()).unwrap();
+            stream.write_all(&data[start..=end]).unwrap();
+        }
+    });
+    let client = Client::for_endpoint(&address).unwrap();
+    let result = client.read_artwork("fixture-token", "/Music/Track.m4a");
+    server.join().unwrap();
+    assert!(
+        matches!(result, Ok(None)),
+        "artwork beyond the per-track budget should not be retried: {result:?}"
+    );
+}
+
 fn range_request(stream: &std::net::TcpStream) -> (usize, usize, String) {
     let mut request = BufReader::new(stream);
     let mut route = String::new();

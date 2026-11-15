@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use iced::Task;
 
@@ -557,7 +557,11 @@ fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), 
     Ok((library.name, tracks))
 }
 
-pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
+pub fn remote_audio(
+    paths: &CataloguePaths,
+    library: &str,
+    path: &str,
+) -> Result<cache::Download, Error> {
     let catalogue: Catalogue = paths.open()?;
     let account = catalogue
         .dropbox_account_for(library)?
@@ -576,6 +580,8 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
     use iced::{

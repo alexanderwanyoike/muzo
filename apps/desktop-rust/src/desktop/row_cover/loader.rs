@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    artwork_cache::{ArtworkCache, ReadFailure, load_indexed},
+    artwork_cache::{ArtworkCache, ReadFailure, Revision, load_indexed},
     catalogue::{IndexedTrack, Library},
     dropbox::ArtworkAccess,
     track::Track,
@@ -46,7 +46,14 @@ pub struct Complete {
     generation: u64,
     pub(in crate::desktop) id: String,
     pub(in crate::desktop) target: Target,
-    cover: Result<Option<Handle>, ReadFailure>,
+    cover: Result<Option<LoadedCover>, ReadFailure>,
+}
+
+#[derive(Debug, Clone)]
+pub(in crate::desktop) struct LoadedCover {
+    pub(in crate::desktop) revision: Revision,
+    pub(in crate::desktop) bytes: Vec<u8>,
+    pub(in crate::desktop) handle: Handle,
 }
 
 struct Candidate<'a> {
@@ -96,6 +103,10 @@ pub(in crate::desktop) fn viewport_rows(
 }
 
 impl Loader {
+    pub(in crate::desktop) fn cover_available(&mut self, id: &str) {
+        self.attempted.remove(id);
+    }
+
     pub(in crate::desktop) fn catalogue_changed(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         self.attempted.clear();
@@ -116,18 +127,18 @@ impl Loader {
         &mut self,
         result: Complete,
         covers: Option<&mut Covers>,
-    ) -> Option<(String, Handle)> {
+    ) -> Option<(String, LoadedCover)> {
         self.pending.remove(&(result.generation, result.id.clone()));
         if result.generation != self.generation {
             return None;
         }
         match result.cover {
             Ok(Some(cover)) => {
-                self.attempted.remove(&result.id);
+                self.cover_available(&result.id);
                 if let Some(covers) = covers
                     && (covers.len() < ROW_LIMIT || covers.contains_key(&result.id))
                 {
-                    covers.insert(result.id.clone(), cover.clone());
+                    covers.insert(result.id.clone(), cover.handle.clone());
                 }
                 Some((result.id, cover))
             }
@@ -142,6 +153,18 @@ impl Loader {
 
     pub(in crate::desktop) fn queue_visible(&mut self, rows: Option<Range<usize>>) {
         self.queue_visible = rows;
+    }
+
+    pub(in crate::desktop) fn request_playing(
+        &mut self,
+        paths: &CataloguePaths,
+        track: &Track,
+        covers: &mut Covers,
+    ) -> Task<Message> {
+        let Some(track) = Candidate::queued(track) else {
+            return Task::none();
+        };
+        self.schedule(paths, covers, vec![track], Target::Queue)
     }
 
     pub(in crate::desktop) fn request(
@@ -287,9 +310,9 @@ fn load(
     paths: &CataloguePaths,
     reader: &ArtworkAccess,
     track: Candidate<'_>,
-) -> Result<Option<Handle>, ReadFailure> {
+) -> Result<Option<LoadedCover>, ReadFailure> {
     let catalogue = paths.open().map_err(|_| ReadFailure::Catalogue)?;
-    let bytes = load_indexed(
+    let (revision, bytes) = load_indexed(
         &ArtworkCache::new(paths.artwork_cache()),
         &catalogue,
         track.library,
@@ -297,7 +320,14 @@ fn load(
         track.path,
         track.remote.then_some(reader),
     )?;
-    Ok(bytes.as_deref().and_then(row_handle))
+    Ok(bytes.and_then(|bytes| {
+        let handle = row_handle(&bytes)?;
+        Some(LoadedCover {
+            revision,
+            bytes,
+            handle,
+        })
+    }))
 }
 
 #[cfg(test)]

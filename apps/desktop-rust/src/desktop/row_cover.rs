@@ -15,8 +15,10 @@ use crate::{
 use super::{Message, Snapshot, cover::centered_square};
 
 mod loader;
+mod queue;
 
 pub(super) use loader::{Complete, Loader, Target, viewport_rows};
+pub(super) use queue::{QueueArtwork, QueueReconciled};
 
 const ROW_EDGE: u32 = 48;
 pub(super) const ROW_LIMIT: usize = 512;
@@ -90,6 +92,14 @@ pub(super) fn retain_unchanged(previous: &Snapshot, next: &mut Snapshot) {
         })
         .collect();
     next.covers.extend(unchanged);
+}
+
+pub(super) fn fill_snapshot_cover(snapshot: &mut Snapshot, id: &str, cover: Handle) {
+    if (snapshot.covers.len() < ROW_LIMIT || snapshot.covers.contains_key(id))
+        && snapshot_tracks(snapshot).any(|track| track.id == id)
+    {
+        snapshot.covers.insert(id.to_owned(), cover);
+    }
 }
 
 fn snapshot_tracks(snapshot: &Snapshot) -> impl Iterator<Item = &IndexedTrack> {

@@ -34,6 +34,7 @@ use iced::{Element, Subscription, Task, Theme, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
 
 use crate::{
+    artwork_cache::{ArtworkCache, Revision},
     local_track::read_track,
     playback::Playback,
     session::{Session, SessionError},
@@ -65,6 +66,7 @@ pub enum Message {
     ArtworkViewport(LibraryPage, std::ops::Range<usize>),
     QueueArtworkViewport(std::ops::Range<usize>),
     ArtworkReady(row_cover::Complete),
+    QueueArtworkReconciled(row_cover::QueueReconciled),
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
@@ -112,7 +114,8 @@ pub enum Message {
     TrackEditorFieldSubmit,
     SaveTrackEdit(bool),
     CloseTrackEdit,
-    RemoteTrackReady(u64, Result<Track, String>),
+    RemoteCachedCoverReady(u64, Result<Option<CachedCover>, String>),
+    RemoteTrackReady(u64, Result<PreparedTrack, String>),
     FilesRead(Result<row_cover::OpenedFiles, String>),
     Select(usize),
     TogglePlayback,
@@ -173,6 +176,7 @@ pub struct Desktop {
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
     queue_covers: row_cover::Covers,
+    queue_artwork: row_cover::QueueArtwork,
     row_covers: row_cover::Loader,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
@@ -262,6 +266,7 @@ impl Desktop {
                 cover: Cover::default(),
                 direct_covers: Default::default(),
                 queue_covers: Default::default(),
+                queue_artwork: Default::default(),
                 row_covers: row_cover::Loader::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
@@ -393,9 +398,31 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
-                if result.is_ok() {
+                let revisions = if result.is_ok() {
                     self.row_covers.catalogue_changed();
-                }
+                    let pending = self.pending_track;
+                    let failed = self.failed_track;
+                    let playback = self.session.as_ref().into_iter().flat_map(|session| {
+                        [
+                            session.current(),
+                            pending.and_then(|index| session.tracks().get(index)),
+                            failed.and_then(|index| session.tracks().get(index)),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .chain(
+                            session
+                                .tracks()
+                                .iter()
+                                .filter(|track| track.artwork().is_some()),
+                        )
+                        .filter_map(Track::indexed_id)
+                    });
+                    let queued = self.queue_covers.keys().map(String::as_str).chain(playback);
+                    self.queue_artwork.reconcile(self.sources.paths(), queued)
+                } else {
+                    Task::none()
+                };
                 let reveal_added_folder = self.sources.apply(result);
                 let artwork = if reveal_added_folder && self.page == LibraryPage::Settings {
                     self.update(Message::LibraryPage(LibraryPage::Songs))
@@ -403,7 +430,12 @@ impl Desktop {
                     self.load_row_covers()
                 };
                 let queued = self.sources.start_pending().unwrap_or_else(Task::none);
-                Task::batch([queued, artwork])
+                Task::batch([queued, artwork, revisions])
+            }
+            Message::QueueArtworkReconciled(result) => {
+                let changed = self.queue_artwork.apply(result, &mut self.queue_covers);
+                let preparation = self.refresh_stale_queue_artwork(&changed);
+                Task::batch([preparation, self.load_row_covers()])
             }
             Message::ArtworkViewport(page, rows) => {
                 if page != self.page || rows.is_empty() {
@@ -436,12 +468,12 @@ impl Desktop {
                         .map(|source| &mut source.covers)
                 };
                 let ready = self.row_covers.complete(cover, covers);
-                if !from_queue
-                    && queued
-                    && self.queue_covers.len() < row_cover::ROW_LIMIT
-                    && let Some((id, handle)) = ready
-                {
-                    self.queue_covers.insert(id, handle);
+                if queued && let Some((id, loaded)) = ready {
+                    self.queue_artwork.remember(&id, loaded.revision);
+                    if !from_queue && self.queue_covers.len() < row_cover::ROW_LIMIT {
+                        self.queue_covers.insert(id.clone(), loaded.handle);
+                    }
+                    self.apply_completed_cover(&id, &loaded.bytes);
                 }
                 self.load_row_covers()
             }
@@ -786,6 +818,40 @@ impl Desktop {
                 }
                 Task::none()
             }
+            Message::RemoteCachedCoverReady(request, result) => {
+                if request != self.playback_request {
+                    return Task::none();
+                }
+                let cover = match result {
+                    Ok(cover) => cover,
+                    Err(error) => {
+                        eprintln!("Could not read cached Dropbox artwork: {error}");
+                        return Task::none();
+                    }
+                };
+                if let (Some(index), Some(cover), Some(session)) = (
+                    self.pending_track.or(self.failed_track),
+                    cover,
+                    self.session.as_mut(),
+                ) && let Some(track) = session.tracks().get(index)
+                {
+                    if let Some(id) = track.indexed_id() {
+                        if self
+                            .queue_artwork
+                            .has_conflicting_revision(id, &cover.revision)
+                        {
+                            return Task::none();
+                        }
+                        self.queue_artwork.remember(id, cover.revision);
+                    }
+                    let track = track.clone().with_artwork(cover.bytes);
+                    let _ = session.replace_track(index, track.clone());
+                    if session.current().is_none() {
+                        self.cover = Cover::from_track(Some(&track));
+                    }
+                }
+                Task::none()
+            }
             Message::RemoteTrackReady(request, result) => {
                 if request != self.playback_request {
                     return Task::none();
@@ -794,20 +860,21 @@ impl Desktop {
                     return Task::none();
                 };
                 match result {
-                    Ok(track) => {
-                        if let Some(id) = track.indexed_id() {
-                            self.queue_covers.remove(id);
-                            if self.queue_covers.len() < row_cover::ROW_LIMIT
-                                && let Some(handle) =
-                                    track.artwork().and_then(row_cover::row_handle)
-                            {
-                                self.queue_covers.insert(id.to_owned(), handle);
-                            }
-                        }
-                        self.transport(|session| {
+                    Ok(PreparedTrack {
+                        track,
+                        artwork_revision,
+                    }) => {
+                        let track = self.apply_prepared_cover(index, track, artwork_revision);
+                        let previous = self.session.as_ref().and_then(Session::current_index);
+                        let playback = self.transport(|session| {
                             session.replace_track(index, track)?;
                             session.select(index)
-                        })
+                        });
+                        if previous == Some(index) {
+                            self.cover =
+                                Cover::from_track(self.session.as_ref().and_then(Session::current));
+                        }
+                        playback
                     }
                     Err(error) => {
                         self.failed_track = Some(index);
@@ -1379,6 +1446,8 @@ impl Desktop {
             .filter(|library| library.kind == "dropbox")
             .map(|library| library.id.clone())
             .collect();
+        self.queue_artwork
+            .replace(tracks.iter().map(|(track, _)| track));
         let tracks: Vec<_> = tracks
             .into_iter()
             .map(|(track, entry)| {
@@ -1426,6 +1495,7 @@ impl Desktop {
     }
 
     fn remove_queued_library(&mut self, library: &str) {
+        self.queue_artwork.remove_library(library);
         let Some(session) = self.session.as_mut() else {
             return;
         };
@@ -1468,7 +1538,7 @@ impl Desktop {
     fn select_track(&mut self, index: usize) -> Task<Message> {
         self.playback_request += 1;
         let request = self.playback_request;
-        let Some(mut track) = self
+        let Some(track) = self
             .session
             .as_ref()
             .and_then(|session| session.tracks().get(index))
@@ -1484,31 +1554,38 @@ impl Desktop {
             };
             let library = library.to_owned();
             let path = path.to_owned();
-            if let Some(revision) = artwork_revision(&paths, &track)
-                && let Some(bytes) =
-                    crate::artwork_cache::ArtworkCache::new(paths.artwork_cache()).lookup(&revision)
-            {
-                track = track.with_artwork(bytes);
-                if let Some(session) = &mut self.session {
-                    let _ = session.replace_track(index, track.clone());
-                    if session.current().is_none() {
-                        self.cover = Cover::from_track(Some(&track));
-                    }
-                }
-            }
             self.pending_track = Some(index);
-            return Task::perform(
+            let cover_paths = paths.clone();
+            let cover_track = track.clone();
+            let cover = Task::perform(
                 async move {
                     tokio::task::spawn_blocking(move || {
-                        let local = dropbox_panel::remote_audio(&paths, &library, &path)
+                        let revision = artwork_revision(&cover_paths, &cover_track)?;
+                        let bytes =
+                            ArtworkCache::new(cover_paths.artwork_cache()).lookup(&revision)?;
+                        Some(CachedCover { revision, bytes })
+                    })
+                    .await
+                    .map_err(|error| error.to_string())
+                },
+                move |cover| Message::RemoteCachedCoverReady(request, cover),
+            );
+            let audio = Task::perform(
+                async move {
+                    tokio::task::spawn_blocking(move || {
+                        let revision = artwork_revision(&paths, &track);
+                        let download = dropbox_panel::remote_audio(&paths, &library, &path)
                             .map_err(|error| error.to_string())?;
-                        Ok(prepare_dropbox_track(&paths, track, local))
+                        Ok(prepare_downloaded_dropbox_track(
+                            &paths, track, download, revision,
+                        ))
                     })
                     .await
                     .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
                 },
                 move |result| Message::RemoteTrackReady(request, result),
             );
+            return Task::batch([cover, audio]);
         }
         if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
             self.pending_track = Some(index);
@@ -1593,10 +1670,121 @@ impl Desktop {
         self.sources.close_track_panels();
     }
 
+    fn apply_completed_cover(&mut self, id: &str, bytes: &[u8]) {
+        let Some(session) = &mut self.session else {
+            return;
+        };
+        let active = session.current_index();
+        let prepared: Vec<_> = session
+            .tracks()
+            .iter()
+            .enumerate()
+            .filter(|(index, track)| {
+                let downloaded = track.remote().is_some() && !track.path().as_os_str().is_empty();
+                track.indexed_id() == Some(id)
+                    && (Some(*index) == active
+                        || Some(*index) == self.pending_track
+                        || track.artwork().is_some()
+                        || downloaded)
+                    && track.artwork() != Some(bytes)
+            })
+            .map(|(index, track)| (index, track.clone().with_artwork(bytes.to_vec())))
+            .collect();
+        for (index, track) in prepared {
+            if Some(index) == active {
+                self.cover = Cover::from_track(Some(&track));
+            }
+            let _ = session.replace_track(index, track);
+        }
+    }
+
+    fn apply_prepared_cover(
+        &mut self,
+        index: usize,
+        track: Track,
+        revision: Option<Revision>,
+    ) -> Track {
+        let Some(id) = track.indexed_id() else {
+            return track;
+        };
+        if let Some(revision) = revision {
+            if self.queue_artwork.has_conflicting_revision(id, &revision) {
+                let fresh = self
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.tracks().get(index))
+                    .and_then(Track::artwork)
+                    .map(<[u8]>::to_vec);
+                return match fresh {
+                    Some(bytes) => track.with_artwork(bytes),
+                    None => track.without_artwork(),
+                };
+            }
+            self.queue_artwork.remember(id, revision);
+        }
+        self.queue_covers.remove(id);
+        if let Some(handle) = track.artwork().and_then(row_cover::row_handle) {
+            self.row_covers.cover_available(id);
+            if let Some(snapshot) = &mut self.sources.snapshot {
+                row_cover::fill_snapshot_cover(snapshot, id, handle.clone());
+            }
+            if self.queue_covers.len() < row_cover::ROW_LIMIT {
+                self.queue_covers.insert(id.to_owned(), handle);
+            }
+        }
+        track
+    }
+
+    fn refresh_stale_queue_artwork(&mut self, changed: &[String]) -> Task<Message> {
+        let Some(session) = &mut self.session else {
+            return Task::none();
+        };
+        if changed.is_empty() {
+            return Task::none();
+        }
+        let changed: std::collections::HashSet<_> = changed.iter().map(String::as_str).collect();
+        let matches = |track: &Track| track.indexed_id().is_some_and(|id| changed.contains(id));
+        let need_preparation = self
+            .pending_track
+            .filter(|index| session.tracks().get(*index).is_some_and(matches));
+        let failed_revision = self
+            .failed_track
+            .is_some_and(|index| session.tracks().get(index).is_some_and(matches));
+        if failed_revision {
+            self.playback_request += 1;
+        }
+        if session.current().is_some_and(matches)
+            || (session.current().is_none() && (need_preparation.is_some() || failed_revision))
+        {
+            self.cover = Cover::default();
+        }
+        let invalidated: Vec<_> = session
+            .tracks()
+            .iter()
+            .enumerate()
+            .filter(|(_, track)| track.artwork().is_some() && matches(track))
+            .map(|(index, track)| (index, track.clone().without_artwork()))
+            .collect();
+        for (index, track) in invalidated {
+            let _ = session.replace_track(index, track);
+        }
+        need_preparation.map_or_else(Task::none, |index| self.select_track(index))
+    }
+
     fn load_row_covers(&mut self) -> Task<Message> {
         let Some(paths) = self.sources.paths() else {
             return Task::none();
         };
+        if self.cover.thumbnail().is_none()
+            && let Some(track) = self.session.as_ref().and_then(Session::current)
+        {
+            let playback = self
+                .row_covers
+                .request_playing(&paths, track, &mut self.queue_covers);
+            if playback.units() > 0 {
+                return playback;
+            }
+        }
         if self.windows.queue_open()
             && let Some(session) = &self.session
         {
@@ -1818,7 +2006,57 @@ fn appimage_integration() -> Task<Message> {
     Task::none()
 }
 
-fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -> Track {
+#[derive(Debug, Clone)]
+pub struct CachedCover {
+    revision: Revision,
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedTrack {
+    track: Track,
+    artwork_revision: Option<Revision>,
+}
+
+#[cfg(test)]
+impl From<Track> for PreparedTrack {
+    fn from(track: Track) -> Self {
+        Self {
+            track,
+            artwork_revision: None,
+        }
+    }
+}
+
+fn prepare_downloaded_dropbox_track(
+    paths: &CataloguePaths,
+    track: Track,
+    download: crate::dropbox::cache::Download,
+    indexed_revision: Option<Revision>,
+) -> PreparedTrack {
+    let downloaded_revision = download.metadata.as_ref().and_then(|metadata| {
+        let (library, path) = track.remote()?;
+        crate::catalogue::Catalogue::downloaded_artwork_revision(
+            library,
+            track.indexed_id()?,
+            path,
+            metadata.size,
+            &metadata.rev,
+        )
+    });
+    let cache_revision =
+        indexed_revision.filter(|revision| Some(revision) == downloaded_revision.as_ref());
+    let mut prepared = prepare_dropbox_track(paths, track, download.path, cache_revision);
+    prepared.artwork_revision = downloaded_revision;
+    prepared
+}
+
+fn prepare_dropbox_track(
+    paths: &CataloguePaths,
+    track: Track,
+    local: PathBuf,
+    revision: Option<Revision>,
+) -> PreparedTrack {
     let (metadata, title) = crate::local_track::read_track_with_embedded_title(local.clone());
     if let Some(id) = track.indexed_id()
         && let Err(error) = paths.open().and_then(|catalogue| {
@@ -1833,27 +2071,37 @@ fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -
         eprintln!("Could not cache Dropbox track metadata: {error}");
     }
     let track = track.with_audio(local, &metadata).without_artwork();
-    cache_artwork(Some(paths), track, || {
+    let track = cache_artwork(Some(paths), revision.as_ref(), track, || {
         metadata.artwork().map(<[u8]>::to_vec)
-    })
+    });
+    PreparedTrack {
+        track,
+        artwork_revision: revision,
+    }
 }
 
-fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> Track {
+fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> PreparedTrack {
     let path = track.path().to_owned();
-    cache_artwork(paths, track, || {
+    let revision = paths.and_then(|paths| artwork_revision(paths, &track));
+    let track = cache_artwork(paths, revision.as_ref(), track, || {
         read_track(path).artwork().map(<[u8]>::to_vec)
-    })
+    });
+    PreparedTrack {
+        track,
+        artwork_revision: revision,
+    }
 }
 
 fn cache_artwork(
     paths: Option<&CataloguePaths>,
+    revision: Option<&Revision>,
     track: Track,
     read: impl FnOnce() -> Option<Vec<u8>>,
 ) -> Track {
-    let revision = paths.and_then(|paths| artwork_revision(paths, &track));
     let cover = match paths.zip(revision) {
-        Some((paths, revision)) => crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
-            .get_or_read(&revision, read),
+        Some((paths, revision)) => {
+            ArtworkCache::new(paths.artwork_cache()).get_or_read(revision, read)
+        }
         None => read().as_deref().and_then(crate::artwork_cache::thumbnail),
     };
     if let Some(bytes) = cover {
@@ -1862,10 +2110,7 @@ fn cache_artwork(
     track
 }
 
-fn artwork_revision(
-    paths: &CataloguePaths,
-    track: &Track,
-) -> Option<crate::artwork_cache::Revision> {
+fn artwork_revision(paths: &CataloguePaths, track: &Track) -> Option<Revision> {
     paths
         .open()
         .ok()?

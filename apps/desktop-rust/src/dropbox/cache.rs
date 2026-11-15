@@ -11,6 +11,18 @@ use super::{Client, DropboxError};
 static CACHE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 const AUDIO_CACHE_BYTES: u64 = 1024 * 1024 * 1024;
+const METADATA_HEADER: &str = "Dropbox-API-Result";
+
+#[derive(serde::Deserialize)]
+pub struct DownloadMetadata {
+    pub rev: String,
+    pub size: u64,
+}
+
+pub struct Download {
+    pub path: PathBuf,
+    pub metadata: Option<DownloadMetadata>,
+}
 
 pub fn download(
     client: &Client,
@@ -18,7 +30,7 @@ pub fn download(
     root: &Path,
     account: &str,
     path: &str,
-) -> Result<PathBuf, DropboxError> {
+) -> Result<Download, DropboxError> {
     fs::create_dir_all(root)?;
     let hash = format!("{:x}", Sha256::digest(format!("{account}\0{path}")));
     let extension = Path::new(path)
@@ -29,6 +41,15 @@ pub fn download(
         .prefix(".download-")
         .tempfile_in(root)?;
     let response = client.download(token, path)?;
+    let metadata = response.headers().get(METADATA_HEADER).and_then(|header| {
+        match serde_json::from_slice::<DownloadMetadata>(header.as_bytes()) {
+            Ok(metadata) => Some(metadata),
+            Err(error) => {
+                eprintln!("Could not read Dropbox audio revision: {error}");
+                None
+            }
+        }
+    });
     let copied = io::copy(
         &mut response.take(AUDIO_CACHE_BYTES + 1),
         buffer.as_file_mut(),
@@ -70,5 +91,8 @@ pub fn download(
         uuid::Uuid::new_v4().simple()
     ));
     buffer.persist(&target).map_err(|error| error.error)?;
-    Ok(target)
+    Ok(Download {
+        path: target,
+        metadata: metadata.filter(|metadata| metadata.size == copied),
+    })
 }
