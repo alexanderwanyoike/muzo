@@ -128,7 +128,7 @@ yarn desktop:package
 yarn desktop:make
 ```
 
-These checks must pass before opening the PR.
+These checks must pass before pushing.
 
 ## Work items
 
