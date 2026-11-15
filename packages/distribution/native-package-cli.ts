@@ -230,9 +230,11 @@ async function packageNative(): Promise<DistributionResult<string>> {
     await mkdir(output, { recursive: true });
     await mkdir(cargo.value.target, { recursive: true });
     const artifacts = await mkdtemp(join(cargo.value.target, ".muzo-package-bin-"));
-    let stage: string | undefined;
+    let publication: string | undefined;
     try {
-      stage = await mkdtemp(join(output, ".muzo-package-"));
+      // Cargo Packager runs generated helpers from its own output directory.
+      const stage = join(artifacts, "package");
+      await mkdir(stage);
       const executables = await buildExecutables(artifacts, cargo.value.build);
       if (!executables.ok) return executables;
       const builtTarget = await execute(executables.value.namer, [
@@ -259,17 +261,18 @@ async function packageNative(): Promise<DistributionResult<string>> {
           "storage",
           "The expected native installer was not produced.",
         );
-      await publishNativePackage(
-        stage,
-        output,
-        name,
-        packageFiles[target.platform],
-      );
+      publication = await mkdtemp(join(output, ".muzo-package-"));
+      await cp(join(stage, name), join(publication, name));
+      const metadata = packageFiles[target.platform];
+      if (metadata) await cp(join(stage, metadata), join(publication, metadata));
+      await publishNativePackage(publication, output, name, metadata);
       return { ok: true, value: join(output, name) };
     } finally {
       await Promise.all([
         rm(artifacts, { recursive: true, force: true }),
-        stage ? rm(stage, { recursive: true, force: true }) : Promise.resolve(),
+        publication
+          ? rm(publication, { recursive: true, force: true })
+          : Promise.resolve(),
       ]);
     }
   } catch (error) {
