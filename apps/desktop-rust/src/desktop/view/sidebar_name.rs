@@ -46,12 +46,13 @@ impl State {
         }
         name.clone_into(&mut self.original);
         self.width = width;
-        name.clone_into(&mut self.visible);
+        self.visible = name.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
         self.paragraph = shape(&self.visible);
         if self.paragraph.min_width() <= width {
             return;
         }
 
+        let name = self.visible.as_str();
         let boundaries: Vec<_> = name
             .grapheme_indices(true)
             .map(|(offset, _)| offset)
