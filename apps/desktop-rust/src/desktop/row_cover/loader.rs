@@ -131,7 +131,7 @@ impl Loader {
                 }
             })
             .collect();
-        if self.attempted.len() + candidates.len() > ROW_LIMIT {
+        if self.attempted.len().max(snapshot.covers.len()) + candidates.len() > ROW_LIMIT {
             let visible_ids: HashSet<_> =
                 candidates.iter().map(|track| track.id.as_str()).collect();
             self.attempted
