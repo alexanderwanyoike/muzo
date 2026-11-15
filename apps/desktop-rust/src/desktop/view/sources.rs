@@ -15,8 +15,9 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, icon_button, icon_tinted, label_text::single_paragraph,
-    library, sidebar_name::SidebarName, track_metadata, track_playlist,
+    Icon, action, bold, clock, compact, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, sidebar_name::SidebarName, track_metadata,
+    track_playlist,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -145,11 +146,11 @@ pub(super) fn indexed_sources<'a>(
         body = body.push(library::line(surfaces)).push(
             row![
                 column![
-                    text(single_paragraph(source.name.as_str()))
+                    text(replace_embedded_breaks(source.name.as_str()))
                         .size(12)
                         .font(bold())
                         .wrapping(text::Wrapping::WordOrGlyph),
-                    text(single_paragraph(source.location.to_string_lossy()))
+                    text(replace_embedded_breaks(source.location.to_string_lossy()))
                         .size(11)
                         .color(surfaces.muted)
                         .wrapping(text::Wrapping::WordOrGlyph),
@@ -164,7 +165,7 @@ pub(super) fn indexed_sources<'a>(
     }
     if let Some((_, status)) = &dropbox.refresh_status {
         body = body.push(
-            text(single_paragraph(status.as_str()))
+            text(replace_embedded_breaks(status.as_str()))
                 .size(11)
                 .color(surfaces.muted),
         );
@@ -316,7 +317,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                 button(
                     text(format!(
                         "Remove {}?",
-                        single_paragraph(source.name.as_str())
+                        replace_embedded_breaks(source.name.as_str())
                     ))
                     .size(10)
                 )
@@ -622,8 +623,9 @@ pub fn tracks<'a>(
     }
     let mut songs = column(list);
     if let Some(message) = &sources.playlist_message {
-        songs = songs
-            .push(container(text(single_paragraph(message.as_str())).size(12)).padding([12, 24]));
+        songs = songs.push(
+            container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
+        );
     }
     column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
 }

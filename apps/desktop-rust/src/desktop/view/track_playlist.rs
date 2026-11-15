@@ -17,7 +17,7 @@ use crate::{
 
 use super::{
     focus_ring,
-    label_text::single_paragraph,
+    label_text::replace_embedded_breaks,
     library::{bordered_button, settings_button},
     playlist_popup::Choice,
 };
@@ -27,7 +27,7 @@ struct PlaylistLabel<'a>(&'a Playlist);
 
 impl Display for PlaylistLabel<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&single_paragraph(self.0.name.as_str()))
+        formatter.write_str(&replace_embedded_breaks(self.0.name.as_str()))
     }
 }
 
@@ -125,7 +125,7 @@ fn playlist_options<'a>(
         let highlighted = playlist.id == preview;
         container(
             button(
-                text(single_paragraph(playlist.name.as_str()))
+                text(replace_embedded_breaks(playlist.name.as_str()))
                     .size(11)
                     .wrapping(text::Wrapping::None),
             )

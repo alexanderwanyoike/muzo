@@ -14,8 +14,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, compact, icon_button, icon_tinted, label_text::single_paragraph, library,
-    sidebar_name::SidebarName, track_play_button,
+    Icon, action, bold, compact, icon_button, icon_tinted, label_text::replace_embedded_breaks,
+    library, sidebar_name::SidebarName, track_play_button,
 };
 
 #[cfg(test)]
@@ -298,7 +298,7 @@ pub fn tracks<'a>(
         .map_or("Playlist", |item| item.name.as_str());
     let count = snapshot.playlist_entries.len();
     let header = row![
-        text(single_paragraph(name)).font(bold()).size(14),
+        text(replace_embedded_breaks(name)).font(bold()).size(14),
         text(format!(
             "{count} {}",
             if count == 1 { "track" } else { "tracks" }

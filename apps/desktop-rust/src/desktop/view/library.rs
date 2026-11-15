@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     Icon, action, appearance, bold, clock, compact, control_opacity, error_line, icon_button,
-    icon_tinted, label_text::single_paragraph, library_content, playback_error, playlists,
+    icon_tinted, label_text::replace_embedded_breaks, library_content, playback_error, playlists,
     sidebar_divider::Divider, sources,
 };
 
@@ -43,7 +43,7 @@ pub(in crate::desktop) fn library<'a>(
         Space::new().width(sidebar::SPLITTER_WIDTH),
         column![
             toolbar(sources, page, surfaces),
-            error_line(sources.error.as_deref().map(single_paragraph)),
+            error_line(sources.error.as_deref().map(replace_embedded_breaks)),
             library_content(sources, dropbox, preferences, session, (page, focus), cover)
                 .height(Fill),
         ]
@@ -315,7 +315,7 @@ fn toolbar(sources: &Sources, page: LibraryPage, surfaces: Surfaces) -> Element<
         container(
             column![
                 text(eyebrow).size(9).color(surfaces.muted),
-                text(single_paragraph(title)).size(18).font(bold()),
+                text(replace_embedded_breaks(title)).size(18).font(bold()),
             ]
             .spacing(3)
         )

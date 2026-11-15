@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-pub(super) fn single_paragraph<'a>(label: impl Into<Cow<'a, str>>) -> Cow<'a, str> {
+pub(super) fn replace_embedded_breaks<'a>(label: impl Into<Cow<'a, str>>) -> Cow<'a, str> {
     let label = label.into();
     if label.contains(embedded_break) {
         Cow::Owned(label.replace(embedded_break, " "))
