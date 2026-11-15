@@ -37,11 +37,11 @@ it("keeps the existing Windows installer identity in the native packaging config
   expect(config).toMatchObject({
     appId: "com.muzo.desktop",
     productName: "Muzo",
-    extraMetadata: { name: "@muzo/desktop", author: "Muzo" },
+    extraMetadata: { name: "@muzo/desktop", author: { name: "Muzo" } },
     win: {
       executableName: "muzo",
       icon: "assets/icons/muzo.ico",
-      artifactName: "Muzo-${version}-windows-${arch}-setup.${ext}",
+      artifactName: `Muzo-\${version}-windows-\${arch}-setup.\${ext}`,
     },
     nsis: {
       oneClick: false,
