@@ -28,6 +28,9 @@ From `apps/desktop-rust`, start the desktop with
 the paths as arguments after `--`. On Linux, install the ALSA development headers
 before compiling.
 
+In the mini player, toggle the queue with Command-Shift-L on macOS or Control-Q
+on Linux and Windows.
+
 The mixer tests drive real decoded samples, including pause, seek, resume, queue
 advance, recovery from a missing file and playback continuity when switching
 windows. The X11 smoke test uses a disposable Xvfb display and Metacity to check
