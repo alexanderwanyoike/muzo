@@ -566,6 +566,70 @@ fn it_refreshes_the_playing_track_artwork_without_restarting_audio_after_a_scan(
 }
 
 #[test]
+fn it_invalidates_previously_played_artwork_after_its_queue_thumbnail_is_evicted() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
+    use crate::desktop::{library_sources::Sources, queue_tests::setup};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let folder = root.path().join("music");
+    fs::create_dir(&folder).unwrap();
+    for name in ["first.mp3", "second.mp3"] {
+        fs::write(
+            folder.join(name),
+            include_bytes!("../../../../tests/fixtures/embedded-cover.mp3"),
+        )
+        .unwrap();
+    }
+    let source = run(&paths, Operation::Add(folder)).unwrap();
+    let id = source.tracks[0].id.clone();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths.clone()));
+    desktop.sources.snapshot = Some(source);
+    let _ = desktop.update(Message::PlayIndexed(0));
+
+    let session = desktop.session.as_mut().unwrap();
+    let old = session.tracks()[0]
+        .clone()
+        .with_artwork(include_bytes!("../../../../assets/icons/muzo.png").to_vec());
+    session.replace_track(0, old).unwrap();
+    session.select(0).unwrap();
+    session.select(1).unwrap();
+    desktop.pending_track = None;
+    desktop.queue_covers.remove(&id);
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+
+    rusqlite::Connection::open(root.path().join("muzo-rust.sqlite"))
+        .unwrap()
+        .execute(
+            "UPDATE tracks SET file_mtime = file_mtime + 1 WHERE id = ?",
+            [&id],
+        )
+        .unwrap();
+    let update = desktop.update(Message::SourcesUpdated(Ok(
+        run(&paths, Operation::Reload).unwrap()
+    )));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    if let Some(mut actions) = task::into_stream(update) {
+        while let Some(Action::Output(message)) = runtime.block_on(actions.next()) {
+            let _ = desktop.update(message);
+        }
+    }
+
+    assert!(
+        desktop.session.as_ref().unwrap().tracks()[0]
+            .artwork()
+            .is_none()
+    );
+    let _ = desktop.update(Message::Select(0));
+    assert_eq!(desktop.pending_track, Some(0));
+}
+
+#[test]
 fn it_keeps_rows_after_an_expanded_editor_in_the_cover_viewport() {
     use iced::advanced::widget::operation::scrollable::{AbsoluteOffset, scroll_to};
     use iced::{Event, Font, Pixels, Renderer, Size, advanced::clipboard, mouse, window};
