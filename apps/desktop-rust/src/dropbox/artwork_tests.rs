@@ -75,6 +75,63 @@ fn it_rejects_an_unbounded_response_to_an_artwork_range_request() {
     server.join().unwrap();
 }
 
+#[test]
+fn it_retries_m4a_artwork_when_a_range_fails_before_the_embedded_cover() {
+    const RANGE: usize = 64 * 1024;
+
+    let mut cover = Cursor::new(Vec::new());
+    DynamicImage::ImageRgba8(RgbaImage::from_pixel(4, 4, Rgba([31, 85, 124, 255])))
+        .write_to(&mut cover, ImageFormat::Png)
+        .unwrap();
+    let cover = cover.into_inner();
+    let data = m4a_cover_in_second_range(&cover, RANGE);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        for retry in [false, true] {
+            for expected_start in [0, RANGE] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let (start, end, _) = range_request(&stream);
+                assert_eq!(start, expected_start);
+                if !retry && start == RANGE {
+                    stream.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+                    continue;
+                }
+                let end = end.min(data.len() - 1);
+                write!(stream, "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {start}-{end}/{}\r\nConnection: close\r\n\r\n", end - start + 1, data.len()).unwrap();
+                stream.write_all(&data[start..=end]).unwrap();
+            }
+        }
+    });
+
+    let client = Client::for_endpoint(&address).unwrap();
+    let first = client.read_artwork("fixture-token", "/Music/Track.m4a");
+    let second = client.read_artwork("fixture-token", "/Music/Track.m4a");
+    server.join().unwrap();
+    assert_eq!(second.unwrap().as_deref(), Some(cover.as_slice()));
+    assert!(
+        first.is_err(),
+        "an interrupted M4A artwork range must remain retryable: {first:?}"
+    );
+}
+
+fn m4a_cover_in_second_range(cover: &[u8], boundary: usize) -> Vec<u8> {
+    fn atom(name: &[u8; 4], body: &[u8]) -> Vec<u8> {
+        let len = u32::try_from(8 + body.len()).unwrap();
+        [len.to_be_bytes().as_slice(), name, body].concat()
+    }
+
+    let ftyp = atom(b"ftyp", b"M4A \0\0\0\0isom");
+    let data = atom(b"data", &[&[0, 0, 0, 14, 0, 0, 0, 0], cover].concat());
+    let ilst = atom(b"ilst", &atom(b"covr", &data));
+    let udta = atom(
+        b"udta",
+        &atom(b"meta", &[&[0; 4], ilst.as_slice()].concat()),
+    );
+    let padding = atom(b"free", &vec![0; boundary - ftyp.len() - 16]);
+    [ftyp, atom(b"moov", &[padding, udta].concat())].concat()
+}
+
 fn range_request(stream: &std::net::TcpStream) -> (usize, usize, String) {
     let mut request = BufReader::new(stream);
     let mut route = String::new();
