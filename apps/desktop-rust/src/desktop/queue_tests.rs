@@ -1075,8 +1075,20 @@ fn it_ignores_an_old_tab_result_after_opening_the_same_song_again() {
 }
 
 pub(super) fn rendered_labels(desktop: &Desktop) -> Vec<String> {
+    rendered_window_labels(
+        desktop,
+        desktop.windows.library_id(),
+        iced::Size::new(1200.0, 800.0),
+    )
+}
+
+pub(super) fn rendered_window_labels(
+    desktop: &Desktop,
+    id: window::Id,
+    size: iced::Size,
+) -> Vec<String> {
     use iced::{
-        Font, Pixels, Rectangle, Renderer, Size,
+        Font, Pixels, Rectangle, Renderer,
         advanced::{
             Layout, layout,
             widget::{Operation, Tree},
@@ -1096,10 +1108,9 @@ pub(super) fn rendered_labels(desktop: &Desktop) -> Vec<String> {
         }
     }
 
-    let mut view = desktop.view(desktop.windows.library_id());
+    let mut view = desktop.view(id);
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&view);
-    let size = Size::new(1200.0, 800.0);
     let widget = view.as_widget_mut();
     let layout = widget.layout(&mut tree, &renderer, &layout::Limits::new(size, size));
     let mut labels = Labels::default();

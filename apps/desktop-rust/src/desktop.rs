@@ -1656,6 +1656,10 @@ mod cover_layout_tests;
 mod queue_tests;
 
 #[cfg(test)]
+#[path = "desktop/queue_error_tests.rs"]
+mod queue_error_tests;
+
+#[cfg(test)]
 #[path = "desktop/queue_shortcut_tests.rs"]
 mod queue_shortcut_tests;
 
