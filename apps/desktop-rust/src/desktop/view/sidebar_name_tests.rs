@@ -119,3 +119,26 @@ fn it_renders_sidebar_names_on_one_line_when_saved_names_contain_whitespace() {
         );
     }
 }
+
+#[test]
+fn it_keeps_a_name_with_a_paragraph_separator_on_one_line() {
+    let records = named_rows("Studio\u{2029}حفلة");
+    let mut panel = playlists::sidebar(&records, Appearance::default().surfaces());
+    let labels = rendered_labels(&mut panel, &mut Tree::empty(), WIDE_PANEL);
+
+    assert!(labels.iter().any(|label| label == "Studio حفلة"));
+}
+
+#[test]
+fn it_keeps_the_visual_start_of_a_joined_arabic_name() {
+    let name = "حفلات قديمة في القاهرة تتبعها تسجيلات نادرة مساء الأحد";
+    let records = named_rows(name);
+    let mut panel = playlists::sidebar(&records, Appearance::default().surfaces());
+    let labels = rendered_labels(&mut panel, &mut Tree::empty(), NARROW_PANEL);
+
+    let visible = labels.iter().find_map(|label| label.strip_suffix('…'));
+    assert!(
+        visible.is_some_and(|visible| !visible.trim().is_empty() && name.ends_with(visible.trim())),
+        "the visually left part of the name must remain visible: {labels:?}"
+    );
+}
