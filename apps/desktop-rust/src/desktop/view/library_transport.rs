@@ -220,7 +220,7 @@ fn chrome_play(playing: bool, enabled: bool, glow: Option<Glow>) -> Element<'sta
         (Icon::Play, "Play")
     };
     let glow = glow.filter(|_| enabled);
-    let control = transport_button(
+    transport_button(
         icon,
         label,
         enabled.then_some(Message::TogglePlayback),
@@ -228,11 +228,7 @@ fn chrome_play(playing: bool, enabled: bool, glow: Option<Glow>) -> Element<'sta
         move |theme, status| {
             glow.map_or_else(|| action(theme, status), |glow| glow.playback_style(status))
         },
-    );
-    match glow {
-        Some(glow) => glow.surround_playback(control),
-        None => control,
-    }
+    )
 }
 
 fn transport_button(
@@ -259,8 +255,13 @@ fn transport_button(
             .style(style)
             .on_press_maybe(message),
         text(label).size(12),
-        tooltip::Position::FollowCursor,
+        if matches!(kind, Icon::Mini) {
+            tooltip::Position::FollowCursor
+        } else {
+            tooltip::Position::Bottom
+        },
     )
+    .gap(6)
     .style(panel)
     .into()
 }
