@@ -17,6 +17,11 @@ faces](https://github.com/google/fonts/tree/b31870aff700ab7a1d74fa0c6887d95beb9e
 instanced at weights 400 and 700. The installers include the existing Manrope
 SIL Open Font License.
 
+The library track table uses the tabular alternatives from the regular
+face. [The FontTools generator](../../../apps/desktop-rust/assets/fonts/generate_table_font.py)
+remaps the font's `tnum` glyphs and subsets the characters used by the
+numeric cells into the bundled Muzo Table Text face.
+
 The library matches the Electron window dimensions and the
 `styles.css` and `transport.css` arrangement of the top transport,
 resizable navigation sidebar, content toolbar and bottom update status.
