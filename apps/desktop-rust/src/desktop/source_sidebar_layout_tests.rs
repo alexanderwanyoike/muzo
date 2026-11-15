@@ -1,7 +1,13 @@
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
-    advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree},
+    advanced::{
+        Layout, Shell, clipboard, layout, mouse,
+        renderer::{Headless, Style},
+        widget::Tree,
+    },
+    time, window,
 };
+use iced_runtime::{UserInterface, user_interface::Cache};
 
 use crate::appearance::sidebar::SidebarWidth;
 
@@ -115,14 +121,7 @@ fn it_uses_a_cloud_glyph_for_dropbox_sources() {
 
 #[test]
 fn it_aligns_source_names_and_tabular_track_counts_to_the_original_columns() {
-    {
-        let mut fonts = iced::advanced::graphics::text::font_system()
-            .write()
-            .unwrap();
-        for font in crate::fonts::settings().fonts {
-            fonts.load_font(font);
-        }
-    }
+    load_fonts();
     let mut desktop = desktop_with_sources();
     let catalogue = desktop.sources.snapshot.as_mut().unwrap();
     catalogue.selected = None;
@@ -152,6 +151,66 @@ fn it_aligns_source_names_and_tabular_track_counts_to_the_original_columns() {
         );
     }
     assert!((labels["11 tracks"].width - labels["48 tracks"].width).abs() < 0.1);
+}
+
+#[test]
+fn it_draws_source_name_and_count_ink_on_the_original_baselines() {
+    load_fonts();
+    let mut desktop = desktop_with_sources();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.appearance.accent = "glow-cyan".into();
+    let catalogue = desktop.sources.snapshot.as_mut().unwrap();
+    catalogue.libraries[0].name = "Holloway Sessions".into();
+    catalogue
+        .track_counts
+        .insert(catalogue.libraries[0].id.clone(), 2);
+    let frame = paint_source_sidebar(&desktop, mouse::Cursor::Unavailable);
+    let ink_rows = |range: std::ops::RangeInclusive<usize>| {
+        let has_ink = |x: usize, y: usize| {
+            let start = (y * FRAME.width as usize + x) * 4;
+            frame[start..start + 3].iter().any(|channel| *channel > 130)
+        };
+        let rows: Vec<_> = (364..396)
+            .filter(|&y| range.clone().any(|x| has_ink(x, y)))
+            .collect();
+        (*rows.first().unwrap(), *rows.last().unwrap())
+    };
+
+    assert_eq!(ink_rows(39..=219), (376, 387));
+    assert_eq!(ink_rows(230..=274), (378, 383));
+}
+
+fn load_fonts() {
+    let mut fonts = iced::advanced::graphics::text::font_system()
+        .write()
+        .unwrap();
+    for font in crate::fonts::settings().fonts {
+        fonts.load_font(font);
+    }
+}
+
+fn paint_source_sidebar(desktop: &Desktop, cursor: mouse::Cursor) -> Vec<u8> {
+    let id = desktop.windows.library_id();
+    let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.view(id),
+        (FRAME.width, FRAME.height).into(),
+        Cache::new(),
+        &mut renderer,
+    );
+    ui.update(
+        &[Event::Window(window::Event::RedrawRequested(
+            time::Instant::now(),
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut Vec::new(),
+    );
+    let theme = desktop.theme(id);
+    ui.draw(&mut renderer, &theme, &Style::default(), cursor);
+    renderer.screenshot(FRAME, 1.0, theme.palette().background)
 }
 
 fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
