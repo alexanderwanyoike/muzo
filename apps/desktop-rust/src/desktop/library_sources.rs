@@ -1058,6 +1058,26 @@ mod tests {
     }
 
     #[test]
+    fn it_leaves_an_incomplete_library_form_idle() {
+        let root = tempfile::tempdir().unwrap();
+        let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        desktop.sources.folder_name = "Records".into();
+        desktop.sources.folder_location = " ".into();
+
+        assert_eq!(desktop.update(Message::SubmitFolder).units(), 0);
+        assert!(
+            desktop.sources.error.is_none(),
+            "an incomplete form stays idle"
+        );
+
+        desktop.sources.folder_name = " ".into();
+        desktop.sources.folder_location = root.path().to_str().unwrap().into();
+        assert_eq!(desktop.update(Message::SubmitFolder).units(), 0);
+        assert!(!desktop.sources.busy());
+    }
+
+    #[test]
     fn it_preserves_whitespace_at_the_end_of_the_chosen_folder_location() {
         let root = tempfile::tempdir().unwrap();
         let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
