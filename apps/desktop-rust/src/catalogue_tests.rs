@@ -95,6 +95,46 @@ fn it_reconciles_nested_music_and_removes_a_source_without_touching_audio() {
 }
 
 #[test]
+fn it_preserves_the_original_artist_fallback_when_rescanning_migrated_tracks() {
+    use crate::desktop::library_sources::{CataloguePaths, Operation, run};
+
+    let root = tempfile::tempdir().unwrap();
+    let music = root.path().join("Music");
+    fs::create_dir(&music).unwrap();
+    fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
+        music.join("tone.mp3"),
+    )
+    .unwrap();
+
+    let legacy = root.path().join("muzo.sqlite");
+    let mut catalogue = Catalogue::open(&legacy, None).unwrap();
+    let library = catalogue.add_folder(&music).unwrap();
+    let original = catalogue.tracks(&library.id).unwrap().remove(0);
+    drop(catalogue);
+
+    let connection = Connection::open(&legacy).unwrap();
+    connection
+        .execute(
+            "UPDATE tracks SET artist = ?1 WHERE id = ?2",
+            ["Unknown Artist", &original.id],
+        )
+        .unwrap();
+    drop(connection);
+    let legacy_bytes = fs::read(&legacy).unwrap();
+
+    let snapshot = run(
+        &CataloguePaths::in_directory(root.path()),
+        Operation::Startup,
+    )
+    .unwrap();
+    assert_eq!(snapshot.tracks.len(), 1);
+    assert_eq!(snapshot.tracks[0].id, original.id);
+    assert_eq!(snapshot.tracks[0].artist, "Unknown Artist");
+    assert_eq!(fs::read(&legacy).unwrap(), legacy_bytes);
+}
+
+#[test]
 fn it_reopens_the_same_rust_catalogue_across_launches() {
     let root = std::env::temp_dir().join(format!("muzo-launch-{}", uuid::Uuid::new_v4()));
     let music = root.join("Music");

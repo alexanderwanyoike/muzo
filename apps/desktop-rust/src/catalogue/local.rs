@@ -212,7 +212,7 @@ fn read_file(path: PathBuf) -> Result<ScannedFile, CatalogueError> {
         ),
         artist: tag
             .and_then(Accessor::artist)
-            .map_or_else(String::new, |artist| artist.into_owned()),
+            .map_or_else(|| "Unknown Artist".to_owned(), |artist| artist.into_owned()),
         album: tag
             .and_then(Accessor::album)
             .map(|album| album.into_owned()),
