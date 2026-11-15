@@ -1,10 +1,10 @@
 use iced::{
-    Event, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
+    Color, Event, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
     advanced::{
         clipboard,
         graphics::Viewport,
         mouse,
-        renderer::Style,
+        renderer::{Headless, Style},
         widget::{Id, Operation as WidgetOperation, operation::Scrollable},
     },
     event::Status,
@@ -349,20 +349,65 @@ fn it_draws_the_focus_outline_after_keyboard_navigation() {
     desktop.appearance.accent = "glow-cyan".into();
     request(&mut desktop);
 
-    assert_eq!(focus_outlines(&desktop), [false, false]);
+    let accent = desktop.appearance.accent_ink();
+    assert_eq!(focus_outlines(&desktop, accent), [false, false]);
 
     send_key(&mut desktop, Named::Tab, Modifiers::empty());
-    assert_eq!(focus_outlines(&desktop), [false, true]);
+    assert_eq!(focus_outlines(&desktop, accent), [false, true]);
 
     send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
-    assert_eq!(focus_outlines(&desktop), [true, false]);
+    assert_eq!(focus_outlines(&desktop, accent), [true, false]);
 }
 
-fn focus_outlines(desktop: &Desktop) -> [bool; 2] {
+#[test]
+fn it_uses_pulses_neutral_focus_and_hover_colors_in_both_modes() {
+    let (mut desktop, _root) = desktop();
+    desktop.appearance.theme = "pulse".into();
+    desktop.appearance.accent = "glow-cyan".into();
+    for (mode, ink, hover) in [
+        ("light", iced::color!(0x171717), [222, 222, 222, 255]),
+        ("dark", Color::WHITE, [42, 42, 42, 255]),
+    ] {
+        desktop.appearance.mode = mode.into();
+        request(&mut desktop);
+        send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
+        send_key(&mut desktop, Named::Tab, Modifiers::empty());
+
+        assert_eq!(focus_outlines(&desktop, ink), [true, false], "{mode}");
+        assert_eq!(cancel_hover_pixel(&desktop), hover, "{mode}");
+        let _ = desktop.update(Message::CancelSourceRemoval);
+    }
+}
+
+fn cancel_hover_pixel(desktop: &Desktop) -> [u8; 4] {
+    let cancel = labels(desktop)["Cancel"];
+    let sample = Point::new(cancel.x - 5.0, cancel.center_y());
+    let cursor = mouse::Cursor::Available(sample);
+    let window = desktop.windows.library_id();
+    let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+    let mut ui = UserInterface::build(desktop.view(window), FRAME, Cache::new(), &mut renderer);
+    ui.update(
+        &[Event::Window(window::Event::RedrawRequested(
+            iced::time::Instant::now(),
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut Vec::new(),
+    );
+    let theme = desktop.theme(window);
+    ui.draw(&mut renderer, &theme, &Style::default(), cursor);
+    let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
+    let pixels = renderer.screenshot(frame, 1.0, theme.palette().background);
+    let offset = (sample.y as usize * frame.width as usize + sample.x as usize) * 4;
+    pixels[offset..offset + 4].try_into().unwrap()
+}
+
+fn focus_outlines(desktop: &Desktop, ink: Color) -> [bool; 2] {
     let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
     let pixels = paint(desktop, desktop.windows.library_id(), frame);
     let labels = labels(desktop);
-    let accent = desktop.appearance.accent_ink().into_rgba8();
+    let ink = ink.into_rgba8();
     ["Cancel", "Remove source"].map(|action| {
         let label = labels[action];
         let x = label.center_x() as usize;
@@ -370,7 +415,7 @@ fn focus_outlines(desktop: &Desktop) -> [bool; 2] {
         let bottom = (label.y + label.height + 12.0).ceil() as usize;
         (top..bottom).any(|y| {
             let offset = (y * frame.width as usize + x) * 4;
-            pixels[offset..offset + 4] == accent
+            pixels[offset..offset + 4] == ink
         })
     })
 }
