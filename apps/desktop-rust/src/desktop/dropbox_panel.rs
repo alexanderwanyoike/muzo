@@ -637,6 +637,92 @@ mod tests {
         );
     }
 
+    #[test]
+    fn it_moves_focus_from_completed_authorization_to_the_connected_panel() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.app_key = "fixture-key".into();
+        desktop.dropbox.connecting = true;
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::Connect));
+        let next = Snapshot {
+            account: Some("fixture-account".into()),
+            ..Snapshot::default()
+        };
+
+        let _ = desktop.update(Message::DropboxReady(Ok(next)));
+        let _ = desktop.update(Message::ActivateMiniFocus(window, false));
+
+        assert!(
+            desktop.dropbox.auth.is_none(),
+            "the hidden authorization action must not restart OAuth"
+        );
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::Browse))
+        );
+    }
+
+    #[test]
+    fn it_focuses_the_code_after_starting_authorization_with_the_mouse() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.app_key = "fixture-key".into();
+
+        let _ = desktop.update(Message::Dropbox(Action::Begin));
+
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::Code))
+        );
+    }
+
+    #[test]
+    fn it_toggles_a_dropbox_folder_once_while_space_is_held() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::SelectCurrent));
+
+        let _ = desktop.update(Message::MiniSpace(window, false));
+        let _ = desktop.update(Message::MiniSpace(window, true));
+
+        assert_eq!(
+            desktop.dropbox.selected_folders.as_slice(),
+            [("/Music".into(), "Music".into())]
+        );
+    }
+
+    #[test]
+    fn it_returns_focus_to_the_browser_after_removing_the_last_selected_folder() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.dropbox.selected_folders = vec![("/Records".into(), "Records".into())];
+        desktop.appearance_focus =
+            Some(Choice::Dropbox(Control::RemoveSelected("/Records".into())));
+
+        let _ = desktop.update(Message::ActivateMiniFocus(window, false));
+
+        assert!(desktop.dropbox.selected_folders.is_empty());
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::SelectCurrent))
+        );
+    }
+
     use iced::{
         Element, Font, Pixels, Rectangle, Renderer, Size,
         advanced::{
