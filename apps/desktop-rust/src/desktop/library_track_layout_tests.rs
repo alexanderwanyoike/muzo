@@ -312,6 +312,8 @@ fn it_draws_the_track_play_icon_with_the_original_glow_accent_ink() {
 
 #[test]
 fn it_keeps_compact_artwork_a_38_pixel_square() {
+    const FRAME_EDGE: usize = 38;
+    const BORDER_WIDTH: usize = 1;
     let mut desktop = track_table(850.0);
     let artwork = [244, 17, 177, 255];
     let snapshot = desktop.sources.snapshot.as_mut().unwrap();
@@ -323,17 +325,28 @@ fn it_keeps_compact_artwork_a_38_pixel_square() {
     let (viewport, _) = track_table_layout(&desktop, 850.0).scroll.unwrap();
     let middle = viewport.y.round() as usize + 8 + 28;
     let rendered = paint(&desktop, desktop.windows.library_id(), Size::new(850, 800));
-    assert_eq!(
-        (0..850)
-            .filter(|&x| {
-                pixel(&rendered, 850, x, middle)
-                    .iter()
-                    .zip(artwork)
-                    .all(|(actual, expected)| actual.abs_diff(expected) < 3)
-            })
-            .count(),
-        36
-    );
+    let is_artwork = |x, y| {
+        pixel(&rendered, 850, x, y)
+            .iter()
+            .zip(artwork)
+            .all(|(actual, expected)| actual.abs_diff(expected) < 3)
+    };
+    let horizontal: Vec<_> = (0..850).filter(|&x| is_artwork(x, middle)).collect();
+    let image_edge = FRAME_EDGE - BORDER_WIDTH * 2;
+    assert_eq!(horizontal.len(), image_edge, "artwork width");
+    let center_x = horizontal[image_edge / 2];
+    let vertical: Vec<_> = (0..800).filter(|&y| is_artwork(center_x, y)).collect();
+    assert_eq!(vertical.len(), image_edge, "artwork height");
+
+    let line = desktop.appearance.surfaces().line;
+    for (x, y) in [
+        (horizontal[0] - BORDER_WIDTH, middle),
+        (horizontal[image_edge - 1] + BORDER_WIDTH, middle),
+        (center_x, vertical[0] - BORDER_WIDTH),
+        (center_x, vertical[image_edge - 1] + BORDER_WIDTH),
+    ] {
+        assert_colour(pixel(&rendered, 850, x, y), line, line, 1.0);
+    }
 }
 
 #[test]
