@@ -382,8 +382,8 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
-                let added_folder = self.sources.apply(result);
-                let reveal_folder = if added_folder && self.page == LibraryPage::Settings {
+                let reveal_added_folder = self.sources.apply(result);
+                let reveal_folder = if reveal_added_folder && self.page == LibraryPage::Settings {
                     self.update(Message::LibraryPage(LibraryPage::Songs))
                 } else {
                     Task::none()
