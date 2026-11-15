@@ -1,5 +1,5 @@
 use iced::{
-    Element, Font, Pixels, Rectangle, Renderer, Size,
+    Element, Rectangle, Renderer, Size,
     advanced::{
         Layout, layout,
         widget::{Id, Operation, Tree},
@@ -32,7 +32,8 @@ impl Operation for Labels {
 }
 
 fn rendered_labels(panel: &mut Element<'_, Message>, tree: &mut Tree, width: f32) -> Vec<String> {
-    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let settings = iced::Settings::default();
+    let renderer = Renderer::new(settings.default_font, settings.default_text_size);
     let widget = panel.as_widget_mut();
     tree.diff(&*widget);
     let size = Size::new(width, PANEL_HEIGHT);
@@ -91,7 +92,8 @@ fn it_ellipsizes_both_sidebar_names_and_shows_the_full_names_when_widened() {
 #[test]
 fn it_ellipsizes_before_a_whole_combining_character() {
     const CLUSTER: &str = "e\u{301}";
-    let name = CLUSTER.repeat(42);
+    const OVERFLOW_CLUSTERS: usize = 42;
+    let name = CLUSTER.repeat(OVERFLOW_CLUSTERS);
     let records = named_rows(&name);
     let mut panel = playlists::sidebar(&records, Appearance::default().surfaces());
     let labels = rendered_labels(&mut panel, &mut Tree::empty(), NARROW_PANEL);
