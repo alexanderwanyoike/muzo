@@ -342,12 +342,8 @@ fn it_aligns_different_digits_in_the_index_duration_and_history_columns() {
         let mut fonts = iced::advanced::graphics::text::font_system()
             .write()
             .unwrap();
-        let bundled = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/fonts");
-        for entry in std::fs::read_dir(bundled).unwrap() {
-            let path = entry.unwrap().path();
-            if path.extension().is_some_and(|extension| extension == "ttf") {
-                fonts.load_font(std::fs::read(path).unwrap().into());
-            }
+        for font in crate::fonts::settings().fonts {
+            fonts.load_font(font);
         }
     }
     let Table { labels, .. } = track_table_layout(&track_table(1200.0), 1200.0);

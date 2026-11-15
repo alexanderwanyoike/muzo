@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use iced::{
-    Alignment, Color, Element, Fill, Font,
+    Alignment, Color, Element, Fill,
     widget::{button, column, container, image, row, scrollable, text, tooltip},
 };
 
@@ -12,6 +12,7 @@ use crate::{
         library_sources::{Snapshot, Sources},
         track_editor_focus::SONGS_SCROLL,
     },
+    fonts::TABLE_FIGURES,
     session::Session,
 };
 
@@ -106,7 +107,6 @@ pub(super) fn view<'a>(
     const LIST_TOP_INSET: f32 = 8.0;
     const LIST_BOTTOM_INSET: f32 = 30.0;
     const DIVIDER_OPACITY: f32 = 0.5;
-    const TABLE_TEXT: Font = Font::with_name("Muzo Table Text");
     let surfaces = appearance.surfaces();
     let accent_ink = appearance.accent_ink();
     let row_colors = TrackRowColors::for_appearance(appearance);
@@ -171,7 +171,7 @@ pub(super) fn view<'a>(
             play,
             container(
                 text(index + 1)
-                    .font(TABLE_TEXT)
+                    .font(TABLE_FIGURES)
                     .size(10)
                     .color(surfaces.muted)
             )
@@ -182,7 +182,7 @@ pub(super) fn view<'a>(
                 text(clock(std::time::Duration::from_secs(
                     track.duration_seconds.into()
                 )))
-                .font(TABLE_TEXT)
+                .font(TABLE_FIGURES)
                 .size(10)
                 .color(surfaces.muted)
             )
@@ -194,7 +194,7 @@ pub(super) fn view<'a>(
                     track.plays,
                     if track.plays == 1 { "play" } else { "plays" }
                 ))
-                .font(TABLE_TEXT)
+                .font(TABLE_FIGURES)
                 .size(10)
                 .color(surfaces.muted)
             )
