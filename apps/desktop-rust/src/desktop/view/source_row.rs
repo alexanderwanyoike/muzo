@@ -71,6 +71,11 @@ pub(super) fn view(
     enabled: bool,
     colors: Colors,
 ) -> Element<'_, Message> {
+    let selection = if current {
+        Some(Message::ClearSourceSelection(source.id.clone()))
+    } else {
+        enabled.then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
+    };
     let glyph = if source.kind == "dropbox" {
         Icon::Cloud
     } else {
@@ -115,9 +120,7 @@ pub(super) fn view(
                 .height(HEIGHT)
                 .padding(ROW_PADDING)
                 .style(move |theme, status| source_button(theme, status, colors.hover))
-                .on_press_maybe(
-                    enabled.then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
-                ),
+                .on_press_maybe(selection),
             remove_button(
                 enabled.then(|| Message::RequestSourceRemoval(source.id.clone())),
                 colors.muted,

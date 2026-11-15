@@ -48,6 +48,7 @@ pub enum Message {
     SubmitFolder,
     SourceSearch(String),
     ClearSourceSearch,
+    ClearSourceSelection(String),
     OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
@@ -334,6 +335,10 @@ impl Desktop {
                 iced::advanced::widget::operate(
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
+            }
+            Message::ClearSourceSelection(id) => {
+                self.sources.clear_selection(&id);
+                self.update(Message::LibraryPage(LibraryPage::Songs))
             }
             Message::SourceOperation(operation) => {
                 if matches!(operation, Operation::Select(_)) {

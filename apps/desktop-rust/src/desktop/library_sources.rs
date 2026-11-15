@@ -171,7 +171,7 @@ fn run_with_selection(
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
-        Operation::Select(id) => (previous_source.as_ref() != Some(&id)).then_some(id),
+        Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
             previous_source
@@ -363,6 +363,7 @@ pub(super) struct Sources {
     last_playlist_choice: Option<String>,
     adding_track: Option<PlaylistAddition>,
     pending_editor: Option<(String, String)>,
+    deselected_during_operation: Option<String>,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -396,6 +397,7 @@ impl Sources {
             last_playlist_choice: None,
             adding_track: None,
             pending_editor: None,
+            deselected_during_operation: None,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -619,6 +621,18 @@ impl Sources {
         )
     }
 
+    pub(super) fn clear_selection(&mut self, id: &str) {
+        if let Some(snapshot) = self.snapshot.as_mut()
+            && snapshot.selected.as_deref() == Some(id)
+        {
+            let deselected = snapshot.selected.take();
+            snapshot.tracks.clear();
+            if self.busy {
+                self.deselected_during_operation = deselected;
+            }
+        }
+    }
+
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
@@ -626,6 +640,7 @@ impl Sources {
         let saving_editor = std::mem::take(&mut self.saving_editor);
         let loading_editor = std::mem::take(&mut self.loading_editor);
         let adding_track = self.adding_track.take();
+        let deselected = self.deselected_during_operation.take();
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -650,6 +665,10 @@ impl Sources {
                 return;
             }
         };
+        if deselected.is_some() && snapshot.selected == deselected {
+            snapshot.selected = None;
+            snapshot.tracks.clear();
+        }
         if creating_playlist {
             self.show_playlist_form = false;
             self.playlist_name.clear();
