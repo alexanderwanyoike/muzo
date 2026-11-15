@@ -80,21 +80,30 @@ impl Widget<Message, Theme, Renderer> for Modal<'_> {
         viewport: &Rectangle,
     ) {
         let active = self.active();
-        self.layers[active].as_widget_mut().update(
-            &mut tree.children[active],
-            event,
-            layout.child(active),
-            cursor,
-            renderer,
-            clipboard,
-            shell,
-            viewport,
-        );
+        let window_event = matches!(event, Event::Window(_));
+        let first = if window_event { 0 } else { active };
+        for index in first..=active {
+            let cursor = if index == active {
+                cursor
+            } else {
+                mouse::Cursor::Unavailable
+            };
+            self.layers[index].as_widget_mut().update(
+                &mut tree.children[index],
+                event,
+                layout.child(index),
+                cursor,
+                renderer,
+                clipboard,
+                shell,
+                viewport,
+            );
+        }
         if let Some(handle_key) = &self.handle_key {
             if let Some(message) = handle_key(event) {
                 shell.publish(message);
             }
-            if !matches!(event, Event::Window(_)) {
+            if !window_event {
                 shell.capture_event();
             }
         }
