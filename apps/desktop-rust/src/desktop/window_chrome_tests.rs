@@ -133,6 +133,46 @@ fn it_draws_separate_solid_rounded_library_panels_in_the_current_theme() {
     }
 }
 
+#[test]
+fn it_draws_the_mini_player_and_expanded_queue_in_solid_rounded_theme_panels() {
+    for material in ["pulse", "walnut"] {
+        let (mut desktop, _) = setup();
+        desktop.appearance.theme = material.into();
+        desktop.appearance.mode = "dark".into();
+        let _ = desktop.update(Message::ShowMini);
+        let window = desktop.windows.mini_id().unwrap();
+        let surfaces = desktop.appearance.surfaces();
+        let shell = desktop.theme(window).palette().background.into_rgba8();
+
+        for (width, left_panel) in [(420, surfaces.raised), (740, surfaces.chrome)] {
+            if width == 740 {
+                let _ = desktop.update(Message::ToggleQueue);
+                let _ = desktop.update(Message::MiniResized(window, Size::new(740.0, 560.0)));
+            }
+            let pixels = paint(&desktop, window, Size::new(width, 560));
+            let at = |x, y| {
+                let offset = (y * width as usize + x) * 4;
+                &pixels[offset..offset + 4]
+            };
+            assert_eq!(at(4, 100), shell, "{material} mini gutter");
+            assert_eq!(at(10, 42), shell, "{material} mini corner");
+            assert_eq!(
+                at(28, 44),
+                left_panel.into_rgba8(),
+                "{material} mini panel fill"
+            );
+            if width == 740 {
+                assert_eq!(at(270, 100), shell, "{material} queue gutter");
+                assert_eq!(
+                    at(300, 44),
+                    surfaces.raised.into_rgba8(),
+                    "{material} playback panel fill"
+                );
+            }
+        }
+    }
+}
+
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {
     let mut view = desktop.view(id);
     let mut tree = Tree::new(&view);

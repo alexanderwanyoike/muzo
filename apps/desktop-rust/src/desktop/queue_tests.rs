@@ -761,47 +761,6 @@ fn it_reports_current_after_a_successful_check_without_an_update() {
 }
 
 #[test]
-fn it_paints_the_walnut_material_in_the_mini_window() {
-    use iced::{
-        Color, Font, Pixels, Rectangle, Renderer, Size,
-        advanced::{
-            Layout, layout, mouse,
-            renderer::{Headless, Style},
-            widget::Tree,
-        },
-    };
-
-    let (mut desktop, _) = setup();
-    let _ = desktop.update(Message::Material("walnut"));
-    let _ = desktop.update(Message::ShowMini);
-    let mini = desktop.windows.mini_id().unwrap();
-    let mut view = desktop.view(mini);
-    let theme = desktop.theme(mini);
-    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-    let mut tree = Tree::new(&view);
-    let bounds = Rectangle::with_size(Size::new(420.0, 560.0));
-    let widget = view.as_widget_mut();
-    let node = widget.layout(
-        &mut tree,
-        &renderer,
-        &layout::Limits::new(bounds.size(), bounds.size()),
-    );
-    widget.draw(
-        &tree,
-        &mut renderer,
-        &theme,
-        &Style::default(),
-        Layout::new(&node),
-        mouse::Cursor::Unavailable,
-        &bounds,
-    );
-    let pixels = renderer.screenshot(Size::new(420, 560), 1.0, Color::WHITE);
-    let material = pixels.chunks_exact(420 * 4).nth(55).unwrap();
-    let grain = &material[70 * 4..230 * 4];
-    assert!(grain.chunks_exact(4).any(|pixel| pixel != &grain[..4]));
-}
-
-#[test]
 fn it_opens_and_reveals_source_setup_from_the_sidebar() {
     let (mut desktop, _) = setup();
     let _ = desktop.update(Message::LibraryPage(LibraryPage::Songs));
