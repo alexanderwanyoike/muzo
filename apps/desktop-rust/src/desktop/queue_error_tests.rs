@@ -67,3 +67,21 @@ fn it_dismisses_the_queue_resize_notice_when_trying_again() {
     assert!(desktop.windows.queue_open());
     assert!(!rendered_window_labels(&desktop, mini, EXPANDED).contains(&resize_error));
 }
+
+#[test]
+fn it_retains_a_resize_notice_until_the_mini_window_reopens() {
+    let (mut desktop, _) = setup();
+    let mini = open_mini(&mut desktop);
+    let _ = desktop.update(Message::ToggleQueue);
+    let _ = desktop.update(Message::QueueResizeTimedOut(mini, FIRST_RESIZE, COMPACT));
+    let resize_error = WindowError::ResizeRejected.to_string();
+
+    let reopened = open_mini(&mut desktop);
+    assert_eq!(reopened, mini);
+    assert!(rendered_window_labels(&desktop, reopened, COMPACT).contains(&resize_error));
+
+    let _ = desktop.update(Message::ShowLibrary);
+    let reopened = open_mini(&mut desktop);
+    assert_ne!(reopened, mini);
+    assert!(!rendered_window_labels(&desktop, reopened, COMPACT).contains(&resize_error));
+}
