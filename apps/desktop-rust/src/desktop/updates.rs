@@ -144,7 +144,22 @@ pub fn launch(
         }
     }
     expected.verify(installer)?;
-    open::that_detached(installer)?;
+    let target = (
+        expected.asset.platform.as_str(),
+        expected.asset.arch.as_str(),
+    );
+    if target == Target::WindowsX64.manifest_identity() {
+        use std::process::{Command, Stdio};
+
+        Command::new(installer)
+            .args(["--updated", "/S", "--force-run"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+    } else {
+        open::that_detached(installer)?;
+    }
     Ok(())
 }
 
