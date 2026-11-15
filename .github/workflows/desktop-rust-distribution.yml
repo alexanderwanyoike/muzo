@@ -92,7 +92,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libfuse2 file xvfb xauth xdotool dbus
+          sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libfuse2 file xvfb xauth xdotool dbus
       - run: rustup toolchain install 1.95 --profile minimal
       - name: Install Cargo Packager
         if: runner.os != 'Windows'
@@ -113,12 +113,19 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x out/rust-distribution/*.AppImage
-          out/rust-distribution/*.AppImage --appimage-extract >/dev/null
-          test -f squashfs-root/AppRun
-          find squashfs-root -name muzo-desktop -type f | grep .
-          inherited_profile=$(mktemp -d "$RUNNER_TEMP/muzo-inherited.XXXXXXXX")
-          inherited_tmp=$(mktemp -d "$RUNNER_TEMP/muzo-inherited-tmp.XXXXXXXX")
-          trap 'rm -rf -- "$inherited_profile" "$inherited_tmp"' EXIT
+          appimage=$(realpath out/rust-distribution/*.AppImage)
+          smoke_root=$(mktemp -d "$RUNNER_TEMP/muzo-appimage-verification.XXXXXXXX")
+          trap 'rm -rf -- "$smoke_root"' EXIT
+          inherited_profile="$smoke_root/profile"
+          inherited_tmp="$smoke_root/tmp"
+          mkdir "$smoke_root/inspection" "$inherited_profile" "$inherited_tmp"
+          (
+            cd "$smoke_root/inspection"
+            "$appimage" --appimage-extract >/dev/null
+            test -f squashfs-root/AppRun
+            find squashfs-root -name muzo-desktop -type f | grep .
+            find squashfs-root -name libxkbcommon-x11.so.0 | grep .
+          )
           MUZO_DATA_DIR="$inherited_profile" TMPDIR="$inherited_tmp" bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
           if [[ -n "$(find "$inherited_profile" -mindepth 1 -print -quit)" ]]; then
             echo "The startup check wrote outside its temporary profile." >&2

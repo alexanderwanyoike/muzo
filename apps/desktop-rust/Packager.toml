@@ -14,3 +14,10 @@ resources = ["../desktop/assets/licenses"]
 [[binaries]]
 path = "muzo-desktop"
 main = true
+
+[appimage]
+# Iced loads this SONAME dynamically, so linuxdeploy cannot infer it from the executable.
+libs = ["libxkbcommon-x11.so.0"]
+
+[appimage.files]
+"assets/linux-notices" = "usr/share/doc/muzo-desktop/licenses"
