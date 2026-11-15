@@ -363,6 +363,7 @@ enum Icon {
     Music,
     Settings,
     Folder,
+    Cloud,
     Search,
     Edit,
     AddToPlaylist,
@@ -473,6 +474,9 @@ fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg
         }
         Icon::Folder => {
             "<path d='M3 7a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/>"
+        }
+        Icon::Cloud => {
+            "<path d='M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z' stroke-width='2'/>"
         }
         Icon::Search => "<circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/>",
         Icon::AddToPlaylist => "<path d='M4 6h13M4 12h13M4 18h7M18 15v6m-3-3h6'/>",

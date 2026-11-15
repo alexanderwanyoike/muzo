@@ -202,6 +202,11 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .filter(|source| matches_source(source, &query))
         .map(|source| {
             let current = selected_id == Some(source.id.as_str());
+            let glyph = if source.kind == "dropbox" {
+                Icon::Cloud
+            } else {
+                Icon::Folder
+            };
             let count = sources
                 .snapshot
                 .as_ref()
@@ -221,7 +226,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                         .style(move |_| container::Style::default().background(edge)),
                     button(
                         row![
-                            icon_tinted(Icon::Folder, move |_| if current {
+                            icon_tinted(glyph, move |_| if current {
                                 selection_ink
                             } else {
                                 surfaces.muted
