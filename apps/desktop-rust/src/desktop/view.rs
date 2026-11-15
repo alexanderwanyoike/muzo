@@ -370,6 +370,8 @@ fn primary(theme: &Theme, status: button::Status) -> button::Style {
     }
 }
 
+const ICON_TOOLTIP_TEXT_SIZE: f32 = 12.0;
+
 #[derive(Clone, Copy)]
 enum Icon {
     Library,
@@ -423,7 +425,7 @@ fn focusable_icon(
             .padding([6, 8])
             .style(move |theme, status| focus_ring(style(theme, status), theme, focused && active))
             .on_press_maybe(message),
-        text(label).size(12),
+        text(label).size(ICON_TOOLTIP_TEXT_SIZE),
         tooltip::Position::FollowCursor,
     )
     .style(panel)

@@ -10,8 +10,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, control_opacity, ellipsized_label::EllipsizedLabel, icon_tinted, panel,
-    pulse_row_fills, selection_fill,
+    ICON_TOOLTIP_TEXT_SIZE, Icon, action, control_opacity, ellipsized_label::EllipsizedLabel,
+    icon_tinted, panel, pulse_row_fills, selection_fill,
 };
 
 const HEIGHT: f32 = 32.0;
@@ -170,7 +170,7 @@ fn remove_button(
                 ..button::Style::default()
             })
             .on_press_maybe(message),
-        text("Remove source").size(12),
+        text("Remove source").size(ICON_TOOLTIP_TEXT_SIZE),
         tooltip::Position::FollowCursor,
     )
     .style(panel)
