@@ -1665,6 +1665,10 @@ mod direct_file_row_tests;
 mod library_track_layout_tests;
 
 #[cfg(test)]
+#[path = "desktop/transport_time_layout_tests.rs"]
+mod transport_time_layout_tests;
+
+#[cfg(test)]
 #[path = "desktop/queue_tests.rs"]
 mod queue_tests;
 
