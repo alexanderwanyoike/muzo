@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Color, Element, Fill, Theme, border, color,
+    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, color, font,
     widget::{
         Space, button, column, container, row, scrollable, stack, svg, text, text_input, tooltip,
     },
@@ -234,18 +234,25 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                             .width(15)
                             .height(15),
                             Element::new(
-                                EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())
+                                EllipsizedLabel::new(source.name.as_str(), 12.0)
+                                    .font(Font {
+                                        weight: font::Weight::Semibold,
+                                        ..Font::with_name("Manrope")
+                                    })
+                                    .line_height(Pixels(17.0))
                             ),
                             text(count.unwrap_or_default())
                                 .size(9)
+                                .font(crate::fonts::TABLE_FIGURES)
+                                .line_height(Pixels(13.0))
                                 .color(surfaces.muted),
                         ]
-                        .spacing(8)
+                        .spacing(7)
                         .align_y(Alignment::Center)
                     )
                     .width(Fill)
                     .height(SOURCE_ROW_HEIGHT)
-                    .padding([5, 8])
+                    .padding([5, 6])
                     .style(source_button)
                     .on_press_maybe(
                         (!sources.busy()).then(|| Message::SourceOperation(Operation::Select(
