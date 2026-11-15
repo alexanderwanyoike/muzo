@@ -26,7 +26,7 @@ mod updates;
 mod view;
 mod windows;
 
-use std::{path::PathBuf, time::Duration};
+use std::{ffi::OsString, path::PathBuf, time::Duration};
 
 use iced::{Element, Subscription, Task, Theme, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
@@ -213,7 +213,7 @@ impl Desktop {
             }
         }
         let load_sources = desktop.sources.start(Operation::Startup);
-        let files = std::env::args_os().skip(1).map(PathBuf::from).collect();
+        let files = launch_files(std::env::args_os().skip(1));
         (
             desktop,
             open.chain(Task::batch([
@@ -1640,6 +1640,23 @@ fn persist_play(
         .record_origin_play(event, library, track, started)
 }
 
+fn launch_files(arguments: impl IntoIterator<Item = OsString>) -> Vec<PathBuf> {
+    let mut switches_allowed = true;
+    arguments
+        .into_iter()
+        .filter_map(|argument| {
+            if switches_allowed && argument == "--" {
+                switches_allowed = false;
+                return None;
+            }
+            let path = PathBuf::from(argument);
+            // Electron forwards its switches when it relaunches an AppImage after an update.
+            let switch = switches_allowed && path.as_os_str().as_encoded_bytes().starts_with(b"--");
+            (!switch || path.is_file()).then_some(path)
+        })
+        .collect()
+}
+
 fn auto_update() -> Task<Message> {
     if updates::installed_build() {
         Task::done(Message::CheckUpdate)
@@ -1764,8 +1781,6 @@ mod saved_names_tests;
 #[cfg(test)]
 #[test]
 fn it_does_not_queue_electron_switches_after_upgrading_the_appimage() {
-    use std::ffi::OsString;
-
     let temporary = tempfile::tempdir().unwrap();
     let audio = temporary.path().join("--Set mix.mp3");
     std::fs::write(&audio, include_bytes!("../tests/fixtures/tone.mp3")).unwrap();
