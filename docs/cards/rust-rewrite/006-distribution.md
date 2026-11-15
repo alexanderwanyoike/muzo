@@ -24,5 +24,5 @@ The release filename and manifest contracts remain shared with the website.
 The Rust desktop installers workflow prepares the release draft for annotated
 version tags on `main`. It validates the root version, the Rust workspace
 version, Cargo and Packager before starting the four installer jobs. The draft
-uses the assembled native installer set and its verified checksums. The Electron
-distribution workflow still runs on pull requests and manual runs during the port.
+uses the assembled native installer set and its verified checksums.
+The upgrade fixtures verify installs using the published v0.0.6 installers.

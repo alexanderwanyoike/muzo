@@ -1,25 +1,19 @@
 # Desktop UI smoke test
 
-The local branch `codex/test-all-desktop-work` combines the completed desktop
-stack for manual testing. Feature PRs target dev and remain separate; their
-descriptions give the prerequisite merge order.
-
-Close any running Muzo development process before switching. From the repository:
+Use a disposable profile and audio fixtures. For development, run:
 
 ```sh
-git switch codex/test-all-desktop-work
 yarn install
-yarn desktop:legacy
+yarn desktop:dev
 ```
 
-A full restart is required for new main-process IPC commands. The browser-only
-Vite preview cannot connect to real Dropbox or local music files.
+For installer and upgrade checks, see [desktop distribution](../distribution.md).
 
 1. Open Settings and browse the connected Dropbox account. Select folders in
    different locations, review the selection and add them together. Settings
    should stay open; Sources should update and added folders should be marked.
 2. Try all seven materials in light and dark, then the ten accents. Check Songs,
-   playlists, folder selection, fields, focus rings and disabled controls.
+   playlists, folder selection, fields, keyboard cues and disabled controls.
    Restart Muzo and verify the chosen appearance is restored.
 3. Select a source by clicking its name. Play local MP3/FLAC tracks containing
    embedded PNG/JPEG covers. Check the row, transport and larger sleeve. Check a
@@ -45,10 +39,9 @@ Vite preview cannot connect to real Dropbox or local music files.
 10. Check the native window after restart: no File/Edit/View/Window menus on
     Windows/Linux. On macOS check the Muzo app controls and editing shortcuts.
 
-11. Check the flat blue/black Muzo icon in the native title/taskbar or Dock.
-    On Linux install the generated DEB in a test environment and check the Muzo
-    launcher entry. On Windows/macOS check the packaged executable/app bundle.
-    Inspect small icons and a high-density display as well as the large icon.
+11. Check the Muzo icon in the taskbar or Dock. On Linux open the AppImage
+    in an isolated test profile and check the launcher entry. On Windows and
+    macOS check the packaged executable or app bundle.
 
 12. View several album covers, quit and reopen the same build. Existing covers
     should come from the local thumbnail cache. Cached Dropbox covers remain

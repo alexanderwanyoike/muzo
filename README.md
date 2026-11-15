@@ -105,23 +105,17 @@ yarn desktop:dev
 
 On Debian and Ubuntu, install the ALSA, Wayland and xkbcommon development
 packages (`libasound2-dev`, `libwayland-dev` and `libxkbcommon-dev`).
-Use `yarn desktop:legacy` to launch the Electron comparison client.
-
-The legacy Linux desktop checks use Electron's GTK/audio dependencies and Xvfb.
-CI lists the required system packages.
+The packaged Linux startup check uses Xvfb. CI lists the required system packages.
 
 | Check | Command |
 | --- | --- |
-| Rust checks | `yarn workspace @muzo/desktop-rust format:check`, `native:lint`, `native:test` |
-| Rust release build | `yarn workspace @muzo/desktop-rust build` |
+| Rust formatting | `yarn workspace @muzo/desktop-rust format:check` |
 | JavaScript formatting | `yarn format:check` |
 | Lint | `yarn lint` |
 | Types | `yarn typecheck` |
 | Tests | `yarn test` |
 | Rust build | `yarn desktop:build` |
-| Electron reference build | `yarn desktop:legacy:build` |
 | Native installer | `yarn desktop:package`, `yarn desktop:make`, or `yarn desktop:distribute` |
-| Electron reference package and distributables | `yarn desktop:legacy:package` and `yarn desktop:legacy:make` |
 | Website | `yarn site:verify` and `yarn site:build` |
 
 Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev`
