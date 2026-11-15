@@ -42,6 +42,8 @@ pub enum DropboxError {
     Reconnect,
     #[error("Could not read embedded Dropbox artwork.")]
     Artwork(#[source] lofty::error::FileParseError),
+    #[error("A Dropbox artwork range could not be read.")]
+    ArtworkRange,
     #[error("Dropbox returned an invalid folder cursor.")]
     Cursor,
 }
