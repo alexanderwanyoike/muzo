@@ -62,7 +62,8 @@ func waitForWindow(
             print("\(stage) window \(window.id), frame \(window.frame)")
             return window
         }
-        Thread.sleep(forTimeInterval: windowPollInterval)
+        // AppKit refreshes foreground application state as the run loop advances.
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: windowPollInterval))
     } while ProcessInfo.processInfo.systemUptime < deadline
     throw SmokeError(description: "Timed out waiting for \(stage). Visible Muzo windows: \(windows).")
 }
@@ -86,6 +87,7 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
         set escapeKey to 53
         set tabKey to 48
         set returnKey to 36
+        set tabSettleSeconds to 0.15
         tell application "System Events"
             set targetApp to first application process whose unix id is targetPID
             if not (frontmost of targetApp) then error "Muzo lost focus before sending a shortcut."
@@ -93,7 +95,7 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
                 keystroke "m" using command down
             else if shortcutName is "focusQueue" then
                 key code tabKey
-                delay 0.15
+                delay tabSettleSeconds
                 key code tabKey
             else if shortcutName is "activate" then
                 key code returnKey
@@ -107,7 +109,7 @@ func send(_ shortcut: Shortcut, to app: Process) throws {
 }
 
 func capture(_ window: Window, of app: Process, named name: String, in folder: URL) throws {
-    Thread.sleep(forTimeInterval: redrawInterval)
+    RunLoop.current.run(until: Date(timeIntervalSinceNow: redrawInterval))
     guard isFrontmost(app) else {
         throw SmokeError(description: "Muzo lost focus before capturing \(name).")
     }
