@@ -116,6 +116,7 @@ jobs:
           find squashfs-root -name muzo-desktop -type f | grep .
       - name: Verify macOS disk image
         if: runner.os == 'macOS'
+        id: macos-mini
         shell: bash
         env:
           MUZO_ARCH: ${{ matrix.macho }}
@@ -135,6 +136,12 @@ jobs:
           test -x "$bundle/MacOS/$executable"
           cmp target/release/muzo-desktop "$bundle/MacOS/$executable"
           lipo "$bundle/MacOS/$executable" -verify_arch "$MUZO_ARCH"
+          swift tests/manual/macos-mini.swift "$mountpoint/Muzo.app" "$RUNNER_TEMP/muzo-macos-mini-screenshots"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.macos-mini.outcome != 'skipped' }}
+        with:
+          name: muzo-macos-mini-${{ matrix.label }}
+          path: ${{ runner.temp }}/muzo-macos-mini-screenshots/*.png
       - name: Verify Windows installer container
         if: runner.os == 'Windows'
         shell: pwsh
