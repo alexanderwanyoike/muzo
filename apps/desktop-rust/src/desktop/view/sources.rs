@@ -181,6 +181,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     const SOURCE_ROW_HEIGHT: f32 = 32.0;
     const SELECTION_EDGE: f32 = 2.0;
     const FRAME_BORDER: f32 = 1.0;
+    const HOVER_OPACITY: f32 = 0.04;
     // The extra pixel in the top inset aligns Iced's text ink with the browser baseline.
     const SOURCE_ROW_PADDING: iced::Padding = iced::Padding {
         top: 6.0,
@@ -190,7 +191,13 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     };
     let surfaces = appearance.surfaces();
     let selected_fill = selection_fill(appearance);
-    let accent = appearance.theme().palette().primary;
+    let palette = appearance.theme().palette();
+    let accent = palette.primary;
+    let hover = match (appearance.theme.as_str(), appearance.mode.as_str()) {
+        ("pulse", "dark") => color!(0x2a2a2a),
+        ("pulse", _) => color!(0xdedede),
+        _ => palette.text.scale_alpha(HOVER_OPACITY),
+    };
     let selection_ink = appearance.accent_ink();
     let danger = if appearance.mode == "dark" {
         color!(0xf1a49a)
@@ -261,7 +268,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                     .width(Fill)
                     .height(SOURCE_ROW_HEIGHT)
                     .padding(SOURCE_ROW_PADDING)
-                    .style(source_button)
+                    .style(move |theme, status| source_button(theme, status, hover))
                     .on_press_maybe(
                         (!sources.busy()).then(|| Message::SourceOperation(Operation::Select(
                             source.id.clone()
@@ -515,11 +522,10 @@ fn search_style(
     style
 }
 
-fn source_button(theme: &Theme, status: button::Status) -> button::Style {
-    const HOVER_OPACITY: f32 = 0.04;
+fn source_button(theme: &Theme, status: button::Status, hover: Color) -> button::Style {
     let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
     button::Style {
-        background: hovered.then(|| theme.palette().text.scale_alpha(HOVER_OPACITY).into()),
+        background: hovered.then(|| hover.into()),
         border: border::rounded(0),
         ..action(theme, status)
     }
