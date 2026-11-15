@@ -102,3 +102,20 @@ fn it_ellipsizes_before_a_whole_combining_character() {
         "the label should end at a grapheme boundary: {labels:?}"
     );
 }
+
+#[test]
+fn it_renders_sidebar_names_on_one_line_when_saved_names_contain_whitespace() {
+    let records = named_rows(" Field\t recordings\r\nfrom  the headland ");
+    let appearance = Appearance::default();
+
+    for mut panel in [
+        sources::sidebar(&records, &appearance),
+        playlists::sidebar(&records, appearance.surfaces()),
+    ] {
+        let labels = rendered_labels(&mut panel, &mut Tree::empty(), WIDE_PANEL);
+        assert!(
+            labels.iter().any(|label| label == LONG_NAME),
+            "the saved whitespace should fit on one line: {labels:?}"
+        );
+    }
+}
