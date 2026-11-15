@@ -617,6 +617,40 @@ mod tests {
     }
 
     #[test]
+    fn it_reapplies_dropbox_input_focus_when_wayland_reopens_the_library() {
+        use crate::desktop::{
+            Desktop, LibraryPage, Message, appearance_focus::Choice, dropbox_panel::Control,
+        };
+        use iced::futures::{FutureExt, StreamExt};
+        use iced_runtime::{Action, task};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let original = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::AppKey));
+        let _ = desktop.update(Message::LibraryVisibilityKnown(original, true));
+        let _ = desktop.update(Message::ShowMini);
+        let _ = desktop.update(Message::WaylandMiniPrepared(
+            original,
+            super::LIBRARY_SIZE,
+            false,
+        ));
+        let compact = desktop.windows.mini_id().unwrap();
+        let _ = desktop.update(Message::MiniOpened(compact));
+        let _ = desktop.update(Message::ShowLibrary);
+        let replacement = desktop.windows.library_id();
+
+        assert_ne!(original, replacement);
+        let focus = desktop.update(Message::MiniOpened(replacement));
+        let mut actions =
+            task::into_stream(focus).expect("restore the selected field and reveal it");
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Widget(_))
+        ));
+    }
+
+    #[test]
     fn it_exits_after_play_history_finishes_even_if_wayland_replaced_the_requested_window() {
         use crate::desktop::{Desktop, Message};
         use iced::futures::{FutureExt, StreamExt};
