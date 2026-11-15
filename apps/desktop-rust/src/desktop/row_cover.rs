@@ -12,7 +12,7 @@ use crate::{
     track::Track,
 };
 
-use super::CataloguePaths;
+use super::{CataloguePaths, cover::centered_square};
 
 const ROW_EDGE: u32 = 48;
 pub(super) const ROW_LIMIT: usize = 512;
@@ -86,7 +86,7 @@ pub(super) fn indexed<'a>(
 }
 
 pub(super) fn row_handle(bytes: &[u8]) -> Option<Handle> {
-    let pixels = decode_cover(bytes)?
+    let pixels = centered_square(decode_cover(bytes)?)
         .thumbnail(ROW_EDGE, ROW_EDGE)
         .into_rgba8();
     Some(Handle::from_rgba(

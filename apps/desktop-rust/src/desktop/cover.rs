@@ -21,23 +21,19 @@ pub(super) struct Cover {
 
 impl Cover {
     pub(super) fn from_track(track: Option<&Track>) -> Self {
-        let Some(bytes) = track.and_then(Track::artwork) else {
+        let Some(artwork) = track.and_then(Track::artwork).and_then(decode_cover) else {
             return Self::default();
         };
-        let decoded = decode_cover(bytes);
-        let background = decoded.as_ref().map(|image| {
-            let blur = image
-                .thumbnail(BACKGROUND_EDGE, BACKGROUND_EDGE)
-                .blur(BACKGROUND_SIGMA)
-                .into_rgba8();
-            handle(blur)
-        });
-        let sleeve =
-            decoded.map(|art| handle(sleeve_pixels(Some(art), [0; 4], SLEEVE_EDGE, SLEEVE_RADIUS)));
+        let background = artwork
+            .thumbnail(BACKGROUND_EDGE, BACKGROUND_EDGE)
+            .blur(BACKGROUND_SIGMA)
+            .into_rgba8();
+        let square = centered_square(artwork);
+        let sleeve = sleeve_pixels(&square, SLEEVE_EDGE, SLEEVE_RADIUS);
         Self {
-            thumbnail: Some(Handle::from_bytes(bytes.to_vec())),
-            background,
-            sleeve,
+            thumbnail: Some(handle(square.into_rgba8())),
+            background: Some(handle(background)),
+            sleeve: Some(handle(sleeve)),
         }
     }
 
@@ -58,29 +54,21 @@ fn handle(image: RgbaImage) -> Handle {
     Handle::from_rgba(image.width(), image.height(), image.into_raw())
 }
 
-fn sleeve_pixels(
-    cover: Option<DynamicImage>,
-    fallback: [u8; 4],
-    edge: u32,
-    radius: u32,
-) -> RgbaImage {
+pub(super) fn centered_square(image: DynamicImage) -> DynamicImage {
+    let (width, height) = (image.width(), image.height());
+    if width == height {
+        return image;
+    }
+    let side = width.min(height);
+    image.crop_imm((width - side) / 2, (height - side) / 2, side, side)
+}
+
+fn sleeve_pixels(cover: &DynamicImage, edge: u32, radius: u32) -> RgbaImage {
     let pad = SLEEVE_PAD as u32;
     let total = edge + pad * 2;
-    let mut sleeve = cover.map_or_else(
-        || RgbaImage::from_pixel(edge, edge, Rgba(fallback)),
-        |image| {
-            let side = image.width().min(image.height());
-            let centered = image.crop_imm(
-                (image.width() - side) / 2,
-                (image.height() - side) / 2,
-                side,
-                side,
-            );
-            centered
-                .resize_exact(edge, edge, imageops::FilterType::Triangle)
-                .into_rgba8()
-        },
-    );
+    let mut sleeve = cover
+        .resize_exact(edge, edge, imageops::FilterType::Triangle)
+        .into_rgba8();
 
     let mut shadow = GrayImage::new(total, total);
     for (x, y, pixel) in sleeve.enumerate_pixels_mut() {
@@ -111,12 +99,7 @@ mod tests {
     #[test]
     fn it_masks_cover_corners_and_keeps_the_soft_sleeve_shadow() {
         let pixels = ::image::RgbaImage::from_pixel(64, 64, ::image::Rgba([194, 105, 84, 255]));
-        let sleeve = sleeve_pixels(
-            Some(::image::DynamicImage::ImageRgba8(pixels)),
-            [236, 238, 242, 255],
-            240,
-            8,
-        );
+        let sleeve = sleeve_pixels(&::image::DynamicImage::ImageRgba8(pixels), 240, 8);
         let pad = 36;
         assert_eq!(sleeve.get_pixel(pad, pad)[0], 0);
         assert_eq!(
