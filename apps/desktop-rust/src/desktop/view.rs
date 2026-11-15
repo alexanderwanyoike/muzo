@@ -27,6 +27,7 @@ mod track_list;
 mod track_metadata;
 mod track_playlist;
 mod track_row;
+pub(super) mod window_chrome;
 
 use super::{Message, library_sources::Sources};
 
@@ -390,6 +391,8 @@ enum Icon {
     Edit,
     AddToPlaylist,
     Close,
+    Minimize,
+    Maximize,
     Up,
     Down,
     Volume,
@@ -506,6 +509,8 @@ fn icon_tinted(kind: Icon, tint: impl Fn(&Theme) -> Color + 'static) -> svg::Svg
         Icon::Up => "<path d='m7 15 5-5 5 5'/>",
         Icon::Down => "<path d='m7 10 5 5 5-5'/>",
         Icon::Close => "<path d='m7 7 10 10m0-10L7 17'/>",
+        Icon::Minimize => "<path d='M5 12h14'/>",
+        Icon::Maximize => "<rect x='6' y='6' width='12' height='12' rx='0.75'/>",
         Icon::Music => {
             "<path d='M10 17V6l9-2v11M10 17a3 2-20 1 1-6 1 3 2-20 1 1 6-1m9-2a3 2-20 1 1-6 1 3 2-20 1 1 6-1'/>"
         }

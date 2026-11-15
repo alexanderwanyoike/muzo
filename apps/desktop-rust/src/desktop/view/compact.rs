@@ -3,6 +3,7 @@ use std::time::Duration;
 use iced::{
     Alignment, Color, ContentFit, Element, Fill, Size, Theme, border,
     widget::{Space, button, column, container, image, row, scrollable, slider, stack, text},
+    window,
 };
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
 
 use super::{
     Icon, Message, action, bold, clock_label, control_opacity, focus_ring, focusable_icon, icon,
-    icon_tinted, playback_error,
+    icon_tinted, playback_error, window_chrome,
 };
 use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
@@ -22,6 +23,7 @@ use crate::desktop::{
 };
 
 pub(in crate::desktop) fn mini<'a>(
+    id: window::Id,
     session: Option<&'a Session>,
     window: (bool, bool, Size),
     covers: (&Cover, Option<&Covers>, &DirectCovers),
@@ -33,10 +35,10 @@ pub(in crate::desktop) fn mini<'a>(
     let (cover, indexed, direct) = covers;
     let (queue_open, queue_pending, size) = window;
     let (error, retry) = playback;
-    let header = container(
+    let header = window_chrome::title_bar(
+        id,
+        appearance,
         row![
-            text("Muzo").size(11).font(bold()).color(surfaces.muted),
-            Space::new().width(Fill),
             focusable_icon(
                 Icon::Queue,
                 if queue_open {
@@ -54,11 +56,10 @@ pub(in crate::desktop) fn mini<'a>(
                 focus == Some(Control::Library),
             ),
         ]
-        .align_y(Alignment::Center),
-    )
-    .padding([0, 18])
-    .center_y(50)
-    .style(move |_| container::Style::default().background(surfaces.chrome.scale_alpha(0.05)));
+        .align_y(Alignment::Center)
+        .into(),
+        window_chrome::MINI_TITLE_HEIGHT,
+    );
 
     let track = session.and_then(Session::current);
     let tight = size.height <= 520.0;

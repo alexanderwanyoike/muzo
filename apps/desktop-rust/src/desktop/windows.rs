@@ -242,6 +242,7 @@ fn settings(size: Size, min: Size) -> window::Settings {
         size,
         min_size: Some(min),
         exit_on_close_request: false,
+        decorations: false,
         icon,
         platform_specific,
         ..Default::default()

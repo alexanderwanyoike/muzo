@@ -122,6 +122,9 @@ pub enum Message {
     PlaylistPickerVerticalArrow(window::Id, i8),
     ClickMiniControl(MiniControl),
     CloseRequested(window::Id),
+    DragWindow(window::Id),
+    MinimizeWindow(window::Id),
+    ToggleWindowMaximized(window::Id),
     MiniResized(window::Id, iced::Size),
     CheckQueueSize(window::Id, u64),
     QueueResizeTimedOut(window::Id, u64, iced::Size),
@@ -1004,6 +1007,9 @@ impl Desktop {
                 }
                 self.windows.close_requested(id)
             }
+            Message::DragWindow(id) => window::drag(id),
+            Message::MinimizeWindow(id) => window::minimize(id, true),
+            Message::ToggleWindowMaximized(id) => window::toggle_maximize(id),
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
                     self.windows.resized(id, size);
@@ -1462,9 +1468,29 @@ impl Desktop {
     }
 
     pub fn view(&self, id: window::Id) -> Element<'_, Message> {
+        let workspace = self.workspace(id);
+        if self.windows.is_library(id) {
+            iced::widget::column![
+                view::window_chrome::title_bar(
+                    id,
+                    &self.appearance,
+                    iced::widget::Space::new().into(),
+                    view::window_chrome::LIBRARY_TITLE_HEIGHT,
+                ),
+                workspace,
+            ]
+            .height(iced::Fill)
+            .into()
+        } else {
+            workspace
+        }
+    }
+
+    fn workspace(&self, id: window::Id) -> Element<'_, Message> {
         if self.windows.is_mini(id) {
             let error = self.error.as_deref().or(self.queue_resize_error.as_deref());
             view::mini(
+                id,
                 self.session.as_ref(),
                 self.windows.mini_view(),
                 (&self.cover, Some(&self.queue_covers), &self.direct_covers),
