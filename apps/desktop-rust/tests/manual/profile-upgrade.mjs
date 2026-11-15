@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import {
+  readFileSync,
+  readdirSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -23,9 +29,22 @@ const queries = {
     "SELECT id, library_id, track_id, played_at_unix_seconds FROM play_history ORDER BY id",
 };
 
-function readCatalogue(path) {
+function trackMtime(database, trackId) {
+  return database
+    .prepare("SELECT file_mtime FROM tracks WHERE id = ?")
+    .get(trackId)?.file_mtime;
+}
+
+function readCatalogue(path, rescan) {
   const database = new DatabaseSync(path, { readOnly: true });
   try {
+    if (rescan) {
+      assert.equal(
+        trackMtime(database, rescan.trackId),
+        rescan.fileMtime,
+        "The startup scan has not persisted the fixture change",
+      );
+    }
     return Object.fromEntries(
       Object.entries(queries).map(([table, query]) => [
         table,
@@ -63,7 +82,10 @@ export function captureLegacyProfile(profile, preferences) {
 }
 
 export function verifyProfileUpgrade(profile, baseline) {
-  const catalogue = readCatalogue(join(profile.data, nativeDatabase));
+  const catalogue = readCatalogue(
+    join(profile.data, nativeDatabase),
+    baseline.rescan,
+  );
   for (const table of Object.keys(queries)) {
     assert.deepStrictEqual(
       catalogue[table],
@@ -94,6 +116,32 @@ export function verifyProfileUpgrade(profile, baseline) {
 const migrationTimeoutMs = 20_000;
 const migrationPollMs = 250;
 
+function markForStartupScan(profile, catalogue, audioPath) {
+  const fixture = resolve(audioPath);
+  const track = catalogue.tracks.find(
+    ({ file_path }) => resolve(file_path) === fixture,
+  );
+  assert(track, "The scan marker must belong to one of the seeded tracks");
+  const timestampOffsetMs = 60_000;
+  const { atime, mtimeMs } = statSync(fixture);
+  // The candidate's copied database cannot contain a timestamp written after Electron closes.
+  utimesSync(fixture, atime, new Date(mtimeMs - timestampOffsetMs));
+  const fileMtime = Math.floor(statSync(fixture).mtimeMs / 1_000);
+  const legacy = new DatabaseSync(join(profile.data, legacyDatabase), {
+    readOnly: true,
+  });
+  try {
+    assert.notEqual(
+      fileMtime,
+      trackMtime(legacy, track.id),
+      "The scan marker must differ from the copied timestamp",
+    );
+  } finally {
+    legacy.close();
+  }
+  return { trackId: track.id, fileMtime };
+}
+
 async function waitForUpgrade(profile, baseline) {
   const deadline = Date.now() + migrationTimeoutMs;
   let failure;
@@ -115,7 +163,7 @@ if (
   process.argv[1] &&
   pathToFileURL(process.argv[1]).href === import.meta.url
 ) {
-  const [action, data, leveldb, baselinePath, preferencesPath] =
+  const [action, data, leveldb, baselinePath, preferencesPath, scanMarker] =
     process.argv.slice(2);
   const profile = { data, leveldb };
   assert(
@@ -123,18 +171,25 @@ if (
     "Expected the data, Chromium storage, and baseline paths",
   );
   if (action === "capture") {
-    assert(preferencesPath, "Expected the preferences recorded from Electron");
+    assert(
+      preferencesPath && scanMarker,
+      "Expected the Electron preferences and a seeded audio file",
+    );
     const preferences = JSON.parse(readFileSync(preferencesPath, "utf8"));
     const baseline = captureLegacyProfile(profile, preferences);
+    baseline.rescan = markForStartupScan(
+      profile,
+      baseline.catalogue,
+      scanMarker,
+    );
     writeFileSync(baselinePath, JSON.stringify(baseline));
   } else {
     assert.equal(action, "verify");
-    await waitForUpgrade(
-      profile,
-      JSON.parse(readFileSync(baselinePath, "utf8")),
-    );
+    const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+    assert(baseline.rescan, "The baseline is missing the startup scan marker");
+    await waitForUpgrade(profile, baseline);
     console.log(
-      "Preserved source and track IDs, metadata edits, ordered repeated playlist entries, play history, appearance, and sidebar width. Legacy files are unchanged.",
+      "The startup scan preserved source and track IDs, metadata edits, ordered repeated playlist entries, play history, appearance, and sidebar width. Legacy files are unchanged.",
     );
   }
 }

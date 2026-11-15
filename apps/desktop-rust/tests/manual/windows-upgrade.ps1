@@ -62,7 +62,8 @@ try {
     if (!$legacyApp.HasExited) { Stop-Process -InputObject $legacyApp }
     $legacyApp.Dispose()
 }
-Invoke-ProfileTool 'profile-upgrade.mjs' @('capture', $profileDirectory, $leveldb, $baseline, $preferences)
+$scanMarker = Join-Path $music 'Tone.mp3'
+Invoke-ProfileTool 'profile-upgrade.mjs' @('capture', $profileDirectory, $leveldb, $baseline, $preferences, $scanMarker)
 
 New-Item $profileDirectory -ItemType Directory -Force | Out-Null
 $marker = Join-Path $profileDirectory 'rust-upgrade-keep.txt'
