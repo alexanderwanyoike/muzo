@@ -124,7 +124,9 @@ impl Loader {
         match result.cover {
             Ok(Some(cover)) => {
                 self.attempted.remove(&result.id);
-                if let Some(covers) = covers {
+                if let Some(covers) = covers
+                    && (covers.len() < ROW_LIMIT || covers.contains_key(&result.id))
+                {
                     covers.insert(result.id.clone(), cover.clone());
                 }
                 Some((result.id, cover))
@@ -278,6 +280,7 @@ fn visible_indices(visible: Range<usize>, last: usize) -> impl Iterator<Item = u
     (first..end)
         .chain(first.saturating_sub(OVERSCAN_ROWS)..first)
         .chain(end..end.saturating_add(OVERSCAN_ROWS).min(last))
+        .take(ROW_LIMIT)
 }
 
 fn load(
