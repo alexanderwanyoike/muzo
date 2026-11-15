@@ -1134,6 +1134,53 @@ mod tests {
         assert!(matches!(sources.pending.front(), Some(Operation::Select(id)) if id == "third"));
     }
 
+    #[test]
+    fn it_keeps_an_explicit_clear_when_earlier_queued_operations_finish() {
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action, task};
+
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let first = root.path().join("first");
+        let added = root.path().join("added");
+        std::fs::create_dir(&first).unwrap();
+        std::fs::create_dir(&added).unwrap();
+        let snapshot = run(&paths, Operation::Add(first)).unwrap();
+        let selected = snapshot.selected.clone().unwrap();
+        let mut sources = Sources::new(Some(paths));
+        sources.snapshot = Some(snapshot);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let result = |action| {
+            let mut actions = task::into_stream(action).expect("catalogue task");
+            let Some(Action::Output(Message::SourcesUpdated(result))) =
+                runtime.block_on(actions.next())
+            else {
+                panic!("expected the catalogue response");
+            };
+            result
+        };
+
+        let running = sources.start(Operation::Reload);
+        assert_eq!(sources.start(Operation::Reload).units(), 0);
+        assert_eq!(
+            sources
+                .start(Operation::AddNamedFolder("Added source".into(), added))
+                .units(),
+            0
+        );
+        sources.apply(result(running));
+        assert!(sources.toggle_selection(&selected).is_some());
+
+        for _ in 0..2 {
+            let queued = sources.poll();
+            sources.apply(result(queued));
+            assert_eq!(sources.snapshot.as_ref().unwrap().selected, None);
+        }
+        assert_eq!(sources.snapshot.as_ref().unwrap().libraries.len(), 2);
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn it_reattaches_a_watched_folder_replaced_between_polls() {
