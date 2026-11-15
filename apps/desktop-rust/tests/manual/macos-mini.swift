@@ -161,6 +161,31 @@ func clickCaption(_ window: Window, of app: Process, inset: CGFloat) throws {
     }
 }
 
+func verifyMinimized(_ window: Window, of app: Process) throws {
+    let script = """
+    on run argv
+        set targetPID to (item 1 of argv) as integer
+        set windowSize to {(item 2 of argv) as integer, (item 3 of argv) as integer}
+        tell application "System Events"
+            set targetApp to first application process whose unix id is targetPID
+            repeat with candidate in windows of targetApp
+                if size of candidate is windowSize then
+                    if value of attribute "AXMinimized" of candidate is true then return
+                end if
+            end repeat
+        end tell
+        error "Muzo's compact window was not minimized."
+    end run
+    """
+    try runTool(
+        "/usr/bin/osascript",
+        [
+            "-e", script, "--", String(app.processIdentifier),
+            String(Int(window.frame.width.rounded())), String(Int(window.frame.height.rounded())),
+        ]
+    )
+}
+
 @MainActor
 func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
     let files = FileManager.default
@@ -261,6 +286,7 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
             throw SmokeError(description: "Muzo exited while minimizing the mini player.")
         }
         if try visibleWindows(ownedBy: app.processIdentifier).isEmpty {
+            try verifyMinimized(minimizeTarget, of: app)
             print("Verified the macOS title bar controls, mini player queue and restored library geometry.")
             return
         }
