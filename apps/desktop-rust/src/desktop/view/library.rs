@@ -402,3 +402,62 @@ pub(in crate::desktop) fn settings_input(
             style
         })
 }
+
+#[cfg(test)]
+#[test]
+fn it_centres_the_label_in_a_fixed_height_settings_button() {
+    use iced::{
+        Font, Pixels, Rectangle, Renderer, Size,
+        advanced::{
+            Layout, layout, mouse,
+            renderer::{Headless, Style},
+            widget::Tree,
+        },
+    };
+
+    let appearance = Appearance::default();
+    let surfaces = appearance.surfaces();
+    let theme = appearance.theme();
+    let mut view: Element<'_, Message> = settings_button("Browse folders", surfaces).into();
+    let mut tree = Tree::new(&view);
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(180.0, 40.0)),
+    );
+    let layout = Layout::new(&node);
+    let bounds = layout.bounds();
+    widget.draw(
+        &tree,
+        &mut renderer,
+        &theme,
+        &Style::default(),
+        layout,
+        mouse::Cursor::Unavailable,
+        &Rectangle::with_size(bounds.size()),
+    );
+    let size = Size::new(bounds.width.ceil() as u32, bounds.height as u32);
+    let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+    let stride = size.width as usize * 4;
+    let background = surfaces.raised.into_rgba8()[0];
+    let ink: Vec<_> = pixels
+        .chunks_exact(stride)
+        .enumerate()
+        .skip(2)
+        .take(size.height as usize - 4)
+        .filter(|(_, row)| {
+            row[9 * 4..stride - 9 * 4]
+                .chunks_exact(4)
+                .any(|pixel| pixel[0].abs_diff(background) > 65)
+        })
+        .map(|(y, _)| y)
+        .collect();
+    let top = *ink.first().expect("rendered button label");
+    let bottom = size.height as usize - 1 - ink.last().unwrap();
+    assert!(
+        top.abs_diff(bottom) <= 2,
+        "Settings button label has {top} px above and {bottom} px below"
+    );
+}
