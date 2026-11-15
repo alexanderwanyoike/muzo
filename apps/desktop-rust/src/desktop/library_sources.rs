@@ -952,6 +952,59 @@ mod tests {
     }
 
     #[test]
+    fn it_keeps_the_source_when_removal_cannot_return_the_updated_catalogue() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let catalogue = paths.open().unwrap();
+        let playlist = catalogue.create_playlist("Existing playlist").unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO libraries (id, name, kind, location) VALUES
+                     ('victim', 'Source to remove', 'filesystem', '/music/temporary'),
+                     ('other', 'Other source', 'filesystem', '/music/other');
+                 INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+                 VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO playlist_entries (id, playlist_id, track_id, position)
+                 VALUES ('entry', ?1, 'bad', 0)",
+                [&playlist.id],
+            )
+            .unwrap();
+
+        let remove = || {
+            run_with_selection(
+                &paths,
+                Operation::Remove("victim".into()),
+                Some("victim".into()),
+                Some(playlist.id.clone()),
+            )
+        };
+
+        assert!(remove().is_err());
+        assert!(
+            catalogue
+                .libraries()
+                .unwrap()
+                .iter()
+                .any(|source| source.id == "victim"),
+            "an unsuccessful catalogue update must leave the source intact"
+        );
+
+        connection
+            .execute(
+                "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
+                [],
+            )
+            .unwrap();
+        let updated = remove().unwrap();
+        assert!(updated.libraries.iter().all(|source| source.id != "victim"));
+    }
+
+    #[test]
     fn it_starts_queued_source_actions_before_new_arrivals() {
         let root = tempfile::tempdir().unwrap();
         let mut sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
