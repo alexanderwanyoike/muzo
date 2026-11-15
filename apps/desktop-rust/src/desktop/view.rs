@@ -13,6 +13,9 @@ mod library;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
+#[cfg(test)]
+#[path = "view/sidebar_name_tests.rs"]
+mod sidebar_name_tests;
 mod sleeve_image;
 mod source_search_input;
 mod sources;
