@@ -351,6 +351,11 @@ fn load_covers(paths: &CataloguePaths, catalogue: &Catalogue, snapshot: &mut Sna
     snapshot.covers.extend(playlist_covers);
 }
 
+struct QueuedOperation {
+    operation: Operation,
+    selection_superseded: bool,
+}
+
 pub(super) struct Sources {
     paths: Option<CataloguePaths>,
     pub snapshot: Option<Snapshot>,
@@ -381,7 +386,7 @@ pub(super) struct Sources {
     watcher: Option<RecommendedWatcher>,
     roots: Vec<PathBuf>,
     registered: Vec<PathBuf>,
-    pending: std::collections::VecDeque<Operation>,
+    pending: std::collections::VecDeque<QueuedOperation>,
 }
 
 impl Sources {
@@ -454,7 +459,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::CreatePlaylist(_)))
+                .any(|queued| matches!(queued.operation, Operation::CreatePlaylist(_)))
     }
 
     pub fn folder_save_pending(&self) -> bool {
@@ -462,7 +467,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::AddNamedFolder(_, _)))
+                .any(|queued| matches!(queued.operation, Operation::AddNamedFolder(_, _)))
     }
 
     pub fn editor_save_pending(&self) -> bool {
@@ -470,7 +475,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::EditTrack(..)))
+                .any(|queued| matches!(queued.operation, Operation::EditTrack(..)))
     }
 
     pub fn open_editor(&mut self, track: IndexedTrack) -> Task<Message> {
@@ -486,7 +491,7 @@ impl Sources {
         self.pending_editor = None;
         self.editing = None;
         self.pending
-            .retain(|operation| !matches!(operation, Operation::LoadTrackEditor(..)));
+            .retain(|queued| !matches!(queued.operation, Operation::LoadTrackEditor(..)));
     }
 
     pub fn open_playlist_picker(&mut self, track: IndexedTrack) {
@@ -557,7 +562,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::AddToPlaylist(..)))
+                .any(|queued| matches!(queued.operation, Operation::AddToPlaylist(..)))
     }
 
     pub fn submit_playlist_picker(&mut self) -> Task<Message> {
@@ -613,17 +618,23 @@ impl Sources {
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
+        let queued = QueuedOperation {
+            operation,
+            selection_superseded: false,
+        };
         if self.busy || !self.pending.is_empty() {
-            self.pending.push_back(operation);
+            self.pending.push_back(queued);
             return Task::none();
         }
-        self.run_operation(operation)
+        self.run_operation(queued)
     }
 
-    fn run_operation(&mut self, operation: Operation) -> Task<Message> {
+    fn run_operation(&mut self, queued: QueuedOperation) -> Task<Message> {
         let Some(paths) = self.paths.clone() else {
             return Task::none();
         };
+        let operation = queued.operation;
+        self.selection_changed_during_operation = queued.selection_superseded;
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
             .removal
@@ -677,7 +688,10 @@ impl Sources {
         snapshot.tracks.clear();
         self.selection_changed_during_operation |= self.busy;
         self.pending
-            .retain(|operation| !matches!(operation, Operation::Select(_)));
+            .retain(|queued| !matches!(queued.operation, Operation::Select(_)));
+        for queued in &mut self.pending {
+            queued.selection_superseded = true;
+        }
         Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
     }
 
@@ -1023,10 +1037,18 @@ mod tests {
         let folder = root.path().join("Live ");
         let _ = desktop.update(Message::AddFolder);
         let _ = desktop.update(Message::FolderPicked(Some(folder.clone())));
-        desktop.sources.pending.push_back(Operation::Reload);
+        desktop.sources.pending.push_back(QueuedOperation {
+            operation: Operation::Reload,
+            selection_superseded: false,
+        });
         let _ = desktop.update(Message::SubmitFolder);
 
-        let Some(Operation::AddNamedFolder(_, submitted)) = desktop.sources.pending.back() else {
+        let Some(Operation::AddNamedFolder(_, submitted)) = desktop
+            .sources
+            .pending
+            .back()
+            .map(|queued| &queued.operation)
+        else {
             panic!("the folder was not submitted");
         };
         assert_eq!(submitted, &folder);
@@ -1131,7 +1153,10 @@ mod tests {
 
         assert_eq!(sources.start(Operation::Select("third".into())).units(), 0);
         assert!(sources.poll().units() > 0);
-        assert!(matches!(sources.pending.front(), Some(Operation::Select(id)) if id == "third"));
+        assert!(matches!(
+            sources.pending.front().map(|queued| &queued.operation),
+            Some(Operation::Select(id)) if id == "third"
+        ));
     }
 
     #[test]
