@@ -6,8 +6,11 @@ use iced::{
         Key, Location, Modifiers,
         key::{Named, NativeCode, Physical},
     },
+    window,
 };
 use iced_runtime::{UserInterface, user_interface::Cache};
+
+use crate::appearance::sidebar::SidebarWidth;
 
 use super::{
     CataloguePaths, Desktop, LibraryPage, Message, Operation, Sources,
@@ -178,6 +181,27 @@ fn it_does_not_remove_a_source_without_its_open_confirmation() {
     let _ = desktop.update(remove_another());
     assert!(!desktop.sources.busy());
     assert!(labels(&desktop).contains_key(PROMPT));
+}
+
+#[test]
+fn it_updates_the_library_layout_when_the_window_resizes_behind_the_dialog() {
+    let (mut desktop, _root) = desktop();
+    let preferred = SidebarWidth::new(360.0);
+    desktop.sidebar.set(preferred);
+    desktop.sidebar.layout_width(1200.0);
+    request(&mut desktop);
+
+    let resized = [Event::Window(window::Event::Resized(Size::new(
+        800.0, 600.0,
+    )))];
+    let (_, messages) = dispatch(&desktop, &resized, Point::ORIGIN);
+    for message in messages {
+        let _ = desktop.update(message);
+    }
+    send_key(&mut desktop, Named::Escape, Modifiers::empty());
+
+    assert_eq!(desktop.sidebar.viewport_width(), 800.0);
+    assert_eq!(desktop.sidebar.visible_width(), preferred.visible(799.0));
 }
 
 #[test]
