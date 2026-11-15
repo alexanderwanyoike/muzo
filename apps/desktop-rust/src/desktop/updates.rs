@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use iced::{
     Element, Task, border,
-    widget::{button, row, text, tooltip},
+    widget::{button, container, row, text, tooltip},
 };
 
 use crate::{
@@ -205,9 +205,19 @@ fn pill<'a>(
     action: Option<Message>,
     surfaces: Surfaces,
 ) -> button::Button<'a, Message> {
-    button(text(label.into()).size(10))
-        .height(24)
-        .padding([2, 10])
+    const PILL_HEIGHT: f32 = 24.0;
+    const PILL_LABEL_SIZE: f32 = 11.0;
+    const HORIZONTAL_INSET: f32 = 10.0;
+    let label = container(
+        text(label.into())
+            .size(PILL_LABEL_SIZE)
+            .align_y(iced::Center),
+    )
+    .center_y(PILL_HEIGHT)
+    .padding([0.0, HORIZONTAL_INSET]);
+    button(label)
+        .height(PILL_HEIGHT)
+        .padding(0)
         .style(move |theme: &iced::Theme, status| {
             let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
             button::Style {
@@ -224,7 +234,9 @@ fn pill<'a>(
                 } else {
                     theme.palette().text
                 },
-                border: border::rounded(12).width(1).color(surfaces.line),
+                border: border::rounded(PILL_HEIGHT / 2.0)
+                    .width(1)
+                    .color(surfaces.line),
                 ..button::Style::default()
             }
         })
@@ -239,6 +251,84 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn it_centres_the_status_label_inside_the_footer_pill() {
+        use iced::{
+            Rectangle,
+            advanced::{
+                mouse,
+                renderer::{Headless, Style},
+            },
+        };
+
+        const HORIZONTAL_SAMPLE_INSET: usize = 9;
+        const BORDER_SAMPLE_INSET: usize = 2;
+        const GLYPH_CONTRAST: u8 = 65;
+        const VERTICAL_TOLERANCE: usize = 2;
+        let appearance = crate::appearance::Appearance::default();
+        let surfaces = appearance.surfaces();
+        let theme = appearance.theme();
+        let fonts = crate::fonts::settings();
+        {
+            let mut loader = iced::advanced::graphics::text::font_system()
+                .write()
+                .unwrap();
+            for font in fonts.fonts {
+                loader.load_font(font);
+            }
+        }
+        let mut renderer = Renderer::new(fonts.default_font, fonts.default_text_size);
+        let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
+        const SAMPLE_DOWNLOAD_PROGRESS: u8 = 50;
+        for label in [
+            Status::Current.notice_label(),
+            Status::Downloading(SAMPLE_DOWNLOAD_PROGRESS).notice_label(),
+            Status::Error("Connection closed".into()).notice_label(),
+            "Later".into(),
+            "Restart".into(),
+        ] {
+            let mut element: Element<'_, Message> = pill(label.as_str(), None, surfaces).into();
+            let mut tree = Tree::new(&element);
+            let widget = element.as_widget_mut();
+            let node = widget.layout(&mut tree, &renderer, &limits);
+            let layout = iced::advanced::Layout::new(&node);
+            let bounds = layout.bounds();
+            widget.draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &Style::default(),
+                layout,
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds.size()),
+            );
+            let size = Size::new(bounds.width.ceil() as u32, bounds.height as u32);
+            let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+            let stride = size.width as usize * 4;
+            let ink: Vec<_> = pixels
+                .chunks_exact(stride)
+                .enumerate()
+                .filter(|(_, row)| {
+                    row[HORIZONTAL_SAMPLE_INSET * 4..stride - HORIZONTAL_SAMPLE_INSET * 4]
+                        .chunks_exact(4)
+                        .any(|pixel| {
+                            pixel[0].abs_diff(surfaces.raised.into_rgba8()[0]) > GLYPH_CONTRAST
+                        })
+                })
+                .map(|(y, _)| y)
+                .filter(|y| {
+                    (BORDER_SAMPLE_INSET..size.height as usize - BORDER_SAMPLE_INSET).contains(y)
+                })
+                .collect();
+            let top = *ink.first().expect("rendered status label");
+            let bottom = size.height as usize - 1 - ink.last().unwrap();
+            assert!(
+                top.abs_diff(bottom) <= VERTICAL_TOLERANCE,
+                "{label} has {top} px above its glyphs and {bottom} px below"
+            );
+        }
+    }
 
     #[test]
     fn it_reserves_footer_space_for_the_update_failure_reason() {

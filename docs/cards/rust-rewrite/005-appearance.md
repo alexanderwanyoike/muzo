@@ -44,5 +44,7 @@ The transport uses the five-percent volume steps from `NowPlayingBar.tsx`
 and measures pointer travel between the thumb centers. Mouse presses on the
 thumb keep the current level until the pointer moves, following
 [Chromium's range control](https://chromium.googlesource.com/chromium/src/+/259286fb5706438088c858361ff942239598ea3b/third_party/blink/renderer/core/html/forms/slider_thumb_element.cc#226).
-The transport follows `glow-accents.css` for the playback and volume shadows
-and paints the thin seek rail's softer halo over its full redraw bounds.
+The transport uses the Glow treatment from `glow-accents.css` for the volume
+slider. The library Play and Pause control uses one softer shadow to keep
+its glyph legible. The seek rail's halo is painted over its full redraw
+bounds.
