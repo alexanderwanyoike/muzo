@@ -9,7 +9,7 @@ use iced::{
 
 use crate::appearance::Appearance;
 
-use super::{Message, compact::tint};
+use super::{Message, compact::tint, selection_fill};
 
 #[derive(Clone, Copy)]
 pub(super) struct Colors {
@@ -23,21 +23,17 @@ impl Colors {
     pub(super) fn for_appearance(appearance: &Appearance) -> Self {
         const STRIPE_OPACITY: f32 = 0.02;
         const HOVER_OPACITY: f32 = 0.05;
-        const CURRENT_OPACITY: f32 = 0.13;
         let palette = appearance.theme().palette();
-        let (hover, current) = match (appearance.theme.as_str(), appearance.mode.as_str()) {
-            ("pulse", "dark") => (color!(0x2a2a2a), color!(0x2a2a2a)),
-            ("pulse", _) => (color!(0xdedede), color!(0xd8d8d8)),
-            _ => (
-                tint(palette.background, palette.text, HOVER_OPACITY),
-                tint(palette.background, palette.primary, CURRENT_OPACITY),
-            ),
+        let hover = match (appearance.theme.as_str(), appearance.mode.as_str()) {
+            ("pulse", "dark") => color!(0x2a2a2a),
+            ("pulse", _) => color!(0xdedede),
+            _ => tint(palette.background, palette.text, HOVER_OPACITY),
         };
         Self {
             base: palette.background,
             stripe: tint(palette.background, palette.text, STRIPE_OPACITY),
             hover,
-            current,
+            current: selection_fill(appearance),
         }
     }
 }

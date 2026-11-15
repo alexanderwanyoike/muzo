@@ -324,6 +324,18 @@ fn selected(theme: &Theme, status: button::Status) -> button::Style {
         ..action(theme, status)
     }
 }
+
+fn selection_fill(appearance: &crate::appearance::Appearance) -> Color {
+    const ACCENT_OPACITY: f32 = 0.13;
+    match (appearance.theme.as_str(), appearance.mode.as_str()) {
+        ("pulse", "dark") => color!(0x2a2a2a),
+        ("pulse", _) => color!(0xd8d8d8),
+        _ => {
+            let palette = appearance.theme().palette();
+            compact::tint(palette.background, palette.primary, ACCENT_OPACITY)
+        }
+    }
+}
 fn primary(theme: &Theme, status: button::Status) -> button::Style {
     let palette = theme.extended_palette();
     let pair = if status == button::Status::Hovered {

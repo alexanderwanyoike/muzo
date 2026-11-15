@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, Theme, border,
+    Alignment, Color, Element, Fill, Theme, border,
     widget::{Space, button, column, container, row, scrollable, stack, text, text_input},
 };
 
@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, compact, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library,
+    Icon, action, bold, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, selection_fill,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -176,7 +176,13 @@ pub(super) fn indexed_sources<'a>(
 }
 
 pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a, Message> {
+    const SOURCE_ROW_HEIGHT: f32 = 32.0;
+    const SELECTION_EDGE: f32 = 2.0;
+    const FRAME_BORDER: f32 = 1.0;
     let surfaces = appearance.surfaces();
+    let selected_fill = selection_fill(appearance);
+    let accent = appearance.theme().palette().primary;
+    let selection_ink = appearance.accent_ink();
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -194,39 +200,56 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                 .as_ref()
                 .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied())
                 .map(|count| format!("{count} {}", if count == 1 { "track" } else { "tracks" }));
-            row![
-                button(
-                    row![
-                        icon_tinted(Icon::Folder, move |theme| if current {
-                            theme.palette().primary
-                        } else {
-                            surfaces.muted
-                        })
-                        .width(15)
-                        .height(15),
-                        Element::new(EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())),
-                        text(count.unwrap_or_default())
-                            .size(9)
-                            .color(surfaces.muted),
-                    ]
-                    .spacing(8)
-                    .align_y(Alignment::Center)
-                )
-                .width(Fill)
-                .height(32)
-                .padding([5, 8])
-                .style(move |theme, status| source_button(theme, status, current, surfaces))
-                .on_press_maybe(
-                    (!sources.busy())
-                        .then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
-                ),
-                icon_button(
-                    Icon::Close,
-                    "Remove source",
-                    (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
-                ),
-            ]
-            .align_y(Alignment::Center)
+            let edge = if current { accent } else { Color::TRANSPARENT };
+            let background = if current {
+                selected_fill
+            } else {
+                Color::TRANSPARENT
+            };
+            container(
+                row![
+                    container(Space::new())
+                        .width(SELECTION_EDGE)
+                        .height(SOURCE_ROW_HEIGHT)
+                        .style(move |_| container::Style::default().background(edge)),
+                    button(
+                        row![
+                            icon_tinted(Icon::Folder, move |_| if current {
+                                selection_ink
+                            } else {
+                                surfaces.muted
+                            })
+                            .width(15)
+                            .height(15),
+                            Element::new(
+                                EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())
+                            ),
+                            text(count.unwrap_or_default())
+                                .size(9)
+                                .color(surfaces.muted),
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center)
+                    )
+                    .width(Fill)
+                    .height(SOURCE_ROW_HEIGHT)
+                    .padding([5, 8])
+                    .style(source_button)
+                    .on_press_maybe(
+                        (!sources.busy()).then(|| Message::SourceOperation(Operation::Select(
+                            source.id.clone()
+                        )))
+                    ),
+                    icon_button(
+                        Icon::Close,
+                        "Remove source",
+                        (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
+                    ),
+                ]
+                .align_y(Alignment::Center),
+            )
+            .width(Fill)
+            .style(move |_| container::Style::default().background(background))
             .into()
         })
         .collect();
@@ -331,6 +354,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     }
     container(body.push(library::line(surfaces)).push(add))
         .style(move |_| library::framed(surfaces.raised, surfaces, 2))
+        .padding(FRAME_BORDER)
         .width(Fill)
         .height(Fill)
         .into()
@@ -456,20 +480,12 @@ fn search_style(
     style
 }
 
-fn source_button(
-    theme: &Theme,
-    status: button::Status,
-    current: bool,
-    surfaces: Surfaces,
-) -> button::Style {
-    let style = action(theme, status);
-    if current {
-        button::Style {
-            background: Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into()),
-            border: border::rounded(0),
-            ..style
-        }
-    } else {
-        style
+fn source_button(theme: &Theme, status: button::Status) -> button::Style {
+    const HOVER_OPACITY: f32 = 0.04;
+    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+    button::Style {
+        background: hovered.then(|| theme.palette().text.scale_alpha(HOVER_OPACITY).into()),
+        border: border::rounded(0),
+        ..action(theme, status)
     }
 }
