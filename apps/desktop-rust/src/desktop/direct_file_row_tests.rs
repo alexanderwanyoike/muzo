@@ -8,7 +8,11 @@ use iced::{
 
 use crate::track::Track;
 
-use super::{Desktop, Message, queue_tests::setup};
+use super::{
+    Desktop, Message,
+    queue_tests::{setup, snapshot},
+    transport_time_layout_tests::rendered_labels,
+};
 
 const LIBRARY_FRAME: Size = Size::new(1200.0, 800.0);
 const CURRENT_FILE_TITLE: &str = "First direct file";
@@ -102,4 +106,38 @@ fn it_pauses_and_resumes_the_current_direct_file_from_its_library_row() {
     assert!(session.is_playing());
     assert_eq!(session.current_index(), Some(0));
     assert_eq!(session.start_generation(), generation);
+}
+
+#[test]
+fn it_keeps_a_direct_file_playable_after_clearing_a_source_from_a_mixed_queue() {
+    const SOURCE: &str = "indexed-library";
+    const INDEXED_TITLE: &str = "Indexed song";
+    const DIRECT_TITLE: &str = "Opened file";
+    let (mut desktop, fixture) = setup();
+    let local_path = fixture.path().to_owned();
+    let indexed = Track::new(local_path.clone(), INDEXED_TITLE.into(), None, None, None)
+        .with_library(SOURCE.into())
+        .with_indexed_id("indexed-track".into());
+    let direct = Track::new(local_path, DIRECT_TITLE.into(), None, None, None);
+    desktop
+        .session
+        .as_mut()
+        .unwrap()
+        .replace(vec![indexed, direct]);
+    let mut source = snapshot(&[SOURCE]);
+    source.selected = Some(SOURCE.into());
+    desktop.sources.snapshot = Some(source);
+
+    let _ = desktop.update(Message::SourceRowClicked(SOURCE.into()));
+    let labels = rendered_labels(&desktop, desktop.windows.library_id(), LIBRARY_FRAME);
+    assert!(
+        !labels.contains_key(INDEXED_TITLE),
+        "the indexed song must stay out of Songs"
+    );
+    click_direct_file(&mut desktop, DIRECT_TITLE);
+
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current_index(), Some(1));
+    assert_eq!(session.current().unwrap().title(), DIRECT_TITLE);
+    assert!(session.is_playing());
 }

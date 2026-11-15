@@ -106,7 +106,23 @@ pub(super) fn view<'a>(
     const LIST_TOP_INSET: f32 = 8.0;
     const LIST_BOTTOM_INSET: f32 = 30.0;
     const DIVIDER_OPACITY: f32 = 0.5;
+    const STATUS_INSET: f32 = 20.0;
     let surfaces = appearance.surfaces();
+    let status = sources.source_tracks_error.as_deref().or_else(|| {
+        sources
+            .source_tracks_loading()
+            .then_some("Loading tracks...")
+    });
+    if let Some(message) = status {
+        return column![
+            container(
+                text(replace_embedded_breaks(message))
+                    .size(13)
+                    .color(surfaces.muted)
+            )
+            .padding(STATUS_INSET)
+        ];
+    }
     let accent_ink = appearance.accent_ink();
     let row_colors = TrackRowColors::for_appearance(appearance);
     let metrics = TrackRowMetrics::for_viewport(viewport_width);
@@ -262,7 +278,7 @@ pub(super) fn view<'a>(
             container(
                 text("No tracks yet. Muzo syncs filesystem libraries automatically.")
                     .size(13)
-                    .color(surfaces.muted)
+                    .color(surfaces.muted),
             )
             .center(Fill)
         ];

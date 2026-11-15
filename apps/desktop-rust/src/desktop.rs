@@ -56,10 +56,11 @@ pub enum Message {
     SubmitFolder,
     SourceSearch(String),
     ClearSourceSearch,
+    SourceRowClicked(String),
     OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
-    SourcesUpdated(Result<Snapshot, String>),
+    SourcesUpdated(Result<Snapshot, library_sources::UpdateError>),
     SourceWatchTick,
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
@@ -353,23 +354,16 @@ impl Desktop {
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
             }
-            Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
-            Message::SourceOperation(operation) => {
-                if let Operation::Select(id) = &operation {
-                    self.page = LibraryPage::Songs;
-                    if self
-                        .sources
-                        .snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.selected.as_ref())
-                        != Some(id)
-                    {
-                        self.editor_navigation.reset();
-                        self.sources.close_track_panels();
-                    }
+            Message::SourceRowClicked(id) => {
+                if let Some(task) = self.sources.toggle_selection(&id) {
+                    let _ = self.update(Message::LibraryPage(LibraryPage::Songs));
+                    task
+                } else {
+                    Task::none()
                 }
-                self.sources.start(operation)
             }
+            Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
+            Message::SourceOperation(operation) => self.sources.start(operation),
             Message::SourcesUpdated(result) => {
                 if let (Some(previous), Ok(next)) = (&self.sources.snapshot, &result) {
                     let removed: Vec<_> = previous
@@ -391,7 +385,7 @@ impl Desktop {
                     }
                 }
                 self.sources.apply(result);
-                Task::none()
+                self.sources.start_pending().unwrap_or_else(Task::none)
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();

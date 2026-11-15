@@ -99,6 +99,21 @@ pub enum Operation {
     LoadTrackEditor(String, String),
 }
 
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum UpdateError {
+    #[error("{reason}")]
+    Tracks { library_id: String, reason: String },
+    #[error("{0}")]
+    Operation(String),
+}
+
+#[cfg(test)]
+impl From<&str> for UpdateError {
+    fn from(message: &str) -> Self {
+        Self::Operation(message.into())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub libraries: Vec<Library>,
@@ -178,7 +193,7 @@ fn run_with_selection(
         Operation::Select(id) => Some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
-            None
+            previous_source
         }
         Operation::Remove(id) => {
             let snapshot = |catalogue: &Catalogue| {
@@ -212,8 +227,11 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::SelectPlaylist(id) => {
-            selected_playlist = Some(id);
-            previous_source.clone()
+            let mut snapshot = read_snapshot(&catalogue, None, Some(id), None, warnings)?;
+            snapshot.selected = previous_source
+                .filter(|id| snapshot.libraries.iter().any(|source| source.id == *id));
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
@@ -263,7 +281,7 @@ fn run_with_selection(
                 error: None,
                 action_focus: None,
             }));
-            previous_source.clone().or(Some(library_id))
+            previous_source.or(Some(library_id))
         }
         Operation::EditTrack(id, library_id, edit) => {
             let transaction = catalogue.begin_write()?;
@@ -279,7 +297,7 @@ fn run_with_selection(
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
-        Operation::Reload => previous_source.clone(),
+        Operation::Reload => previous_source,
         Operation::Startup | Operation::Reconcile(_, _) => {
             for source in catalogue
                 .libraries()?
@@ -293,19 +311,13 @@ fn run_with_selection(
             match operation {
                 Operation::Reconcile(selected, playlist) => {
                     selected_playlist = playlist;
-                    selected
+                    selected.or(previous_source)
                 }
-                _ => None,
+                _ => previous_source,
             }
         }
     };
-    let mut snapshot = read_snapshot(
-        &catalogue,
-        selected.or(previous_source),
-        selected_playlist,
-        editor,
-        warnings,
-    )?;
+    let mut snapshot = read_snapshot(&catalogue, selected, selected_playlist, editor, warnings)?;
     load_covers(paths, &catalogue, &mut snapshot);
     Ok(snapshot)
 }
@@ -318,14 +330,7 @@ fn read_snapshot(
     warnings: Vec<String>,
 ) -> Result<Snapshot, CatalogueError> {
     let libraries = catalogue.libraries()?;
-    let selected = selected
-        .filter(|id| libraries.iter().any(|source| source.id == *id))
-        .or_else(|| {
-            libraries
-                .iter()
-                .find(|source| source.kind == "filesystem")
-                .map(|source| source.id.clone())
-        });
+    let selected = selected.filter(|id| libraries.iter().any(|source| source.id == *id));
     let playlists = catalogue.playlists()?;
     let selected_playlist = selected_playlist
         .filter(|id| playlists.iter().any(|item| item.id == *id))
@@ -337,7 +342,14 @@ fn read_snapshot(
         .unwrap_or_default();
     let tracks = selected
         .as_ref()
-        .map(|id| catalogue.tracks(id))
+        .map(|id| {
+            catalogue
+                .tracks(id)
+                .map_err(|error| CatalogueError::TracksRead {
+                    library_id: id.clone(),
+                    error: Box::new(error),
+                })
+        })
         .transpose()?
         .unwrap_or_default();
     Ok(Snapshot {
@@ -370,12 +382,18 @@ fn load_covers(paths: &CataloguePaths, catalogue: &Catalogue, snapshot: &mut Sna
     snapshot.covers.extend(playlist_covers);
 }
 
+struct QueuedOperation {
+    operation: Operation,
+    selection_superseded: bool,
+}
+
 pub(super) struct Sources {
     paths: Option<CataloguePaths>,
     pub snapshot: Option<Snapshot>,
     pub search: String,
     pub removal: Option<Removal>,
     pub error: Option<String>,
+    pub source_tracks_error: Option<String>,
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
@@ -391,6 +409,9 @@ pub(super) struct Sources {
     last_playlist_choice: Option<String>,
     adding_track: Option<PlaylistAddition>,
     pending_editor: Option<(String, String)>,
+    selection_changed_during_operation: bool,
+    loading_source: bool,
+    loading_playlist_selection: bool,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -399,7 +420,7 @@ pub(super) struct Sources {
     watcher: Option<RecommendedWatcher>,
     roots: Vec<PathBuf>,
     registered: Vec<PathBuf>,
-    pending: std::collections::VecDeque<Operation>,
+    pending: std::collections::VecDeque<QueuedOperation>,
 }
 
 impl Sources {
@@ -410,6 +431,7 @@ impl Sources {
             search: String::new(),
             removal: None,
             error: None,
+            source_tracks_error: None,
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
@@ -425,6 +447,9 @@ impl Sources {
             last_playlist_choice: None,
             adding_track: None,
             pending_editor: None,
+            selection_changed_during_operation: false,
+            loading_source: false,
+            loading_playlist_selection: false,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -466,12 +491,20 @@ impl Sources {
         self.busy
     }
 
+    pub(super) fn source_tracks_loading(&self) -> bool {
+        self.loading_source
+            || self
+                .pending
+                .iter()
+                .any(|queued| matches!(queued.operation, Operation::Select(_)))
+    }
+
     pub fn playlist_save_pending(&self) -> bool {
         self.creating_playlist
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::CreatePlaylist(_)))
+                .any(|queued| matches!(queued.operation, Operation::CreatePlaylist(_)))
     }
 
     pub fn folder_save_pending(&self) -> bool {
@@ -479,7 +512,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::AddNamedFolder(_, _)))
+                .any(|queued| matches!(queued.operation, Operation::AddNamedFolder(_, _)))
     }
 
     pub fn editor_save_pending(&self) -> bool {
@@ -487,7 +520,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::EditTrack(..)))
+                .any(|queued| matches!(queued.operation, Operation::EditTrack(..)))
     }
 
     pub fn open_editor(&mut self, track: IndexedTrack) -> Task<Message> {
@@ -503,7 +536,7 @@ impl Sources {
         self.pending_editor = None;
         self.editing = None;
         self.pending
-            .retain(|operation| !matches!(operation, Operation::LoadTrackEditor(..)));
+            .retain(|queued| !matches!(queued.operation, Operation::LoadTrackEditor(..)));
     }
 
     pub fn open_playlist_picker(&mut self, track: IndexedTrack) {
@@ -574,7 +607,7 @@ impl Sources {
             || self
                 .pending
                 .iter()
-                .any(|operation| matches!(operation, Operation::AddToPlaylist(..)))
+                .any(|queued| matches!(queued.operation, Operation::AddToPlaylist(..)))
     }
 
     pub fn submit_playlist_picker(&mut self) -> Task<Message> {
@@ -630,17 +663,33 @@ impl Sources {
     }
 
     pub fn start(&mut self, operation: Operation) -> Task<Message> {
+        let queued = QueuedOperation {
+            operation,
+            selection_superseded: false,
+        };
         if self.busy || !self.pending.is_empty() {
-            self.pending.push_back(operation);
+            self.pending.push_back(queued);
             return Task::none();
         }
-        self.run_operation(operation)
+        self.error = None;
+        self.run_operation(queued)
     }
 
-    fn run_operation(&mut self, operation: Operation) -> Task<Message> {
+    fn run_operation(&mut self, queued: QueuedOperation) -> Task<Message> {
         let Some(paths) = self.paths.clone() else {
             return Task::none();
         };
+        let operation = queued.operation;
+        self.selection_changed_during_operation = queued.selection_superseded;
+        let reports_track_read = matches!(
+            operation,
+            Operation::Select(_)
+                | Operation::Reload
+                | Operation::Refresh(_)
+                | Operation::Reconcile(..)
+        );
+        self.loading_source = matches!(operation, Operation::Select(_));
+        self.loading_playlist_selection = matches!(operation, Operation::SelectPlaylist(_));
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
             .removal
@@ -662,7 +711,6 @@ impl Sources {
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
-        self.error = None;
         let selected = self
             .snapshot
             .as_ref()
@@ -674,27 +722,73 @@ impl Sources {
         Task::perform(
             async move {
                 tokio::task::spawn_blocking(move || {
-                    run_with_selection(&paths, operation, selected, playlist)
-                        .map_err(|error| error.to_string())
+                    run_with_selection(&paths, operation, selected, playlist).map_err(|error| {
+                        match error {
+                            CatalogueError::TracksRead { library_id, error }
+                                if reports_track_read =>
+                            {
+                                UpdateError::Tracks {
+                                    library_id,
+                                    reason: error.to_string(),
+                                }
+                            }
+                            error => UpdateError::Operation(error.to_string()),
+                        }
+                    })
                 })
                 .await
-                .map_err(|error| format!("Could not update the music catalogue: {error}"))?
+                .map_err(|error| {
+                    UpdateError::Operation(format!("Could not update the music catalogue: {error}"))
+                })?
             },
             Message::SourcesUpdated,
         )
     }
 
-    pub fn apply(&mut self, result: Result<Snapshot, String>) {
+    pub(super) fn toggle_selection(&mut self, id: &str) -> Option<Task<Message>> {
+        let snapshot = self.snapshot.as_mut()?;
+        if !snapshot.libraries.iter().any(|source| source.id == id) {
+            return None;
+        }
+        let selected = (snapshot.selected.as_deref() != Some(id)).then(|| id.to_owned());
+        snapshot.selected.clone_from(&selected);
+        snapshot.tracks.clear();
+        self.source_tracks_error = None;
+        self.selection_changed_during_operation |= self.busy;
+        self.pending
+            .retain(|queued| !matches!(queued.operation, Operation::Select(_)));
+        for queued in &mut self.pending {
+            queued.selection_superseded = true;
+        }
+        Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
+    }
+
+    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
         self.busy = false;
+        self.loading_source = false;
+        let loading_playlist_selection = std::mem::take(&mut self.loading_playlist_selection);
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
         let saving_editor = std::mem::take(&mut self.saving_editor);
         let loading_editor = std::mem::take(&mut self.loading_editor);
         let adding_track = self.adding_track.take();
+        let selection_changed = std::mem::take(&mut self.selection_changed_during_operation);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
-            Err(error) => {
+            Err(UpdateError::Tracks { library_id, reason }) => {
+                if !selection_changed
+                    && self
+                        .snapshot
+                        .as_ref()
+                        .and_then(|view| view.selected.as_ref())
+                        == Some(&library_id)
+                {
+                    self.source_tracks_error = Some(reason);
+                }
+                return;
+            }
+            Err(UpdateError::Operation(error)) => {
                 if removing_source && let Some(removal) = &mut self.removal {
                     removal.failed(error);
                 } else if let Some(adding_track) = adding_track {
@@ -718,6 +812,17 @@ impl Sources {
                 return;
             }
         };
+        if selection_changed {
+            let selected = self
+                .snapshot
+                .as_ref()
+                .and_then(|previous| previous.selected.as_ref())
+                .filter(|id| snapshot.libraries.iter().any(|source| &source.id == *id));
+            if snapshot.selected.as_ref() != selected {
+                snapshot.selected = selected.cloned();
+                snapshot.tracks.clear();
+            }
+        }
         if removing_source {
             self.removal = None;
         }
@@ -730,8 +835,23 @@ impl Sources {
             self.folder_name.clear();
             self.folder_location.clear();
         }
-        if let Some(previous) = &self.snapshot {
+        let mut preserved_songs = false;
+        if let Some(previous) = &mut self.snapshot {
+            preserved_songs = loading_playlist_selection
+                && !selection_changed
+                && previous.selected == snapshot.selected;
+            if preserved_songs {
+                snapshot.tracks = std::mem::take(&mut previous.tracks);
+                for track in &snapshot.tracks {
+                    if let Some(cover) = previous.covers.remove(&track.id) {
+                        snapshot.covers.entry(track.id.clone()).or_insert(cover);
+                    }
+                }
+            }
             preserve_play_counts(&mut snapshot, previous);
+        }
+        if !preserved_songs {
+            self.source_tracks_error = None;
         }
         self.error = snapshot.warnings.first().cloned();
         let roots: Vec<_> = snapshot
@@ -799,13 +919,19 @@ impl Sources {
         self.snapshot = Some(snapshot);
     }
 
+    pub(super) fn start_pending(&mut self) -> Option<Task<Message>> {
+        self.pending
+            .pop_front()
+            .map(|operation| self.run_operation(operation))
+    }
+
     pub fn poll(&mut self) -> Task<Message> {
         if self.busy {
             return Task::none();
         }
         self.retry_watch_roots();
-        if let Some(operation) = self.pending.pop_front() {
-            return self.run_operation(operation);
+        if let Some(pending) = self.start_pending() {
+            return pending;
         }
         let selected = self
             .snapshot
@@ -935,7 +1061,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result.selected.as_deref(), Some(other.id.as_str()));
+        assert_eq!(result.selected, None);
         assert_eq!(result.libraries, [other]);
     }
 
@@ -952,15 +1078,22 @@ mod tests {
                     ('broken', 'source', 'Broken', '', 'invalid', '/songs/broken.mp3', 0, 0);",
         ).unwrap();
         let playlist = catalogue.create_playlist("Evening").unwrap();
-        let add = Operation::AddToPlaylist(playlist.id.clone(), "song".into());
+        let add = || {
+            run_with_selection(
+                &paths,
+                Operation::AddToPlaylist(playlist.id.clone(), "song".into()),
+                Some("source".into()),
+                None,
+            )
+        };
 
-        assert!(run(&paths, add.clone()).is_err());
+        assert!(add().is_err());
         assert!(catalogue.playlist_entries(&playlist.id).unwrap().is_empty());
 
         connection
             .execute("UPDATE tracks SET duration_seconds=1 WHERE id='broken'", [])
             .unwrap();
-        let snapshot = run(&paths, add).unwrap();
+        let snapshot = add().unwrap();
         assert_eq!(snapshot.playlist_entries.len(), 1);
     }
 
@@ -979,14 +1112,22 @@ mod tests {
             [],
         ).unwrap();
 
-        let result = run(&paths, Operation::CreatePlaylist("Evening".into()));
+        let create = || {
+            run_with_selection(
+                &paths,
+                Operation::CreatePlaylist("Evening".into()),
+                Some("broken".into()),
+                None,
+            )
+        };
+        let result = create();
 
         assert!(result.is_err());
         assert!(catalogue.playlists().unwrap().is_empty());
         connection
             .execute("UPDATE tracks SET duration_seconds=1", [])
             .unwrap();
-        let retry = run(&paths, Operation::CreatePlaylist("Evening".into())).unwrap();
+        let retry = create().unwrap();
         assert_eq!(retry.playlists.len(), 1);
         assert_eq!(retry.playlists[0].name, "Evening");
     }
@@ -999,10 +1140,18 @@ mod tests {
         let folder = root.path().join("Live ");
         let _ = desktop.update(Message::AddFolder);
         let _ = desktop.update(Message::FolderPicked(Some(folder.clone())));
-        desktop.sources.pending.push_back(Operation::Reload);
+        desktop.sources.pending.push_back(QueuedOperation {
+            operation: Operation::Reload,
+            selection_superseded: false,
+        });
         let _ = desktop.update(Message::SubmitFolder);
 
-        let Some(Operation::AddNamedFolder(_, submitted)) = desktop.sources.pending.back() else {
+        let Some(Operation::AddNamedFolder(_, submitted)) = desktop
+            .sources
+            .pending
+            .back()
+            .map(|queued| &queued.operation)
+        else {
             panic!("the folder was not submitted");
         };
         assert_eq!(submitted, &folder);
@@ -1107,7 +1256,57 @@ mod tests {
 
         assert_eq!(sources.start(Operation::Select("third".into())).units(), 0);
         assert!(sources.poll().units() > 0);
-        assert!(matches!(sources.pending.front(), Some(Operation::Select(id)) if id == "third"));
+        assert!(matches!(
+            sources.pending.front().map(|queued| &queued.operation),
+            Some(Operation::Select(id)) if id == "third"
+        ));
+    }
+
+    #[test]
+    fn it_keeps_an_explicit_clear_when_earlier_queued_operations_finish() {
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action, task};
+
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let first = root.path().join("first");
+        let added = root.path().join("added");
+        std::fs::create_dir(&first).unwrap();
+        std::fs::create_dir(&added).unwrap();
+        let snapshot = run(&paths, Operation::Add(first)).unwrap();
+        let selected = snapshot.selected.clone().unwrap();
+        let mut sources = Sources::new(Some(paths));
+        sources.snapshot = Some(snapshot);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let result = |action| {
+            let mut actions = task::into_stream(action).expect("catalogue task");
+            let Some(Action::Output(Message::SourcesUpdated(result))) =
+                runtime.block_on(actions.next())
+            else {
+                panic!("expected the catalogue response");
+            };
+            result
+        };
+
+        let running = sources.start(Operation::Reload);
+        assert_eq!(sources.start(Operation::Reload).units(), 0);
+        assert_eq!(
+            sources
+                .start(Operation::AddNamedFolder("Added source".into(), added))
+                .units(),
+            0
+        );
+        sources.apply(result(running));
+        assert!(sources.toggle_selection(&selected).is_some());
+
+        for _ in 0..2 {
+            let queued = sources.poll();
+            sources.apply(result(queued));
+            assert_eq!(sources.snapshot.as_ref().unwrap().selected, None);
+        }
+        assert_eq!(sources.snapshot.as_ref().unwrap().libraries.len(), 2);
     }
 
     #[cfg(target_os = "linux")]
@@ -1380,9 +1579,129 @@ mod count_tests {
             std::fs::copy(&fixture, folder.join("tone.mp3")).unwrap();
             run(&paths, Operation::Add(folder.clone())).unwrap();
         }
-        let snapshot = run(&paths, Operation::Startup).unwrap();
+        let startup = run(&paths, Operation::Startup).unwrap();
+        let snapshot = run(&paths, Operation::Select(startup.libraries[0].id.clone())).unwrap();
         assert_eq!(snapshot.tracks.len(), 1);
         assert_eq!(snapshot.track_counts.values().sum::<u64>(), 2);
         assert_eq!(snapshot.track_counts.len(), 2);
+    }
+}
+
+#[cfg(test)]
+mod source_selection_tests {
+    use super::*;
+
+    struct Libraries {
+        _directory: tempfile::TempDir,
+        paths: CataloguePaths,
+        first: Library,
+        second: Library,
+    }
+
+    impl Libraries {
+        fn new() -> Self {
+            let directory = tempfile::tempdir().unwrap();
+            let paths = CataloguePaths::in_directory(directory.path());
+            let mut catalogue = paths.open().unwrap();
+            let first = directory.path().join("Canal Sessions");
+            let second = directory.path().join("Harbour Rehearsals");
+            std::fs::create_dir(&first).unwrap();
+            std::fs::create_dir(&second).unwrap();
+            let first = catalogue.add_folder(&first).unwrap();
+            let second = catalogue.add_folder(&second).unwrap();
+            Self {
+                _directory: directory,
+                paths,
+                first,
+                second,
+            }
+        }
+
+        fn apply(&self, operation: Operation, selected: Option<String>) -> Snapshot {
+            run_with_selection(&self.paths, operation, selected, None).unwrap()
+        }
+    }
+
+    #[test]
+    fn it_waits_for_the_user_to_choose_a_source_after_startup() {
+        let libraries = Libraries::new();
+        let startup = libraries.apply(Operation::Startup, None);
+        assert_eq!(startup.libraries.len(), 2);
+        assert_eq!(startup.selected, None);
+
+        let chosen = libraries.apply(
+            Operation::Select(libraries.second.id.clone()),
+            startup.selected,
+        );
+        assert_eq!(chosen.selected.as_ref(), Some(&libraries.second.id));
+    }
+
+    #[test]
+    fn it_keeps_the_library_unselected_after_removing_the_active_source_and_reloading() {
+        let libraries = Libraries::new();
+        let snapshot = libraries.apply(
+            Operation::Remove(libraries.first.id.clone()),
+            Some(libraries.first.id.clone()),
+        );
+        assert_eq!(
+            snapshot.libraries.as_slice(),
+            std::slice::from_ref(&libraries.second)
+        );
+        assert_eq!(snapshot.selected, None);
+
+        let refreshed = libraries.apply(Operation::Reload, snapshot.selected);
+        assert_eq!(refreshed.selected, None);
+        assert!(refreshed.tracks.is_empty());
+    }
+
+    #[test]
+    fn it_keeps_the_selected_source_when_a_different_source_is_removed() {
+        let libraries = Libraries::new();
+        let snapshot = libraries.apply(
+            Operation::Remove(libraries.first.id.clone()),
+            Some(libraries.second.id.clone()),
+        );
+        assert_eq!(snapshot.selected.as_ref(), Some(&libraries.second.id));
+    }
+
+    #[test]
+    fn it_selects_a_playlist_when_the_current_song_list_cannot_be_read() {
+        let libraries = Libraries::new();
+        let catalogue = libraries.paths.open().unwrap();
+        let conn = rusqlite::Connection::open(&libraries.paths.current).unwrap();
+        conn.execute(
+            "INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+             VALUES ('unreadable', ?1, 'Track', '', 60, '/broken.mp3', 0, 0)",
+            [&libraries.first.id],
+        ).unwrap();
+        let original = catalogue.create_playlist("Original Mix").unwrap();
+        let playlist = catalogue.create_playlist("Independent Mix").unwrap();
+        let previous = libraries.apply(Operation::Select(libraries.first.id.clone()), None);
+        assert_eq!(previous.selected_playlist.as_ref(), Some(&original.id));
+        conn.execute(
+            "UPDATE tracks SET duration_seconds='invalid' WHERE id='unreadable'",
+            [],
+        )
+        .unwrap();
+        let playlist_change = Operation::SelectPlaylist(playlist.id.clone());
+        let mut sources = Sources::new(Some(libraries.paths.clone()));
+        sources.snapshot = Some(previous);
+        let _ = sources.start(playlist_change.clone());
+
+        let result = run_with_selection(
+            &libraries.paths,
+            playlist_change,
+            Some(libraries.first.id.clone()),
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "unreadable songs should not block choosing a playlist: {result:?}"
+        );
+        sources.apply(result.map_err(|error| UpdateError::Operation(error.to_string())));
+        let snapshot = sources.snapshot.unwrap();
+        assert_eq!(snapshot.selected_playlist, Some(playlist.id));
+        assert_eq!(snapshot.selected, Some(libraries.first.id));
+        assert_eq!(snapshot.tracks[0].id, "unreadable");
     }
 }

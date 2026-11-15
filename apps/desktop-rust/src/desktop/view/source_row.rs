@@ -6,13 +6,15 @@ use iced::{
 use crate::{
     appearance::Appearance,
     catalogue::Library,
-    desktop::{Message, library_sources::Operation, source_removal::Launcher},
+    desktop::{Message, source_removal::Launcher},
 };
 
 use super::{
     ICON_TOOLTIP_TEXT_SIZE, Icon, action, control_opacity, ellipsized_label::EllipsizedLabel,
     icon_tinted, panel, pulse_row_fills, selection_fill, source_removal_button::RemovalButton,
 };
+
+mod identity;
 
 const HEIGHT: f32 = 32.0;
 const SELECTION_EDGE: f32 = 2.0;
@@ -64,7 +66,7 @@ pub(super) fn view(
     source: &Library,
     count: Option<u64>,
     current: bool,
-    enabled: bool,
+    remove_enabled: bool,
     colors: Colors,
 ) -> Element<'_, Message> {
     let glyph = if source.kind == "dropbox" {
@@ -100,7 +102,7 @@ pub(super) fn view(
     .spacing(COLUMN_GAP)
     .height(Fill)
     .align_y(Alignment::Center);
-    container(
+    let content = container(
         row![
             container(Space::new())
                 .width(SELECTION_EDGE)
@@ -111,16 +113,14 @@ pub(super) fn view(
                 .height(HEIGHT)
                 .padding(ROW_PADDING)
                 .style(move |theme, status| source_button(theme, status, colors.hover))
-                .on_press_maybe(
-                    enabled.then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
-                ),
-            remove_button(&source.id, enabled, colors),
+                .on_press(Message::SourceRowClicked(source.id.clone())),
+            remove_button(&source.id, remove_enabled, colors),
         ]
         .align_y(Alignment::Center),
     )
     .width(Fill)
-    .style(move |_| container::Style::default().background(background))
-    .into()
+    .style(move |_| container::Style::default().background(background));
+    Element::new(identity::SourceRow::new(&source.id, content.into()))
 }
 
 fn source_button(theme: &Theme, status: button::Status, hover: Color) -> button::Style {

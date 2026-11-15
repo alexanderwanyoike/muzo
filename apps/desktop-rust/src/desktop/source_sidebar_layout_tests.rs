@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
     advanced::{
@@ -5,21 +7,23 @@ use iced::{
         renderer::{Headless, Style},
         widget::Tree,
     },
+    futures::StreamExt,
     time, window,
 };
-use iced_runtime::{UserInterface, user_interface::Cache};
+use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
 
 use crate::appearance::sidebar::SidebarWidth;
 
 use super::{
-    Desktop, Message,
+    CataloguePaths, Desktop, Message,
     cover_layout_tests::paint,
-    library_sources::Operation,
+    library_sources::{Operation, Sources, UpdateError, run},
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
 
 const FRAME: Size<u32> = Size::new(850, 800);
+const SOURCE_NAME_CLICK_X: f32 = 150.0;
 const FIRST_SOURCE_Y: usize = 377;
 const SECOND_SOURCE_Y: usize = FIRST_SOURCE_Y + 32;
 
@@ -31,6 +35,24 @@ fn desktop_with_sources() -> Desktop {
     desktop.sidebar.set(SidebarWidth::new(312.0));
     desktop.sidebar.layout_width(FRAME.width as f32);
     desktop
+}
+
+fn desktop_with_two_indexed_sources(root: &Path, track: Option<&Path>) -> (Desktop, String) {
+    let paths = CataloguePaths::in_directory(root);
+    let first = root.join("Harbour Rehearsals");
+    let second = root.join("Holloway Sessions");
+    std::fs::create_dir(&first).unwrap();
+    std::fs::create_dir(&second).unwrap();
+    if let Some(track) = track {
+        std::fs::copy(track, second.join("Recording.mp3")).unwrap();
+    }
+    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
+    let mut catalogue = run(&paths, Operation::Add(second)).unwrap();
+    let target = catalogue.selected.replace(previous.unwrap()).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(catalogue);
+    (desktop, target)
 }
 
 #[test]
@@ -78,7 +100,8 @@ fn it_draws_the_source_selection_across_the_whole_row_and_reserves_its_accent_ed
 
 #[test]
 fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
-    let desktop = desktop_with_sources();
+    let mut desktop = desktop_with_sources();
+    desktop.sources.snapshot.as_mut().unwrap().selected = None;
 
     for (y, name) in [
         (FIRST_SOURCE_Y, "Selected library"),
@@ -87,7 +110,7 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
         let y = y as f32;
         let select = click(&desktop, Point::new(272.0, y));
         assert!(
-            matches!(select.as_slice(), [Message::SourceOperation(Operation::Select(id))] if id == name),
+            matches!(select.as_slice(), [Message::SourceRowClicked(id)] if id == name),
             "the last pixel in the selection area should select {name}: {select:?}"
         );
         let remove = click(&desktop, Point::new(273.5, y));
@@ -102,6 +125,321 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
             );
         }
     }
+}
+
+#[test]
+fn it_closes_the_selected_song_list_on_a_second_source_click_and_keeps_playing() {
+    let directory = tempfile::tempdir().unwrap();
+    let folder = directory.path().join("Harbour Rehearsals");
+    std::fs::create_dir(&folder).unwrap();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let snapshot = run(&paths, Operation::Add(folder)).unwrap();
+    let playing_id = snapshot.tracks[0].id.clone();
+
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(snapshot);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let apply = |desktop: &mut Desktop, message| {
+        let mut pending = desktop.update(message);
+        while let Some(mut actions) = task::into_stream(pending) {
+            let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+                panic!("the catalogue task should return an update");
+            };
+            pending = desktop.update(updated);
+        }
+    };
+    apply(&mut desktop, Message::PlayIndexed(0));
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+
+    let [message]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("a click on the selected source row produces one action");
+    apply(&mut desktop, message);
+
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+    assert!(
+        rendered_labels(
+            &desktop,
+            desktop.windows.library_id(),
+            Size::new(FRAME.width as f32, FRAME.height as f32),
+        )
+        .contains_key("No music yet")
+    );
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(
+        session.current().and_then(crate::track::Track::indexed_id),
+        Some(playing_id.as_str())
+    );
+    assert!(session.is_playing());
+}
+
+#[test]
+fn it_clears_the_selected_source_while_the_catalogue_is_loading() {
+    let directory = tempfile::tempdir().unwrap();
+    let folder = directory.path().join("Harbour Rehearsals");
+    std::fs::create_dir(&folder).unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let snapshot = run(&paths, Operation::Add(folder)).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(snapshot);
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    assert!(desktop.sources.busy());
+
+    let [message]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("the selected source row remains clickable while the catalogue loads");
+    let cleared = desktop.update(message);
+    assert_eq!(cleared.units(), 0, "clearing needs no catalogue task");
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+
+    let mut actions = task::into_stream(reload).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+        panic!("expected the in-flight response with the previous selection");
+    };
+    let _ = desktop.update(updated);
+    assert!(!desktop.sources.busy());
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+}
+
+#[test]
+fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
+    let directory = tempfile::tempdir().unwrap();
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), None);
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+
+    for expected in [Some(target.as_str()), None] {
+        let [message]: [Message; 1] = click(
+            &desktop,
+            Point::new(SOURCE_NAME_CLICK_X, SECOND_SOURCE_Y as f32),
+        )
+        .try_into()
+        .expect("the other source row must remain clickable during the reload");
+        let _ = desktop.update(message);
+        assert_eq!(
+            desktop
+                .sources
+                .snapshot
+                .as_ref()
+                .unwrap()
+                .selected
+                .as_deref(),
+            expected
+        );
+    }
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, action| {
+        if let Some(mut task) = task::into_stream(action) {
+            let Some(Action::Output(updated)) = runtime.block_on(task.next()) else {
+                panic!("expected the catalogue response");
+            };
+            let _ = desktop.update(updated);
+        }
+        assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+    };
+    finish(&mut desktop, reload);
+    let queued = desktop.update(Message::SourceWatchTick);
+    finish(&mut desktop, queued);
+}
+
+#[test]
+fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
+    let directory = tempfile::tempdir().unwrap();
+    let track = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), Some(&track));
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    assert!(reload.units() > 0);
+    let [choice]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, SECOND_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("the indexed source can be chosen during a scan");
+    let _ = desktop.update(choice);
+    assert_eq!(
+        desktop.sources.snapshot.as_ref().unwrap().selected.as_ref(),
+        Some(&target),
+    );
+
+    let labels = |desktop: &Desktop| {
+        rendered_labels(
+            desktop,
+            desktop.windows.library_id(),
+            (FRAME.width, FRAME.height).into(),
+        )
+    };
+    let pending = labels(&desktop);
+    assert!(
+        pending.contains_key("Loading tracks..."),
+        "The selected source is waiting for its read, but Songs displayed {pending:?}",
+    );
+
+    const MAX_STATUS_ALIGNMENT_DELTA: f32 = 12.0;
+    const MAX_STATUS_GAP_BELOW_TOOLBAR: f32 = 80.0;
+    let toolbar = pending["LIBRARY"];
+    let loading = pending["Loading tracks..."];
+    assert!(
+        (loading.x - toolbar.x).abs() <= MAX_STATUS_ALIGNMENT_DELTA
+            && (toolbar.y..=toolbar.y + MAX_STATUS_GAP_BELOW_TOOLBAR).contains(&loading.y),
+        "the loading message should sit near the left edge under the toolbar: {loading:?}"
+    );
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, action| {
+        let mut actions = task::into_stream(action).expect("catalogue task");
+        let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+            panic!("expected the catalogue response");
+        };
+        desktop.update(updated)
+    };
+    let selection = finish(&mut desktop, reload);
+    assert!(
+        selection.units() > 0,
+        "the next source read should start as soon as the scan finishes"
+    );
+    assert!(labels(&desktop).contains_key("Loading tracks..."));
+    assert!(labels(&desktop).contains_key("Loading tracks..."));
+    let _ = finish(&mut desktop, selection);
+
+    let snapshot = desktop.sources.snapshot.as_ref().unwrap();
+    assert_eq!(snapshot.selected.as_ref(), Some(&target));
+    assert_eq!(
+        snapshot.tracks.len(),
+        1,
+        "the selected source was not read: {:?}",
+        desktop.sources.source_tracks_error
+    );
+    assert!(!labels(&desktop).contains_key("Loading tracks..."));
+}
+
+#[test]
+fn it_shows_the_source_read_error_instead_of_an_empty_track_list() {
+    const READ_ERROR: &str = "The selected track catalogue could not be read.";
+    const EMPTY: &str = "No tracks yet. Muzo syncs filesystem libraries automatically.";
+
+    let directory = tempfile::tempdir().unwrap();
+    let mut desktop = desktop_with_sources();
+    let catalogue = desktop.sources.snapshot.take();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+    desktop.sources.snapshot = catalogue;
+    let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
+    assert!(selection.units() > 0);
+
+    let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+        library_id: "Other library".into(),
+        reason: READ_ERROR.into(),
+    })));
+
+    let labels = rendered_labels(
+        &desktop,
+        desktop.windows.library_id(),
+        (FRAME.width, FRAME.height).into(),
+    );
+    assert!(labels.contains_key(READ_ERROR));
+    assert!(
+        !labels.contains_key(EMPTY),
+        "a read error must not present the selected source as empty"
+    );
+    assert!(
+        desktop.sources.error.is_none(),
+        "track errors belong to the selected source's track list"
+    );
+}
+
+#[test]
+fn it_discards_a_source_read_error_after_selection_changes() {
+    const READ_ERROR: &str = "The earlier track catalogue could not be read.";
+
+    for next in ["Other library", "Selected library"] {
+        let directory = tempfile::tempdir().unwrap();
+        let mut desktop = desktop_with_sources();
+        let catalogue = desktop.sources.snapshot.take();
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(directory.path())));
+        desktop.sources.snapshot = catalogue;
+        let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
+        assert!(selection.units() > 0);
+        let _ = desktop.update(Message::SourceRowClicked(next.into()));
+
+        let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+            library_id: "Other library".into(),
+            reason: READ_ERROR.into(),
+        })));
+
+        let labels = rendered_labels(
+            &desktop,
+            desktop.windows.library_id(),
+            (FRAME.width, FRAME.height).into(),
+        );
+        assert!(
+            !labels.contains_key(READ_ERROR),
+            "a failed read from the earlier selection must not appear after choosing {next}"
+        );
+    }
+}
+
+#[test]
+fn it_does_not_click_the_replacement_for_a_source_removed_before_release() {
+    let mut desktop = desktop_with_sources();
+    let remaining = desktop.sources.snapshot.as_ref().unwrap().libraries[1]
+        .id
+        .clone();
+    let id = desktop.windows.library_id();
+    let size = (FRAME.width, FRAME.height).into();
+    let cursor = mouse::Cursor::Available(Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32));
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, Cache::new(), &mut renderer);
+    let mut messages = Vec::new();
+    ui.update(
+        &[Event::Mouse(mouse::Event::ButtonPressed(
+            mouse::Button::Left,
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(messages.is_empty());
+
+    let cache = ui.into_cache();
+    let mut next = desktop.sources.snapshot.clone().unwrap();
+    next.libraries.remove(0);
+    next.selected = None;
+    let _ = desktop.update(Message::SourcesUpdated(Ok(next)));
+    let mut ui = UserInterface::build(desktop.workspace(id), size, cache, &mut renderer);
+    ui.update(
+        &[Event::Mouse(mouse::Event::ButtonReleased(
+            mouse::Button::Left,
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(
+        !messages.iter().any(
+            |message| matches!(message, Message::SourceRowClicked(source) if source == &remaining)
+        ),
+        "releasing the removed row clicked its replacement: {messages:?}"
+    );
 }
 
 #[test]
@@ -291,4 +629,79 @@ fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
         );
     }
     messages
+}
+
+#[test]
+fn it_routes_reload_track_errors_only_to_the_source_still_selected() {
+    let directory = tempfile::tempdir().unwrap();
+    let track = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), Some(&track));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, task| {
+        let mut actions = task::into_stream(task).expect("catalogue command");
+        let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+            panic!("expected a catalogue result");
+        };
+        let _ = desktop.update(updated);
+    };
+    let select = desktop.update(Message::SourceRowClicked(target.clone()));
+    finish(&mut desktop, select);
+    let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
+    db.execute(
+        "UPDATE tracks SET duration_seconds='invalid' WHERE library_id=?1",
+        [&target],
+    )
+    .unwrap();
+
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    finish(&mut desktop, reload);
+    assert!(
+        desktop.sources.source_tracks_error.is_some(),
+        "the current track error belongs in Songs"
+    );
+    assert!(desktop.sources.error.is_none());
+
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    let _ = desktop.update(Message::SourceRowClicked(target));
+    finish(&mut desktop, reload);
+    assert!(desktop.sources.source_tracks_error.is_none());
+    assert!(
+        desktop.sources.error.is_none(),
+        "a stale read error escaped into the toolbar"
+    );
+}
+
+#[test]
+fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded() {
+    let directory = tempfile::tempdir().unwrap();
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), None);
+    let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
+    db.execute_batch("PRAGMA foreign_keys=OFF; DROP TABLE playlists")
+        .unwrap();
+    let previous = desktop
+        .sources
+        .snapshot
+        .as_ref()
+        .unwrap()
+        .selected
+        .clone()
+        .unwrap();
+    let select = desktop.update(Message::SourceRowClicked(target));
+    let _ = desktop.update(Message::SourceRowClicked(previous));
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut actions = task::into_stream(select).expect("source selection command");
+    let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+        panic!("expected a catalogue result");
+    };
+    let queued = desktop.update(updated);
+    assert!(queued.units() > 0, "the new source should start loading");
+    assert!(
+        desktop.sources.error.is_some(),
+        "a shared catalogue failure was discarded"
+    );
+    assert!(desktop.sources.source_tracks_error.is_none());
 }

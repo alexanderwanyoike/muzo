@@ -97,14 +97,13 @@ fn library_content<'a>(
             preferences,
             viewport_width,
         )
-    } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
+    } else if let Some(list) = session.and_then(direct_file_rows) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
             text("Artist").size(12).style(muted).width(Fill)
         ]
         .padding([5, 10])
         .spacing(8);
-        let list = queue_rows(session);
         column![heading, scrollable(list).height(Fill)].spacing(5)
     } else {
         column![library::empty(preferences.surfaces())]
@@ -191,8 +190,15 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
 
 pub(super) use compact::mini;
 
-fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
-    column(session.tracks().iter().enumerate().map(|(index, track)| {
+fn direct_file_rows(session: &Session) -> Option<iced::widget::Column<'_, Message>> {
+    let mut files = session
+        .tracks()
+        .iter()
+        .enumerate()
+        .filter(|(_, track)| track.indexed_id().is_none())
+        .peekable();
+    files.peek()?;
+    let rows = files.map(|(index, track)| {
         let current = session.current_index() == Some(index);
         button(
             row![
@@ -223,8 +229,8 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
             Message::Select(index)
         })
         .into()
-    }))
-    .spacing(super::mini_focus::QUEUE_ROW_SPACING)
+    });
+    Some(column(rows).spacing(super::mini_focus::QUEUE_ROW_SPACING))
 }
 
 fn clock(duration: Duration) -> String {

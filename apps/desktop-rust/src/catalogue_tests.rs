@@ -123,11 +123,9 @@ fn it_preserves_the_original_artist_fallback_when_rescanning_migrated_tracks() {
     drop(connection);
     let legacy_bytes = fs::read(&legacy).unwrap();
 
-    let snapshot = run(
-        &CataloguePaths::in_directory(root.path()),
-        Operation::Startup,
-    )
-    .unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    run(&paths, Operation::Startup).unwrap();
+    let snapshot = run(&paths, Operation::Select(library.id)).unwrap();
     assert_eq!(snapshot.tracks.len(), 1);
     assert_eq!(snapshot.tracks[0].id, original.id);
     assert_eq!(snapshot.tracks[0].artist, "Unknown Artist");
@@ -152,7 +150,7 @@ fn it_reopens_the_same_rust_catalogue_across_launches() {
     )
     .unwrap();
     assert_eq!(restarted.libraries[0].id, id);
-    assert_eq!(restarted.selected.as_deref(), Some(id.as_str()));
+    assert_eq!(restarted.selected, None);
     fs::remove_dir_all(root).unwrap();
 }
 
