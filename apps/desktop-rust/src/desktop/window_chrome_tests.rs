@@ -6,7 +6,10 @@ use iced::{
 };
 use iced_runtime::{Action, task};
 
-use super::{Desktop, Message, transport_time_layout_tests::rendered_labels};
+use super::{
+    Desktop, Message, cover_layout_tests::paint, queue_tests::setup,
+    transport_time_layout_tests::rendered_labels,
+};
 
 #[test]
 fn it_draws_the_close_control_inside_both_muzo_windows() {
@@ -92,6 +95,41 @@ fn it_keeps_the_title_bar_inside_the_same_compact_strip_in_both_windows() {
                 .iter()
                 .all(|message| !matches!(message, Message::DragWindow(_)))
         );
+    }
+}
+
+#[test]
+fn it_draws_separate_solid_rounded_library_panels_in_the_current_theme() {
+    let frame = Size::new(850, 800);
+    let (mut desktop, _) = setup();
+    let window = desktop.windows.library_id();
+    desktop.appearance.mode = "dark".into();
+    let content_left = desktop.sidebar.visible_width().round() as usize + 1;
+
+    for material in ["pulse", "walnut"] {
+        desktop.appearance.theme = material.into();
+        let surfaces = desktop.appearance.surfaces();
+        let shell = desktop.theme(window).palette().background.into_rgba8();
+        let pixels = paint(&desktop, window, frame);
+        let at = |x, y| {
+            let offset = (y * frame.width as usize + x) * 4;
+            &pixels[offset..offset + 4]
+        };
+
+        assert_eq!(at(4, 120), shell, "{material} sidebar gutter");
+        assert_eq!(at(10, 92), shell, "{material} sidebar corner");
+        assert_eq!(
+            at(28, 94),
+            surfaces.chrome.into_rgba8(),
+            "{material} sidebar fill"
+        );
+        assert_eq!(at(content_left + 2, 92), shell, "{material} content corner");
+        assert_eq!(
+            at(content_left + 22, 94),
+            surfaces.raised.into_rgba8(),
+            "{material} content fill"
+        );
+        assert_eq!(at(846, 120), shell, "{material} content gutter");
     }
 }
 
