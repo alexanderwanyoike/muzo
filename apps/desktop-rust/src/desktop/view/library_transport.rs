@@ -20,6 +20,7 @@ use super::{
 };
 
 mod glow;
+mod seek_halo;
 mod volume;
 use glow::Glow;
 

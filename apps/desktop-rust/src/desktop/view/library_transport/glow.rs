@@ -6,8 +6,9 @@ use iced::{
 use crate::appearance::Appearance;
 
 use super::{
-    Message, PLAY_BUTTON_EDGE, SEEK_INPUT_HEIGHT, VOLUME_INPUT_HEIGHT,
+    Message, PLAY_BUTTON_EDGE, VOLUME_INPUT_HEIGHT,
     compact::{SLIDER_RAIL_HEIGHT, VOLUME_THUMB_RADIUS},
+    seek_halo::SeekHalo,
     volume::thumb_travel,
 };
 
@@ -70,14 +71,7 @@ impl Glow {
         control: Element<'static, Message>,
     ) -> Element<'static, Message> {
         stack![control]
-            .push_under(rail_shadow(
-                SEEK_INPUT_HEIGHT,
-                self.shadow(INNER_BLUR, INNER_OPACITY),
-            ))
-            .push_under(rail_shadow(
-                SEEK_INPUT_HEIGHT,
-                self.shadow(OUTER_BLUR, OUTER_OPACITY),
-            ))
+            .push_under(Element::new(SeekHalo(self.accent)))
             .into()
     }
 
