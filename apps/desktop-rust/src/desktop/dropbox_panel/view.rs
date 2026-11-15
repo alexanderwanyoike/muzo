@@ -11,6 +11,7 @@ use crate::desktop::view::{
 };
 
 const FOLDER_LIST_HEIGHT: f32 = 240.0;
+const FOLDER_SCROLLBAR_GAP: f32 = 6.0;
 const ACTION_GAP: f32 = 8.0;
 const FOLDER_ICON_EDGE: f32 = 15.0;
 
@@ -166,9 +167,13 @@ impl Settings {
                 .iter()
                 .map(|(path, name)| self.folder_row(path, name));
             browser = browser.push(
-                container(scrollable(column(rows).spacing(2)).height(Shrink))
-                    .max_height(FOLDER_LIST_HEIGHT)
-                    .width(Fill),
+                container(
+                    scrollable(column(rows).spacing(2))
+                        .spacing(FOLDER_SCROLLBAR_GAP)
+                        .height(Shrink),
+                )
+                .max_height(FOLDER_LIST_HEIGHT)
+                .width(Fill),
             );
         }
         let selected_elsewhere = self.selected_folders.iter().filter(|(selected, _)| {
