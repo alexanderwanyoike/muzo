@@ -1648,6 +1648,10 @@ fn artwork_revision(
 }
 
 #[cfg(test)]
+#[path = "desktop/cover_layout_tests.rs"]
+mod cover_layout_tests;
+
+#[cfg(test)]
 #[path = "desktop/queue_tests.rs"]
 mod queue_tests;
 
