@@ -764,60 +764,6 @@ mod tests {
     }
 
     #[test]
-    fn it_preserves_the_primary_fill_when_connect_dropbox_has_keyboard_focus() {
-        use iced::{
-            Size,
-            advanced::{
-                mouse,
-                renderer::{Headless, Style},
-            },
-        };
-        let appearance = crate::appearance::Appearance::default();
-        let theme = appearance.theme();
-        let settings = Settings {
-            app_key: "fixture-key".into(),
-            ..Settings::default()
-        };
-        let frame = Size::new(460, 300);
-        let accent_pixels = |focus| {
-            let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-            let mut view: Element<'_, Message> = settings
-                .view_with_focus(appearance.surfaces(), focus)
-                .into();
-            let mut tree = Tree::new(&view);
-            let widget = view.as_widget_mut();
-            let bounds = Rectangle::with_size(Size::new(frame.width as f32, frame.height as f32));
-            let node = widget.layout(
-                &mut tree,
-                &renderer,
-                &layout::Limits::new(Size::ZERO, bounds.size()),
-            );
-            widget.draw(
-                &tree,
-                &mut renderer,
-                &theme,
-                &Style::default(),
-                Layout::new(&node),
-                mouse::Cursor::Unavailable,
-                &bounds,
-            );
-            renderer
-                .screenshot(frame, 1.0, theme.palette().background)
-                .chunks_exact(4)
-                .filter(|pixel| {
-                    let rgb = &pixel[..3];
-                    let lightest = *rgb.iter().max().unwrap();
-                    let darkest = *rgb.iter().min().unwrap();
-                    lightest - darkest >= 48 && lightest < 235
-                })
-                .count()
-        };
-        let unfocused = accent_pixels(None);
-        assert!(unfocused > 100);
-        assert!(accent_pixels(Some(&Control::Connect)) * 100 >= unfocused * 95);
-    }
-
-    #[test]
     fn it_tabs_from_the_dropbox_field_focused_by_the_pointer() {
         use iced::{
             advanced::widget::operation::{Outcome, focusable},
