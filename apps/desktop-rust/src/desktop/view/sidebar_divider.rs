@@ -28,14 +28,34 @@ struct State {
     drag: Option<Drag>,
     hovered: bool,
     mouse_position: Option<Point>,
+    last_click: Option<mouse::Click>,
 }
 
 #[derive(Clone, Copy)]
 struct Drag {
     pointer: Pointer,
     start_x: f32,
-    last_x: f32,
+    last_position: Point,
     start_width: f32,
+    moved: bool,
+}
+
+impl State {
+    fn finish_drag(&mut self, drag: Drag, release: Option<Point>, area: Rectangle) -> Resize {
+        self.drag = None;
+        let previous = self.last_click.take();
+        if drag.pointer == Pointer::Mouse
+            && !drag.moved
+            && let Some(position) = release.filter(|&position| area.contains(position))
+        {
+            let click = mouse::Click::new(position, mouse::Button::Left, previous);
+            if click.kind() == mouse::click::Kind::Double {
+                return Resize::Reset;
+            }
+            self.last_click = Some(click);
+        }
+        Resize::Commit
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -131,48 +151,57 @@ impl<'a> Divider<'a> {
             }
             Event::Mouse(mouse::Event::CursorLeft) | Event::Window(window::Event::Unfocused) => {
                 state.mouse_position = None;
+                state.last_click = None;
+            }
+            Event::Mouse(mouse::Event::ButtonPressed(button)) if *button != mouse::Button::Left => {
+                state.last_click = None;
             }
             _ => {}
         }
-        let Some(gesture) = gesture(event, state.mouse_position.or_else(|| cursor.position()))
-        else {
+        let mouse_position = state.mouse_position.or_else(|| cursor.position());
+        let Some(gesture) = gesture(event, mouse_position) else {
             return;
         };
         let action = match (gesture, state.drag) {
-            (Gesture::Press(pointer, position), None)
-                if !cursor.is_levitating() && area.contains(position) =>
-            {
+            (Gesture::Press(pointer, position), None) => {
+                if cursor.is_levitating() || !area.contains(position) {
+                    state.last_click = None;
+                    return;
+                }
                 state.drag = Some(Drag {
                     pointer,
                     start_x: position.x,
-                    last_x: position.x,
+                    last_position: position,
                     start_width: self.sidebar_width,
+                    moved: false,
                 });
                 None
             }
             (Gesture::Move(pointer, position), Some(drag)) if drag.pointer == pointer => {
-                if drag.last_x == position.x {
-                    None
-                } else {
+                if drag.last_position != position {
                     state.drag = Some(Drag {
-                        last_x: position.x,
+                        last_position: position,
+                        moved: true,
                         ..drag
                     });
-                    Some(Resize::Preview(
-                        drag.start_width + position.x - drag.start_x,
-                    ))
                 }
+                (drag.last_position.x != position.x).then_some(Resize::Preview(
+                    drag.start_width + position.x - drag.start_x,
+                ))
             }
             (Gesture::Release(pointer), Some(drag)) if drag.pointer == pointer => {
-                state.drag = None;
-                Some(Resize::Commit)
+                Some(state.finish_drag(drag, mouse_position, area))
             }
             (Gesture::Lose(pointer), Some(drag)) if drag.pointer == pointer => {
                 state.drag = None;
+                state.last_click = None;
                 Some(Resize::Cancel)
             }
-            (Gesture::Cancel, Some(_)) => {
-                state.drag = None;
+            (Gesture::Cancel, _) => {
+                state.last_click = None;
+                if state.drag.take().is_none() {
+                    return;
+                }
                 Some(Resize::Cancel)
             }
             _ => return,

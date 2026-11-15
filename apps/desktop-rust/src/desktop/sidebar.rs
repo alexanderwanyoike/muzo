@@ -9,6 +9,7 @@ pub enum Resize {
     Preview(f32),
     Commit,
     Cancel,
+    Reset,
 }
 
 pub(super) struct Sidebar {
@@ -48,15 +49,23 @@ impl Sidebar {
             }
             Resize::Commit => {
                 let preview = self.preview.take()?;
-                let width = SidebarWidth::new(preview.visible(self.viewport - SPLITTER_WIDTH));
-                self.set(width);
-                Some(width)
+                Some(self.commit(preview))
             }
             Resize::Cancel => {
                 self.preview = None;
                 None
             }
+            Resize::Reset => {
+                self.preview = None;
+                Some(self.commit(SidebarWidth::default()))
+            }
         }
+    }
+
+    fn commit(&mut self, target: SidebarWidth) -> SidebarWidth {
+        let width = SidebarWidth::new(target.visible(self.viewport - SPLITTER_WIDTH));
+        self.set(width);
+        width
     }
 
     pub(super) fn visible_width(&self) -> f32 {
