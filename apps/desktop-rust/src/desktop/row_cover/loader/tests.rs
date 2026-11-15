@@ -490,6 +490,74 @@ fn it_invalidates_only_changed_queue_covers_when_settings_is_open() {
 }
 
 #[test]
+fn it_refreshes_the_playing_track_artwork_without_restarting_audio_after_a_scan() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
+    use crate::desktop::{library_sources::Sources, queue_tests::setup};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let folder = root.path().join("music");
+    fs::create_dir(&folder).unwrap();
+    fs::write(
+        folder.join("record.mp3"),
+        include_bytes!("../../../../tests/fixtures/embedded-cover.mp3"),
+    )
+    .unwrap();
+    let source = run(&paths, Operation::Add(folder)).unwrap();
+    let id = source.tracks[0].id.clone();
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths.clone()));
+    desktop.sources.snapshot = Some(source);
+    let _ = desktop.update(Message::PlayIndexed(0));
+    let old = include_bytes!("../../../../assets/icons/muzo.png");
+    let track = desktop.session.as_ref().unwrap().tracks()[0]
+        .clone()
+        .with_artwork(old.to_vec());
+    let _ = desktop.update(Message::RemoteTrackReady(
+        desktop.playback_request,
+        Ok(track),
+    ));
+    let before = desktop.session.as_ref().unwrap().start_generation();
+    let old_cover = desktop.cover.thumbnail().unwrap().clone();
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+
+    rusqlite::Connection::open(root.path().join("muzo-rust.sqlite"))
+        .unwrap()
+        .execute(
+            "UPDATE tracks SET file_mtime = file_mtime + 1 WHERE id = ?",
+            [&id],
+        )
+        .unwrap();
+    let next = run(&paths, Operation::Reload).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let mut work = vec![desktop.update(Message::SourcesUpdated(Ok(next)))];
+    while let Some(task) = work.pop() {
+        if let Some(mut actions) = task::into_stream(task) {
+            while let Some(Action::Output(message)) = runtime.block_on(actions.next()) {
+                work.push(desktop.update(message));
+            }
+        }
+    }
+
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.start_generation(), before);
+    assert_eq!(
+        session.current().and_then(crate::track::Track::indexed_id),
+        Some(id.as_str())
+    );
+    assert!(
+        desktop
+            .cover
+            .thumbnail()
+            .is_some_and(|handle| handle != &old_cover)
+    );
+}
+
+#[test]
 fn it_keeps_rows_after_an_expanded_editor_in_the_cover_viewport() {
     use iced::advanced::widget::operation::scrollable::{AbsoluteOffset, scroll_to};
     use iced::{Event, Font, Pixels, Renderer, Size, advanced::clipboard, mouse, window};
