@@ -309,13 +309,16 @@ fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
         let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
             panic!("expected the catalogue response");
         };
-        let _ = desktop.update(updated);
+        desktop.update(updated)
     };
-    finish(&mut desktop, reload);
+    let selection = finish(&mut desktop, reload);
+    assert!(
+        selection.units() > 0,
+        "the next source read should start as soon as the scan finishes"
+    );
     assert!(labels(&desktop).contains_key("Loading tracks..."));
-    let selection = desktop.update(Message::SourceWatchTick);
     assert!(labels(&desktop).contains_key("Loading tracks..."));
-    finish(&mut desktop, selection);
+    let _ = finish(&mut desktop, selection);
 
     let snapshot = desktop.sources.snapshot.as_ref().unwrap();
     assert_eq!(snapshot.selected.as_ref(), Some(&target));
