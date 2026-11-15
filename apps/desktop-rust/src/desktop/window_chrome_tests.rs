@@ -1,10 +1,14 @@
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
-    advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree},
+    advanced::{
+        Layout, Shell, clipboard, layout, mouse,
+        renderer::{Headless, Style},
+        widget::Tree,
+    },
     futures::{FutureExt, StreamExt},
     window,
 };
-use iced_runtime::{Action, task};
+use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
 
 use super::{
     Desktop, Message, cover_layout_tests::paint, queue_tests::setup,
@@ -95,6 +99,61 @@ fn it_keeps_the_title_bar_inside_the_same_compact_strip_in_both_windows() {
                 .iter()
                 .all(|message| !matches!(message, Message::DragWindow(_)))
         );
+    }
+}
+
+#[test]
+fn it_draws_small_caption_glyphs_without_shrinking_the_hit_areas() {
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "pulse".into();
+    desktop.appearance.mode = "dark".into();
+    let _ = desktop.update(Message::ShowMini);
+
+    for (id, frame) in [
+        (desktop.windows.library_id(), Size::new(1200, 800)),
+        (desktop.windows.mini_id().unwrap(), Size::new(420, 560)),
+    ] {
+        let size: Size = (frame.width, frame.height).into();
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut ui = UserInterface::build(desktop.view(id), size, Cache::new(), &mut renderer);
+        let theme = desktop.theme(id);
+        ui.draw(
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            mouse::Cursor::Unavailable,
+        );
+        let pixels = renderer.screenshot(frame, 1.0, theme.palette().background);
+        let width = frame.width as usize;
+
+        for (cell, max_height) in [(0, 9), (1, 9), (2, 2)] {
+            let right = width - cell * 32;
+            let ink: Vec<_> = (right - 32..right)
+                .flat_map(|x| (6..26).map(move |y| (x, y)))
+                .filter(|(x, y)| {
+                    let offset = (y * width + x) * 4;
+                    pixels[offset..offset + 3].iter().all(|value| *value > 170)
+                })
+                .collect();
+            let range = |axis: fn(&(usize, usize)) -> usize| {
+                (
+                    ink.iter().map(axis).min().unwrap(),
+                    ink.iter().map(axis).max().unwrap(),
+                )
+            };
+            let (left, right) = range(|&(x, _)| x);
+            let (top, bottom) = range(|&(_, y)| y);
+            let ink_width = right - left + 1;
+            let ink_height = bottom - top + 1;
+            assert!(
+                (6..=9).contains(&ink_width) && ink_height <= max_height,
+                "caption {cell} ink was {ink_width} by {ink_height}"
+            );
+        }
+        assert!(matches!(
+            click(&desktop, id, size, Point::new(size.width - 26.0, 24.0)).as_slice(),
+            [Message::CloseRequested(target)] if *target == id
+        ));
     }
 }
 
