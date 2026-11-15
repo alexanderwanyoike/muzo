@@ -1268,14 +1268,14 @@ mod playlist_entry_transactions {
             let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
             std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
             let paths = CataloguePaths::in_directory(root.path());
-            let song = run(&paths, Operation::Add(folder))
+            let track = run(&paths, Operation::Add(folder))
                 .unwrap()
                 .tracks
                 .remove(0);
             let mut catalogue = paths.open().unwrap();
             let playlist = catalogue.create_playlist("Rehearsals").unwrap().id;
-            let first = catalogue.add_to_playlist(&playlist, &song.id).unwrap();
-            let second = catalogue.add_to_playlist(&playlist, &song.id).unwrap();
+            let first = catalogue.add_to_playlist(&playlist, &track.id).unwrap();
+            let second = catalogue.add_to_playlist(&playlist, &track.id).unwrap();
             let connection = rusqlite::Connection::open(&paths.current).unwrap();
             connection.execute_batch(
                 "INSERT INTO libraries (id, name, kind, location)
