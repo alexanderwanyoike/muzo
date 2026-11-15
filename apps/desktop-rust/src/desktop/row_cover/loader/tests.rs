@@ -255,6 +255,65 @@ fn it_loads_an_unplayed_cover_when_opening_the_mini_queue_away_from_songs() {
 }
 
 #[test]
+fn it_leaves_queue_artwork_workers_available_after_navigating_from_the_sources_sidebar() {
+    for navigation in [
+        Message::OpenSourceSettings,
+        Message::SourceRowClicked("other".into()),
+    ] {
+        let (_root, mut desktop) = open_queue_with_unloaded_covers();
+        let _ = desktop.update(navigation.clone());
+        assert_eq!(
+            desktop.load_row_covers().units(),
+            CONCURRENT_READS,
+            "discarded nested artwork tasks should not reserve both workers after {navigation:?}"
+        );
+    }
+}
+
+#[test]
+fn it_leaves_artwork_workers_for_visible_songs_once_the_mini_queue_closes() {
+    let (_root, mut desktop) = open_queue_with_unloaded_covers();
+
+    let _ = desktop.update(Message::ShowLibrary);
+
+    assert_eq!(
+        desktop.load_row_covers().units(),
+        1,
+        "closing the mini queue should schedule the one visible song"
+    );
+}
+
+fn open_queue_with_unloaded_covers() -> (tempfile::TempDir, crate::desktop::Desktop) {
+    use iced::Size;
+
+    use crate::desktop::{library_sources::Sources, queue_tests::setup};
+
+    let root = tempfile::tempdir().unwrap();
+    let (mut desktop, local) = setup();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+    let mut source = snapshot(&["source", "other"]);
+    source.selected = Some("source".into());
+    source.tracks.push(indexed_track(0));
+    desktop.sources.snapshot = Some(source);
+    desktop.session.as_mut().unwrap().replace(
+        ["first", "second"]
+            .into_iter()
+            .map(|id| {
+                local
+                    .clone()
+                    .with_indexed_id(id.into())
+                    .with_library("other".into())
+            })
+            .collect(),
+    );
+    let _ = desktop.update(Message::ShowMini);
+    let _ = desktop.update(Message::ToggleQueue);
+    let id = desktop.windows.mini_id().unwrap();
+    desktop.windows.resized(id, Size::new(740.0, 560.0));
+    (root, desktop)
+}
+
+#[test]
 fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     use iced::futures::StreamExt;
     use iced_runtime::{Action, task};
