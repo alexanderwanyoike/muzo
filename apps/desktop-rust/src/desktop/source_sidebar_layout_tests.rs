@@ -10,6 +10,7 @@ use super::{
     cover_layout_tests::paint,
     library_sources::Operation,
     queue_tests::{setup, snapshot},
+    transport_time_layout_tests::rendered_labels,
 };
 
 const FRAME: Size<u32> = Size::new(850, 800);
@@ -110,6 +111,47 @@ fn it_uses_a_cloud_glyph_for_dropbox_sources() {
         let glyph = row + 17 * 4..row + 34 * 4;
         cloud[glyph.clone()] != folder[glyph]
     }));
+}
+
+#[test]
+fn it_aligns_source_names_and_tabular_track_counts_to_the_original_columns() {
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system()
+            .write()
+            .unwrap();
+        for font in crate::fonts::settings().fonts {
+            fonts.load_font(font);
+        }
+    }
+    let mut desktop = desktop_with_sources();
+    let catalogue = desktop.sources.snapshot.as_mut().unwrap();
+    catalogue.selected = None;
+    catalogue.track_counts = [
+        ("Selected library".into(), 11),
+        ("Other library".into(), 48),
+    ]
+    .into();
+    let labels = rendered_labels(
+        &desktop,
+        desktop.windows.library_id(),
+        Size::new(FRAME.width as f32, FRAME.height as f32),
+    );
+
+    for (name, count) in [
+        ("Selected library", "11 tracks"),
+        ("Other library", "48 tracks"),
+    ] {
+        let title = labels[name];
+        let tracks = labels[count];
+        assert!((title.x - 39.0).abs() < 0.25, "{name}: {title:?}");
+        assert!((title.height - 17.0).abs() < 0.25, "{name}: {title:?}");
+        assert!((tracks.height - 13.0).abs() < 0.25, "{count}: {tracks:?}");
+        assert!(
+            (tracks.x + tracks.width - 274.0).abs() < 0.25,
+            "{count}: {tracks:?}"
+        );
+    }
+    assert!((labels["11 tracks"].width - labels["48 tracks"].width).abs() < 0.1);
 }
 
 fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
