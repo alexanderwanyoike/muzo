@@ -896,14 +896,22 @@ mod tests {
             [],
         ).unwrap();
 
-        let result = run(&paths, Operation::CreatePlaylist("Evening".into()));
+        let create = || {
+            run_with_selection(
+                &paths,
+                Operation::CreatePlaylist("Evening".into()),
+                Some("broken".into()),
+                None,
+            )
+        };
+        let result = create();
 
         assert!(result.is_err());
         assert!(catalogue.playlists().unwrap().is_empty());
         connection
             .execute("UPDATE tracks SET duration_seconds=1", [])
             .unwrap();
-        let retry = run(&paths, Operation::CreatePlaylist("Evening".into())).unwrap();
+        let retry = create().unwrap();
         assert_eq!(retry.playlists.len(), 1);
         assert_eq!(retry.playlists[0].name, "Evening");
     }
@@ -1179,7 +1187,8 @@ mod count_tests {
             std::fs::copy(&fixture, folder.join("tone.mp3")).unwrap();
             run(&paths, Operation::Add(folder.clone())).unwrap();
         }
-        let snapshot = run(&paths, Operation::Startup).unwrap();
+        let startup = run(&paths, Operation::Startup).unwrap();
+        let snapshot = run(&paths, Operation::Select(startup.libraries[0].id.clone())).unwrap();
         assert_eq!(snapshot.tracks.len(), 1);
         assert_eq!(snapshot.track_counts.values().sum::<u64>(), 2);
         assert_eq!(snapshot.track_counts.len(), 2);
