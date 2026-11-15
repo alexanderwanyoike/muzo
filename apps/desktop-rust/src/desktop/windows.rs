@@ -359,6 +359,26 @@ mod tests {
     }
 
     #[test]
+    fn it_uses_one_wayland_window_for_the_library_and_mini_player() {
+        let (mut windows, _) = Windows::open();
+        let library = windows.library_id();
+        let _ = windows.show_mini();
+        let initial_mini = windows.mini_id().unwrap();
+
+        let _ = windows.library_visibility_checked(initial_mini, true);
+
+        assert_eq!(
+            windows.mini_id(),
+            Some(library),
+            "Wayland compact mode should reuse the library window"
+        );
+        assert!(!windows.is_library(library));
+        let _ = windows.show_library();
+        assert!(windows.is_library(library));
+        assert!(windows.mini_id().is_none());
+    }
+
+    #[test]
     fn it_only_minimizes_the_library_when_the_window_system_can_restore_it() {
         assert_eq!(
             LibraryVisibility::for_wayland(true),
