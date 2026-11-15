@@ -504,6 +504,25 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
 }
 
 #[test]
+fn it_shows_a_cached_dropbox_cover_when_audio_fails_before_the_cover_read_finishes() {
+    let (mut desktop, _) = setup();
+    let track = Track::new(PathBuf::new(), "DropBox fixture".into(), None, None, None)
+        .with_remote("library".into(), "/Music/Track.mp3".into());
+    desktop.session.as_mut().unwrap().replace(vec![track]);
+    desktop.pending_track = Some(0);
+    let request = desktop.playback_request;
+
+    let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
+    let _ = desktop.update(Message::RemoteCachedCoverReady(
+        request,
+        Some(include_bytes!("../../assets/icons/muzo.png").to_vec()),
+    ));
+
+    assert!(desktop.cover.thumbnail().is_some());
+    assert_eq!(desktop.error.as_deref(), Some("Offline"));
+}
+
+#[test]
 fn it_does_not_regress_a_committed_play_count_when_an_older_snapshot_arrives() {
     let (mut desktop, _) = setup();
     let mut older = snapshot(&["first"]);
