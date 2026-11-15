@@ -30,14 +30,21 @@ impl Client {
             block: Vec::new(),
             budget: ARTWORK_BUDGET_BYTES,
             deadline: Instant::now() + ARTWORK_TIMEOUT,
+            authorization_failed: false,
         };
-        stream.fetch(0)?;
-        let file = Probe::new(stream)
-            .options(ParseOptions::new().read_properties(false))
-            .guess_file_type()?
-            .read()
-            .map_err(DropboxError::Artwork)?;
-        Ok(embedded_cover(&file).map(|picture| picture.data().to_vec()))
+        let result = (|| {
+            stream.fetch(0)?;
+            let file = Probe::new(&mut stream)
+                .options(ParseOptions::new().read_properties(false))
+                .guess_file_type()?
+                .read()
+                .map_err(DropboxError::Artwork)?;
+            Ok(embedded_cover(&file).map(|picture| picture.data().to_vec()))
+        })();
+        if stream.authorization_failed {
+            return Err(DropboxError::Reconnect);
+        }
+        result
     }
 }
 
@@ -51,6 +58,7 @@ struct ArtworkStream<'a> {
     block: Vec<u8>,
     budget: u64,
     deadline: Instant,
+    authorization_failed: bool,
 }
 
 impl ArtworkStream<'_> {
@@ -69,7 +77,10 @@ impl ArtworkStream<'_> {
                 end,
                 self.deadline.saturating_duration_since(Instant::now()),
             )
-            .map_err(io::Error::other)?;
+            .map_err(|error| {
+                self.authorization_failed |= error.status() == Some(StatusCode::UNAUTHORIZED);
+                io::Error::other(error)
+            })?;
         let range = response
             .headers()
             .get(CONTENT_RANGE)

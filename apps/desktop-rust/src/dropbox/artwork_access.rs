@@ -38,7 +38,17 @@ impl ArtworkAccess {
             .dropbox_account_for(library)?
             .ok_or(DropboxError::Reconnect)?;
         let (client, token) = self.authorize(catalogue, &account)?;
-        client.read_artwork(&token, path)
+        let result = client.read_artwork(&token, path);
+        if matches!(result, Err(DropboxError::Reconnect))
+            && let Ok(mut state) = self.0.lock()
+            && state
+                .tokens
+                .get(&account)
+                .is_some_and(|access| Arc::ptr_eq(&access.token, &token))
+        {
+            state.tokens.remove(&account);
+        }
+        result
     }
 
     fn authorize(
