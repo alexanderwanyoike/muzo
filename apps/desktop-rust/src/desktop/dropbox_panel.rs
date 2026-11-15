@@ -677,32 +677,47 @@ mod tests {
             return;
         }
 
-        for (mode, expected) in [
-            ("default", &["gio", "open"][..]),
-            ("handler-fails", &["gio", "open"][..]),
-            ("without-gio", &["xdg-open"][..]),
-            ("desktop-default", &["xdg-open"][..]),
+        const URL_ARG: &str = "authorization-url";
+        for (mode, desktop, version, expected) in [
+            ("default", "X-Generic", "", &["gio", "open", URL_ARG][..]),
+            (
+                "handler-fails",
+                "X-Generic",
+                "",
+                &["gio", "open", URL_ARG][..],
+            ),
+            ("without-gio", "X-Generic", "", &["xdg-open", URL_ARG][..]),
+            ("desktop-default", "KDE", "5", &["xdg-open", URL_ARG][..]),
+            (
+                "desktop-handler-fails",
+                "KDE",
+                "5",
+                &["xdg-open", URL_ARG, "gio", "open", URL_ARG][..],
+            ),
+            ("plasma6-default", "KDE", "6", &["kde-open", URL_ARG][..]),
         ] {
             let fixture = tempfile::tempdir().unwrap();
             let capture = fixture.path().join("invocation");
-            for launcher in ["gio", "xdg-open"] {
+            for launcher in ["gio", "xdg-open", "kde-open"] {
                 if mode == "without-gio" && launcher == "gio" {
                     continue;
                 }
-                let status = if mode == "handler-fails" && launcher == "gio" {
+                let status = if (mode == "handler-fails" && launcher == "gio")
+                    || (mode == "desktop-handler-fails" && launcher == "xdg-open")
+                {
                     17
                 } else {
                     0
                 };
                 let path = fixture.path().join(launcher);
-                let use_registered_default = if launcher == "xdg-open" {
+                let use_registered_default = if launcher != "gio" {
                     "if [ -n \"${BROWSER:-}\" ]; then printf '%s\\n' 'environment-override'; fi\n"
                 } else {
                     ""
                 };
                 fs::write(
                     &path,
-                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
+                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} >> \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
                 ).unwrap();
                 fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
             }
@@ -714,7 +729,8 @@ mod tests {
                 .env(CAPTURE, &capture)
                 .env(FIXTURE, mode)
                 .env("BROWSER", "inherited-override")
-                .env("XDG_CURRENT_DESKTOP", if mode == "desktop-default" { "KDE" } else { "X-Generic" })
+                .env("XDG_CURRENT_DESKTOP", desktop)
+                .env("KDE_SESSION_VERSION", version)
                 .env("PATH", fixture.path())
                 .output()
                 .unwrap();
@@ -724,13 +740,19 @@ mod tests {
                 String::from_utf8_lossy(&process.stdout)
             );
             let invoked = fs::read_to_string(capture).unwrap();
-            let (args, url) = invoked.trim_end().rsplit_once('\n').unwrap();
-            assert_eq!(args.split('\n').collect::<Vec<_>>(), expected);
-            assert!(
-                url.starts_with(
-                    "https://www.dropbox.com/oauth2/authorize?client_id=muzo-test-key&"
-                )
-            );
+            let invocations = invoked
+                .lines()
+                .map(|value| {
+                    if value.starts_with(
+                        "https://www.dropbox.com/oauth2/authorize?client_id=muzo-test-key&",
+                    ) {
+                        URL_ARG
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(invocations, expected, "{mode}");
         }
     }
 
