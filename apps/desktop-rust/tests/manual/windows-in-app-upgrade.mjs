@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { access, readFile } from "node:fs/promises";
+import { access, mkdir, readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -70,6 +70,7 @@ const legacyMain = join(
   "main.cjs",
 );
 await assert.rejects(access(join(profile.data, "muzo-rust.sqlite")));
+await mkdir(fixture);
 const feed = await startLegacyUpdateFeed(candidate, manifest, legacyMain);
 const legacy = spawn(legacyExecutable, ["--remote-debugging-port=0"], {
   stdio: "ignore",
