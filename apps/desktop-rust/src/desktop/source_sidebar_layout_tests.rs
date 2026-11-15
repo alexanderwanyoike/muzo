@@ -81,7 +81,8 @@ fn it_draws_the_source_selection_across_the_whole_row_and_reserves_its_accent_ed
 
 #[test]
 fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
-    let desktop = desktop_with_sources();
+    let mut desktop = desktop_with_sources();
+    desktop.sources.snapshot.as_mut().unwrap().selected = None;
 
     for (y, name) in [
         (FIRST_SOURCE_Y, "Selected library"),
@@ -156,6 +157,38 @@ fn it_closes_the_selected_song_list_on_a_second_source_click_and_keeps_playing()
         Some(playing_id.as_str())
     );
     assert!(session.is_playing());
+}
+
+#[test]
+fn it_clears_the_selected_source_while_the_catalogue_is_loading() {
+    let directory = tempfile::tempdir().unwrap();
+    let folder = directory.path().join("Harbour Rehearsals");
+    std::fs::create_dir(&folder).unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let snapshot = run(&paths, Operation::Add(folder)).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(snapshot);
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    assert!(desktop.sources.busy());
+
+    let [message]: [Message; 1] = click(&desktop, Point::new(150.0, FIRST_SOURCE_Y as f32))
+        .try_into()
+        .expect("the selected source row remains clickable while the catalogue loads");
+    let cleared = desktop.update(message);
+    assert_eq!(cleared.units(), 0, "clearing needs no catalogue task");
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+
+    let mut actions = task::into_stream(reload).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+        panic!("expected the in-flight response with the previous selection");
+    };
+    let _ = desktop.update(updated);
+    assert!(!desktop.sources.busy());
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
 }
 
 #[test]
