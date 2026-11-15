@@ -116,23 +116,20 @@ async function buildPayload(
     await cp(join(native, "assets/licenses"), join(resources, "licenses"), {
       recursive: true,
     });
-    await run(
-      process.execPath,
-      [
-        require.resolve("electron-builder/cli.js"),
-        "--prepackaged",
-        payload,
-        "--win",
-        "nsis",
-        "--x64",
-        "--config",
-        "windows-installer.json",
-        `--config.extraMetadata.version=${version}`,
-        `--config.directories.output=${stage}`,
-        "--publish",
-        "never",
-      ],
-    );
+    await run(process.execPath, [
+      require.resolve("electron-builder/cli.js"),
+      "--prepackaged",
+      payload,
+      "--win",
+      "nsis",
+      "--x64",
+      "--config",
+      "windows-installer.json",
+      `--config.extraMetadata.version=${version}`,
+      `--config.directories.output=${stage}`,
+      "--publish",
+      "never",
+    ]);
     return;
   }
 
