@@ -12,9 +12,11 @@ if (!$env:CI -or $InstallDirectory -ne $fixtureInstall) {
 $installed = Join-Path $InstallDirectory 'muzo.exe'
 $profile = Join-Path $env:APPDATA 'muzo'
 $appearance = Join-Path $profile 'appearance-rust.json'
+$sidebar = Join-Path $profile 'sidebar-rust.json'
 $catalogue = Join-Path $profile 'muzo-rust.sqlite'
 if (!(Test-Path $catalogue)) { throw 'The migrated catalogue is missing.' }
 $originalAppearanceHash = (Get-FileHash $appearance).Hash
+$originalSidebarHash = (Get-FileHash $sidebar).Hash
 $installedHash = (Get-FileHash $installed).Hash
 
 function Get-InstalledMuzo {
@@ -27,6 +29,9 @@ foreach ($application in @(Get-InstalledMuzo)) {
     }
 }
 
+$fixtureTool = Join-Path $PSScriptRoot 'windows-native-restart-profile.mjs'
+yarn node $fixtureTool seed $catalogue
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $previousBinary = Join-Path $env:RUNNER_TEMP 'muzo-before-native-restart.exe'
 Move-Item -LiteralPath $installed -Destination $previousBinary
 $env:MUZO_RESTART_INSTALLER = (Resolve-Path -LiteralPath $Installer).Path
@@ -43,7 +48,10 @@ do {
 if (!$reopened -or !(Test-Path $installed) -or (Get-FileHash $installed).Hash -ne $installedHash) {
     throw 'The Rust restart did not replace the installed executable and reopen the Muzo window.'
 }
-if (!(Test-Path $catalogue) -or (Get-FileHash $appearance).Hash -ne $originalAppearanceHash) {
+if ((Get-FileHash $appearance).Hash -ne $originalAppearanceHash -or
+    (Get-FileHash $sidebar).Hash -ne $originalSidebarHash) {
     throw 'The Rust restart did not preserve the migrated profile.'
 }
+yarn node $fixtureTool verify $catalogue
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host 'Rust Restart reinstalled Muzo silently and reopened the migrated profile.'
