@@ -620,6 +620,37 @@ mod tests {
     }
 
     #[test]
+    fn it_shows_all_selected_paths_next_to_the_dropbox_add_action() {
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = "/Library".into();
+        for number in 1..=12 {
+            let name = format!("Folder {number}");
+            settings
+                .snapshot
+                .folders
+                .push((format!("/Library/{name}"), name));
+        }
+        settings.selected_folders = vec![
+            ("/Library/Folder 12".into(), "Folder 12".into()),
+            ("/Archive/Folder 12".into(), "Folder 12".into()),
+        ];
+
+        let labels = rendered_labels(&settings, 318.0);
+        for label in [
+            "/Library/Folder 12",
+            "/Archive/Folder 12",
+            "Remove",
+            "Add 2 folders",
+        ] {
+            assert!(
+                labels.0.contains_key(label),
+                "missing from selection summary: {label}"
+            );
+        }
+    }
+
+    #[test]
     fn it_keeps_pending_authorization_visible_while_a_connected_account_is_displayed() {
         let mut settings = Settings::default();
         settings.snapshot.account = Some("existing".into());
