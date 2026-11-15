@@ -42,11 +42,14 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
                 })
                 .width(15)
                 .height(15),
-                text(&playlist.name)
-                    .size(11)
-                    .font(bold())
-                    .width(Fill)
-                    .wrapping(text::Wrapping::None),
+                container(
+                    text(&playlist.name)
+                        .size(11)
+                        .font(bold())
+                        .width(Fill)
+                        .wrapping(text::Wrapping::None),
+                )
+                .clip(true),
                 text(count.unwrap_or_default())
                     .size(9)
                     .color(surfaces.muted),
