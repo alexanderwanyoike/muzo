@@ -88,6 +88,25 @@ it("starts the packaged AppImage on the Linux upgrade baseline", () => {
   );
 });
 
+it("builds each native installer with the Electron workspace omitted", () => {
+  const native = workflow("desktop-rust-distribution.yml");
+  const configured = nested(native, "jobs", "package", "steps");
+  expect(Array.isArray(configured)).toBe(true);
+  const steps = configured as unknown[];
+  const checkout = steps.find((step) => {
+    const action = nested(step, "uses");
+    return typeof action === "string" && action.startsWith("actions/checkout@");
+  });
+  expect(nested(checkout, "with", "sparse-checkout-cone-mode")).toBe(false);
+  expect(nested(checkout, "with", "sparse-checkout")).toBe(
+    "/*\n!/apps/desktop/\n",
+  );
+  const build = steps.find(
+    (step) => nested(step, "name") === "Build the native installer",
+  );
+  expect(nested(build, "run")).toMatch(/test ! -e apps\/desktop/u);
+});
+
 it("includes the keyboard library that Iced loads at X11 startup", () => {
   const packager = parseToml(
     readFileSync(
