@@ -77,6 +77,8 @@ pub enum Message {
     CancelSourceRemoval,
     CycleSourceRemovalFocus,
     ActivateSourceRemovalFocus,
+    SetSourceRemovalSpaceArmed(bool),
+    ReleaseSourceRemovalSpace,
     PlayIndexed(usize),
     PlayPlaylist(String),
     StartPlaylist(String),
@@ -548,6 +550,24 @@ impl Desktop {
                         Message::SourceOperation(Operation::Remove(removal.source.id.clone()))
                     };
                     self.update(message)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::SetSourceRemovalSpaceArmed(armed) => {
+                if let Some(removal) = &mut self.sources.removal {
+                    removal.set_space_armed(armed);
+                }
+                Task::none()
+            }
+            Message::ReleaseSourceRemovalSpace => {
+                if self
+                    .sources
+                    .removal
+                    .as_mut()
+                    .is_some_and(source_removal::Removal::take_space_armed)
+                {
+                    self.update(Message::ActivateSourceRemovalFocus)
                 } else {
                     Task::none()
                 }

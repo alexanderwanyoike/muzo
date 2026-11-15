@@ -1,7 +1,8 @@
 use iced::{
     Color, ContentFit, Element, Event, Fill, Font, Padding, Pixels, border, color,
-    keyboard::{self, Key, key::Named},
+    keyboard::{self, Key, Modifiers, key::Named},
     widget::{button, column, container, row, stack, svg, text},
+    window,
 };
 
 use crate::{
@@ -173,23 +174,32 @@ fn action(
 }
 
 fn key_action(event: &Event) -> Option<Message> {
-    let Event::Keyboard(keyboard::Event::KeyPressed {
-        key,
-        repeat,
-        modifiers,
-        ..
-    }) = event
-    else {
-        return None;
-    };
-    if modifiers.control() || modifiers.logo() || modifiers.alt() {
-        return None;
-    }
-    match key {
-        Key::Named(Named::Escape) => Some(Message::CancelSourceRemoval),
-        Key::Named(Named::Tab) => Some(Message::CycleSourceRemovalFocus),
-        Key::Named(Named::Enter | Named::Space) if !repeat => {
-            Some(Message::ActivateSourceRemovalFocus)
+    let shortcut =
+        |modifiers: Modifiers| modifiers.control() || modifiers.logo() || modifiers.alt();
+    match event {
+        Event::Keyboard(keyboard::Event::KeyPressed {
+            key,
+            repeat,
+            modifiers,
+            ..
+        }) if !shortcut(*modifiers) => match key {
+            Key::Named(Named::Escape) => Some(Message::CancelSourceRemoval),
+            Key::Named(Named::Tab) => Some(Message::CycleSourceRemovalFocus),
+            Key::Named(Named::Enter) if !repeat => Some(Message::ActivateSourceRemovalFocus),
+            Key::Named(Named::Space) if !repeat => Some(Message::SetSourceRemovalSpaceArmed(true)),
+            _ => None,
+        },
+        Event::Keyboard(keyboard::Event::KeyReleased {
+            key: Key::Named(Named::Space),
+            modifiers,
+            ..
+        }) if !shortcut(*modifiers) => Some(Message::ReleaseSourceRemovalSpace),
+        Event::Keyboard(keyboard::Event::KeyReleased {
+            key: Key::Named(Named::Space),
+            ..
+        })
+        | Event::Window(window::Event::Unfocused) => {
+            Some(Message::SetSourceRemovalSpaceArmed(false))
         }
         _ => None,
     }

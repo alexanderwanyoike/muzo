@@ -90,13 +90,13 @@ impl Widget<Message, Theme, Renderer> for Modal<'_> {
             shell,
             viewport,
         );
-        if let Some(handle_key) = &self.handle_key
-            && !matches!(event, Event::Window(_))
-        {
+        if let Some(handle_key) = &self.handle_key {
             if let Some(message) = handle_key(event) {
                 shell.publish(message);
             }
-            shell.capture_event();
+            if !matches!(event, Event::Window(_)) {
+                shell.capture_event();
+            }
         }
     }
 
