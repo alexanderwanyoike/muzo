@@ -12,11 +12,8 @@ struct Window {
     let id: CGWindowID
     let frame: CGRect
 
-    @MainActor
-    func hasContentSize(width: CGFloat, height: CGFloat) -> Bool {
-        let style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]
-        let content = NSWindow.contentRect(forFrameRect: frame, styleMask: style)
-        return abs(content.width - width) <= frameTolerance && abs(content.height - height) <= frameTolerance
+    func hasSize(width: CGFloat, height: CGFloat) -> Bool {
+        abs(frame.width - width) <= frameTolerance && abs(frame.height - height) <= frameTolerance
     }
 }
 
@@ -189,20 +186,20 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
 
     try send(.mini, to: app)
     let compact = try waitForWindow("compact mini player", of: app) { window in
-        window.id != library.id && window.hasContentSize(width: compactWidth, height: miniContentHeight)
+        window.id != library.id && window.hasSize(width: compactWidth, height: miniContentHeight)
     }
     try capture(compact, of: app, named: "macos-mini", in: screenshots)
 
     try send(.focusQueue, to: app)
     try send(.activate, to: app)
     let expanded = try waitForWindow("expanded mini player queue", of: app) { window in
-        window.id == compact.id && window.hasContentSize(width: expandedWidth, height: miniContentHeight)
+        window.id == compact.id && window.hasSize(width: expandedWidth, height: miniContentHeight)
     }
     try capture(expanded, of: app, named: "macos-mini-queue", in: screenshots)
 
     try send(.toggleQueue, to: app)
     let collapsed = try waitForWindow("mini player queue collapsed with Command-Shift-L", of: app) { window in
-        window.id == compact.id && window.hasContentSize(width: compactWidth, height: miniContentHeight)
+        window.id == compact.id && window.hasSize(width: compactWidth, height: miniContentHeight)
     }
     try capture(collapsed, of: app, named: "macos-mini-collapsed", in: screenshots)
 
