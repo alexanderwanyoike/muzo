@@ -109,6 +109,7 @@ pub enum Message {
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
+    CycleFocusFromSidebarDivider(bool),
     ActivateMiniFocus(window::Id, bool),
     MiniSpace(window::Id, bool),
     MiniArrow(window::Id, i8),
@@ -804,6 +805,15 @@ impl Desktop {
                 self.mini_focus = None;
                 self.windows.show_mini()
             }
+            Message::CycleFocusFromSidebarDivider(backwards) => {
+                if self.page == LibraryPage::Settings {
+                    self.appearance_focus = Some(appearance_focus::Choice::Divider);
+                }
+                self.update(Message::CycleMiniFocus(
+                    self.windows.library_id(),
+                    backwards,
+                ))
+            }
             Message::CycleMiniFocus(id, backwards) => {
                 if self.windows.is_library(id)
                     && self.page == LibraryPage::Songs
@@ -867,7 +877,9 @@ impl Desktop {
                     && self.page == LibraryPage::Settings
                     && let Some(choice) = self.appearance_focus
                 {
-                    return self.update(choice.message());
+                    return choice
+                        .message()
+                        .map_or_else(Task::none, |message| self.update(message));
                 }
                 if let Some(control) = self.mini_focus.filter(|_| self.windows.is_mini(id)) {
                     return self.update(Message::ClickMiniControl(control));

@@ -2,6 +2,7 @@ use super::windows::LIBRARY_SIZE;
 use crate::appearance::sidebar::SidebarWidth;
 
 pub(super) const SPLITTER_WIDTH: f32 = 1.0;
+pub(super) const DIVIDER: &str = "sidebar-divider";
 const KEYBOARD_STEP: f32 = 8.0;
 
 #[derive(Debug, Clone, Copy)]

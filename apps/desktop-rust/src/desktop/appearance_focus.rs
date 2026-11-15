@@ -2,14 +2,14 @@ use iced::{
     Task,
     advanced::widget::{
         operate,
-        operation::{focusable::unfocus, scope},
+        operation::{focusable, scope},
     },
     widget::operation::{AbsoluteOffset, scroll_to},
 };
 
 use crate::appearance::{ACCENTS, MATERIALS, MODES};
 
-use super::Message;
+use super::{Message, sidebar::DIVIDER};
 
 pub(super) const SCROLL: &str = "appearance-settings";
 pub(super) const LIBRARY: &str = "library-window";
@@ -19,6 +19,7 @@ pub(super) enum Choice {
     Material(&'static str),
     Mode(&'static str),
     Accent(&'static str),
+    Divider,
 }
 
 impl Choice {
@@ -28,6 +29,7 @@ impl Choice {
             .map(|(id, _)| Self::Material(id))
             .chain(MODES.into_iter().map(|(id, _)| Self::Mode(id)))
             .chain(ACCENTS.into_iter().map(|(id, _)| Self::Accent(id)))
+            .chain([Self::Divider])
             .collect::<Vec<_>>();
         let length = choices.len();
         let index = match (
@@ -42,12 +44,13 @@ impl Choice {
         choices[index]
     }
 
-    pub(super) fn message(self) -> Message {
-        match self {
+    pub(super) fn message(self) -> Option<Message> {
+        Some(match self {
             Self::Material(id) => Message::Material(id),
             Self::Mode(id) => Message::AppearanceMode(id),
             Self::Accent(id) => Message::Accent(id),
-        }
+            Self::Divider => return None,
+        })
     }
 
     pub(super) fn take_focus(self) -> Task<Message> {
@@ -61,9 +64,16 @@ impl Choice {
             }
             Self::Mode(_) => 380.0,
             Self::Accent(_) => 440.0,
+            Self::Divider => {
+                return operate(scope(
+                    LIBRARY.into(),
+                    focusable::focus::<()>(DIVIDER.into()),
+                ))
+                .discard();
+            }
         };
         Task::batch([
-            operate(scope(LIBRARY.into(), unfocus::<()>())).discard(),
+            operate(scope(LIBRARY.into(), focusable::unfocus::<()>())).discard(),
             scroll_to(
                 SCROLL,
                 AbsoluteOffset {

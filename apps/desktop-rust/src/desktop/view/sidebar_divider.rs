@@ -11,7 +11,7 @@ use iced::{
 };
 
 use super::Message;
-use crate::desktop::sidebar::{Adjustment, Resize, SPLITTER_WIDTH};
+use crate::desktop::sidebar::{Adjustment, DIVIDER, Resize, SPLITTER_WIDTH};
 
 const HIT_SLOP: f32 = 4.5;
 const ACTIVE_LINE_WIDTH: f32 = 3.0;
@@ -134,14 +134,7 @@ fn hit_area(bounds: Rectangle) -> Rectangle {
     }
 }
 
-fn adjustment(event: &Event) -> Option<Adjustment> {
-    let Event::Keyboard(keyboard::Event::KeyPressed {
-        key: Key::Named(key),
-        ..
-    }) = event
-    else {
-        return None;
-    };
+fn adjustment(key: Named) -> Option<Adjustment> {
     match key {
         Named::ArrowLeft => Some(Adjustment::Narrower),
         Named::ArrowRight => Some(Adjustment::Wider),
@@ -183,15 +176,7 @@ impl<'a> Divider<'a> {
             shell.publish(Message::ResizeSidebar(Resize::Viewport(size.width)));
             return;
         }
-        if state.focused
-            && let Some(adjustment) = adjustment(event)
-        {
-            state.last_click = None;
-            if let Some(drag) = &mut state.drag {
-                drag.resized = true;
-            }
-            shell.publish(Message::ResizeSidebar(Resize::Adjust(adjustment)));
-            shell.capture_event();
+        if state.focused && Self::handle_keyboard(state, event, shell) {
             return;
         }
         let area = hit_area(bounds);
@@ -272,6 +257,31 @@ impl<'a> Divider<'a> {
         }
         shell.capture_event();
         shell.request_redraw();
+    }
+
+    fn handle_keyboard(state: &mut State, event: &Event, shell: &mut Shell<'_, Message>) -> bool {
+        let Event::Keyboard(keyboard::Event::KeyPressed {
+            key: Key::Named(key),
+            modifiers,
+            ..
+        }) = event
+        else {
+            return false;
+        };
+        let message = if *key == Named::Tab && !modifiers.command() {
+            Message::CycleFocusFromSidebarDivider(modifiers.shift())
+        } else if let Some(adjustment) = adjustment(*key) {
+            state.last_click = None;
+            if let Some(drag) = &mut state.drag {
+                drag.resized = true;
+            }
+            Message::ResizeSidebar(Resize::Adjust(adjustment))
+        } else {
+            return false;
+        };
+        shell.publish(message);
+        shell.capture_event();
+        true
     }
 }
 
@@ -443,7 +453,11 @@ impl Widget<Message, Theme, Renderer> for Divider<'_> {
         self.body
             .as_widget_mut()
             .operate(&mut tree.children[0], body, renderer, operation);
-        operation.focusable(None, divider.bounds(), tree.state.downcast_mut::<State>());
+        operation.focusable(
+            Some(&DIVIDER.into()),
+            divider.bounds(),
+            tree.state.downcast_mut::<State>(),
+        );
     }
 
     fn overlay<'b>(

@@ -80,7 +80,6 @@ impl Windows {
         self.library == id
     }
 
-    #[cfg(test)]
     pub(super) fn library_id(&self) -> window::Id {
         self.library
     }
