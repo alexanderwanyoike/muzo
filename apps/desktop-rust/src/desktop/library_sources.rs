@@ -1157,6 +1157,40 @@ mod tests {
     }
 
     #[test]
+    fn it_keeps_an_empty_folder_error_in_the_form_until_the_location_changes() {
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action, task};
+
+        let root = tempfile::tempdir().unwrap();
+        let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        let location = root.path().to_str().unwrap().to_owned();
+        let _ = desktop.update(Message::FolderName("Empty source".into()));
+        let _ = desktop.update(Message::FolderLocation(location.clone()));
+        let submission = desktop.update(Message::SubmitFolder);
+        let mut results = task::into_stream(submission).expect("the folder should be scanned");
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let Some(Action::Output(message @ Message::SourcesUpdated(_))) =
+            runtime.block_on(results.next())
+        else {
+            panic!("the scan should report a result");
+        };
+        let _ = desktop.update(message);
+
+        assert_eq!(desktop.sources.folder_name, "Empty source");
+        assert_eq!(desktop.sources.folder_location, location);
+        assert_eq!(
+            desktop.sources.folder_error.as_deref(),
+            Some(CatalogueError::NoSupportedAudio.to_string().as_str())
+        );
+        assert!(desktop.sources.error.is_none());
+        let _ = desktop.update(Message::FolderLocation("another folder".into()));
+        assert!(desktop.sources.folder_error.is_none());
+    }
+
+    #[test]
     fn it_preserves_whitespace_at_the_end_of_the_chosen_folder_location() {
         let root = tempfile::tempdir().unwrap();
         let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
