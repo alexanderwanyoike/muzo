@@ -641,8 +641,7 @@ fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
 #[test]
 fn it_routes_reload_track_errors_only_to_the_source_still_selected() {
     let directory = tempfile::tempdir().unwrap();
-    let track = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
-    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), Some(&track));
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path());
     let runtime = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
@@ -683,7 +682,7 @@ fn it_routes_reload_track_errors_only_to_the_source_still_selected() {
 #[test]
 fn it_keeps_shared_catalogue_failures_visible_when_a_source_read_is_superseded() {
     let directory = tempfile::tempdir().unwrap();
-    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path(), None);
+    let (mut desktop, target) = desktop_with_two_indexed_sources(directory.path());
     let db = rusqlite::Connection::open(directory.path().join("muzo-rust.sqlite")).unwrap();
     db.execute_batch("PRAGMA foreign_keys=OFF; DROP TABLE playlists")
         .unwrap();
