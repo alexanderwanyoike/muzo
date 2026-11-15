@@ -299,6 +299,30 @@ fn insert_library(
     Ok(library)
 }
 
+fn revision_stamp(revision: &str) -> i64 {
+    let digest = Sha256::digest(revision);
+    i64::from_le_bytes(digest[..8].try_into().expect("SHA-256 is 32 bytes"))
+}
+
+impl Catalogue {
+    pub(crate) fn downloaded_artwork_revision(
+        library: &str,
+        id: &str,
+        path: &str,
+        size: u64,
+        revision: &str,
+    ) -> Option<crate::artwork_cache::Revision> {
+        let size = i64::try_from(size).ok()?;
+        Some(crate::artwork_cache::Revision::new(
+            library,
+            id,
+            path,
+            size,
+            revision_stamp(revision),
+        ))
+    }
+}
+
 fn scanned_files(entries: &[Entry]) -> Vec<ScannedFile> {
     entries
         .iter()
@@ -321,10 +345,7 @@ fn scanned_files(entries: &[Entry]) -> Vec<ScannedFile> {
                     .rev
                     .as_deref()
                     .or(entry.server_modified.as_deref())
-                    .map_or(0, |revision| {
-                        let digest = Sha256::digest(revision);
-                        i64::from_le_bytes(digest[..8].try_into().expect("SHA-256 is 32 bytes"))
-                    }),
+                    .map_or(0, revision_stamp),
                 title: name
                     .file_stem()
                     .unwrap_or_default()

@@ -103,6 +103,10 @@ pub(in crate::desktop) fn viewport_rows(
 }
 
 impl Loader {
+    pub(in crate::desktop) fn cover_available(&mut self, id: &str) {
+        self.attempted.remove(id);
+    }
+
     pub(in crate::desktop) fn catalogue_changed(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         self.attempted.clear();
@@ -130,7 +134,7 @@ impl Loader {
         }
         match result.cover {
             Ok(Some(cover)) => {
-                self.attempted.remove(&result.id);
+                self.cover_available(&result.id);
                 if let Some(covers) = covers
                     && (covers.len() < ROW_LIMIT || covers.contains_key(&result.id))
                 {

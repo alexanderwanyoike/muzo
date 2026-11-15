@@ -827,6 +827,12 @@ impl Desktop {
                 ) && let Some(track) = session.tracks().get(index)
                 {
                     if let Some(id) = track.indexed_id() {
+                        if self
+                            .queue_artwork
+                            .has_conflicting_revision(id, &cover.revision)
+                        {
+                            return Task::none();
+                        }
                         self.queue_artwork.remember(id, cover.revision);
                     }
                     let track = track.clone().with_artwork(cover.bytes);
@@ -849,22 +855,17 @@ impl Desktop {
                         track,
                         artwork_revision,
                     }) => {
-                        if let Some(id) = track.indexed_id() {
-                            if let Some(revision) = artwork_revision {
-                                self.queue_artwork.remember(id, revision);
-                            }
-                            self.queue_covers.remove(id);
-                            if self.queue_covers.len() < row_cover::ROW_LIMIT
-                                && let Some(handle) =
-                                    track.artwork().and_then(row_cover::row_handle)
-                            {
-                                self.queue_covers.insert(id.to_owned(), handle);
-                            }
-                        }
-                        self.transport(|session| {
+                        let track = self.apply_prepared_cover(index, track, artwork_revision);
+                        let previous = self.session.as_ref().and_then(Session::current_index);
+                        let playback = self.transport(|session| {
                             session.replace_track(index, track)?;
                             session.select(index)
-                        })
+                        });
+                        if previous == Some(index) {
+                            self.cover =
+                                Cover::from_track(self.session.as_ref().and_then(Session::current));
+                        }
+                        playback
                     }
                     Err(error) => {
                         self.failed_track = Some(index);
@@ -1550,9 +1551,11 @@ impl Desktop {
                 async move {
                     tokio::task::spawn_blocking(move || {
                         let revision = artwork_revision(&paths, &track);
-                        let local = dropbox_panel::remote_audio(&paths, &library, &path)
+                        let download = dropbox_panel::remote_audio(&paths, &library, &path)
                             .map_err(|error| error.to_string())?;
-                        Ok(prepare_dropbox_track(&paths, track, local, revision))
+                        Ok(prepare_downloaded_dropbox_track(
+                            &paths, track, download, revision,
+                        ))
                     })
                     .await
                     .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
@@ -1654,8 +1657,12 @@ impl Desktop {
             .iter()
             .enumerate()
             .filter(|(index, track)| {
+                let downloaded = track.remote().is_some() && !track.path().as_os_str().is_empty();
                 track.indexed_id() == Some(id)
-                    && (Some(*index) == active || track.artwork().is_some())
+                    && (Some(*index) == active
+                        || Some(*index) == self.pending_track
+                        || track.artwork().is_some()
+                        || downloaded)
                     && track.artwork() != Some(bytes)
             })
             .map(|(index, track)| (index, track.clone().with_artwork(bytes.to_vec())))
@@ -1666,6 +1673,43 @@ impl Desktop {
             }
             let _ = session.replace_track(index, track);
         }
+    }
+
+    fn apply_prepared_cover(
+        &mut self,
+        index: usize,
+        track: Track,
+        revision: Option<Revision>,
+    ) -> Track {
+        let Some(id) = track.indexed_id() else {
+            return track;
+        };
+        if let Some(revision) = revision {
+            if self.queue_artwork.has_conflicting_revision(id, &revision) {
+                let fresh = self
+                    .session
+                    .as_ref()
+                    .and_then(|session| session.tracks().get(index))
+                    .and_then(Track::artwork)
+                    .map(<[u8]>::to_vec);
+                return match fresh {
+                    Some(bytes) => track.with_artwork(bytes),
+                    None => track.without_artwork(),
+                };
+            }
+            self.queue_artwork.remember(id, revision);
+        }
+        self.queue_covers.remove(id);
+        if let Some(handle) = track.artwork().and_then(row_cover::row_handle) {
+            self.row_covers.cover_available(id);
+            if let Some(snapshot) = &mut self.sources.snapshot {
+                row_cover::fill_snapshot_cover(snapshot, id, handle.clone());
+            }
+            if self.queue_covers.len() < row_cover::ROW_LIMIT {
+                self.queue_covers.insert(id.to_owned(), handle);
+            }
+        }
+        track
     }
 
     fn refresh_stale_queue_artwork(&mut self, changed: &[String]) -> Task<Message> {
@@ -1959,6 +2003,29 @@ impl From<Track> for PreparedTrack {
             artwork_revision: None,
         }
     }
+}
+
+fn prepare_downloaded_dropbox_track(
+    paths: &CataloguePaths,
+    track: Track,
+    download: crate::dropbox::cache::Download,
+    indexed_revision: Option<Revision>,
+) -> PreparedTrack {
+    let downloaded_revision = download.metadata.as_ref().and_then(|metadata| {
+        let (library, path) = track.remote()?;
+        crate::catalogue::Catalogue::downloaded_artwork_revision(
+            library,
+            track.indexed_id()?,
+            path,
+            metadata.size,
+            &metadata.rev,
+        )
+    });
+    let cache_revision =
+        indexed_revision.filter(|revision| Some(revision) == downloaded_revision.as_ref());
+    let mut prepared = prepare_dropbox_track(paths, track, download.path, cache_revision);
+    prepared.artwork_revision = downloaded_revision;
+    prepared
 }
 
 fn prepare_dropbox_track(

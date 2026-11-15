@@ -109,6 +109,16 @@ impl QueueArtwork {
         }
     }
 
+    pub(in crate::desktop) fn has_conflicting_revision(
+        &self,
+        id: &str,
+        revision: &Revision,
+    ) -> bool {
+        self.versions.get(id).is_some_and(|version| {
+            matches!(&version.artwork, MediaVersion::Confirmed(current) if current != revision)
+        })
+    }
+
     pub(in crate::desktop) fn apply(
         &mut self,
         result: QueueReconciled,

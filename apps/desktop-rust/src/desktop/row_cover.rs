@@ -94,6 +94,14 @@ pub(super) fn retain_unchanged(previous: &Snapshot, next: &mut Snapshot) {
     next.covers.extend(unchanged);
 }
 
+pub(super) fn fill_snapshot_cover(snapshot: &mut Snapshot, id: &str, cover: Handle) {
+    if (snapshot.covers.len() < ROW_LIMIT || snapshot.covers.contains_key(id))
+        && snapshot_tracks(snapshot).any(|track| track.id == id)
+    {
+        snapshot.covers.insert(id.to_owned(), cover);
+    }
+}
+
 fn snapshot_tracks(snapshot: &Snapshot) -> impl Iterator<Item = &IndexedTrack> {
     snapshot.tracks.iter().chain(
         snapshot

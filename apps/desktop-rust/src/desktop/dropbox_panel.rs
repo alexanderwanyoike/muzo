@@ -557,7 +557,11 @@ fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), 
     Ok((library.name, tracks))
 }
 
-pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result<PathBuf, Error> {
+pub fn remote_audio(
+    paths: &CataloguePaths,
+    library: &str,
+    path: &str,
+) -> Result<cache::Download, Error> {
     let catalogue: Catalogue = paths.open()?;
     let account = catalogue
         .dropbox_account_for(library)?
