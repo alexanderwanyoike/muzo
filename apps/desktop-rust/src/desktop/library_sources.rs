@@ -230,14 +230,20 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::MovePlaylistEntry(id, entry, delta) => {
-            catalogue.move_playlist_entry(&id, &entry, delta)?;
-            selected_playlist = Some(id);
-            previous_source.clone()
+            let mut snapshot =
+                catalogue.move_playlist_entry_with_snapshot(&id, &entry, delta, |catalogue| {
+                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+                })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::RemovePlaylistEntry(id, entry) => {
-            catalogue.remove_playlist_entry(&id, &entry)?;
-            selected_playlist = Some(id);
-            previous_source.clone()
+            let mut snapshot =
+                catalogue.remove_playlist_entry_with_snapshot(&id, &entry, |catalogue| {
+                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+                })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let metadata = catalogue.track_metadata(&id, &library_id)?;
@@ -1237,6 +1243,124 @@ mod artwork_tests {
         let row = &snapshot.tracks[0];
         assert!(snapshot.covers.contains_key(&row.id));
         assert_eq!(row.plays, 0);
+    }
+}
+
+#[cfg(test)]
+mod playlist_entry_transactions {
+    use super::*;
+
+    struct PlaylistFixture {
+        paths: CataloguePaths,
+        catalogue: Catalogue,
+        connection: rusqlite::Connection,
+        playlist: String,
+        entries: [String; 2],
+        // Windows cannot remove the database while its handles are open.
+        _root: tempfile::TempDir,
+    }
+
+    impl PlaylistFixture {
+        fn new() -> Self {
+            let root = tempfile::tempdir().unwrap();
+            let folder = root.path().join("Music");
+            std::fs::create_dir(&folder).unwrap();
+            let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+            std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
+            let paths = CataloguePaths::in_directory(root.path());
+            let track = run(&paths, Operation::Add(folder))
+                .unwrap()
+                .tracks
+                .remove(0);
+            let mut catalogue = paths.open().unwrap();
+            let playlist = catalogue.create_playlist("Rehearsals").unwrap().id;
+            let first = catalogue.add_to_playlist(&playlist, &track.id).unwrap();
+            let second = catalogue.add_to_playlist(&playlist, &track.id).unwrap();
+            let connection = rusqlite::Connection::open(&paths.current).unwrap();
+            connection.execute_batch(
+                "INSERT INTO libraries (id, name, kind, location)
+                 VALUES ('other', 'Other source', 'filesystem', '/music/other');
+                 INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+                 VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
+            ).unwrap();
+            Self {
+                paths,
+                catalogue,
+                connection,
+                playlist,
+                entries: [first, second],
+                _root: root,
+            }
+        }
+
+        fn apply(&self, operation: Operation) -> Result<Snapshot, CatalogueError> {
+            run_with_selection(
+                &self.paths,
+                operation,
+                Some("other".into()),
+                Some(self.playlist.clone()),
+            )
+        }
+
+        fn saved_entries(&self) -> Vec<String> {
+            self.catalogue
+                .playlist_entries(&self.playlist)
+                .unwrap()
+                .into_iter()
+                .map(|entry| entry.id)
+                .collect()
+        }
+
+        fn repair_source(&self) {
+            self.connection
+                .execute(
+                    "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
+                    [],
+                )
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn it_keeps_playlist_order_when_a_refreshed_track_cannot_be_read() {
+        let data = PlaylistFixture::new();
+        let [first, second] = &data.entries;
+        let move_entry = || {
+            data.apply(Operation::MovePlaylistEntry(
+                data.playlist.clone(),
+                first.clone(),
+                1,
+            ))
+        };
+
+        assert!(move_entry().is_err());
+        assert_eq!(data.saved_entries(), data.entries);
+
+        data.repair_source();
+        move_entry().unwrap();
+        assert_eq!(data.saved_entries(), [second.clone(), first.clone()]);
+    }
+
+    #[test]
+    fn it_keeps_a_playlist_entry_when_a_refreshed_track_cannot_be_read() {
+        let data = PlaylistFixture::new();
+        let [first, second] = &data.entries;
+        let remove = || {
+            data.apply(Operation::RemovePlaylistEntry(
+                data.playlist.clone(),
+                first.clone(),
+            ))
+        };
+
+        assert!(remove().is_err());
+        assert_eq!(data.saved_entries(), data.entries);
+
+        data.repair_source();
+        remove().unwrap();
+        assert_eq!(
+            data.saved_entries().as_slice(),
+            std::slice::from_ref(second)
+        );
     }
 }
 
