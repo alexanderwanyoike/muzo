@@ -51,10 +51,6 @@ pub(super) fn chrome(
     material_surface(appearance, surfaces.chrome, height)
 }
 
-pub(super) fn compact_background(appearance: &Appearance) -> Element<'static, Message> {
-    material_surface(appearance, appearance.theme().palette().background, Fill)
-}
-
 fn material_surface(
     appearance: &Appearance,
     color: Color,

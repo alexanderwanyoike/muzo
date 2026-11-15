@@ -16,7 +16,8 @@ use crate::{
 
 use super::{
     Icon, Message, action, bold, clock_label, control_opacity, focus_ring, focusable_icon, icon,
-    icon_tinted, playback_error, window_chrome,
+    icon_tinted, playback_error,
+    window_chrome::{PANE_GUTTER, PANE_RADIUS, pane_style, title_bar},
 };
 use crate::desktop::{
     cover::{Cover, SLEEVE_EDGE, SLEEVE_PAD},
@@ -65,7 +66,7 @@ fn mini_at_size<'a>(
     let (cover, indexed, direct) = covers;
     let (queue_open, queue_pending, size) = window;
     let (error, retry) = playback;
-    let header = window_chrome::title_bar(
+    let header = title_bar(
         id,
         appearance,
         row![
@@ -158,6 +159,22 @@ fn mini_at_size<'a>(
     )
     .height(Fill)
     .width(Fill);
+    let artwork: Element<'_, Message> = cover.background().map_or_else(
+        || Space::new().width(Fill).height(Fill).into(),
+        |background| {
+            image(background.clone())
+                .content_fit(ContentFit::Cover)
+                .opacity(0.12)
+                .border_radius(PANE_RADIUS)
+                .width(Fill)
+                .height(Fill)
+                .into()
+        },
+    );
+    let player = container(stack![artwork, body].clip(true))
+        .width(Fill)
+        .height(Fill)
+        .style(move |_| pane_style(surfaces.raised));
     let workspace = if queue_open {
         row![
             queue(
@@ -167,30 +184,19 @@ fn mini_at_size<'a>(
                 surfaces,
                 size.width
             ),
-            body
+            Space::new().width(PANE_GUTTER),
+            player,
         ]
     } else {
-        row![body]
+        row![player]
     };
-    let foreground = container(column![header, workspace.height(Fill)])
-        .width(Fill)
-        .height(Fill);
-    let underlay: Element<'_, Message> = cover.background().map_or_else(
-        || Space::new().width(Fill).height(Fill).into(),
-        |background| {
-            image(background.clone())
-                .content_fit(ContentFit::Cover)
-                .opacity(0.12)
-                .width(Fill)
-                .height(Fill)
-                .into()
-        },
-    );
-    stack![foreground]
-        .push_under(underlay)
-        .push_under(crate::desktop::material::compact_background(appearance))
-        .clip(true)
-        .into()
+    column![
+        header,
+        container(workspace.height(Fill)).padding(PANE_GUTTER)
+    ]
+    .width(Fill)
+    .height(Fill)
+    .into()
 }
 
 fn sleeve(
@@ -486,19 +492,11 @@ fn queue<'a>(
             .into()
     };
     let width = if width <= 680.0 { 220 } else { 260 };
-    row![
-        container(column![heading, rows])
-            .width(width - 1)
-            .height(Fill)
-            .style(
-                move |_| container::Style::default().background(surfaces.sidebar.scale_alpha(0.88))
-            ),
-        container(Space::new())
-            .width(1)
-            .height(Fill)
-            .style(move |_| container::Style::default().background(surfaces.line)),
-    ]
-    .into()
+    container(column![heading, rows])
+        .width(width)
+        .height(Fill)
+        .style(move |_| pane_style(surfaces.chrome))
+        .into()
 }
 
 pub(super) fn tint(base: Color, overlay: Color, amount: f32) -> Color {
