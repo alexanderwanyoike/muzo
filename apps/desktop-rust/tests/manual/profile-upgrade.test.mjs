@@ -107,3 +107,20 @@ test("rejects changed preferences and overwritten Chromium storage", (t) => {
     /legacy.*changed/i,
   );
 });
+
+test("waits for the first scan before accepting the migrated catalogue", (t) => {
+  const { profile, baseline, candidate } = fixture(t);
+  const expectedMtime = 30;
+  baseline.rescan = { trackId: "track-a", fileMtime: expectedMtime };
+  assert.throws(() => verifyProfileUpgrade(profile, baseline), /startup scan/i);
+
+  const database = new DatabaseSync(candidate);
+  try {
+    database
+      .prepare("UPDATE tracks SET file_mtime = ? WHERE id = ?")
+      .run(expectedMtime, baseline.rescan.trackId);
+  } finally {
+    database.close();
+  }
+  assert.doesNotThrow(() => verifyProfileUpgrade(profile, baseline));
+});
