@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, Theme, border,
+    Alignment, Element, Fill, Font, Theme, border,
     widget::{
         Space, button, column, container, image, row, scrollable, stack, text, text_input, tooltip,
     },
@@ -568,6 +568,7 @@ pub fn tracks<'a>(
     const LIST_BOTTOM_INSET: f32 = 30.0;
     const STRIPE_OPACITY: f32 = 0.02;
     const DIVIDER_OPACITY: f32 = 0.5;
+    const TABLE_TEXT: Font = Font::with_name("Muzo Table Text");
     let metrics = TrackRowMetrics::for_viewport(viewport_width);
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
@@ -632,14 +633,20 @@ pub fn tracks<'a>(
         .align_y(Alignment::Center);
         let body = row![
             play,
-            container(text(index + 1).size(10).color(surfaces.muted))
-                .align_x(Alignment::End)
-                .width(metrics.number),
+            container(
+                text(index + 1)
+                    .font(TABLE_TEXT)
+                    .size(10)
+                    .color(surfaces.muted)
+            )
+            .align_x(Alignment::End)
+            .width(metrics.number),
             track_details,
             container(
                 text(clock(std::time::Duration::from_secs(
                     track.duration_seconds.into()
                 )))
+                .font(TABLE_TEXT)
                 .size(10)
                 .color(surfaces.muted)
             )
@@ -651,6 +658,7 @@ pub fn tracks<'a>(
                     track.plays,
                     if track.plays == 1 { "play" } else { "plays" }
                 ))
+                .font(TABLE_TEXT)
                 .size(10)
                 .color(surfaces.muted)
             )

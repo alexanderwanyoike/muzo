@@ -9,6 +9,7 @@ fn main() -> iced::Result {
     iced::daemon(Desktop::boot, Desktop::update, Desktop::view)
         .font(include_bytes!("../assets/fonts/Manrope-Regular.ttf").as_slice())
         .font(include_bytes!("../assets/fonts/Manrope-Bold.ttf").as_slice())
+        .font(include_bytes!("../assets/fonts/MuzoTableText-Regular.ttf").as_slice())
         .default_font(iced::Font::with_name("Manrope"))
         .title(Desktop::title)
         .theme(Desktop::theme)
