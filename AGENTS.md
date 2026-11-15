@@ -4,7 +4,7 @@ Read this before doing anything in this repo. It applies to humans and to AI age
 
 ## Project at a glance
 
-**Muzo** is an Electron-based desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
+**Muzo** is a Rust and Iced desktop music player. Users organise music through **libraries** (filesystem folders or Dropbox locations) and **playlists**. Libraries are scanned recursively and kept in sync with their backing source. A React Native / PWA mobile client is planned for later; this repo is set up as a Yarn workspace to host both.
 
 ## House rules
 
@@ -15,12 +15,12 @@ These are not negotiable.
 - Write a failing test first. Watch it fail. Make it pass. Refactor.
 - No production code without a failing test that justifies it.
 - Tests live next to the code they exercise. TS tests as `*.test.ts(x)` next to the unit under test.
-- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, Electron IPC commands). End-to-end tests only where the value justifies the cost.
+- Unit tests for domain logic. Integration tests for adapters (filesystem, Dropbox, SQLite and platform services). End-to-end tests only where the value justifies the cost.
 - Tests are behaviour names, not implementation names: `it_adds_a_track_to_the_library`, not `test1`.
 
 ### 2. Domain-Driven Design
 
-- The **domain layer** holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Electron, Node, filesystem, HTTP, or wire DTOs.
+- The **domain layer** holds the core model: `Library`, `Track`, `Playlist`, `LibraryId`, etc. It has zero dependencies on Iced, filesystem, HTTP, or wire DTOs.
 - Frameworks point **inward** at the domain. The domain never imports them.
 - Define **repositories** as interfaces in the inner layer; implement them in infrastructure.
 - Value objects over primitives. A `LibraryPath` is not a `String`.
@@ -34,7 +34,7 @@ Layering, inner to outer:
 domain        <- entities, value objects, domain services, repository interfaces
 application   <- use cases (commands/queries), orchestrates domain + ports
 infrastructure <- repository implementations, filesystem/Dropbox adapters, persistence
-ui / electron <- React frontend + Electron IPC; the outermost edge
+desktop       <- Iced windows, input and rendering; the outermost edge
 ```
 
 - Dependencies only point inward.
@@ -62,14 +62,12 @@ ui / electron <- React frontend + Electron IPC; the outermost edge
 
 ```
 apps/
-  desktop/                 @muzo/desktop  - Electron + React app
-    src/                   React frontend (TS)
-    electron/              Electron main process backend:
-      application/         use cases, commands, interfaces
-      infrastructure/      filesystem, Dropbox, SQLite, metadata, audio
-      ipc/                 Electron IPC dispatch
-      composition/         Awilix IoC container
-packages/                  future shared TS packages
+  desktop-rust/            @muzo/desktop-rust - Rust and Iced desktop app
+    src/                   catalogue, playback, Dropbox and desktop UI
+    tests/manual/          packaged desktop checks and upgrade fixtures
+packages/
+  distribution/           installer tooling and the release manifest contract
+site/                      project website and downloads
 docs/
   cards/<sprint>/          sprint cards, one file per card
   adr/                     ADRs, numbered, immutable once merged
@@ -114,8 +112,8 @@ chore(repo): init yarn workspaces
 
 - **Package manager:** Yarn (classic) workspaces. Always. No npm, no pnpm, no bun.
 - **Node:** `>= 22.12`.
-- **Frontend:** React + TypeScript + Vite.
-- **Desktop shell:** Electron.
+- **Desktop:** Rust 1.95 or newer, Iced and Cargo.
+- **Website:** TypeScript + Vite.
 
 ### Before you push
 

@@ -1,0 +1,14 @@
+{
+  "name": "@muzo/desktop-rust",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cargo run --locked",
+    "native:lint": "cargo clippy --locked --all-targets -- -D warnings",
+    "native:typecheck": "cargo check --locked --all-targets",
+    "native:test": "cargo test --locked",
+    "build": "cargo build --locked --release",
+    "format:check": "cargo fmt --check",
+    "clean": "cargo clean --locked --package muzo-desktop && node -e \"require('node:fs').rmSync('out', { recursive: true, force: true })\""
+  }
+}

@@ -1,0 +1,485 @@
+use std::path::PathBuf;
+
+use iced::{
+    Element, Task, border,
+    widget::{button, container, row, text, tooltip},
+};
+
+use crate::{
+    appearance::Surfaces,
+    distribution::{Target, Update, latest},
+};
+
+use super::Message;
+
+#[derive(Debug, Clone, Default)]
+pub enum Status {
+    #[default]
+    Idle,
+    Checking,
+    Current,
+    Available(Update),
+    Downloading(u8),
+    Ready(Update, PathBuf),
+    Confirming(Update, PathBuf),
+    Installing,
+    Error(String),
+}
+
+impl Status {
+    pub(super) fn from_check(result: Result<Option<Update>, String>) -> Self {
+        match result {
+            Ok(Some(update)) => Self::Available(update),
+            Ok(None) => Self::Current,
+            Err(error) => Self::Error(error),
+        }
+    }
+
+    pub(super) fn can_check(&self) -> bool {
+        matches!(self, Self::Idle | Self::Current | Self::Error(_))
+    }
+
+    pub(super) fn notice_label(&self) -> String {
+        match self {
+            Self::Idle => "Check for updates".into(),
+            Self::Checking => "Checking for updates…".into(),
+            Self::Current => "Up to date".into(),
+            Self::Available(update) => format!("Update available to {}", update.version),
+            Self::Downloading(percent) => format!("Downloading update… {percent}%"),
+            Self::Ready(update, _) => format!("Restart to install v{}", update.version),
+            Self::Confirming(update, _) => format!("Restart to install {}?", update.version),
+            Self::Installing => "Installing update…".into(),
+            Self::Error(_) => "Update failed. Retry".into(),
+        }
+    }
+
+    pub(super) fn accepts(&self, incoming: &Self) -> bool {
+        match (self, incoming) {
+            (Self::Checking, Self::Current | Self::Available(_) | Self::Error(_)) => true,
+            (Self::Downloading(_), Self::Ready(_, _) | Self::Error(_)) => true,
+            (Self::Downloading(previous), Self::Downloading(current)) => current >= previous,
+            _ => false,
+        }
+    }
+}
+
+pub(super) fn installed_build() -> bool {
+    (cfg!(target_os = "linux") && std::env::var_os("APPIMAGE").is_some())
+        || (cfg!(any(target_os = "windows", target_os = "macos")) && !cfg!(debug_assertions))
+}
+
+fn manual_download() -> bool {
+    cfg!(target_os = "macos") || (cfg!(target_os = "linux") && !installed_build())
+}
+
+pub fn check() -> Task<Message> {
+    let Some(target) = Target::current() else {
+        return Task::none();
+    };
+    Task::perform(
+        async move {
+            tokio::task::spawn_blocking(move || {
+                latest(env!("CARGO_PKG_VERSION"), target).map_err(|error| error.to_string())
+            })
+            .await
+            .map_err(|error| format!("Could not check for updates: {error}"))?
+        },
+        |result| Message::UpdateReceived(Status::from_check(result)),
+    )
+}
+
+pub fn download(update: Update, directory: PathBuf) -> Task<Message> {
+    Task::run(
+        iced::stream::channel(
+            8,
+            move |output: iced::futures::channel::mpsc::Sender<Status>| async move {
+                use iced::futures::SinkExt;
+
+                let mut output = output;
+                let worker_output = output.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    let mut output = worker_output;
+                    let result = update.download(&directory, |percentage| {
+                        let _ = output.try_send(Status::Downloading(percentage));
+                    });
+                    match result {
+                        Ok(path) => Status::Ready(update, path),
+                        Err(error) => Status::Error(error.to_string()),
+                    }
+                })
+                .await
+                .unwrap_or_else(|error| {
+                    Status::Error(format!("Could not download the update: {error}"))
+                });
+                let _ = output.send(result).await;
+            },
+        ),
+        Message::UpdateReceived,
+    )
+}
+
+pub fn launch(
+    expected: &Update,
+    installer: &std::path::Path,
+) -> Result<(), crate::distribution::UpdateError> {
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(current) = std::env::var_os("APPIMAGE") {
+            let original_directory = std::env::var_os("OWD")
+                .map(PathBuf::from)
+                .filter(|path| path.is_absolute())
+                .map_or_else(std::env::current_dir, Ok)?;
+            let arguments = crate::distribution::appimage::relaunch_arguments(
+                &original_directory,
+                super::launch_files(std::env::args_os().skip(1))
+                    .into_iter()
+                    .map(PathBuf::into_os_string),
+            );
+            return crate::distribution::appimage::replace_and_launch(
+                expected,
+                installer,
+                std::path::Path::new(&current),
+                arguments,
+            );
+        }
+    }
+    expected.verify(installer)?;
+    let target = (
+        expected.asset.platform.as_str(),
+        expected.asset.arch.as_str(),
+    );
+    if target == Target::WindowsX64.manifest_identity() {
+        use std::process::{Command, Stdio};
+
+        Command::new(installer)
+            .args(["--updated", "/S", "--force-run"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()?;
+    } else {
+        open::that_detached(installer)?;
+    }
+    Ok(())
+}
+
+pub fn view(status: &Status, surfaces: Surfaces) -> Element<'_, Message> {
+    let label = status.notice_label();
+    let (action, hint) = match status {
+        Status::Idle | Status::Current => (
+            installed_build().then_some(Message::CheckUpdate),
+            "Check for a new Muzo version",
+        ),
+        Status::Available(update) => (
+            Some(Message::DownloadUpdate(update.clone())),
+            if manual_download() {
+                "Download installer"
+            } else {
+                "Download update"
+            },
+        ),
+        Status::Ready(update, path) => (
+            Some(Message::InstallUpdate(update.clone(), path.clone())),
+            "Your update is ready",
+        ),
+        Status::Error(error) => {
+            return row![
+                text(error)
+                    .size(10)
+                    .color(surfaces.muted)
+                    .align_x(iced::Right)
+                    .wrapping(text::Wrapping::WordOrGlyph)
+                    .width(iced::Fill),
+                pill(label, Some(Message::CheckUpdate), surfaces),
+            ]
+            .spacing(8)
+            .align_y(iced::Alignment::Center)
+            .into();
+        }
+        Status::Confirming(_, _) => {
+            return row![
+                text(label).size(11),
+                pill("Later", Some(Message::CancelInstallUpdate), surfaces),
+                pill("Restart", Some(Message::ConfirmInstallUpdate), surfaces),
+            ]
+            .spacing(5)
+            .align_y(iced::Alignment::Center)
+            .into();
+        }
+        _ => return pill(label, None, surfaces).into(),
+    };
+    tooltip(
+        pill(label, action, surfaces),
+        text(hint).size(11),
+        tooltip::Position::Top,
+    )
+    .style(super::view::panel)
+    .into()
+}
+
+fn pill<'a>(
+    label: impl Into<String>,
+    action: Option<Message>,
+    surfaces: Surfaces,
+) -> button::Button<'a, Message> {
+    const PILL_HEIGHT: f32 = 24.0;
+    const PILL_LABEL_SIZE: f32 = 11.0;
+    const HORIZONTAL_INSET: f32 = 10.0;
+    let label = container(
+        text(label.into())
+            .size(PILL_LABEL_SIZE)
+            .align_y(iced::Center),
+    )
+    .center_y(PILL_HEIGHT)
+    .padding([0.0, HORIZONTAL_INSET]);
+    button(label)
+        .height(PILL_HEIGHT)
+        .padding(0)
+        .style(move |theme: &iced::Theme, status| {
+            let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+            button::Style {
+                background: Some(
+                    if hovered {
+                        theme.extended_palette().background.strong.color
+                    } else {
+                        surfaces.raised
+                    }
+                    .into(),
+                ),
+                text_color: if status == button::Status::Disabled {
+                    surfaces.muted
+                } else {
+                    theme.palette().text
+                },
+                border: border::rounded(PILL_HEIGHT / 2.0)
+                    .width(1)
+                    .color(surfaces.line),
+                ..button::Style::default()
+            }
+        })
+        .on_press_maybe(action)
+}
+
+#[cfg(test)]
+mod tests {
+    use iced::{
+        Font, Pixels, Renderer, Size,
+        advanced::{layout, widget::Tree},
+    };
+
+    use super::*;
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "requires a downloaded NSIS installer and an isolated installed profile"]
+    fn it_restarts_with_the_installed_windows_update() {
+        let installer = PathBuf::from(std::env::var_os("MUZO_RESTART_INSTALLER").unwrap());
+        let (platform, arch) = Target::WindowsX64.manifest_identity();
+        let update = Update {
+            version: env!("CARGO_PKG_VERSION").parse().unwrap(),
+            asset: crate::distribution::Artifact {
+                name: installer
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+                platform: platform.into(),
+                arch: arch.into(),
+                size: installer.metadata().unwrap().len(),
+                sha256: std::env::var("MUZO_RESTART_INSTALLER_SHA256").unwrap(),
+            },
+        };
+        launch(&update, &installer).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_launches_a_verified_windows_update_silently_and_requests_relaunch() {
+        use std::{fs, os::unix::fs::PermissionsExt, process::Command, time::Duration};
+
+        use sha2::{Digest, Sha256};
+
+        const FIXTURE: &str = "MUZO_NSIS_LAUNCH_FIXTURE";
+        const RECORD: &str = "MUZO_NSIS_LAUNCH_RECORD";
+        if let Some(installer) = std::env::var_os(FIXTURE) {
+            let installer = PathBuf::from(installer);
+            let bytes = fs::read(&installer).unwrap();
+            let (platform, arch) = Target::WindowsX64.manifest_identity();
+            let update = Update {
+                version: semver::Version::new(0, 0, 7),
+                asset: crate::distribution::Artifact {
+                    name: installer
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned(),
+                    platform: platform.into(),
+                    arch: arch.into(),
+                    size: bytes.len() as u64,
+                    sha256: format!("{:x}", Sha256::digest(&bytes)),
+                },
+            };
+            launch(&update, &installer).unwrap();
+            return;
+        }
+
+        let folder = tempfile::tempdir().unwrap();
+        let installer = folder.path().join("Muzo fixture setup.exe");
+        let open = folder.path().join("xdg-open");
+        let record = folder.path().join("arguments");
+        for program in [&installer, &open] {
+            fs::write(
+                program,
+                "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$MUZO_NSIS_LAUNCH_RECORD\"\n",
+            )
+            .unwrap();
+            fs::set_permissions(program, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let child = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "desktop::updates::tests::it_launches_a_verified_windows_update_silently_and_requests_relaunch",
+            ])
+            .env_clear()
+            .env(FIXTURE, &installer)
+            .env(RECORD, &record)
+            .env("PATH", folder.path())
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success(),
+            "{}",
+            String::from_utf8_lossy(&child.stdout)
+        );
+        let mut flags = String::new();
+        for _ in 0..100 {
+            flags = fs::read_to_string(&record).unwrap_or_default();
+            if !flags.is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(
+            flags.lines().collect::<Vec<_>>(),
+            ["--updated", "/S", "--force-run"],
+            "Windows Restart should update quietly and reopen Muzo"
+        );
+    }
+
+    #[test]
+    fn it_centres_the_status_label_inside_the_footer_pill() {
+        use iced::{
+            Rectangle,
+            advanced::{
+                mouse,
+                renderer::{Headless, Style},
+            },
+        };
+
+        const HORIZONTAL_SAMPLE_INSET: usize = 9;
+        const BORDER_SAMPLE_INSET: usize = 2;
+        const GLYPH_CONTRAST: u8 = 65;
+        const VERTICAL_TOLERANCE: usize = 2;
+        let appearance = crate::appearance::Appearance::default();
+        let surfaces = appearance.surfaces();
+        let theme = appearance.theme();
+        let fonts = crate::fonts::settings();
+        {
+            let mut loader = iced::advanced::graphics::text::font_system()
+                .write()
+                .unwrap();
+            for font in fonts.fonts {
+                loader.load_font(font);
+            }
+        }
+        let mut renderer = Renderer::new(fonts.default_font, fonts.default_text_size);
+        let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
+        const SAMPLE_DOWNLOAD_PROGRESS: u8 = 50;
+        for label in [
+            Status::Current.notice_label(),
+            Status::Downloading(SAMPLE_DOWNLOAD_PROGRESS).notice_label(),
+            Status::Error("Connection closed".into()).notice_label(),
+            "Later".into(),
+            "Restart".into(),
+        ] {
+            let mut element: Element<'_, Message> = pill(label.as_str(), None, surfaces).into();
+            let mut tree = Tree::new(&element);
+            let widget = element.as_widget_mut();
+            let node = widget.layout(&mut tree, &renderer, &limits);
+            let layout = iced::advanced::Layout::new(&node);
+            let bounds = layout.bounds();
+            widget.draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &Style::default(),
+                layout,
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds.size()),
+            );
+            let size = Size::new(bounds.width.ceil() as u32, bounds.height as u32);
+            let pixels = renderer.screenshot(size, 1.0, theme.palette().background);
+            let stride = size.width as usize * 4;
+            let ink: Vec<_> = pixels
+                .chunks_exact(stride)
+                .enumerate()
+                .filter(|(_, row)| {
+                    row[HORIZONTAL_SAMPLE_INSET * 4..stride - HORIZONTAL_SAMPLE_INSET * 4]
+                        .chunks_exact(4)
+                        .any(|pixel| {
+                            pixel[0].abs_diff(surfaces.raised.into_rgba8()[0]) > GLYPH_CONTRAST
+                        })
+                })
+                .map(|(y, _)| y)
+                .filter(|y| {
+                    (BORDER_SAMPLE_INSET..size.height as usize - BORDER_SAMPLE_INSET).contains(y)
+                })
+                .collect();
+            let top = *ink.first().expect("rendered status label");
+            let bottom = size.height as usize - 1 - ink.last().unwrap();
+            assert!(
+                top.abs_diff(bottom) <= VERTICAL_TOLERANCE,
+                "{label} has {top} px above its glyphs and {bottom} px below"
+            );
+        }
+    }
+
+    #[test]
+    fn it_reserves_footer_space_for_the_update_failure_reason() {
+        let surfaces = crate::appearance::Appearance::default().surfaces();
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
+        let status = Status::Error("Connection closed during the download".into());
+        let mut element = view(&status, surfaces);
+        let mut tree = Tree::new(&element);
+        let node = element
+            .as_widget_mut()
+            .layout(&mut tree, &renderer, &limits);
+        let detail = iced::advanced::Layout::new(&node)
+            .children()
+            .next()
+            .unwrap();
+        assert!(detail.bounds().width > 120.0);
+    }
+
+    #[test]
+    fn it_keeps_retry_wide_enough_for_a_long_installer_error() {
+        let surfaces = crate::appearance::Appearance::default().surfaces();
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(640.0, 120.0));
+        let status = Status::Error(format!(
+            "Could not reopen {}",
+            "/recordings/folder".repeat(32)
+        ));
+        let mut element = view(&status, surfaces);
+        let mut tree = Tree::new(&element);
+        let node = element
+            .as_widget_mut()
+            .layout(&mut tree, &renderer, &limits);
+        let retry = iced::advanced::Layout::new(&node)
+            .children()
+            .last()
+            .unwrap();
+        assert!(retry.bounds().width >= 90.0);
+    }
+}
