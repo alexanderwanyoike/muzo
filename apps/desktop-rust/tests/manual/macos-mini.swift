@@ -34,6 +34,11 @@ let expandedWidth: CGFloat = 740
 let miniContentHeight: CGFloat = 560
 let frameTolerance: CGFloat = 1
 let libraryMoveDistance: CGFloat = 40
+let captionCenterY: CGFloat = 16
+let closeInset: CGFloat = 16
+let maximizeInset: CGFloat = 48
+let minimizeInset: CGFloat = 80
+let pointerSettleInterval: TimeInterval = 0.08
 
 func visibleWindows(ownedBy pid: pid_t) throws -> [Window] {
     let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
@@ -139,6 +144,24 @@ func capture(_ window: Window, of app: Process, named name: String, in folder: U
 }
 
 @MainActor
+func clickCaption(_ window: Window, of app: Process, inset: CGFloat) throws {
+    guard isFrontmost(app) else {
+        throw SmokeError(description: "Muzo lost focus before clicking the title bar.")
+    }
+    let position = CGPoint(x: window.frame.maxX - inset, y: window.frame.minY + captionCenterY)
+    let events: [CGEventType] = [.mouseMoved, .leftMouseDown, .leftMouseUp]
+    for kind in events {
+        guard let event = CGEvent(
+            mouseEventSource: nil, mouseType: kind, mouseCursorPosition: position, mouseButton: .left
+        ) else {
+            throw SmokeError(description: "Could not create a title bar mouse event.")
+        }
+        event.post(tap: .cghidEventTap)
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: pointerSettleInterval))
+    }
+}
+
+@MainActor
 func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
     let files = FileManager.default
     guard let executable = Bundle(url: bundle)?.executableURL, files.isExecutableFile(atPath: executable.path)
@@ -190,6 +213,15 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
     }
     try capture(compact, of: app, named: "macos-mini", in: screenshots)
 
+    try clickCaption(compact, of: app, inset: maximizeInset)
+    let maximized = try waitForWindow("maximized mini player", of: app) { window in
+        window.id == compact.id && window.frame.width > compactWidth + frameTolerance
+    }
+    try clickCaption(maximized, of: app, inset: maximizeInset)
+    _ = try waitForWindow("restored mini player", of: app) { window in
+        window.id == compact.id && window.hasSize(width: compactWidth, height: miniContentHeight)
+    }
+
     try send(.focusQueue, to: app)
     try send(.activate, to: app)
     let expanded = try waitForWindow("expanded mini player queue", of: app) { window in
@@ -208,7 +240,34 @@ func verifyMiniPlayer(bundle: URL, screenshots: URL) throws {
         window.id == library.id && window.frame == library.frame
     }
     try capture(restored, of: app, named: "macos-library-restored", in: screenshots)
-    print("Verified the native macOS mini player and restored library geometry.")
+
+    try send(.mini, to: app)
+    let closeTarget = try waitForWindow("reopened mini player", of: app) { window in
+        window.id != library.id && window.hasSize(width: compactWidth, height: miniContentHeight)
+    }
+    try clickCaption(closeTarget, of: app, inset: closeInset)
+    _ = try waitForWindow("library after closing the mini player", of: app) { window in
+        window.id == library.id && window.frame == library.frame
+    }
+
+    try send(.mini, to: app)
+    let minimizeTarget = try waitForWindow("mini player before minimizing", of: app) { window in
+        window.id != library.id && window.hasSize(width: compactWidth, height: miniContentHeight)
+    }
+    try clickCaption(minimizeTarget, of: app, inset: minimizeInset)
+    let deadline = ProcessInfo.processInfo.systemUptime + windowTimeout
+    repeat {
+        guard app.isRunning else {
+            throw SmokeError(description: "Muzo exited while minimizing the mini player.")
+        }
+        let visible = try visibleWindows(ownedBy: app.processIdentifier)
+        if !visible.contains(where: { $0.id == minimizeTarget.id }) {
+            print("Verified the macOS title bar controls, mini player queue and restored library geometry.")
+            return
+        }
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: windowPollInterval))
+    } while ProcessInfo.processInfo.systemUptime < deadline
+    throw SmokeError(description: "The mini player stayed visible after clicking Minimize.")
 }
 
 do {
