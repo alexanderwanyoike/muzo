@@ -221,8 +221,10 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::SelectPlaylist(id) => {
-            selected_playlist = Some(id);
-            previous_source
+            let mut snapshot = read_snapshot(&catalogue, None, Some(id), None, warnings)?;
+            snapshot.selected = previous_source
+                .filter(|id| snapshot.libraries.iter().any(|source| source.id == *id));
+            return Ok(snapshot);
         }
         Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
@@ -377,6 +379,7 @@ pub(super) struct Sources {
     pending_editor: Option<(String, String)>,
     selection_changed_during_operation: bool,
     loading_source: bool,
+    loading_playlist_selection: bool,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -414,6 +417,7 @@ impl Sources {
             pending_editor: None,
             selection_changed_during_operation: false,
             loading_source: false,
+            loading_playlist_selection: false,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -635,6 +639,7 @@ impl Sources {
             self.pending.push_back(queued);
             return Task::none();
         }
+        self.error = None;
         self.run_operation(queued)
     }
 
@@ -652,6 +657,7 @@ impl Sources {
                 | Operation::Reconcile(..)
         );
         self.loading_source = matches!(operation, Operation::Select(_));
+        self.loading_playlist_selection = matches!(operation, Operation::SelectPlaylist(_));
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
             .removal
@@ -673,7 +679,6 @@ impl Sources {
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
-        self.error = None;
         let selected = self
             .snapshot
             .as_ref()
@@ -729,6 +734,7 @@ impl Sources {
     pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
         self.busy = false;
         self.loading_source = false;
+        let loading_playlist_selection = std::mem::take(&mut self.loading_playlist_selection);
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
@@ -797,11 +803,25 @@ impl Sources {
             self.folder_name.clear();
             self.folder_location.clear();
         }
-        if let Some(previous) = &self.snapshot {
+        let mut preserved_songs = false;
+        if let Some(previous) = &mut self.snapshot {
+            preserved_songs = loading_playlist_selection
+                && !selection_changed
+                && previous.selected == snapshot.selected;
+            if preserved_songs {
+                snapshot.tracks = std::mem::take(&mut previous.tracks);
+                for track in &snapshot.tracks {
+                    if let Some(cover) = previous.covers.remove(&track.id) {
+                        snapshot.covers.entry(track.id.clone()).or_insert(cover);
+                    }
+                }
+            }
             preserve_play_counts(&mut snapshot, previous);
             super::row_cover::retain_unchanged(previous, &mut snapshot);
         }
-        self.source_tracks_error = None;
+        if !preserved_songs {
+            self.source_tracks_error = None;
+        }
         self.error = snapshot.warnings.first().cloned();
         let roots: Vec<_> = snapshot
             .libraries
@@ -1612,5 +1632,46 @@ mod source_selection_tests {
             Some(libraries.second.id.clone()),
         );
         assert_eq!(snapshot.selected.as_ref(), Some(&libraries.second.id));
+    }
+
+    #[test]
+    fn it_selects_a_playlist_when_the_current_song_list_cannot_be_read() {
+        let libraries = Libraries::new();
+        let catalogue = libraries.paths.open().unwrap();
+        let conn = rusqlite::Connection::open(&libraries.paths.current).unwrap();
+        conn.execute(
+            "INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+             VALUES ('unreadable', ?1, 'Track', '', 60, '/broken.mp3', 0, 0)",
+            [&libraries.first.id],
+        ).unwrap();
+        let original = catalogue.create_playlist("Original Mix").unwrap();
+        let playlist = catalogue.create_playlist("Independent Mix").unwrap();
+        let previous = libraries.apply(Operation::Select(libraries.first.id.clone()), None);
+        assert_eq!(previous.selected_playlist.as_ref(), Some(&original.id));
+        conn.execute(
+            "UPDATE tracks SET duration_seconds='invalid' WHERE id='unreadable'",
+            [],
+        )
+        .unwrap();
+        let playlist_change = Operation::SelectPlaylist(playlist.id.clone());
+        let mut sources = Sources::new(Some(libraries.paths.clone()));
+        sources.snapshot = Some(previous);
+        let _ = sources.start(playlist_change.clone());
+
+        let result = run_with_selection(
+            &libraries.paths,
+            playlist_change,
+            Some(libraries.first.id.clone()),
+            None,
+        );
+        assert!(
+            result.is_ok(),
+            "unreadable songs should not block choosing a playlist: {result:?}"
+        );
+        sources.apply(result.map_err(|error| UpdateError::Operation(error.to_string())));
+        let snapshot = sources.snapshot.unwrap();
+        assert_eq!(snapshot.selected_playlist, Some(playlist.id));
+        assert_eq!(snapshot.selected, Some(libraries.first.id));
+        assert_eq!(snapshot.tracks[0].id, "unreadable");
     }
 }
