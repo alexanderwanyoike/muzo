@@ -52,10 +52,6 @@ function configureLegacyApp(source, address) {
       " ? " +
       requestTarget +
       " : input, options);",
-    'const fixtureDialog = require("electron").dialog;',
-    "const originalDialog = fixtureDialog.showMessageBox.bind(fixtureDialog);",
-    'fixtureDialog.showMessageBox = (options) => options.message?.startsWith("Restart Muzo to install") ' +
-      "? Promise.resolve({ response: 1, checkboxChecked: false }) : originalDialog(options);",
   ];
   return fixture.join("\n") + "\n" + routed;
 }

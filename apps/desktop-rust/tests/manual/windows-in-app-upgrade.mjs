@@ -33,7 +33,7 @@ async function waitFor(check, timeoutMs, description) {
   throw new Error(description, { cause: failure });
 }
 
-async function clickUpdateButton(evaluate, label) {
+async function waitForUpdateButton(evaluate, label) {
   await waitFor(
     async () => {
       const button = await evaluate(
@@ -49,7 +49,6 @@ async function clickUpdateButton(evaluate, label) {
     downloadTimeoutMs,
     "The installed updater did not show " + label,
   );
-  return evaluate(rendererButton + ".click()");
 }
 
 const [legacyExecutable, candidate, manifest, fixture] = process.argv
@@ -90,24 +89,42 @@ try {
   process.stdout.write(seeded.stdout);
   assert.ifError(startupError);
   const preferences = JSON.parse(await readFile(fixturePreferences, "utf8"));
-  const expected = captureLegacyProfile(profile, preferences);
   const release = await fetch(new URL("release", feed.address)).then(
     (response) => response.json(),
   );
   const version = release.tag_name.slice(1);
+  const windowsDriver = fileURLToPath(
+    new URL("./windows-update-window.ps1", import.meta.url),
+  );
+  const driveWindow = async (journey) => {
+    const result = await execute("powershell.exe", [
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      windowsDriver,
+      "-Journey",
+      journey,
+      "-LegacyProcessId",
+      String(legacy.pid),
+      "-Executable",
+      legacyExecutable,
+    ]);
+    process.stdout.write(result.stdout);
+  };
   const socket = await connectToRenderer(chromium);
   const evaluate = renderer(socket);
+  let expected;
   try {
     const check = await evaluate(
       "window.__MUZO_RUNTIME__.updates.command('check')",
     );
     assert.equal(check?.ok, true, JSON.stringify(check));
-    await clickUpdateButton(evaluate, "Update available v" + version);
-    await clickUpdateButton(evaluate, "Restart to install v" + version).catch(
-      (error) => {
-        if (socket.readyState === WebSocket.OPEN) throw error;
-      },
-    );
+    await waitForUpdateButton(evaluate, "Update available v" + version);
+    await evaluate(rendererButton + ".click()");
+    await waitForUpdateButton(evaluate, "Restart to install v" + version);
+    expected = captureLegacyProfile(profile, preferences);
+    await evaluate(rendererButton + ".click()");
+    await driveWindow("Confirm");
   } finally {
     socket.close();
   }
@@ -116,14 +133,12 @@ try {
     async () => {
       assert.equal(legacy.exitCode, 0);
       await assert.rejects(access(legacyMain));
-      const completed = captureLegacyProfile(profile, preferences);
-      assert.equal(completed.legacy.catalogue, expected.legacy.catalogue);
-      // Electron can finalize its own LevelDB log during its orderly shutdown.
-      verifyProfileUpgrade(profile, { ...expected, legacy: completed.legacy });
+      verifyProfileUpgrade(profile, expected);
     },
     restartTimeoutMs,
     "The installed Rust app did not restart with the Electron profile",
   );
+  await driveWindow("Reopened");
   console.log(
     "Verified Download and Restart in the published Electron Windows app.",
   );
