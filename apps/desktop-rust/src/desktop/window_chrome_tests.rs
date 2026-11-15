@@ -173,6 +173,25 @@ fn it_draws_the_mini_player_and_expanded_queue_in_solid_rounded_theme_panels() {
     }
 }
 
+#[test]
+fn it_paints_the_transport_strip_with_the_same_solid_chrome_as_the_title_bar() {
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    let frame = Size::new(850, 800);
+    let pixels = paint(&desktop, desktop.windows.library_id(), frame);
+    let chrome = desktop.appearance.surfaces().chrome.into_rgba8();
+
+    for y in [4, 36, 76] {
+        let offset = (y * frame.width as usize + 6) * 4;
+        assert_eq!(
+            &pixels[offset..offset + 4],
+            chrome,
+            "transport strip at y={y}"
+        );
+    }
+}
+
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {
     let mut view = desktop.view(id);
     let mut tree = Tree::new(&view);
