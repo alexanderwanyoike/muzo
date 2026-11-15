@@ -42,7 +42,7 @@ fn request(desktop: &mut Desktop) {
 }
 
 #[test]
-fn it_shows_the_same_centered_confirmation_from_settings_and_the_sources_panel() {
+fn it_centers_the_confirmation_on_both_library_pages() {
     let (mut desktop, _root) = desktop();
     for page in [LibraryPage::Songs, LibraryPage::Settings] {
         let _ = desktop.update(Message::LibraryPage(page));
@@ -150,22 +150,26 @@ fn it_draws_the_focus_outline_after_keyboard_navigation() {
     desktop.appearance.accent = "glow-cyan".into();
     request(&mut desktop);
 
-    assert!(!has_focus_outline(&desktop, 424..621));
+    assert_eq!(focus_outlines(&desktop), [false, false]);
 
     send_key(&mut desktop, Named::Tab, Modifiers::empty());
-    assert!(has_focus_outline(&desktop, 505..621));
-    assert!(!has_focus_outline(&desktop, 424..495));
+    assert_eq!(focus_outlines(&desktop), [false, true]);
 
     send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
-    assert!(has_focus_outline(&desktop, 424..495));
+    assert_eq!(focus_outlines(&desktop), [true, false]);
 }
 
-fn has_focus_outline(desktop: &Desktop, columns: std::ops::Range<usize>) -> bool {
+fn focus_outlines(desktop: &Desktop) -> [bool; 2] {
     let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
     let pixels = paint(desktop, desktop.windows.library_id(), frame);
+    let labels = labels(desktop);
     let accent = desktop.appearance.accent_ink().into_rgba8();
-    (440..520).any(|y| {
-        columns.clone().any(|x| {
+    ["Cancel", "Remove source"].map(|action| {
+        let label = labels[action];
+        let x = label.center_x() as usize;
+        let top = (label.y - 12.0) as usize;
+        let bottom = (label.y + label.height + 12.0).ceil() as usize;
+        (top..bottom).any(|y| {
             let offset = (y * frame.width as usize + x) * 4;
             pixels[offset..offset + 4] == accent
         })
