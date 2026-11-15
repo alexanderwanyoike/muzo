@@ -19,6 +19,9 @@ The Windows job keeps the established application ID and NSIS install options
 in `apps/desktop-rust/windows-installer.json`. Its build-time NSIS tool receives
 the Rust executable and notices as a prepackaged payload, following the
 [electron-builder NSIS upgrade contract](https://www.electron.build/v26/docs/nsis/#guid-vs-application-name).
+Windows Restart applies the verified NSIS installer quietly and requests an
+automatic relaunch using the arguments from
+[electron-updater's NSIS implementation](https://github.com/electron-userland/electron-builder/blob/v26.0.12/packages/electron-updater/src/NsisUpdater.ts).
 The release filename and manifest contracts remain shared with the website.
 
 The Rust desktop installers workflow prepares the release draft for annotated
