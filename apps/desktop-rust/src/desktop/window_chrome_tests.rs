@@ -6,7 +6,7 @@ use iced::{
 };
 use iced_runtime::{Action, task};
 
-use super::{Desktop, Message};
+use super::{Desktop, Message, transport_time_layout_tests::rendered_labels};
 
 #[test]
 fn it_draws_the_close_control_inside_both_muzo_windows() {
@@ -55,6 +55,24 @@ fn it_starts_native_resizing_from_the_edges_of_both_muzo_windows() {
                 if window == id
         ));
     }
+}
+
+#[test]
+fn it_draws_the_requested_mini_layout_in_the_first_frame_at_the_target_size() {
+    let compact = Size::new(420.0, 560.0);
+    let expanded = Size::new(740.0, 560.0);
+    let (mut desktop, _) = Desktop::with_session(Err(String::new()));
+    let _ = desktop.update(Message::ShowMini);
+    let mini = desktop.windows.mini_id().unwrap();
+
+    let _ = desktop.update(Message::ToggleQueue);
+    assert!(!rendered_labels(&desktop, mini, compact).contains_key("Playback queue"));
+    assert!(rendered_labels(&desktop, mini, expanded).contains_key("Playback queue"));
+
+    let _ = desktop.update(Message::MiniResized(mini, expanded));
+    let _ = desktop.update(Message::ToggleQueue);
+    assert!(rendered_labels(&desktop, mini, expanded).contains_key("Playback queue"));
+    assert!(!rendered_labels(&desktop, mini, compact).contains_key("Playback queue"));
 }
 
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {

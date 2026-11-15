@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(expanded, iced::Size::new(740.0, 560.0));
         windows.resized(id, expanded);
         windows.resized(id, iced::Size::new(640.0, 480.0));
-        assert_eq!(windows.mini_view().2, iced::Size::new(640.0, 480.0));
+        assert_eq!(windows.mini_size, iced::Size::new(640.0, 480.0));
 
         let _ = windows.toggle_queue();
         assert_eq!(
