@@ -594,8 +594,9 @@ mod tests {
         desktop.appearance_focus = Some(Choice::Accent(ACCENTS.last().unwrap().0));
         desktop.dropbox.app_key = "keyboard-fixture-key".into();
 
-        let _ = desktop.update(Message::CycleMiniFocus(window, false));
-        let _ = desktop.update(Message::CycleMiniFocus(window, false));
+        for _ in 0..3 {
+            let _ = desktop.update(Message::CycleMiniFocus(window, false));
+        }
         let _ = desktop.update(Message::ActivateMiniFocus(window, false));
 
         let authorization = desktop
