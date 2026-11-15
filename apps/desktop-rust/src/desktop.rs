@@ -475,7 +475,9 @@ impl Desktop {
                     let protect_download = self
                         .queue_artwork
                         .protects_download_cover(&id, &loaded.revision);
-                    self.queue_artwork.remember(&id, loaded.revision);
+                    if !protect_download {
+                        self.queue_artwork.remember(&id, loaded.revision);
+                    }
                     if !from_queue && self.queue_covers.len() < row_cover::ROW_LIMIT {
                         self.queue_covers.insert(id.clone(), loaded.handle);
                     }
@@ -1840,7 +1842,8 @@ impl Desktop {
         if let Some(indexed) = indexed_download_revision.as_ref()
             && !self.queue_artwork.has_conflicting_revision(id, indexed)
         {
-            self.queue_artwork.keep_download_cover(id, indexed.clone());
+            self.queue_artwork
+                .keep_download_cover(id, indexed.clone(), revision);
             return track;
         }
         if let Some(result) = revision.as_ref().or(indexed_download_revision.as_ref())
@@ -1857,6 +1860,7 @@ impl Desktop {
                 None => track.without_artwork(),
             };
         }
+        self.queue_artwork.clear_download_cover(id);
         if let Some(revision) = revision {
             self.queue_artwork.remember(id, revision);
         }
