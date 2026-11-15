@@ -225,6 +225,28 @@ fn it_keeps_the_play_edit_and_playlist_glyphs_visible_in_compact_columns() {
 }
 
 #[test]
+fn it_draws_the_track_play_icon_with_the_original_glow_accent_ink() {
+    let mut desktop = track_table(850.0);
+    desktop.appearance.accent = "glow-cyan".into();
+    let (viewport, _) = track_table_layout(&desktop, 850.0).scroll.unwrap();
+    let left = viewport.x.round() as usize + 15;
+    let middle = viewport.y.round() as usize + 8 + 28;
+    for (mode, ink) in [("light", [0, 95, 109, 255]), ("dark", [66, 233, 255, 255])] {
+        desktop.appearance.mode = mode.into();
+        let rendered = paint(&desktop, desktop.windows.library_id(), Size::new(850, 800));
+        assert!(
+            (left..left + 24).any(|x| (middle - 6..middle + 7).any(|y| {
+                pixel(&rendered, 850, x, y)
+                    .iter()
+                    .zip(ink)
+                    .all(|(actual, expected)| actual.abs_diff(expected) < 3)
+            })),
+            "the {mode} play icon did not use {ink:?}"
+        );
+    }
+}
+
+#[test]
 fn it_keeps_compact_artwork_a_38_pixel_square() {
     let mut desktop = track_table(850.0);
     let artwork = [244, 17, 177, 255];
