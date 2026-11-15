@@ -12,6 +12,7 @@ mod compact;
 mod ellipsized_label;
 mod label_text;
 mod library;
+mod library_transport;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
