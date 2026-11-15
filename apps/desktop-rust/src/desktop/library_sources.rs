@@ -1251,12 +1251,13 @@ mod playlist_entry_transactions {
     use super::*;
 
     struct PlaylistFixture {
-        _root: tempfile::TempDir,
         paths: CataloguePaths,
         catalogue: Catalogue,
         connection: rusqlite::Connection,
         playlist: String,
         entries: [String; 2],
+        // Windows cannot remove the database while its handles are open.
+        _root: tempfile::TempDir,
     }
 
     impl PlaylistFixture {
@@ -1283,12 +1284,12 @@ mod playlist_entry_transactions {
                  VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
             ).unwrap();
             Self {
-                _root: root,
                 paths,
                 catalogue,
                 connection,
                 playlist,
                 entries: [first, second],
+                _root: root,
             }
         }
 
