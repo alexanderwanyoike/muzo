@@ -1336,6 +1336,25 @@ mod playlist_entry_transactions {
         move_entry().unwrap();
         assert_eq!(data.saved_entries(), [second.clone(), first.clone()]);
     }
+
+    #[test]
+    fn it_keeps_a_playlist_entry_when_the_updated_songs_cannot_be_read() {
+        let data = PlaylistFixture::new();
+        let [first, second] = &data.entries;
+        let remove = || {
+            data.apply(Operation::RemovePlaylistEntry(
+                data.playlist.clone(),
+                first.clone(),
+            ))
+        };
+
+        assert!(remove().is_err());
+        assert_eq!(data.saved_entries(), data.entries);
+
+        data.repair_source();
+        remove().unwrap();
+        assert_eq!(data.saved_entries(), [second.clone()]);
+    }
 }
 
 #[cfg(test)]
