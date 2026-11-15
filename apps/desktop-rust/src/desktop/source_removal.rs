@@ -1,7 +1,10 @@
 use crate::catalogue::Library;
 use iced::{
     Task,
-    advanced::widget::Id,
+    advanced::widget::{
+        Id, operate,
+        operation::{focusable, scope},
+    },
     widget::operation::{AbsoluteOffset, RelativeOffset, scroll_by, snap_to},
 };
 
@@ -36,9 +39,17 @@ impl Launcher {
             Self::Sidebar(_) => SIDEBAR,
             Self::Settings(_) => super::appearance_focus::SCROLL,
         };
-        iced::advanced::widget::operate(super::track_editor_focus::reveal_scroll_item(
+        operate(super::track_editor_focus::reveal_scroll_item(
             scroll,
             self.widget_id(),
+        ))
+        .discard()
+    }
+
+    pub(super) fn focus(&self) -> Task<Message> {
+        operate(scope(
+            super::appearance_focus::LIBRARY.into(),
+            focusable::focus::<()>(self.widget_id()),
         ))
         .discard()
     }
@@ -72,17 +83,19 @@ pub(super) struct Removal {
     pub error: Option<String>,
     pub cancel_focused: bool,
     pub show_keyboard_focus: bool,
+    pub launcher: Option<Launcher>,
     space_armed: bool,
 }
 
 impl Removal {
-    pub fn new(source: Library, keyboard: bool) -> Self {
+    pub fn new(source: Library, launcher: Option<Launcher>) -> Self {
         Self {
             source,
             busy: false,
             error: None,
             cancel_focused: true,
-            show_keyboard_focus: keyboard,
+            show_keyboard_focus: launcher.is_some(),
+            launcher,
             space_armed: false,
         }
     }

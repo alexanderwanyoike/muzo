@@ -73,13 +73,7 @@ impl Choice {
             }
             Self::Mode(_) => 380.0,
             Self::Accent(_) => 440.0,
-            Self::RemoveSource(launcher) => {
-                return operate(scope(
-                    LIBRARY.into(),
-                    focusable::focus::<()>(launcher.widget_id()),
-                ))
-                .discard();
-            }
+            Self::RemoveSource(launcher) => return launcher.focus(),
             Self::Divider => {
                 return operate(scope(
                     LIBRARY.into(),

@@ -76,7 +76,7 @@ pub enum Message {
     CancelInstallUpdate,
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
-    RequestSourceRemovalFromKeyboard(String),
+    RequestSourceRemovalFromKeyboard(source_removal::Launcher),
     RevealSourceRemovalLauncher(source_removal::Launcher),
     CancelSourceRemoval,
     CycleSourceRemovalFocus,
@@ -534,18 +534,19 @@ impl Desktop {
                 }
             }
             Message::RequestSourceRemoval(id) => {
-                self.sources.request_removal(&id, false);
+                self.sources.request_removal(&id, None);
                 Task::none()
             }
-            Message::RequestSourceRemovalFromKeyboard(id) => {
-                self.sources.request_removal(&id, true);
+            Message::RequestSourceRemovalFromKeyboard(launcher) => {
+                self.sources
+                    .request_removal(launcher.source_id(), Some(&launcher));
                 Task::none()
             }
             Message::RevealSourceRemovalLauncher(launcher) => launcher.reveal(),
-            Message::CancelSourceRemoval => {
-                self.sources.cancel_removal();
-                Task::none()
-            }
+            Message::CancelSourceRemoval => self
+                .sources
+                .cancel_removal()
+                .map_or_else(Task::none, |launcher| launcher.focus()),
             Message::CycleSourceRemovalFocus => {
                 if let Some(removal) = &mut self.sources.removal {
                     removal.focus_next();

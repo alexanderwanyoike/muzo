@@ -157,7 +157,7 @@ impl Widget<Message, Theme, Renderer> for RemovalButton<'_> {
             {
                 if activate {
                     shell.publish(Message::RequestSourceRemovalFromKeyboard(
-                        self.launcher.source_id().to_owned(),
+                        self.launcher.clone(),
                     ));
                 }
                 shell.capture_event();

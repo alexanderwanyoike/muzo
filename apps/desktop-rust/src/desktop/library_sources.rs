@@ -16,7 +16,11 @@ use crate::catalogue::{
     Catalogue, CatalogueError, IndexedTrack, Library, MetadataOverride, Playlist, PlaylistEntry,
 };
 
-use super::{Message, source_removal::Removal, track_editor_focus::Control};
+use super::{
+    Message,
+    source_removal::{Launcher, Removal},
+    track_editor_focus::Control,
+};
 
 #[derive(Clone)]
 pub(crate) struct CataloguePaths {
@@ -587,7 +591,7 @@ impl Sources {
         !self.choosing_folder && !self.folder_save_pending()
     }
 
-    pub(super) fn request_removal(&mut self, id: &str, keyboard: bool) {
+    pub(super) fn request_removal(&mut self, id: &str, launcher: Option<&Launcher>) {
         if self.removal.is_none()
             && let Some(source) = self
                 .snapshot
@@ -595,13 +599,15 @@ impl Sources {
                 .flat_map(|snapshot| &snapshot.libraries)
                 .find(|source| source.id == id)
         {
-            self.removal = Some(Removal::new(source.clone(), keyboard));
+            self.removal = Some(Removal::new(source.clone(), launcher.cloned()));
         }
     }
 
-    pub(super) fn cancel_removal(&mut self) {
+    pub(super) fn cancel_removal(&mut self) -> Option<Launcher> {
         if self.removal.as_ref().is_some_and(|removal| !removal.busy) {
-            self.removal = None;
+            self.removal.take().and_then(|removal| removal.launcher)
+        } else {
+            None
         }
     }
 
