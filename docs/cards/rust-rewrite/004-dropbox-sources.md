@@ -19,3 +19,9 @@ documents the Linux Secret Service and KWallet namespaces and CBC derivation.
 sets the macOS Keychain identity and Windows Local State. The Rust side stores the
 migrated token in native secure storage and clears ciphertext from the copied
 catalogue only after that write succeeds.
+
+Visible songs and playlist entries load embedded covers after the rows appear.
+The reader follows the [original Electron range reader](https://github.com/alexanderwanyoike/muzo/blob/980252b/apps/desktop/electron/infrastructure/metadata/http-metadata-artwork-reader.ts)
+and the [Dropbox content-download API](https://www.dropbox.com/developers/documentation/http/documentation#formats).
+It checks returned ranges, bounds each artwork read, and uses the existing
+thumbnail cache.
