@@ -1,4 +1,5 @@
 mod api;
+mod artwork;
 pub mod cache;
 mod credentials;
 mod legacy_credentials;
@@ -37,6 +38,8 @@ pub enum DropboxError {
     CacheLimit,
     #[error("Dropbox authorization needs to be renewed for this account.")]
     Reconnect,
+    #[error("Could not read embedded Dropbox artwork.")]
+    Artwork(#[source] lofty::error::FileParseError),
     #[error("Dropbox returned an invalid folder cursor.")]
     Cursor,
 }
