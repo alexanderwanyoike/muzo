@@ -154,6 +154,34 @@ fn it_saves_the_default_sidebar_width_after_two_completed_clicks() {
 }
 
 #[test]
+fn it_resets_the_sidebar_when_the_second_click_moves_vertically() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let previous = SidebarWidth::new(340.0);
+    save(&paths.sidebar(), previous).unwrap();
+    let mut library = Library::new(paths.clone());
+    let [movement, press, release] = click_at(NARROW_DIVIDER);
+    let lower = Point::new(NARROW_DIVIDER.x, NARROW_DIVIDER.y + 1.0);
+
+    library.batch(
+        &[
+            movement,
+            press.clone(),
+            release.clone(),
+            press,
+            Event::Mouse(mouse::Event::CursorMoved { position: lower }),
+            release,
+        ],
+        lower,
+    );
+
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::default()
+    );
+}
+
+#[test]
 fn it_treats_clicks_interrupted_by_another_target_as_separate() {
     let temp = tempfile::tempdir().unwrap();
     let paths = CataloguePaths::in_directory(temp.path());
