@@ -141,17 +141,8 @@ fn it_draws_small_caption_glyphs_without_shrinking_the_hit_areas() {
         (desktop.windows.library_id(), Size::new(1200, 800)),
         (desktop.windows.mini_id().unwrap(), Size::new(420, 560)),
     ] {
+        let pixels = paint_window(&desktop, id, frame);
         let size: Size = (frame.width, frame.height).into();
-        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-        let mut ui = UserInterface::build(desktop.view(id), size, Cache::new(), &mut renderer);
-        let theme = desktop.theme(id);
-        ui.draw(
-            &mut renderer,
-            &theme,
-            &Style::default(),
-            mouse::Cursor::Unavailable,
-        );
-        let pixels = renderer.screenshot(frame, 1.0, theme.palette().background);
         let width = frame.width as usize;
 
         for (cell, max_height) in [(0, 9), (1, 9), (2, 2)] {
@@ -266,7 +257,7 @@ fn it_paints_the_transport_strip_with_the_same_solid_chrome_as_the_title_bar() {
     desktop.appearance.theme = "walnut".into();
     desktop.appearance.mode = "dark".into();
     let frame = Size::new(850, 800);
-    let pixels = paint(&desktop, desktop.windows.library_id(), frame);
+    let pixels = paint_window(&desktop, desktop.windows.library_id(), frame);
     let chrome = desktop.appearance.surfaces().chrome.into_rgba8();
 
     for y in [4, 36, 76] {
@@ -277,6 +268,24 @@ fn it_paints_the_transport_strip_with_the_same_solid_chrome_as_the_title_bar() {
             "transport strip at y={y}"
         );
     }
+}
+
+fn paint_window(desktop: &Desktop, id: window::Id, frame: Size<u32>) -> Vec<u8> {
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.view(id),
+        (frame.width, frame.height).into(),
+        Cache::new(),
+        &mut renderer,
+    );
+    let theme = desktop.theme(id);
+    ui.draw(
+        &mut renderer,
+        &theme,
+        &Style::default(),
+        mouse::Cursor::Unavailable,
+    );
+    renderer.screenshot(frame, 1.0, theme.palette().background)
 }
 
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {
