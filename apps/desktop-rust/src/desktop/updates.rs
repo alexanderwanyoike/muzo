@@ -264,10 +264,26 @@ mod tests {
         let appearance = crate::appearance::Appearance::default();
         let surfaces = appearance.surfaces();
         let theme = appearance.theme();
-        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let fonts = crate::fonts::settings();
+        {
+            let mut loader = iced::advanced::graphics::text::font_system()
+                .write()
+                .unwrap();
+            for font in fonts.fonts {
+                loader.load_font(font);
+            }
+        }
+        let mut renderer = Renderer::new(fonts.default_font, fonts.default_text_size);
         let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
-        for label in ["Up to date", "Downloading 50%", "Retry", "Restart"] {
-            let mut element: Element<'_, Message> = pill(label, None, surfaces).into();
+        const SAMPLE_DOWNLOAD_PROGRESS: u8 = 50;
+        for label in [
+            Status::Current.notice_label(),
+            Status::Downloading(SAMPLE_DOWNLOAD_PROGRESS).notice_label(),
+            Status::Error("Connection closed".into()).notice_label(),
+            "Later".into(),
+            "Restart".into(),
+        ] {
+            let mut element: Element<'_, Message> = pill(label.as_str(), None, surfaces).into();
             let mut tree = Tree::new(&element);
             let widget = element.as_widget_mut();
             let node = widget.layout(&mut tree, &renderer, &limits);
