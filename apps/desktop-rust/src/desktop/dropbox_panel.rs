@@ -612,6 +612,61 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_uses_the_desktop_default_handler_for_dropbox_authorization() {
+        use std::{fs, os::unix::fs::PermissionsExt, process::Command};
+
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action as UiAction, task};
+
+        const CAPTURE: &str = "MUZO_AUTHORIZATION_BROWSER_TEST_RESULT";
+        const URL: &str = "https://www.dropbox.com/oauth2/authorize?fixture=true";
+        if std::env::var_os(CAPTURE).is_some() {
+            let mut settings = Settings::default();
+            let pending = settings.update(Action::OpenAuthorization(URL.into()), None);
+            if let Some(mut messages) = task::into_stream(pending) {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .build()
+                    .unwrap();
+                while let Some(message) = runtime.block_on(messages.next()) {
+                    if let UiAction::Output(Message::Dropbox(result)) = message {
+                        let _ = settings.update(result, None);
+                    }
+                }
+            }
+            assert!(settings.error.is_none());
+            return;
+        }
+
+        let fixture = tempfile::tempdir().unwrap();
+        let capture = fixture.path().join("invocation");
+        for launcher in ["gio", "xdg-open"] {
+            let path = fixture.path().join(launcher);
+            fs::write(
+                &path,
+                format!("#!/bin/sh\nprintf '%s\\n' '{launcher}' \"$@\" > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\n"),
+            ).unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let process = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "desktop::dropbox_panel::tests::it_uses_the_desktop_default_handler_for_dropbox_authorization",
+            ])
+            .env(CAPTURE, &capture)
+            .env("PATH", fixture.path())
+            .output()
+            .unwrap();
+        assert!(
+            process.status.success(),
+            "{}",
+            String::from_utf8_lossy(&process.stdout)
+        );
+        let invoked = fs::read_to_string(capture).unwrap();
+        assert_eq!(invoked, format!("gio\nopen\n{URL}\n"));
+    }
+
     #[test]
     fn it_keeps_pending_authorization_visible_while_a_connected_account_is_displayed() {
         let mut settings = Settings::default();
