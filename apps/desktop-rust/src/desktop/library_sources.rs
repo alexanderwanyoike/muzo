@@ -1,4 +1,5 @@
 use std::{
+    ops::Range,
     path::PathBuf,
     sync::{
         Arc,
@@ -362,6 +363,7 @@ pub(super) struct Sources {
     pub removal: Option<Removal>,
     pub error: Option<String>,
     pub source_tracks_error: Option<String>,
+    pub song_viewport: Option<Range<usize>>,
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
@@ -401,6 +403,7 @@ impl Sources {
             removal: None,
             error: None,
             source_tracks_error: None,
+            song_viewport: None,
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
@@ -734,6 +737,7 @@ impl Sources {
         snapshot.selected.clone_from(&selected);
         snapshot.tracks.clear();
         self.source_tracks_error = None;
+        self.song_viewport = None;
         self.selection_changed_during_operation |= self.busy;
         self.pending
             .retain(|queued| !matches!(queued.operation, Operation::Select(_)));
@@ -819,6 +823,9 @@ impl Sources {
         }
         let mut preserved_songs = false;
         if let Some(previous) = &mut self.snapshot {
+            if previous.selected != snapshot.selected {
+                self.song_viewport = None;
+            }
             preserved_songs = loading_playlist_selection
                 && !selection_changed
                 && previous.selected == snapshot.selected;
