@@ -472,11 +472,18 @@ impl Desktop {
                 };
                 let ready = self.row_covers.complete(cover, covers);
                 if queued && let Some((id, loaded)) = ready {
-                    self.queue_artwork.remember(&id, loaded.revision);
+                    let protect_download = self
+                        .queue_artwork
+                        .protects_download_cover(&id, &loaded.revision);
+                    if !protect_download {
+                        self.queue_artwork.remember(&id, loaded.revision);
+                    }
                     if !from_queue && self.queue_covers.len() < row_cover::ROW_LIMIT {
                         self.queue_covers.insert(id.clone(), loaded.handle);
                     }
-                    self.apply_completed_cover(&id, &loaded.bytes);
+                    if !protect_download {
+                        self.apply_completed_cover(&id, &loaded.bytes);
+                    }
                 }
                 self.load_row_covers()
             }
@@ -915,6 +922,9 @@ impl Desktop {
                         if self
                             .queue_artwork
                             .has_conflicting_revision(id, &cover.revision)
+                            || self
+                                .queue_artwork
+                                .protects_download_cover(id, &cover.revision)
                         {
                             return Task::none();
                         }
@@ -939,8 +949,14 @@ impl Desktop {
                     Ok(PreparedTrack {
                         track,
                         artwork_revision,
+                        indexed_download_revision,
                     }) => {
-                        let track = self.apply_prepared_cover(index, track, artwork_revision);
+                        let track = self.apply_prepared_cover(
+                            index,
+                            track,
+                            artwork_revision,
+                            indexed_download_revision,
+                        );
                         let previous = self.session.as_ref().and_then(Session::current_index);
                         let playback = self.transport(|session| {
                             session.replace_track(index, track)?;
@@ -1824,23 +1840,34 @@ impl Desktop {
         index: usize,
         track: Track,
         revision: Option<Revision>,
+        indexed_download_revision: Option<Revision>,
     ) -> Track {
         let Some(id) = track.indexed_id() else {
             return track;
         };
+        if let Some(indexed) = indexed_download_revision.as_ref()
+            && !self.queue_artwork.has_conflicting_revision(id, indexed)
+        {
+            self.queue_artwork
+                .keep_download_cover(id, indexed.clone(), revision);
+            return track;
+        }
+        if let Some(result) = revision.as_ref().or(indexed_download_revision.as_ref())
+            && self.queue_artwork.has_conflicting_revision(id, result)
+        {
+            let fresh = self
+                .session
+                .as_ref()
+                .and_then(|session| session.tracks().get(index))
+                .and_then(Track::artwork)
+                .map(<[u8]>::to_vec);
+            return match fresh {
+                Some(bytes) => track.with_artwork(bytes),
+                None => track.without_artwork(),
+            };
+        }
+        self.queue_artwork.clear_download_cover(id);
         if let Some(revision) = revision {
-            if self.queue_artwork.has_conflicting_revision(id, &revision) {
-                let fresh = self
-                    .session
-                    .as_ref()
-                    .and_then(|session| session.tracks().get(index))
-                    .and_then(Track::artwork)
-                    .map(<[u8]>::to_vec);
-                return match fresh {
-                    Some(bytes) => track.with_artwork(bytes),
-                    None => track.without_artwork(),
-                };
-            }
             self.queue_artwork.remember(id, revision);
         }
         self.queue_covers.remove(id);
@@ -2137,6 +2164,7 @@ pub struct CachedCover {
 pub struct PreparedTrack {
     track: Track,
     artwork_revision: Option<Revision>,
+    indexed_download_revision: Option<Revision>,
 }
 
 #[cfg(test)]
@@ -2145,6 +2173,7 @@ impl From<Track> for PreparedTrack {
         Self {
             track,
             artwork_revision: None,
+            indexed_download_revision: None,
         }
     }
 }
@@ -2165,10 +2194,14 @@ fn prepare_downloaded_dropbox_track(
             &metadata.rev,
         )
     });
-    let cache_revision =
-        indexed_revision.filter(|revision| Some(revision) == downloaded_revision.as_ref());
+    let (cache_revision, indexed_download_revision) = if indexed_revision == downloaded_revision {
+        (indexed_revision, None)
+    } else {
+        (None, indexed_revision)
+    };
     let mut prepared = prepare_dropbox_track(paths, track, download.path, cache_revision);
     prepared.artwork_revision = downloaded_revision;
+    prepared.indexed_download_revision = indexed_download_revision;
     prepared
 }
 
@@ -2198,6 +2231,7 @@ fn prepare_dropbox_track(
     PreparedTrack {
         track,
         artwork_revision: revision,
+        indexed_download_revision: None,
     }
 }
 
@@ -2210,6 +2244,7 @@ fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> Prepared
     PreparedTrack {
         track,
         artwork_revision: revision,
+        indexed_download_revision: None,
     }
 }
 

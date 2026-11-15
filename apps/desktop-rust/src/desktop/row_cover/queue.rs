@@ -16,6 +16,13 @@ use super::{
 struct QueuedVersion {
     library: String,
     artwork: MediaVersion,
+    download_cover: Option<DownloadCover>,
+}
+
+#[derive(Clone)]
+struct DownloadCover {
+    indexed: Revision,
+    downloaded: Option<Revision>,
 }
 
 #[derive(Clone)]
@@ -58,6 +65,7 @@ impl QueueArtwork {
                             size: track.file_size,
                             modified: track.file_mtime,
                         },
+                        download_cover: None,
                     },
                 )
             })
@@ -109,6 +117,33 @@ impl QueueArtwork {
         }
     }
 
+    pub(in crate::desktop) fn keep_download_cover(
+        &mut self,
+        id: &str,
+        indexed: Revision,
+        downloaded: Option<Revision>,
+    ) {
+        if let Some(version) = self.versions.get_mut(id) {
+            version.download_cover = Some(DownloadCover {
+                indexed,
+                downloaded,
+            });
+        }
+    }
+
+    pub(in crate::desktop) fn clear_download_cover(&mut self, id: &str) {
+        if let Some(version) = self.versions.get_mut(id) {
+            version.download_cover = None;
+        }
+    }
+
+    pub(in crate::desktop) fn protects_download_cover(&self, id: &str, row: &Revision) -> bool {
+        self.versions
+            .get(id)
+            .and_then(|version| version.download_cover.as_ref())
+            .is_some_and(|cover| cover.downloaded.as_ref() != Some(row))
+    }
+
     pub(in crate::desktop) fn has_conflicting_revision(
         &self,
         id: &str,
@@ -138,7 +173,18 @@ impl QueueArtwork {
         for (id, revision) in changes {
             covers.remove(&id);
             if let Some(revision) = revision {
+                let keep_playing_cover = self
+                    .versions
+                    .get(&id)
+                    .and_then(|version| version.download_cover.as_ref())
+                    .is_some_and(|cover| {
+                        cover.indexed == revision || cover.downloaded.as_ref() == Some(&revision)
+                    });
                 self.remember(&id, revision);
+                if keep_playing_cover {
+                    continue;
+                }
+                self.clear_download_cover(&id);
             } else {
                 self.versions.remove(&id);
             }
