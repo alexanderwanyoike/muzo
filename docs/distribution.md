@@ -66,8 +66,10 @@ Windows uses `windows-x64` and macOS uses `macos-arm64` or `macos-x64`.
 `desktop:package`, `desktop:make`, and `desktop:distribute` all build the host
 installer. Omit `--target` to select it automatically. The default output is
 `apps/desktop-rust/out/rust-distribution/`. Pass `--output /path/to/installers`
-to use another filesystem. Cargo's `CARGO_TARGET_DIR` controls where the compiled
-binaries are kept. These commands produce local files only.
+to use another filesystem. Cargo's build directory remains available for
+reusing intermediate files. Each installer uses its own temporary directory
+for the final executables and removes it when packaging ends. These commands
+produce local files only.
 
 ## CI and release promotion
 
