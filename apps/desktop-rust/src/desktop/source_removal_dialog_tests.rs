@@ -128,6 +128,44 @@ fn it_honours_a_cancellation_before_enter_in_the_same_keyboard_batch() {
 }
 
 #[test]
+fn it_confirms_with_space_only_after_release_and_preserves_cancellation() {
+    let (mut desktop, _root) = desktop();
+    let release = Event::Keyboard(iced::keyboard::Event::KeyReleased {
+        key: Key::Named(Named::Space),
+        modified_key: Key::Named(Named::Space),
+        physical_key: Physical::Unidentified(NativeCode::Unidentified),
+        location: Location::Standard,
+        modifiers: Modifiers::empty(),
+    });
+
+    request(&mut desktop);
+    send_key(&mut desktop, Named::Tab, Modifiers::empty());
+    send_key(&mut desktop, Named::Space, Modifiers::empty());
+    assert!(
+        !desktop.sources.busy(),
+        "holding Space must not remove a source"
+    );
+    send_key(&mut desktop, Named::Escape, Modifiers::empty());
+    assert!(!labels(&desktop).contains_key(PROMPT));
+
+    request(&mut desktop);
+    send_key(&mut desktop, Named::Tab, Modifiers::empty());
+    send_keys(&mut desktop, std::slice::from_ref(&release));
+    assert!(
+        !desktop.sources.busy(),
+        "a release without a press must leave the dialog open"
+    );
+    send_key(&mut desktop, Named::Space, Modifiers::empty());
+    send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
+    send_keys(&mut desktop, std::slice::from_ref(&release));
+    assert!(labels(&desktop).contains_key(PROMPT));
+    send_key(&mut desktop, Named::Tab, Modifiers::empty());
+    send_key(&mut desktop, Named::Space, Modifiers::empty());
+    send_keys(&mut desktop, &[release]);
+    assert!(labels(&desktop).contains_key("Removing..."));
+}
+
+#[test]
 fn it_does_not_remove_a_source_without_its_open_confirmation() {
     let (mut desktop, _root) = desktop();
     let remove_another =
