@@ -12,7 +12,7 @@ For installer and upgrade checks, see [desktop distribution](../distribution.md)
 1. Open Settings and browse the connected Dropbox account. Select folders in
    different locations, review the selection and add them together. Settings
    should stay open; Sources should update and added folders should be marked.
-2. Try all seven materials in light and dark, then the ten accents. Check Songs,
+2. Try all eight materials in light and dark, then the classic and glow accents. Check Songs,
    playlists, folder selection, fields, keyboard cues and disabled controls.
    Restart Muzo and verify the chosen appearance is restored.
 3. Select a source by clicking its name. Play local MP3/FLAC tracks containing
