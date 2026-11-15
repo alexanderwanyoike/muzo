@@ -578,6 +578,30 @@ pub fn remote_audio(paths: &CataloguePaths, library: &str, path: &str) -> Result
 mod tests {
     use super::*;
 
+    #[test]
+    fn it_connects_to_dropbox_with_tab_and_enter_from_settings() {
+        use crate::{
+            appearance::ACCENTS,
+            desktop::{Desktop, LibraryPage, appearance_focus::Choice},
+        };
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.appearance_focus = Some(Choice::Accent(ACCENTS.last().unwrap().0));
+        desktop.dropbox.app_key = "keyboard-fixture-key".into();
+
+        let _ = desktop.update(Message::CycleMiniFocus(window, false));
+        let _ = desktop.update(Message::CycleMiniFocus(window, false));
+        let _ = desktop.update(Message::ActivateMiniFocus(window, false));
+
+        let authorization = desktop
+            .dropbox
+            .auth
+            .expect("Settings Tab and Enter should start Dropbox authorization");
+        assert_eq!(authorization.client_id(), "keyboard-fixture-key");
+    }
+
     use iced::{
         Element, Font, Pixels, Rectangle, Renderer, Size,
         advanced::{
