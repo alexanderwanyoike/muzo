@@ -43,6 +43,15 @@ fn matches_source(source: &crate::catalogue::Library, query: &str) -> bool {
             .contains(query)
 }
 
+const FILTERED_COUNT_SIZE: f32 = 10.0;
+const FILTERED_COUNT_LINE_HEIGHT: iced::Pixels = iced::Pixels(14.0);
+const FILTERED_COUNT_MARGIN: iced::Padding = iced::Padding {
+    top: 0.0,
+    bottom: 7.0,
+    left: 9.0,
+    right: 9.0,
+};
+
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let can_edit = sources.folder_editable();
     let can_submit = can_edit && !sources.busy();
@@ -252,10 +261,11 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             body = body.push(
                 container(
                     text(format!("{matching} of {libraries} sources"))
-                        .size(10)
+                        .size(FILTERED_COUNT_SIZE)
+                        .line_height(FILTERED_COUNT_LINE_HEIGHT)
                         .color(surfaces.muted),
                 )
-                .padding([1, 9]),
+                .padding(FILTERED_COUNT_MARGIN),
             );
         }
         body = body.push(library::line(surfaces));
