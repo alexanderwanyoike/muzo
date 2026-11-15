@@ -318,3 +318,90 @@ fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
     let volume_fill = at(790, 40);
     assert_eq!(&glow[volume_fill..volume_fill + 4], &[66, 233, 255, 255]);
 }
+
+#[test]
+fn it_clears_the_old_volume_halo_when_the_thumb_moves() {
+    use iced::advanced::{
+        graphics::{Viewport, damage},
+        renderer::Style,
+    };
+    use iced_tiny_skia::Layer;
+
+    const SIZE: Size<u32> = Size::new(850, 800);
+    let viewport = Viewport::with_physical_size(SIZE, 1.0);
+    let bounds = Rectangle::with_size(viewport.logical_size());
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "pulse".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.appearance.accent = "glow-green".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let theme = desktop.theme(id);
+    let background = theme.palette().background;
+    let paint_volume = |desktop: &mut Desktop, volume: f32| {
+        let _ = desktop.update(Message::SetVolume(volume));
+        let mut view = desktop.workspace(id);
+        let mut tree = Tree::new(&view);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let widget = view.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &bounds,
+        );
+        renderer
+    };
+
+    let mut previous = paint_volume(&mut desktop, 0.25);
+    let mut current = paint_volume(&mut desktop, 0.85);
+    let damage = damage::group(
+        damage::diff(
+            previous.layers(),
+            current.layers(),
+            |layer| vec![layer.bounds],
+            Layer::damage,
+        ),
+        bounds,
+    );
+    let mut partial = tiny_skia::Pixmap::new(SIZE.width, SIZE.height).unwrap();
+    let mut fresh = tiny_skia::Pixmap::new(SIZE.width, SIZE.height).unwrap();
+    let mut mask = tiny_skia::Mask::new(SIZE.width, SIZE.height).unwrap();
+    previous.draw(
+        &mut partial.as_mut(),
+        &mut mask,
+        &viewport,
+        &[bounds],
+        background,
+    );
+    current.draw(
+        &mut partial.as_mut(),
+        &mut mask,
+        &viewport,
+        &damage,
+        background,
+    );
+    current.draw(
+        &mut fresh.as_mut(),
+        &mut mask,
+        &viewport,
+        &[bounds],
+        background,
+    );
+    let differing = (30..52)
+        .flat_map(|y| (750..845).map(move |x| (x, y)))
+        .filter(|&(x, y)| partial.pixel(x, y) != fresh.pixel(x, y))
+        .count();
+    assert_eq!(
+        differing, 0,
+        "pixels from the old volume glow survived redraw"
+    );
+}

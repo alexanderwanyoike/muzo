@@ -2760,6 +2760,7 @@ dependencies = [
  "directories",
  "iced",
  "iced_runtime",
+ "iced_tiny_skia",
  "image",
  "keyring",
  "lofty",
