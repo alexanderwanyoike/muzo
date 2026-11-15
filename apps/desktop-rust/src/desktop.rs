@@ -16,6 +16,8 @@ mod source_removal;
 #[path = "desktop/source_removal_dialog_tests.rs"]
 mod source_removal_dialog_tests;
 #[cfg(test)]
+mod source_removal_focus_tests;
+#[cfg(test)]
 #[path = "desktop/source_sidebar_layout_tests.rs"]
 mod source_sidebar_layout_tests;
 pub use mini_focus::Control as MiniControl;
