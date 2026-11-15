@@ -58,11 +58,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
             (neutral, Some(fills.hover))
         },
     );
-    let danger = if appearance.mode == "dark" {
-        color!(0xf1a49a)
-    } else {
-        color!(0xab3e36)
-    };
+    let danger = appearance.danger_ink();
     let title = format!(
         "Remove {}?",
         replace_embedded_breaks(removal.source.name.as_str())

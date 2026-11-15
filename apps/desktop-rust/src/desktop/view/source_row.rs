@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, color, font,
+    Alignment, Color, Element, Fill, Font, Pixels, Theme, border, font,
     widget::{Space, button, container, row, svg, text, tooltip},
 };
 
@@ -55,11 +55,7 @@ impl Colors {
             selected_fill: selection_fill(appearance),
             hover,
             muted: appearance.surfaces().muted,
-            danger: if appearance.mode == "dark" {
-                color!(0xf1a49a)
-            } else {
-                color!(0xab3e36)
-            },
+            danger: appearance.danger_ink(),
         }
     }
 }
