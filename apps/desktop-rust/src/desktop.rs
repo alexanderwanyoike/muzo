@@ -292,7 +292,7 @@ impl Desktop {
                 }
                 if let Some(path) = path {
                     let Some(location) = path.to_str() else {
-                        self.sources.error =
+                        self.sources.folder_error =
                             Some(crate::catalogue::CatalogueError::UnsupportedPath.to_string());
                         return Task::none();
                     };
@@ -304,28 +304,26 @@ impl Desktop {
                             .into_owned();
                     }
                     self.sources.folder_location = location.into();
+                    self.sources.folder_error = None;
                 }
                 Task::none()
             }
             Message::FolderName(name) => {
                 if self.sources.folder_editable() {
                     self.sources.folder_name = name;
+                    self.sources.folder_error = None;
                 }
                 Task::none()
             }
             Message::FolderLocation(location) => {
                 if self.sources.folder_editable() {
                     self.sources.folder_location = location;
+                    self.sources.folder_error = None;
                 }
                 Task::none()
             }
             Message::SubmitFolder => {
-                if self.sources.busy() || !self.sources.folder_editable() {
-                    return Task::none();
-                }
-                if self.sources.folder_location.trim().is_empty() {
-                    self.sources.error =
-                        Some(crate::catalogue::CatalogueError::EmptyLibraryLocation.to_string());
+                if !self.sources.can_submit_folder() {
                     return Task::none();
                 }
                 self.sources.start(Operation::AddNamedFolder(
@@ -384,8 +382,14 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
-                self.sources.apply(result);
-                self.sources.start_pending().unwrap_or_else(Task::none)
+                let reveal_added_folder = self.sources.apply(result);
+                let reveal_folder = if reveal_added_folder && self.page == LibraryPage::Settings {
+                    self.update(Message::LibraryPage(LibraryPage::Songs))
+                } else {
+                    Task::none()
+                };
+                let queued = self.sources.start_pending().unwrap_or_else(Task::none);
+                Task::batch([reveal_folder, queued])
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();

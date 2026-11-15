@@ -44,6 +44,7 @@ pub struct Snapshot {
     pub added_folders: Vec<String>,
     pub added_paths: Vec<String>,
     pub folder_error: Option<String>,
+    pub(super) failed_folders: Vec<(String, String)>,
 }
 
 pub struct Settings {
@@ -115,6 +116,9 @@ impl Settings {
                         .position(|(selection, _)| selection.eq_ignore_ascii_case(&path))
                     {
                         self.selected_folders.remove(index);
+                        self.snapshot
+                            .failed_folders
+                            .retain(|(failed, _)| !failed.eq_ignore_ascii_case(&path));
                     } else {
                         self.selected_folders.push((path, name));
                     }
@@ -301,6 +305,7 @@ impl Settings {
                     self.selected_folders.clear();
                     snapshot.path.clear();
                     snapshot.folders.clear();
+                    snapshot.failed_folders.clear();
                 }
                 self.selected_folders.retain(|(path, _)| {
                     !snapshot
@@ -326,6 +331,30 @@ impl Settings {
             Err(error) => {
                 self.error = Some(error);
             }
+        }
+    }
+}
+
+fn index_selected_folders(
+    catalogue: &mut Catalogue,
+    account: &str,
+    folders: Vec<(String, String)>,
+    snapshot: &mut Snapshot,
+    mut list: impl FnMut(&str) -> Result<Vec<Entry>, DropboxError>,
+) {
+    snapshot.failed_folders.clear();
+    for (path, name) in folders {
+        let result = (|| -> Result<(), Error> {
+            let entries = list(&path)?;
+            catalogue.add_dropbox_indexed(account, &path, &name, &entries)?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => {
+                snapshot.added_paths.push(path.clone());
+                snapshot.added_folders.push(path);
+            }
+            Err(error) => snapshot.failed_folders.push((path, error.to_string())),
         }
     }
 }
@@ -434,24 +463,9 @@ fn run(
                 }
                 Err(error) => return Err(error.into()),
             };
-            let mut failures = Vec::new();
-            for (path, name) in folders {
-                let result = (|| -> Result<(), Error> {
-                    let entries = client.list(&token.access_token, &path, true)?;
-                    catalogue.add_dropbox_indexed(&account, &path, &name, &entries)?;
-                    Ok(())
-                })();
-                match result {
-                    Ok(()) => {
-                        snapshot.added_paths.push(path.clone());
-                        snapshot.added_folders.push(path);
-                    }
-                    Err(error) => failures.push(format!("{name}: {error}")),
-                }
-            }
-            if !failures.is_empty() {
-                snapshot.folder_error = Some(failures.join("; "));
-            }
+            index_selected_folders(&mut catalogue, &account, folders, &mut snapshot, |path| {
+                client.list(&token.access_token, path, true)
+            });
         }
         Action::Sync => {
             for library in catalogue
@@ -1000,6 +1014,106 @@ mod tests {
 
         assert!(settings.auth.is_none());
         assert!(settings.code.is_empty());
+    }
+
+    #[test]
+    fn it_keeps_feedback_on_the_rejected_dropbox_path_until_it_is_deselected() {
+        use iced::{
+            Element, Font, Pixels, Rectangle, Renderer, Size,
+            advanced::{
+                Layout, layout,
+                widget::{Id, Operation, Tree},
+            },
+        };
+
+        #[derive(Default)]
+        struct Labels(Vec<String>);
+        impl Operation for Labels {
+            fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+                visit(self);
+            }
+
+            fn text(&mut self, _: Option<&Id>, _: Rectangle, value: &str) {
+                self.0.push(value.into());
+            }
+        }
+
+        fn labels(settings: &Settings) -> Vec<String> {
+            let mut view: Element<'_, Message> = settings
+                .view(crate::appearance::Appearance::default().surfaces())
+                .into();
+            let mut tree = Tree::new(&view);
+            let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+            let widget = view.as_widget_mut();
+            let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 750.0));
+            let node = widget.layout(&mut tree, &renderer, &limits);
+            let mut labels = Labels::default();
+            widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+            labels.0
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut catalogue = paths.open().unwrap();
+        catalogue.save_dropbox_account("account", "key").unwrap();
+        let mut settings = Settings {
+            snapshot: Snapshot {
+                account: Some("account".into()),
+                path: "/A".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        for selected in ["/A/Music", "/B/Music"] {
+            let _ = settings.update(Action::SelectFolder(selected.into(), "Music".into()), None);
+        }
+        let mut added = settings.snapshot.clone();
+        index_selected_folders(
+            &mut catalogue,
+            "account",
+            settings.selected_folders.clone(),
+            &mut added,
+            |path| {
+                if path == "/A/Music" {
+                    return Ok(Vec::new());
+                }
+                assert_eq!(path, "/B/Music");
+                Ok(serde_json::from_str(r#"[{".tag":"file","name":"song.mp3","path_display":"/B/Music/song.mp3","size":10}]"#).unwrap())
+            },
+        );
+        settings.apply(Ok(added));
+        assert_eq!(
+            catalogue.libraries().unwrap()[0].location,
+            PathBuf::from("/B/Music")
+        );
+        assert_eq!(
+            settings.selected_folders,
+            [("/A/Music".into(), "Music".into())]
+        );
+        let expected = format!("/A/Music: {}", CatalogueError::NoSupportedAudio);
+        assert!(
+            labels(&settings).contains(&expected),
+            "the rejected folder should be identified by path"
+        );
+
+        let _ = settings.update(Action::Sync, Some(paths));
+        settings.apply(Ok(Snapshot {
+            folder_error: None,
+            added_folders: Vec::new(),
+            ..settings.snapshot.clone()
+        }));
+        assert!(
+            labels(&settings).contains(&expected),
+            "sync cleared an unrelated folder error"
+        );
+        let _ = settings.update(
+            Action::SelectFolder("/A/Music".into(), "Music".into()),
+            None,
+        );
+        assert!(
+            !labels(&settings).contains(&expected),
+            "deselecting a folder should dismiss its error"
+        );
     }
 
     #[test]

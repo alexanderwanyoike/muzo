@@ -399,6 +399,7 @@ pub(super) struct Sources {
     pub show_playlist_form: bool,
     pub folder_name: String,
     pub folder_location: String,
+    pub folder_error: Option<String>,
     pub choosing_folder: bool,
     adding_folder: bool,
     removing_source: bool,
@@ -437,6 +438,7 @@ impl Sources {
             show_playlist_form: false,
             folder_name: String::new(),
             folder_location: String::new(),
+            folder_error: None,
             choosing_folder: false,
             adding_folder: false,
             removing_source: false,
@@ -630,6 +632,13 @@ impl Sources {
         !self.choosing_folder && !self.folder_save_pending()
     }
 
+    pub(super) fn can_submit_folder(&self) -> bool {
+        self.folder_editable()
+            && !self.busy()
+            && !self.folder_name.trim().is_empty()
+            && !self.folder_location.trim().is_empty()
+    }
+
     pub(super) fn request_removal(&mut self, id: &str, launcher: Option<&Launcher>) {
         if self.removal.is_none()
             && let Some(source) = self
@@ -711,6 +720,9 @@ impl Sources {
         self.saving_editor = matches!(operation, Operation::EditTrack(..));
         self.creating_playlist = matches!(operation, Operation::CreatePlaylist(_));
         self.adding_folder = matches!(operation, Operation::AddNamedFolder(_, _));
+        if self.adding_folder {
+            self.folder_error = None;
+        }
         let selected = self
             .snapshot
             .as_ref()
@@ -763,7 +775,7 @@ impl Sources {
         Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
     }
 
-    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
+    pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) -> bool {
         self.busy = false;
         self.loading_source = false;
         let loading_playlist_selection = std::mem::take(&mut self.loading_playlist_selection);
@@ -786,11 +798,13 @@ impl Sources {
                 {
                     self.source_tracks_error = Some(reason);
                 }
-                return;
+                return false;
             }
             Err(UpdateError::Operation(error)) => {
                 if removing_source && let Some(removal) = &mut self.removal {
                     removal.failed(error);
+                } else if adding_folder {
+                    self.folder_error = Some(error);
                 } else if let Some(adding_track) = adding_track {
                     match self
                         .playlist_picker
@@ -809,7 +823,7 @@ impl Sources {
                 } else if !loading_editor || self.pending_editor.take().is_some() {
                     self.error = Some(error);
                 }
-                return;
+                return false;
             }
         };
         if selection_changed {
@@ -917,6 +931,7 @@ impl Sources {
             }
         }
         self.snapshot = Some(snapshot);
+        adding_folder && !selection_changed
     }
 
     pub(super) fn start_pending(&mut self) -> Option<Task<Message>> {
@@ -1048,7 +1063,17 @@ mod tests {
         let first_path = root.path().join("first");
         let other_path = root.path().join("other");
         std::fs::create_dir(&first_path).unwrap();
+        std::fs::write(
+            first_path.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&other_path).unwrap();
+        std::fs::write(
+            other_path.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let first = catalogue.add_folder(&first_path).unwrap();
         let other = catalogue.add_folder(&other_path).unwrap();
         catalogue.remove(&first.id).unwrap();
@@ -1133,6 +1158,60 @@ mod tests {
     }
 
     #[test]
+    fn it_leaves_an_incomplete_library_form_idle() {
+        let root = tempfile::tempdir().unwrap();
+        let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        desktop.sources.folder_name = "Records".into();
+        desktop.sources.folder_location = " ".into();
+
+        assert_eq!(desktop.update(Message::SubmitFolder).units(), 0);
+        assert!(
+            desktop.sources.error.is_none(),
+            "an incomplete form stays idle"
+        );
+
+        desktop.sources.folder_name = " ".into();
+        desktop.sources.folder_location = root.path().to_str().unwrap().into();
+        assert_eq!(desktop.update(Message::SubmitFolder).units(), 0);
+        assert!(!desktop.sources.busy());
+    }
+
+    #[test]
+    fn it_keeps_an_empty_folder_error_in_the_form_until_the_location_changes() {
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action, task};
+
+        let root = tempfile::tempdir().unwrap();
+        let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
+        desktop.sources = Sources::new(Some(CataloguePaths::in_directory(root.path())));
+        let location = root.path().to_str().unwrap().to_owned();
+        let _ = desktop.update(Message::FolderName("Empty source".into()));
+        let _ = desktop.update(Message::FolderLocation(location.clone()));
+        let submission = desktop.update(Message::SubmitFolder);
+        let mut results = task::into_stream(submission).expect("the folder should be scanned");
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let Some(Action::Output(message @ Message::SourcesUpdated(_))) =
+            runtime.block_on(results.next())
+        else {
+            panic!("the scan should report a result");
+        };
+        let _ = desktop.update(message);
+
+        assert_eq!(desktop.sources.folder_name, "Empty source");
+        assert_eq!(desktop.sources.folder_location, location);
+        assert_eq!(
+            desktop.sources.folder_error.as_deref(),
+            Some(CatalogueError::NoSupportedAudio.to_string().as_str())
+        );
+        assert!(desktop.sources.error.is_none());
+        let _ = desktop.update(Message::FolderLocation("another folder".into()));
+        assert!(desktop.sources.folder_error.is_none());
+    }
+
+    #[test]
     fn it_preserves_whitespace_at_the_end_of_the_chosen_folder_location() {
         let root = tempfile::tempdir().unwrap();
         let mut desktop = crate::desktop::Desktop::with_session(Err("test output".into())).0;
@@ -1162,6 +1241,11 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let folder = root.path().join("New source");
         std::fs::create_dir(&folder).unwrap();
+        std::fs::write(
+            folder.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let paths = CataloguePaths::in_directory(root.path());
         let catalogue = paths.open().unwrap();
         let playlist = catalogue.create_playlist("Existing playlist").unwrap();
@@ -1272,7 +1356,17 @@ mod tests {
         let first = root.path().join("first");
         let added = root.path().join("added");
         std::fs::create_dir(&first).unwrap();
+        std::fs::write(
+            first.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&added).unwrap();
+        std::fs::write(
+            added.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let snapshot = run(&paths, Operation::Add(first)).unwrap();
         let selected = snapshot.selected.clone().unwrap();
         let mut sources = Sources::new(Some(paths));
@@ -1367,9 +1461,21 @@ mod navigation_tests {
         let selected = directory.path().join("selected");
         let refreshed = directory.path().join("refreshed");
         std::fs::create_dir(&selected).unwrap();
+        std::fs::write(
+            selected.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&refreshed).unwrap();
+        let previous_track = refreshed.join("previous.mp3");
+        std::fs::write(
+            &previous_track,
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let selected = catalogue.add_folder(&selected).unwrap().id;
         let target = catalogue.add_folder(&refreshed).unwrap().id;
+        std::fs::remove_file(previous_track).unwrap();
         std::fs::copy(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
             refreshed.join("tone.mp3"),
@@ -1396,6 +1502,11 @@ mod navigation_tests {
         let first = directory.path().join("first");
         let second = directory.path().join("second");
         std::fs::create_dir(&first).unwrap();
+        std::fs::write(
+            first.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&second).unwrap();
         std::fs::copy(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3"),
@@ -1607,6 +1718,14 @@ mod source_selection_tests {
             let second = directory.path().join("Harbour Rehearsals");
             std::fs::create_dir(&first).unwrap();
             std::fs::create_dir(&second).unwrap();
+
+            for folder in [&first, &second] {
+                std::fs::write(
+                    folder.join("tone.mp3"),
+                    include_bytes!("../../tests/fixtures/tone.mp3"),
+                )
+                .unwrap();
+            }
             let first = catalogue.add_folder(&first).unwrap();
             let second = catalogue.add_folder(&second).unwrap();
             Self {
@@ -1678,6 +1797,12 @@ mod source_selection_tests {
         let playlist = catalogue.create_playlist("Independent Mix").unwrap();
         let previous = libraries.apply(Operation::Select(libraries.first.id.clone()), None);
         assert_eq!(previous.selected_playlist.as_ref(), Some(&original.id));
+        assert!(previous.tracks.iter().any(|track| track.id == "unreadable"));
+        let previous_tracks: Vec<_> = previous
+            .tracks
+            .iter()
+            .map(|track| track.id.clone())
+            .collect();
         conn.execute(
             "UPDATE tracks SET duration_seconds='invalid' WHERE id='unreadable'",
             [],
@@ -1702,6 +1827,7 @@ mod source_selection_tests {
         let snapshot = sources.snapshot.unwrap();
         assert_eq!(snapshot.selected_playlist, Some(playlist.id));
         assert_eq!(snapshot.selected, Some(libraries.first.id));
-        assert_eq!(snapshot.tracks[0].id, "unreadable");
+        let retained_tracks: Vec<_> = snapshot.tracks.into_iter().map(|track| track.id).collect();
+        assert_eq!(retained_tracks, previous_tracks);
     }
 }

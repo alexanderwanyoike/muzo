@@ -84,6 +84,9 @@ impl Catalogue {
         if duplicate {
             return Err(CatalogueError::DuplicateFolder);
         }
+        if files.is_empty() {
+            return Err(CatalogueError::NoSupportedAudio);
+        }
         transaction.execute(
             "INSERT INTO libraries (id, name, kind, location) VALUES (?1, ?2, 'filesystem', ?3)",
             params![library.id, library.name, location],

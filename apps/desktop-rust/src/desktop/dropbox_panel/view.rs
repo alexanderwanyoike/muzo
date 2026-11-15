@@ -188,8 +188,17 @@ impl Settings {
         let count = self.selected_folders.len();
         if count > 0 {
             let rows = self.selected_folders.iter().map(|(selected, name)| {
+                let label = self
+                    .snapshot
+                    .failed_folders
+                    .iter()
+                    .find(|(folder, _)| folder.eq_ignore_ascii_case(selected))
+                    .map_or_else(
+                        || selected.clone(),
+                        |(_, error)| format!("{selected}: {error}"),
+                    );
                 row![
-                    text(selected)
+                    text(label)
                         .size(12)
                         .width(Fill)
                         .wrapping(text::Wrapping::WordOrGlyph),
