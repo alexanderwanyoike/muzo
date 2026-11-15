@@ -12,19 +12,19 @@ $timer = [Diagnostics.Stopwatch]::StartNew()
 if ($Journey -eq 'Confirm') {
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
-    $root = [Windows.Automation.AutomationElement]::RootElement
-    $processMatch = [Windows.Automation.PropertyCondition]::new(
-        [Windows.Automation.AutomationElement]::ProcessIdProperty, $LegacyProcessId)
-    $labelMatch = [Windows.Automation.PropertyCondition]::new(
-        [Windows.Automation.AutomationElement]::NameProperty, 'Restart to install')
-    $buttonMatch = [Windows.Automation.PropertyCondition]::new(
-        [Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::Button)
-    $confirmationMatch = [Windows.Automation.AndCondition]::new($labelMatch, $buttonMatch)
+    $root = [System.Windows.Automation.AutomationElement]::RootElement
+    $processMatch = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $LegacyProcessId)
+    $labelMatch = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::NameProperty, 'Restart to install')
+    $buttonMatch = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Button)
+    $confirmationMatch = [System.Windows.Automation.AndCondition]::new($labelMatch, $buttonMatch)
     while ($timer.Elapsed.TotalSeconds -lt $waitSeconds) {
-        foreach ($window in $root.FindAll([Windows.Automation.TreeScope]::Children, $processMatch)) {
-            $confirm = $window.FindFirst([Windows.Automation.TreeScope]::Descendants, $confirmationMatch)
+        foreach ($window in $root.FindAll([System.Windows.Automation.TreeScope]::Children, $processMatch)) {
+            $confirm = $window.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $confirmationMatch)
             if ($confirm -and $confirm.Current.IsEnabled) {
-                $confirm.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+                $confirm.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
                 Write-Output 'Accepted the installed Electron restart dialog.'
                 exit 0
             }
