@@ -6,6 +6,7 @@ pub(super) struct Removal {
     pub busy: bool,
     pub error: Option<String>,
     pub cancel_focused: bool,
+    pub show_keyboard_focus: bool,
 }
 
 impl Removal {
@@ -15,6 +16,7 @@ impl Removal {
             busy: false,
             error: None,
             cancel_focused: true,
+            show_keyboard_focus: false,
         }
     }
 
@@ -32,6 +34,7 @@ impl Removal {
     pub fn focus_next(&mut self) {
         if !self.busy {
             self.cancel_focused = !self.cancel_focused;
+            self.show_keyboard_focus = true;
         }
     }
 

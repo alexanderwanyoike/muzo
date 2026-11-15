@@ -81,7 +81,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
     let cancel = action(
         "Cancel",
         (!removal.busy).then_some(Message::CancelSourceRemoval),
-        removal.cancel_focused,
+        removal.show_keyboard_focus && removal.cancel_focused,
         (surfaces, accent, None),
     );
     let confirm = action(
@@ -91,7 +91,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
             "Remove source"
         },
         (!removal.busy).then(|| removal.confirm()),
-        !removal.cancel_focused,
+        removal.show_keyboard_focus && !removal.cancel_focused,
         (surfaces, accent, Some(danger)),
     );
     let actions = row![cancel, confirm].spacing(ACTION_GAP - 2.0 * FOCUS_OUTSET);
