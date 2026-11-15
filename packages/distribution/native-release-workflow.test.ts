@@ -95,7 +95,9 @@ it("includes the keyboard library that Iced loads at X11 startup", () => {
       "utf8",
     ),
   );
-  expect(nested(packager, "appimage", "libs")).toContain("libxkbcommon-x11.so.0");
+  expect(nested(packager, "appimage", "libs")).toContain(
+    "libxkbcommon-x11.so.0",
+  );
 });
 
 it("exercises the packaged macOS mini player and retains screenshots for both architectures", () => {
