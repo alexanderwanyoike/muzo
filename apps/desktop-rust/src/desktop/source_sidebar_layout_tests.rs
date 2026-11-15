@@ -105,7 +105,7 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
 }
 
 #[test]
-fn it_uses_a_cloud_glyph_for_dropbox_sources() {
+fn it_draws_distinct_glyphs_for_dropbox_and_filesystem_sources() {
     let mut desktop = desktop_with_sources();
     let id = desktop.windows.library_id();
     let cloud = paint(&desktop, id, FRAME);
