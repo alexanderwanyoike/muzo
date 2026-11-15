@@ -55,7 +55,7 @@ pub(in crate::desktop) fn library<'a>(
             container(column![
                 toolbar(sources, page, surfaces),
                 error_line(sources.error.as_deref().map(replace_embedded_breaks)),
-                library_content(
+                container(library_content(
                     sources,
                     dropbox,
                     preferences,
@@ -63,7 +63,8 @@ pub(in crate::desktop) fn library<'a>(
                     (page, focus),
                     cover,
                     sidebar.viewport_width(),
-                )
+                ))
+                .width(Fill)
                 .height(Fill),
             ])
             .padding(iced::padding::bottom(PANE_GUTTER))
@@ -264,7 +265,7 @@ pub(super) fn settings<'a>(
     sources: &'a Sources,
     audio: bool,
     focus: Option<&crate::desktop::appearance_focus::Choice>,
-) -> iced::widget::Column<'a, Message> {
+) -> iced::widget::Scrollable<'a, Message> {
     let surfaces = preferences.surfaces();
     let body = column![
         appearance::controls(preferences, focus),
@@ -287,11 +288,9 @@ pub(super) fn settings<'a>(
     .spacing(20)
     .width(Fill)
     .max_width(850);
-    column![
-        scrollable(container(body).padding([24, 28]).center_x(Fill))
-            .id(crate::desktop::appearance_focus::SCROLL)
-            .height(Fill)
-    ]
+    scrollable(container(body).padding([24, 28]).center_x(Fill))
+        .id(crate::desktop::appearance_focus::SCROLL)
+        .height(Fill)
 }
 
 pub(super) fn settings_section<'a>(

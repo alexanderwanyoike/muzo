@@ -62,11 +62,11 @@ fn library_content<'a>(
     page: (super::LibraryPage, Option<&super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
     viewport_width: f32,
-) -> iced::widget::Column<'a, Message> {
+) -> Element<'a, Message> {
     use super::LibraryPage;
     let (page, focus) = page;
     if page == LibraryPage::Settings {
-        return library::settings(preferences, dropbox, sources, session.is_some(), focus);
+        return library::settings(preferences, dropbox, sources, session.is_some(), focus).into();
     }
     if page == LibraryPage::Playlists {
         let Some(snapshot) = sources
@@ -74,7 +74,9 @@ fn library_content<'a>(
             .as_ref()
             .filter(|snapshot| snapshot.selected_playlist.is_some())
         else {
-            return column![container(text("No playlists yet").size(18).font(bold())).center(Fill)];
+            return container(text("No playlists yet").size(18).font(bold()))
+                .center(Fill)
+                .into();
         };
         return playlists::tracks(
             snapshot,
@@ -82,7 +84,8 @@ fn library_content<'a>(
             session,
             cover,
             preferences.surfaces(),
-        );
+        )
+        .into();
     }
     if let Some(snapshot) = sources
         .snapshot
@@ -97,6 +100,7 @@ fn library_content<'a>(
             preferences,
             viewport_width,
         )
+        .into()
     } else if let Some(list) = session.and_then(direct_file_rows) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
@@ -104,9 +108,11 @@ fn library_content<'a>(
         ]
         .padding([5, 10])
         .spacing(8);
-        column![heading, scrollable(list).height(Fill)].spacing(5)
+        column![heading, scrollable(list).height(Fill)]
+            .spacing(5)
+            .into()
     } else {
-        column![library::empty(preferences.surfaces())]
+        column![library::empty(preferences.surfaces())].into()
     }
 }
 
@@ -172,8 +178,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         (super::LibraryPage::Songs, None),
         None,
         super::windows::LIBRARY_SIZE.width,
-    )
-    .into();
+    );
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&body);
     let widget = body.as_widget_mut();
