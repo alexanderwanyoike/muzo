@@ -44,15 +44,26 @@ impl ArtworkCache {
         revision: &Revision,
         read: impl FnOnce() -> Option<Vec<u8>>,
     ) -> Option<Vec<u8>> {
-        let target = self.directory.join(format!("{}.{ENTRY_EXT}", revision.0));
+        self.get_or_try_read(revision, || Ok::<_, std::convert::Infallible>(read()))
+            .unwrap_or_else(|never| match never {})
+    }
+
+    pub(crate) fn get_or_try_read<E>(
+        &self,
+        revision: &Revision,
+        read: impl FnOnce() -> Result<Option<Vec<u8>>, E>,
+    ) -> Result<Option<Vec<u8>>, E> {
         if let Some(cached) = self.lookup(revision) {
-            return Some(cached);
+            return Ok(Some(cached));
         }
-        let cover = thumbnail(&read()?)?;
+        let Some(cover) = read()?.as_deref().and_then(thumbnail) else {
+            return Ok(None);
+        };
+        let target = self.directory.join(format!("{}.{ENTRY_EXT}", revision.0));
         if let Err(error) = self.store(&target, &cover) {
             eprintln!("Could not cache album artwork: {error}");
         }
-        Some(cover)
+        Ok(Some(cover))
     }
 
     pub fn lookup(&self, revision: &Revision) -> Option<Vec<u8>> {

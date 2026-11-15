@@ -1,4 +1,9 @@
-use std::{collections::HashSet, ops::Range, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::Range,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use iced::{
     Task,
@@ -14,13 +19,14 @@ use super::{ROW_LIMIT, remote::Remote, row_handle};
 const CONCURRENT_READS: usize = 2;
 const DEFAULT_ROWS: Range<usize> = 0..16;
 const OVERSCAN_ROWS: usize = 4;
+const RETRY_DELAY: Duration = Duration::from_secs(30);
 
 #[derive(Default)]
 pub(in crate::desktop) struct Loader {
     generation: u64,
     visible: Option<(LibraryPage, Range<usize>)>,
     pending: HashSet<(u64, String)>,
-    attempted: HashSet<String>,
+    attempted: HashMap<String, Option<Instant>>,
     remote: Arc<Remote>,
 }
 
@@ -28,7 +34,15 @@ pub(in crate::desktop) struct Loader {
 pub struct Complete {
     generation: u64,
     id: String,
-    cover: Option<Handle>,
+    cover: Result<Option<Handle>, ReadFailure>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ReadFailure {
+    Catalogue,
+    File,
+    Dropbox,
+    Worker,
 }
 
 pub(in crate::desktop) fn viewport_rows(
@@ -48,6 +62,13 @@ impl Loader {
     }
 
     pub(in crate::desktop) fn visible(&mut self, page: LibraryPage, rows: Range<usize>) {
+        if self
+            .visible
+            .as_ref()
+            .is_some_and(|(previous, _)| *previous != page)
+        {
+            self.attempted.retain(|_, retry| retry.is_none());
+        }
         self.visible = Some((page, rows));
     }
 
@@ -60,8 +81,17 @@ impl Loader {
         if result.generation != self.generation {
             return;
         }
-        if let (Some(snapshot), Some(cover)) = (snapshot, result.cover) {
-            snapshot.covers.insert(result.id, cover);
+        match result.cover {
+            Ok(Some(cover)) => {
+                if let Some(snapshot) = snapshot {
+                    snapshot.covers.insert(result.id, cover);
+                }
+            }
+            Ok(None) => {}
+            Err(_) => {
+                self.attempted
+                    .insert(result.id, Some(Instant::now() + RETRY_DELAY));
+            }
         }
     }
 
@@ -108,16 +138,22 @@ impl Loader {
             let visible_ids: HashSet<_> =
                 candidates.iter().map(|track| track.id.as_str()).collect();
             self.attempted
-                .retain(|id| visible_ids.contains(id.as_str()));
+                .retain(|id, _| visible_ids.contains(id.as_str()));
             snapshot
                 .covers
                 .retain(|id, _| visible_ids.contains(id.as_str()));
         }
+        let now = Instant::now();
         let mut requests = Vec::new();
         for track in candidates {
-            if !self.attempted.insert(track.id.clone()) {
+            let attempted = self
+                .attempted
+                .get(&track.id)
+                .is_some_and(|retry| retry.is_none_or(|time| time > now));
+            if attempted || self.pending.contains(&(self.generation, track.id.clone())) {
                 continue;
             }
+            self.attempted.insert(track.id.clone(), None);
             let remote = snapshot
                 .libraries
                 .iter()
@@ -141,8 +177,8 @@ impl Loader {
                 let cover =
                     tokio::task::spawn_blocking(move || load(&paths, &reader, &track, remote))
                         .await
-                        .ok()
-                        .flatten();
+                        .map_err(|_| ReadFailure::Worker)
+                        .and_then(|result| result);
                 Complete {
                     generation,
                     id,
@@ -159,27 +195,26 @@ fn load(
     reader: &Remote,
     track: &IndexedTrack,
     remote: bool,
-) -> Option<Handle> {
-    let catalogue = paths.open().ok()?;
+) -> Result<Option<Handle>, ReadFailure> {
+    let catalogue = paths.open().map_err(|_| ReadFailure::Catalogue)?;
     let revision = catalogue
         .artwork_revision(&track.library_id, &track.id)
-        .ok()?;
+        .map_err(|_| ReadFailure::Catalogue)?;
     let cache = ArtworkCache::new(paths.artwork_cache());
-    let bytes = cache.get_or_read(&revision, || {
+    let bytes = cache.get_or_try_read(&revision, || {
         if remote {
             return reader
                 .read(&catalogue, &track.library_id, &track.path.to_string_lossy())
-                .ok()
-                .flatten();
+                .map_err(|_| ReadFailure::Dropbox);
         }
         let file = Probe::open(&track.path)
-            .ok()?
+            .map_err(|_| ReadFailure::File)?
             .options(ParseOptions::new().read_properties(false))
             .read()
-            .ok()?;
-        embedded_cover(&file).map(|picture| picture.data().to_vec())
+            .map_err(|_| ReadFailure::File)?;
+        Ok(embedded_cover(&file).map(|picture| picture.data().to_vec()))
     })?;
-    row_handle(&bytes)
+    Ok(bytes.as_deref().and_then(row_handle))
 }
 
 #[cfg(test)]

@@ -22,7 +22,7 @@ fn it_loads_an_unplayed_local_cover_after_delivering_the_source_rows() {
     assert!(snapshot.covers.is_empty());
     let track = &snapshot.tracks[0];
 
-    let cover = load(&paths, &Remote::default(), track, false);
+    let cover = load(&paths, &Remote::default(), track, false).unwrap();
     assert!(cover.is_some());
     assert!(paths.artwork_cache().exists());
     assert_eq!(track.plays, 0);
@@ -73,7 +73,7 @@ fn it_discards_artwork_completed_after_a_catalogue_revision() {
         Complete {
             generation: 0,
             id: "track".into(),
-            cover: Some(Handle::from_rgba(1, 1, vec![255; 4])),
+            cover: Ok(Some(Handle::from_rgba(1, 1, vec![255; 4]))),
         },
         Some(&mut snapshot),
     );

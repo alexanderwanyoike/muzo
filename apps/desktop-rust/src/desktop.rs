@@ -409,14 +409,13 @@ impl Desktop {
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();
-                if self.dropbox.due() {
-                    let remote = self
-                        .dropbox
-                        .update(dropbox_panel::Action::Sync, self.sources.paths());
-                    Task::batch([local, remote])
+                let remote = if self.dropbox.due() {
+                    self.dropbox
+                        .update(dropbox_panel::Action::Sync, self.sources.paths())
                 } else {
-                    local
-                }
+                    Task::none()
+                };
+                Task::batch([local, remote, self.load_row_covers()])
             }
             Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
             Message::AppImageIntegration(result) => {
