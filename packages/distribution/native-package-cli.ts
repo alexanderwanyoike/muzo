@@ -54,7 +54,9 @@ async function run(executable: string, args: string[]): Promise<string> {
   return result.stdout;
 }
 
-async function buildExecutables(target: ReleaseTarget, artifacts: string) {
+async function cargoDirectories(
+  target: ReleaseTarget,
+): Promise<DistributionResult<{ target: string; build: string }>> {
   const { stdout } = await execute("cargo", ["-vV"], { cwd: native });
   const host = /^host: (.*)$/mu.exec(stdout)?.[1]?.trim();
   if (!host || !cargoHosts[target.id].test(host))
@@ -85,6 +87,13 @@ async function buildExecutables(target: ReleaseTarget, artifacts: string) {
       ? metadata.build_directory
       : metadata.target_directory;
 
+  return {
+    ok: true,
+    value: { target: metadata.target_directory, build: buildDirectory },
+  };
+}
+
+async function buildExecutables(artifacts: string, buildDirectory: string) {
   const { stdout: messages, stderr } = await execute(
     "cargo",
     [
@@ -215,13 +224,16 @@ async function packageNative(): Promise<DistributionResult<string>> {
     const output = values.output
       ? resolve(process.env.INIT_CWD ?? process.cwd(), values.output)
       : join(native, "out/rust-distribution");
+    const cargo = await cargoDirectories(target);
+    if (!cargo.ok) return cargo;
+
     await mkdir(output, { recursive: true });
-    const stage = await mkdtemp(join(output, ".muzo-package-"));
+    await mkdir(cargo.value.target, { recursive: true });
+    const artifacts = await mkdtemp(join(cargo.value.target, ".muzo-package-bin-"));
+    let stage: string | undefined;
     try {
-      const executables = await buildExecutables(
-        target,
-        join(stage, "cargo-artifacts"),
-      );
+      stage = await mkdtemp(join(output, ".muzo-package-"));
+      const executables = await buildExecutables(artifacts, cargo.value.build);
       if (!executables.ok) return executables;
       const builtTarget = await execute(executables.value.namer, [
         "--target-id",
@@ -255,7 +267,10 @@ async function packageNative(): Promise<DistributionResult<string>> {
       );
       return { ok: true, value: join(output, name) };
     } finally {
-      await rm(stage, { recursive: true, force: true });
+      await Promise.all([
+        rm(artifacts, { recursive: true, force: true }),
+        stage ? rm(stage, { recursive: true, force: true }) : Promise.resolve(),
+      ]);
     }
   } catch (error) {
     if (
