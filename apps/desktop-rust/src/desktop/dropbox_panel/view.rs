@@ -144,7 +144,13 @@ impl Settings {
             let folders = path.trim_start_matches('/').replace('/', " / ");
             format!("Dropbox / {folders}")
         };
-        let mut heading = row![text(breadcrumb).size(12).width(Fill),].spacing(ACTION_GAP);
+        let mut heading = row![
+            text(breadcrumb)
+                .size(12)
+                .width(Fill)
+                .wrapping(text::Wrapping::WordOrGlyph)
+        ]
+        .spacing(ACTION_GAP);
         if path != "/" {
             let (parent, _) = path.rsplit_once('/').unwrap_or(("/", ""));
             let parent = if parent.is_empty() { "/" } else { parent };
