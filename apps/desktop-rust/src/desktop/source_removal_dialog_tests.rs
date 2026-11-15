@@ -1,14 +1,21 @@
 use iced::{
-    Event, Font, Pixels, Point, Rectangle, Renderer, Size,
-    advanced::{clipboard, graphics::Viewport, mouse, renderer::Style},
+    Event, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
+    advanced::{
+        clipboard,
+        graphics::Viewport,
+        mouse,
+        renderer::Style,
+        widget::{Id, Operation as WidgetOperation, operation::Scrollable},
+    },
     event::Status,
+    futures::{FutureExt, StreamExt},
     keyboard::{
         Key, Location, Modifiers,
         key::{Named, NativeCode, Physical},
     },
     window,
 };
-use iced_runtime::{UserInterface, user_interface::Cache};
+use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
 
 use crate::appearance::sidebar::SidebarWidth;
 
@@ -221,6 +228,85 @@ fn it_keeps_both_actions_visible_at_the_minimum_window_size_with_long_source_det
             bounds.y + bounds.height < frame.height - 25.0,
             "{action}: {bounds:?}"
         );
+    }
+}
+
+#[test]
+fn it_reaches_the_source_location_using_the_keyboard_when_the_details_overflow() {
+    let (mut desktop, _root) = desktop();
+    desktop.sources.snapshot.as_mut().unwrap().libraries[0].name = "Holloway Sessions ".repeat(140);
+    request(&mut desktop);
+
+    let tasks: Vec<_> = [Named::ArrowDown, Named::PageDown, Named::End, Named::Home]
+        .into_iter()
+        .map(|key| {
+            let (status, messages) = dispatch(
+                &desktop,
+                &[key_event(key, Modifiers::empty())],
+                Point::ORIGIN,
+            );
+            assert_eq!(status, [Status::Captured]);
+            iced::Task::batch(messages.into_iter().map(|message| desktop.update(message)))
+        })
+        .collect();
+    let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.view(desktop.windows.library_id()),
+        Size::new(800.0, 600.0),
+        Cache::new(),
+        &mut renderer,
+    );
+    let mut details = CopyPosition::default();
+    ui.operate(&renderer, &mut details);
+    assert!(details.location_y > details.bottom);
+
+    let mut offsets = Vec::new();
+    for task in tasks {
+        let mut actions = task::into_stream(task).expect("scroll key schedules a widget action");
+        let Some(Action::Widget(mut operation)) = actions.next().now_or_never().flatten() else {
+            panic!("expected a scroll operation for the confirmation");
+        };
+        ui.operate(&renderer, operation.as_mut());
+        ui.operate(&renderer, &mut details);
+        offsets.push(details.offset);
+        if offsets.len() == 3 {
+            assert!(details.location_y - details.offset <= details.bottom);
+        }
+    }
+    assert!(offsets[0] > 0.0);
+    assert!(offsets[1] > offsets[0]);
+    assert!(offsets[2] > offsets[1]);
+    assert_eq!(offsets[3], 0.0);
+}
+
+#[derive(Default)]
+struct CopyPosition {
+    offset: f32,
+    bottom: f32,
+    location_y: f32,
+}
+
+impl WidgetOperation for CopyPosition {
+    fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn WidgetOperation)) {
+        visit(self);
+    }
+
+    fn scrollable(
+        &mut self,
+        _: Option<&Id>,
+        bounds: Rectangle,
+        _: Rectangle,
+        translation: Vector,
+        _: &mut dyn Scrollable,
+    ) {
+        self.bottom = bounds.y + bounds.height;
+        self.offset = translation.y;
+    }
+
+    fn text(&mut self, _: Option<&Id>, bounds: Rectangle, text: &str) {
+        if text == SOURCE_LOCATION {
+            self.location_y = bounds.y + bounds.height;
+        }
     }
 }
 
