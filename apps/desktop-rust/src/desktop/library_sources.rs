@@ -1247,59 +1247,94 @@ mod artwork_tests {
 mod playlist_entry_transactions {
     use super::*;
 
-    #[test]
-    fn it_keeps_playlist_order_when_the_updated_songs_cannot_be_read() {
-        let root = tempfile::tempdir().unwrap();
-        let folder = root.path().join("Music");
-        std::fs::create_dir(&folder).unwrap();
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
-        std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
-        let paths = CataloguePaths::in_directory(root.path());
-        let song = run(&paths, Operation::Add(folder))
-            .unwrap()
-            .tracks
-            .remove(0);
-        let mut catalogue = paths.open().unwrap();
-        let playlist = catalogue.create_playlist("Rehearsals").unwrap();
-        let first = catalogue.add_to_playlist(&playlist.id, &song.id).unwrap();
-        let second = catalogue.add_to_playlist(&playlist.id, &song.id).unwrap();
-        let connection = rusqlite::Connection::open(&paths.current).unwrap();
-        connection
-            .execute_batch(
+    struct PlaylistFixture {
+        _root: tempfile::TempDir,
+        paths: CataloguePaths,
+        catalogue: Catalogue,
+        connection: rusqlite::Connection,
+        playlist: String,
+        entries: [String; 2],
+    }
+
+    impl PlaylistFixture {
+        fn new() -> Self {
+            let root = tempfile::tempdir().unwrap();
+            let folder = root.path().join("Music");
+            std::fs::create_dir(&folder).unwrap();
+            let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+            std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
+            let paths = CataloguePaths::in_directory(root.path());
+            let song = run(&paths, Operation::Add(folder))
+                .unwrap()
+                .tracks
+                .remove(0);
+            let mut catalogue = paths.open().unwrap();
+            let playlist = catalogue.create_playlist("Rehearsals").unwrap().id;
+            let first = catalogue.add_to_playlist(&playlist, &song.id).unwrap();
+            let second = catalogue.add_to_playlist(&playlist, &song.id).unwrap();
+            let connection = rusqlite::Connection::open(&paths.current).unwrap();
+            connection.execute_batch(
                 "INSERT INTO libraries (id, name, kind, location)
                  VALUES ('other', 'Other source', 'filesystem', '/music/other');
                  INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
                  VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
-            )
-            .unwrap();
-        let move_entry = || {
+            ).unwrap();
+            Self {
+                _root: root,
+                paths,
+                catalogue,
+                connection,
+                playlist,
+                entries: [first, second],
+            }
+        }
+
+        fn apply(&self, operation: Operation) -> Result<Snapshot, CatalogueError> {
             run_with_selection(
-                &paths,
-                Operation::MovePlaylistEntry(playlist.id.clone(), first.clone(), 1),
+                &self.paths,
+                operation,
                 Some("other".into()),
-                Some(playlist.id.clone()),
+                Some(self.playlist.clone()),
             )
-        };
-        let saved_order = || {
-            catalogue
-                .playlist_entries(&playlist.id)
+        }
+
+        fn saved_entries(&self) -> Vec<String> {
+            self.catalogue
+                .playlist_entries(&self.playlist)
                 .unwrap()
                 .into_iter()
                 .map(|entry| entry.id)
-                .collect::<Vec<_>>()
+                .collect()
+        }
+
+        fn repair_source(&self) {
+            self.connection
+                .execute(
+                    "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
+                    [],
+                )
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn it_keeps_playlist_order_when_the_updated_songs_cannot_be_read() {
+        let data = PlaylistFixture::new();
+        let [first, second] = &data.entries;
+        let move_entry = || {
+            data.apply(Operation::MovePlaylistEntry(
+                data.playlist.clone(),
+                first.clone(),
+                1,
+            ))
         };
 
         assert!(move_entry().is_err());
-        assert_eq!(saved_order(), [first.clone(), second.clone()]);
+        assert_eq!(data.saved_entries(), data.entries);
 
-        connection
-            .execute(
-                "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
-                [],
-            )
-            .unwrap();
+        data.repair_source();
         move_entry().unwrap();
-        assert_eq!(saved_order(), [second, first]);
+        assert_eq!(data.saved_entries(), [second.clone(), first.clone()]);
     }
 }
 
