@@ -289,7 +289,7 @@ fn it_keeps_a_soft_glow_around_the_play_control_when_a_track_is_available() {
 }
 
 #[test]
-fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
+fn it_only_glows_on_the_active_part_of_the_transport_rails() {
     const SIZE: Size<u32> = Size::new(850, 800);
     let (mut desktop, _) = setup();
     desktop.appearance.theme = "walnut".into();
@@ -300,19 +300,16 @@ fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
     desktop.appearance.accent = "glow-cyan".into();
     let glow = paint(&desktop, id, SIZE);
     let at = |x, y| (y * SIZE.width as usize + x) * 4;
-    for (x, y) in [(500, 59), (790, 37)] {
-        let green = at(x, y) + 1;
-        assert!(
-            glow[green] > classic[green] + 4,
-            "missing halo around the rail at ({x}, {y})"
-        );
-    }
+    let active_volume = at(790, 37) + 1;
+    assert!(
+        glow[active_volume] > classic[active_volume] + 4,
+        "the active volume rail needs a subtle glow"
+    );
     for y in [59, 62] {
         let green = at(500, y) + 1;
-        let difference = glow[green].saturating_sub(classic[green]);
-        assert!(
-            difference <= 16,
-            "the transport rail halo is too bright at {y}: {difference}"
+        assert_eq!(
+            glow[green], classic[green],
+            "the seek rail has no played section at {y}"
         );
     }
     let volume_fill = at(790, 40);
