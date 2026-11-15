@@ -454,6 +454,9 @@ fn it_schedules_dropbox_playback_without_waiting_for_catalogue_reads() {
 
 #[test]
 fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
     let root = tempfile::tempdir().unwrap();
     let paths = CataloguePaths::in_directory(root.path());
     let mut catalogue = paths.open().unwrap();
@@ -479,9 +482,22 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
         .with_remote(library.id, "/Music/Track.mp3".into());
     desktop.session.as_mut().unwrap().replace(vec![track]);
     desktop.sources = Sources::new(Some(paths));
-    let _ = desktop.update(Message::Select(0));
+    let selection = desktop.update(Message::Select(0));
     let request = desktop.playback_request;
-    let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
+    let mut actions = task::into_stream(selection).expect("the remote track should be prepared");
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    while let Some(Action::Output(message)) = runtime.block_on(actions.next()) {
+        let message = match message {
+            Message::RemoteTrackReady(..) => {
+                Message::RemoteTrackReady(request, Err("Offline".into()))
+            }
+            message => message,
+        };
+        let _ = desktop.update(message);
+    }
 
     assert!(desktop.cover.thumbnail().is_some());
     assert_eq!(desktop.error.as_deref(), Some("Offline"));
