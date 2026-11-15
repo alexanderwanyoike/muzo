@@ -28,3 +28,29 @@ it("packages the native icons and licence notices from the Rust workspace", () =
       true,
     );
 });
+
+it("keeps the existing Windows installer identity in the native packaging configuration", () => {
+  const workspace = new URL("../../apps/desktop-rust/", import.meta.url);
+  const config: unknown = JSON.parse(
+    readFileSync(new URL("windows-installer.json", workspace), "utf8"),
+  );
+  expect(config).toMatchObject({
+    appId: "com.muzo.desktop",
+    productName: "Muzo",
+    extraMetadata: { name: "@muzo/desktop", author: "Muzo" },
+    win: {
+      executableName: "muzo",
+      icon: "assets/icons/muzo.ico",
+      artifactName: "Muzo-${version}-windows-${arch}-setup.${ext}",
+    },
+    nsis: {
+      oneClick: false,
+      perMachine: false,
+      allowToChangeInstallationDirectory: true,
+    },
+  });
+  const distribution: unknown = JSON.parse(
+    readFileSync(new URL("package.json", import.meta.url), "utf8"),
+  );
+  expect(distribution).toHaveProperty(["devDependencies", "electron-builder"]);
+});
