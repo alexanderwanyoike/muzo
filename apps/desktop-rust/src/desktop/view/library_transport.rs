@@ -25,6 +25,8 @@ use glow::Glow;
 const TRANSPORT_HEIGHT: f32 = 81.0;
 const DISPLAY_MAX_WIDTH: f32 = 610.0;
 const PLAY_BUTTON_EDGE: f32 = 38.0;
+const SEEK_INPUT_HEIGHT: f32 = 14.0;
+const VOLUME_INPUT_HEIGHT: f32 = 16.0;
 
 struct TransportColumns {
     controls: f32,
@@ -103,17 +105,22 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
     let controls = container(controls).center_x(columns.controls);
 
+    let seek = slider(
+        0.0..=duration.as_secs_f32().max(0.1),
+        position.as_secs_f32(),
+        Message::Seek,
+    )
+    .height(SEEK_INPUT_HEIGHT)
+    .step(0.1)
+    .style(move |theme, _| compact::slider_style(theme, surfaces, false));
+    let seek = match glow {
+        Some(glow) => glow.surround_seek(seek.into()),
+        None => seek.into(),
+    };
     let timeline = row![
         clock_label(position, surfaces.muted),
-        slider(
-            0.0..=duration.as_secs_f32().max(0.1),
-            position.as_secs_f32(),
-            Message::Seek
-        )
-        .height(14)
-        .step(0.1)
-        .style(move |theme, _| compact::slider_style(theme, surfaces, false)),
-        clock_label(duration, surfaces.muted),
+        seek,
+        clock_label(duration, surfaces.muted)
     ]
     .spacing(TIMELINE_GAP)
     .align_y(Alignment::Center);
@@ -148,21 +155,24 @@ pub(super) fn view<'a>(
     .max_width(DISPLAY_MAX_WIDTH)
     .padding(DISPLAY_PADDING)
     .style(move |_| framed(surfaces.raised.scale_alpha(0.70), surfaces, 5));
+    let level = session.map_or(1.0, Session::volume);
+    let volume = slider(0.0..=1.0, level, Message::SetVolume)
+        .width(columns.volume_slider)
+        .height(VOLUME_INPUT_HEIGHT)
+        .step(VOLUME_STEP)
+        .style(move |theme, _| {
+            let style = compact::slider_style(theme, surfaces, true);
+            glow.map_or(style, |glow| glow.volume_ink(style))
+        });
+    let volume = match glow {
+        Some(glow) => glow.surround_volume(volume.into(), columns.volume_slider, level),
+        None => volume.into(),
+    };
     let volume = row![
         icon_tinted(Icon::Volume, move |_| surfaces.muted)
             .width(16)
             .height(16),
-        container(
-            slider(
-                0.0..=1.0,
-                session.map_or(1.0, Session::volume),
-                Message::SetVolume
-            )
-            .width(columns.volume_slider)
-            .step(VOLUME_STEP)
-            .style(move |theme, _| compact::slider_style(theme, surfaces, true))
-        )
-        .padding([0, 2]),
+        container(volume).padding([0, 2]),
     ]
     .spacing(10)
     .align_y(Alignment::Center);

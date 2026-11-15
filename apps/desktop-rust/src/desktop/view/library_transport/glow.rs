@@ -1,11 +1,20 @@
 use iced::{
-    Color, Element, Shadow, border, color,
-    widget::{Space, button, container, stack},
+    Color, Element, Fill, Shadow, border, color,
+    widget::{Space, button, container, row, slider, stack},
 };
 
 use crate::appearance::Appearance;
 
-use super::{Message, PLAY_BUTTON_EDGE};
+use super::{
+    Message, PLAY_BUTTON_EDGE, SEEK_INPUT_HEIGHT, VOLUME_INPUT_HEIGHT,
+    compact::{SLIDER_RAIL_HEIGHT, VOLUME_THUMB_RADIUS},
+};
+
+const INNER_BLUR: f32 = 14.0;
+const OUTER_BLUR: f32 = 28.0;
+const VOLUME_BLUR: f32 = 5.0;
+const INNER_OPACITY: f32 = 0.32;
+const OUTER_OPACITY: f32 = 0.12;
 
 #[derive(Clone, Copy)]
 pub(super) struct Glow {
@@ -36,7 +45,7 @@ impl Glow {
             border: border::rounded(PLAY_BUTTON_EDGE / 2.0)
                 .width(1.0)
                 .color(self.outline),
-            shadow: self.shadow(14.0, 0.32),
+            shadow: self.shadow(INNER_BLUR, INNER_OPACITY),
             ..button::Style::default()
         }
     }
@@ -50,9 +59,52 @@ impl Glow {
             .style(move |_| {
                 container::Style::default()
                     .border(border::rounded(PLAY_BUTTON_EDGE / 2.0))
-                    .shadow(self.shadow(28.0, 0.12))
+                    .shadow(self.shadow(OUTER_BLUR, OUTER_OPACITY))
             });
         stack![control].push_under(halo).into()
+    }
+
+    pub(super) fn surround_seek(
+        self,
+        control: Element<'static, Message>,
+    ) -> Element<'static, Message> {
+        stack![control]
+            .push_under(rail_shadow(
+                SEEK_INPUT_HEIGHT,
+                self.shadow(INNER_BLUR, INNER_OPACITY),
+            ))
+            .push_under(rail_shadow(
+                SEEK_INPUT_HEIGHT,
+                self.shadow(OUTER_BLUR, OUTER_OPACITY),
+            ))
+            .into()
+    }
+
+    pub(super) fn volume_ink(self, mut style: slider::Style) -> slider::Style {
+        style.rail.backgrounds.0 = self.outline.into();
+        style.handle.background = self.outline.into();
+        style
+    }
+
+    pub(super) fn surround_volume(
+        self,
+        control: Element<'static, Message>,
+        width: f32,
+        volume: f32,
+    ) -> Element<'static, Message> {
+        let shadow = self.shadow(VOLUME_BLUR, INNER_OPACITY);
+        let diameter = VOLUME_THUMB_RADIUS * 2.0;
+        let thumb = container(Space::new()).center(diameter).style(move |_| {
+            container::Style::default()
+                .border(border::rounded(VOLUME_THUMB_RADIUS))
+                .shadow(shadow)
+        });
+        let thumb_shadow = container(row![Space::new().width((width - diameter) * volume), thumb])
+            .center_y(VOLUME_INPUT_HEIGHT);
+        stack![control]
+            .push_under(thumb_shadow)
+            .push_under(rail_shadow(VOLUME_INPUT_HEIGHT, shadow))
+            .into()
     }
 
     fn shadow(self, blur_radius: f32, opacity: f32) -> Shadow {
@@ -62,4 +114,18 @@ impl Glow {
             ..Shadow::default()
         }
     }
+}
+
+fn rail_shadow(input_height: f32, shadow: Shadow) -> container::Container<'static, Message> {
+    container(
+        container(Space::new())
+            .width(Fill)
+            .height(SLIDER_RAIL_HEIGHT)
+            .style(move |_| {
+                container::Style::default()
+                    .border(border::rounded(SLIDER_RAIL_HEIGHT / 2.0))
+                    .shadow(shadow)
+            }),
+    )
+    .center_y(input_height)
 }

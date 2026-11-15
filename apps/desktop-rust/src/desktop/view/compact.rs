@@ -318,17 +318,20 @@ fn play_button(
         .into()
 }
 
+pub(super) const SLIDER_RAIL_HEIGHT: f32 = 3.0;
+pub(super) const VOLUME_THUMB_RADIUS: f32 = 7.0;
+
 pub(super) fn slider_style(theme: &Theme, surfaces: Surfaces, volume: bool) -> slider::Style {
     let primary = theme.palette().primary;
     slider::Style {
         rail: slider::Rail {
             backgrounds: (primary.into(), surfaces.line.into()),
-            width: 3.0,
+            width: SLIDER_RAIL_HEIGHT,
             border: border::rounded(2),
         },
         handle: slider::Handle {
             shape: slider::HandleShape::Circle {
-                radius: if volume { 7.0 } else { 0.0 },
+                radius: if volume { VOLUME_THUMB_RADIUS } else { 0.0 },
             },
             background: primary.into(),
             border_width: 0.0,
