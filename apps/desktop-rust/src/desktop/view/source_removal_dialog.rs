@@ -1,13 +1,13 @@
 use iced::{
-    Color, ContentFit, Element, Event, Fill, Font, Padding, Pixels, border, color,
+    Color, ContentFit, Element, Event, Fill, Font, Length, Padding, Pixels, border, color,
     keyboard::{self, Key, Modifiers, key::Named},
-    widget::{button, column, container, row, stack, svg, text},
+    widget::{button, column, container, row, scrollable, stack, svg, text},
     window,
 };
 
 use crate::{
     appearance::{Appearance, Surfaces},
-    desktop::{Message, library_sources::Operation, source_removal::Removal},
+    desktop::{Message, library_sources::Operation, source_removal::Removal, windows::LIBRARY_MIN},
 };
 
 use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal};
@@ -19,9 +19,12 @@ const CONTENT_INSET: f32 = 25.0;
 const TEXT_GAP: f32 = 12.0;
 const ACTION_INSET: f32 = 24.0;
 const ACTION_GAP: f32 = 8.0;
+const ACTION_HEIGHT: f32 = 30.0;
 const FOCUS_OUTSET: f32 = 5.0;
 const SHADOW_INSET: f32 = 88.0;
 const SHADOW: &[u8] = include_bytes!("../../../assets/materials/dialog-shadow.svg");
+const MAX_COPY_HEIGHT: f32 =
+    LIBRARY_MIN.height - 2.0 * (SHADOW_INSET + CONTENT_INSET) - ACTION_INSET - ACTION_HEIGHT;
 
 pub(in crate::desktop) fn layer<'a>(
     page: Element<'a, Message>,
@@ -96,12 +99,11 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
     );
     let actions = row![cancel, confirm].spacing(ACTION_GAP - 2.0 * FOCUS_OUTSET);
     let inner_inset = CONTENT_INSET - FOCUS_OUTSET;
+    let copy = container(scrollable(copy).width(Fill).height(Length::Shrink))
+        .padding([0.0, FOCUS_OUTSET])
+        .max_height(MAX_COPY_HEIGHT);
     let panel = container(
-        column![
-            container(copy).padding([0.0, FOCUS_OUTSET]),
-            container(actions).align_right(Fill),
-        ]
-        .spacing(ACTION_INSET - FOCUS_OUTSET),
+        column![copy, container(actions).align_right(Fill)].spacing(ACTION_INSET - FOCUS_OUTSET),
     )
     .padding(Padding {
         top: CONTENT_INSET,
@@ -140,7 +142,7 @@ fn action(
     let (surfaces, accent, danger) = colors;
     let focused = focused && message.is_some();
     let control = button(text(label).size(13).line_height(Pixels(18.0)))
-        .height(30)
+        .height(ACTION_HEIGHT)
         .padding([6, 12])
         .style(move |theme, status| {
             let mut style = library::bordered_button(theme, status, surfaces);
