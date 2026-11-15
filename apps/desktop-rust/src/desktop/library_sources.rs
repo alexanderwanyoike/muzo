@@ -177,8 +177,17 @@ fn run_with_selection(
             None
         }
         Operation::Remove(id) => {
-            catalogue.remove(&id)?;
-            previous_source.clone()
+            let mut snapshot = catalogue.remove_with_snapshot(&id, |catalogue| {
+                read_snapshot(
+                    catalogue,
+                    previous_source,
+                    selected_playlist,
+                    None,
+                    warnings,
+                )
+            })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::CreatePlaylist(name) => {
             let transaction = catalogue.begin_write()?;
