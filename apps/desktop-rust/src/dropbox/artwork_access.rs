@@ -12,6 +12,9 @@ use crate::{
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
 const TOKEN_EXPIRY_MARGIN: u64 = 30;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Default)]
 pub(crate) struct ArtworkAccess(Mutex<Authorizations>);
 
