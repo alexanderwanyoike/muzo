@@ -3,8 +3,6 @@ use image::{DynamicImage, GrayImage, Luma, Rgba, RgbaImage, imageops};
 
 use crate::{artwork_cache::decode_cover, track::Track};
 
-const BACKGROUND_EDGE: u32 = 64;
-const BACKGROUND_SIGMA: f32 = 10.0;
 pub(super) const SLEEVE_PAD: f32 = 36.0;
 const SLEEVE_RADIUS: u32 = 8;
 const SLEEVE_SHADOW_OFFSET: u32 = 12;
@@ -15,7 +13,6 @@ pub(super) const SLEEVE_EDGE: u32 = 240;
 #[derive(Default)]
 pub(super) struct Cover {
     thumbnail: Option<Handle>,
-    background: Option<Handle>,
     sleeve: Option<Handle>,
 }
 
@@ -24,15 +21,10 @@ impl Cover {
         let Some(artwork) = track.and_then(Track::artwork).and_then(decode_cover) else {
             return Self::default();
         };
-        let background = artwork
-            .thumbnail(BACKGROUND_EDGE, BACKGROUND_EDGE)
-            .blur(BACKGROUND_SIGMA)
-            .into_rgba8();
         let square = centered_square(artwork);
         let sleeve = sleeve_pixels(&square, SLEEVE_EDGE, SLEEVE_RADIUS);
         Self {
             thumbnail: Some(handle(square.into_rgba8())),
-            background: Some(handle(background)),
             sleeve: Some(handle(sleeve)),
         }
     }
@@ -43,10 +35,6 @@ impl Cover {
 
     pub(super) fn thumbnail(&self) -> Option<&Handle> {
         self.thumbnail.as_ref()
-    }
-
-    pub(super) fn background(&self) -> Option<&Handle> {
-        self.background.as_ref()
     }
 }
 

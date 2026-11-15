@@ -5,10 +5,11 @@
 - [ ] Verify representative appearances in a private desktop session.
 - [ ] Preserve legacy preferences and complete native keyboard and layout parity.
 
-The mini player follows the existing compact player's artwork layer and opacity.
-It uses [image's Gaussian blur](https://docs.rs/image/0.25.10/image/enum.DynamicImage.html#method.blur)
-on a small cover and [Iced's lower stack layer](https://docs.rs/iced/0.14.0/iced/widget/struct.Stack.html#method.push_under)
-to keep transport controls above it.
+The window shell follows Showbiz's inset workspace and solid rounded panels.
+Muzo's appearance palette supplies the panel and accent colors. The library,
+mini player and expanded queue share a 32 logical pixel title bar, with small
+caption symbols centered in full-size controls. The mini player keeps the cover
+and shadows inside the playback panel. Queue rows retain their cover thumbnails.
 
 The visual reference is the Electron Studio theme. Compact and expanded window
 sizes, artwork and controls follow `player-window-mode.ts` and

@@ -66,7 +66,7 @@ fn header_input(
     events: impl IntoIterator<Item = (Point, mouse::Event)>,
 ) -> Vec<Message> {
     desktop.sidebar.layout_width(width);
-    let mut view = desktop.view(desktop.windows.library_id());
+    let mut view = desktop.workspace(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let bounds = Rectangle::with_size(Size::new(width, 800.0));

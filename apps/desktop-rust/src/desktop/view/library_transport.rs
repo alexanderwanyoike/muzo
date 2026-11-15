@@ -187,16 +187,15 @@ pub(super) fn view<'a>(
     let volume = container(volume)
         .align_x(Alignment::End)
         .width(columns.volume);
-    let surface = iced::widget::stack![
-        crate::desktop::material::chrome(preferences, surfaces, TRANSPORT_HEIGHT),
-        container(
-            row![controls, container(display).center_x(Fill), volume]
-                .spacing(columns.gap)
-                .align_y(Alignment::Center)
-        )
-        .padding([0.0, columns.padding])
-        .center_y(TRANSPORT_HEIGHT),
-    ];
+    let surface = container(
+        row![controls, container(display).center_x(Fill), volume]
+            .spacing(columns.gap)
+            .align_y(Alignment::Center),
+    )
+    .width(Fill)
+    .padding([0.0, columns.padding])
+    .center_y(TRANSPORT_HEIGHT)
+    .style(move |_| container::Style::default().background(surfaces.chrome));
     let mini = row![
         Space::new().width(Fill),
         transport_button(

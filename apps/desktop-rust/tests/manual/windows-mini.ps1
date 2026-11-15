@@ -12,6 +12,11 @@ $exitTimeoutMilliseconds = 2500
 $miniWidth = 420
 $miniHeight = 560
 $queueWidth = 740
+$captionCenterY = 16
+$closeInset = 16
+$maximizeInset = 48
+$minimizeInset = 80
+$pointerSettleMilliseconds = 80
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;
@@ -25,9 +30,14 @@ public static class MuzoWindows
     public const uint SwpNoSize = 0x0001;
     public const uint SwpNoZOrder = 0x0004;
     public const uint SwpNoActivate = 0x0010;
+    public const uint LeftButtonDown = 0x0002;
+    public const uint LeftButtonUp = 0x0004;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct Rect { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Point { public int X, Y; }
 
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
@@ -40,6 +50,10 @@ public static class MuzoWindows
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr window);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window);
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr window);
+    [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr window, ref Point point);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern void mouse_event(
+        uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(
         IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
     [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(
@@ -82,6 +96,23 @@ function Wait-MuzoWindow([string] $Stage, [scriptblock] $Match, [switch] $Activa
 function Send-MuzoKeys([IntPtr] $Window, [string] $Keys) {
     if ([MuzoWindows]::GetForegroundWindow() -ne $Window) { throw 'Muzo lost focus before sending keys.' }
     [Windows.Forms.SendKeys]::SendWait($Keys)
+}
+
+function Click-MuzoCaption([IntPtr] $Window, [int] $Inset) {
+    if ([MuzoWindows]::GetForegroundWindow() -ne $Window) { throw 'Muzo lost focus before clicking its title bar.' }
+    $client = [MuzoWindows+Rect]::new()
+    if (![MuzoWindows]::GetClientRect($Window, [ref] $client)) { throw 'Could not read the Muzo client area.' }
+    $scale = [MuzoWindows]::GetDpiForWindow($Window) / 96.0
+    $point = [MuzoWindows+Point]::new()
+    $point.X = $client.Right - [int] [Math]::Round($Inset * $scale)
+    $point.Y = [int] [Math]::Round($captionCenterY * $scale)
+    if (![MuzoWindows]::ClientToScreen($Window, [ref] $point) -or ![MuzoWindows]::SetCursorPos($point.X, $point.Y)) {
+        throw 'Could not position the pointer on the Muzo title bar.'
+    }
+    Start-Sleep -Milliseconds $pointerSettleMilliseconds
+    [MuzoWindows]::mouse_event([MuzoWindows]::LeftButtonDown, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds $pointerSettleMilliseconds
+    [MuzoWindows]::mouse_event([MuzoWindows]::LeftButtonUp, 0, 0, 0, [UIntPtr]::Zero)
 }
 
 function Get-WindowBounds([IntPtr] $Window) {
@@ -162,6 +193,17 @@ try {
     }
     Save-MuzoWindow $mini 'windows-mini'
 
+    Click-MuzoCaption $mini $maximizeInset
+    $maximized = Wait-MuzoWindow 'the maximized mini player' {
+        param($window)
+        $window -eq $mini -and [MuzoWindows]::IsZoomed($window)
+    }
+    Click-MuzoCaption $maximized $maximizeInset
+    $null = Wait-MuzoWindow 'the restored mini player' {
+        param($window)
+        $window -eq $mini -and (Test-ClientSize $window $miniWidth $miniHeight)
+    }
+
     Send-MuzoKeys $mini '^q'
     $expanded = Wait-MuzoWindow 'the expanded mini player queue' {
         param($window)
@@ -182,7 +224,25 @@ try {
             (Get-WindowBounds $window).Equals($libraryBounds) -and ![MuzoWindows]::IsWindow($mini)
     }
     Save-MuzoWindow $restored 'windows-library-restored'
-    Write-Host 'Verified the Windows compact window, queue expansion and collapse, and maximized library restoration.'
+
+    Send-MuzoKeys $restored '^m'
+    $closeTarget = Wait-MuzoWindow 'the reopened mini player' {
+        param($window)
+        $window -ne $library -and (Test-ClientSize $window $miniWidth $miniHeight)
+    }
+    Click-MuzoCaption $closeTarget $closeInset
+    $restored = Wait-MuzoWindow 'the library after closing the mini player' {
+        param($window)
+        $window -eq $library -and [MuzoWindows]::IsZoomed($window) -and ![MuzoWindows]::IsWindow($closeTarget)
+    }
+
+    Click-MuzoCaption $restored $minimizeInset
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    while (![MuzoWindows]::IsIconic($library) -and $timer.Elapsed.TotalSeconds -lt $windowTimeoutSeconds) {
+        Start-Sleep -Milliseconds $windowPollMilliseconds
+    }
+    if (![MuzoWindows]::IsIconic($library)) { throw 'The library stayed visible after clicking Minimize.' }
+    Write-Host 'Verified the Windows title bar controls, mini player queue and maximized library restoration.'
 } catch {
     $testFailed = $true
     throw
