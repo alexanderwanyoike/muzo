@@ -1,5 +1,5 @@
 use iced::{
-    Color, Event, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
+    Event, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
     advanced::{
         clipboard,
         graphics::Viewport,
@@ -21,7 +21,6 @@ use crate::appearance::sidebar::SidebarWidth;
 
 use super::{
     CataloguePaths, Desktop, LibraryPage, Message, Operation, Sources,
-    cover_layout_tests::paint,
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
@@ -342,47 +341,76 @@ fn details_gutter(desktop: &Desktop) -> f32 {
 }
 
 #[test]
-fn it_draws_the_focus_outline_after_keyboard_navigation() {
+fn it_marks_keyboard_focus_inside_the_action_without_an_outer_outline() {
     let (mut desktop, _root) = desktop();
     desktop.appearance.theme = "walnut".into();
     desktop.appearance.mode = "dark".into();
     desktop.appearance.accent = "glow-cyan".into();
     request(&mut desktop);
 
-    let accent = desktop.appearance.accent_ink();
-    assert_eq!(focus_outlines(&desktop, accent), [false, false]);
+    let normal = dialog_pixels(&desktop, mouse::Cursor::Unavailable);
+    let labels = labels(&desktop);
+    let cancel = labels["Cancel"];
+    let confirm = labels["Remove source"];
+    let fill_pixel = |pixels: &[u8], label: Rectangle| {
+        pixel(pixels, Point::new(label.x - 5.0, label.center_y()))
+    };
+    let outside = |pixels: &[u8], label: Rectangle| {
+        (7..=12)
+            .map(|distance| {
+                pixel(
+                    pixels,
+                    Point::new(label.center_x(), label.y - distance as f32),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
 
     send_key(&mut desktop, Named::Tab, Modifiers::empty());
-    assert_eq!(focus_outlines(&desktop, accent), [false, true]);
+    let confirm_focused = dialog_pixels(&desktop, mouse::Cursor::Unavailable);
+    assert_ne!(
+        fill_pixel(&confirm_focused, confirm),
+        fill_pixel(&normal, confirm)
+    );
+    assert_eq!(
+        fill_pixel(&confirm_focused, cancel),
+        fill_pixel(&normal, cancel)
+    );
+    assert_eq!(
+        outside(&confirm_focused, confirm),
+        outside(&normal, confirm)
+    );
 
     send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
-    assert_eq!(focus_outlines(&desktop, accent), [true, false]);
+    let cancel_focused = dialog_pixels(&desktop, mouse::Cursor::Unavailable);
+    assert_ne!(
+        fill_pixel(&cancel_focused, cancel),
+        fill_pixel(&normal, cancel)
+    );
+    assert_eq!(
+        fill_pixel(&cancel_focused, confirm),
+        fill_pixel(&normal, confirm)
+    );
+    assert_eq!(outside(&cancel_focused, cancel), outside(&normal, cancel));
 }
 
 #[test]
-fn it_uses_pulses_neutral_focus_and_hover_colors_in_both_modes() {
+fn it_uses_pulses_neutral_pointer_hover_colors_in_both_modes() {
     let (mut desktop, _root) = desktop();
     desktop.appearance.theme = "pulse".into();
     desktop.appearance.accent = "glow-cyan".into();
-    for (mode, ink, hover) in [
-        ("light", iced::color!(0x171717), [222, 222, 222, 255]),
-        ("dark", Color::WHITE, [42, 42, 42, 255]),
-    ] {
+    for (mode, hover) in [("light", [222, 222, 222, 255]), ("dark", [42, 42, 42, 255])] {
         desktop.appearance.mode = mode.into();
         request(&mut desktop);
-        send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
-        send_key(&mut desktop, Named::Tab, Modifiers::empty());
-
-        assert_eq!(focus_outlines(&desktop, ink), [true, false], "{mode}");
-        assert_eq!(cancel_hover_pixel(&desktop), hover, "{mode}");
+        let cancel = labels(&desktop)["Cancel"];
+        let sample = Point::new(cancel.x - 5.0, cancel.center_y());
+        let pixels = dialog_pixels(&desktop, mouse::Cursor::Available(sample));
+        assert_eq!(pixel(&pixels, sample), hover, "{mode}");
         let _ = desktop.update(Message::CancelSourceRemoval);
     }
 }
 
-fn cancel_hover_pixel(desktop: &Desktop) -> [u8; 4] {
-    let cancel = labels(desktop)["Cancel"];
-    let sample = Point::new(cancel.x - 5.0, cancel.center_y());
-    let cursor = mouse::Cursor::Available(sample);
+fn dialog_pixels(desktop: &Desktop, cursor: mouse::Cursor) -> Vec<u8> {
     let window = desktop.windows.library_id();
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let mut ui = UserInterface::build(desktop.view(window), FRAME, Cache::new(), &mut renderer);
@@ -398,26 +426,12 @@ fn cancel_hover_pixel(desktop: &Desktop) -> [u8; 4] {
     let theme = desktop.theme(window);
     ui.draw(&mut renderer, &theme, &Style::default(), cursor);
     let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
-    let pixels = renderer.screenshot(frame, 1.0, theme.palette().background);
-    let offset = (sample.y as usize * frame.width as usize + sample.x as usize) * 4;
-    pixels[offset..offset + 4].try_into().unwrap()
+    renderer.screenshot(frame, 1.0, theme.palette().background)
 }
 
-fn focus_outlines(desktop: &Desktop, ink: Color) -> [bool; 2] {
-    let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
-    let pixels = paint(desktop, desktop.windows.library_id(), frame);
-    let labels = labels(desktop);
-    let ink = ink.into_rgba8();
-    ["Cancel", "Remove source"].map(|action| {
-        let label = labels[action];
-        let x = label.center_x() as usize;
-        let top = (label.y - 12.0) as usize;
-        let bottom = (label.y + label.height + 12.0).ceil() as usize;
-        (top..bottom).any(|y| {
-            let offset = (y * frame.width as usize + x) * 4;
-            pixels[offset..offset + 4] == ink
-        })
-    })
+fn pixel(pixels: &[u8], point: Point) -> [u8; 4] {
+    let offset = (point.y as usize * FRAME.width as usize + point.x as usize) * 4;
+    pixels[offset..offset + 4].try_into().unwrap()
 }
 
 #[test]
