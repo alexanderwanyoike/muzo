@@ -34,6 +34,7 @@ use iced::{Element, Subscription, Task, Theme, window};
 use rodio::{DeviceSinkBuilder, MixerDeviceSink};
 
 use crate::{
+    artwork_cache::{ArtworkCache, Revision},
     local_track::read_track,
     playback::Playback,
     session::{Session, SessionError},
@@ -113,8 +114,8 @@ pub enum Message {
     TrackEditorFieldSubmit,
     SaveTrackEdit(bool),
     CloseTrackEdit,
-    RemoteCachedCoverReady(u64, Option<Vec<u8>>),
-    RemoteTrackReady(u64, Result<Track, String>),
+    RemoteCachedCoverReady(u64, Result<Option<CachedCover>, String>),
+    RemoteTrackReady(u64, Result<PreparedTrack, String>),
     FilesRead(Result<row_cover::OpenedFiles, String>),
     Select(usize),
     TogglePlayback,
@@ -808,16 +809,27 @@ impl Desktop {
                 }
                 Task::none()
             }
-            Message::RemoteCachedCoverReady(request, cover) => {
-                if request == self.playback_request
-                    && let (Some(index), Some(bytes), Some(session)) = (
-                        self.pending_track.or(self.failed_track),
-                        cover,
-                        self.session.as_mut(),
-                    )
-                    && let Some(track) = session.tracks().get(index)
+            Message::RemoteCachedCoverReady(request, result) => {
+                if request != self.playback_request {
+                    return Task::none();
+                }
+                let cover = match result {
+                    Ok(cover) => cover,
+                    Err(error) => {
+                        eprintln!("Could not read cached Dropbox artwork: {error}");
+                        return Task::none();
+                    }
+                };
+                if let (Some(index), Some(cover), Some(session)) = (
+                    self.pending_track.or(self.failed_track),
+                    cover,
+                    self.session.as_mut(),
+                ) && let Some(track) = session.tracks().get(index)
                 {
-                    let track = track.clone().with_artwork(bytes);
+                    if let Some(id) = track.indexed_id() {
+                        self.queue_artwork.remember(id, cover.revision);
+                    }
+                    let track = track.clone().with_artwork(cover.bytes);
                     let _ = session.replace_track(index, track.clone());
                     if session.current().is_none() {
                         self.cover = Cover::from_track(Some(&track));
@@ -833,8 +845,14 @@ impl Desktop {
                     return Task::none();
                 };
                 match result {
-                    Ok(track) => {
+                    Ok(PreparedTrack {
+                        track,
+                        artwork_revision,
+                    }) => {
                         if let Some(id) = track.indexed_id() {
+                            if let Some(revision) = artwork_revision {
+                                self.queue_artwork.remember(id, revision);
+                            }
                             self.queue_covers.remove(id);
                             if self.queue_covers.len() < row_cover::ROW_LIMIT
                                 && let Some(handle) =
@@ -1519,21 +1537,22 @@ impl Desktop {
                 async move {
                     tokio::task::spawn_blocking(move || {
                         let revision = artwork_revision(&cover_paths, &cover_track)?;
-                        crate::artwork_cache::ArtworkCache::new(cover_paths.artwork_cache())
-                            .lookup(&revision)
+                        let bytes =
+                            ArtworkCache::new(cover_paths.artwork_cache()).lookup(&revision)?;
+                        Some(CachedCover { revision, bytes })
                     })
                     .await
-                    .ok()
-                    .flatten()
+                    .map_err(|error| error.to_string())
                 },
                 move |cover| Message::RemoteCachedCoverReady(request, cover),
             );
             let audio = Task::perform(
                 async move {
                     tokio::task::spawn_blocking(move || {
+                        let revision = artwork_revision(&paths, &track);
                         let local = dropbox_panel::remote_audio(&paths, &library, &path)
                             .map_err(|error| error.to_string())?;
-                        Ok(prepare_dropbox_track(&paths, track, local))
+                        Ok(prepare_dropbox_track(&paths, track, local, revision))
                     })
                     .await
                     .map_err(|error| format!("Could not prepare the Dropbox track: {error}"))?
@@ -1920,7 +1939,34 @@ fn appimage_integration() -> Task<Message> {
     Task::none()
 }
 
-fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -> Track {
+#[derive(Debug, Clone)]
+pub struct CachedCover {
+    revision: Revision,
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PreparedTrack {
+    track: Track,
+    artwork_revision: Option<Revision>,
+}
+
+#[cfg(test)]
+impl From<Track> for PreparedTrack {
+    fn from(track: Track) -> Self {
+        Self {
+            track,
+            artwork_revision: None,
+        }
+    }
+}
+
+fn prepare_dropbox_track(
+    paths: &CataloguePaths,
+    track: Track,
+    local: PathBuf,
+    revision: Option<Revision>,
+) -> PreparedTrack {
     let (metadata, title) = crate::local_track::read_track_with_embedded_title(local.clone());
     if let Some(id) = track.indexed_id()
         && let Err(error) = paths.open().and_then(|catalogue| {
@@ -1935,27 +1981,37 @@ fn prepare_dropbox_track(paths: &CataloguePaths, track: Track, local: PathBuf) -
         eprintln!("Could not cache Dropbox track metadata: {error}");
     }
     let track = track.with_audio(local, &metadata).without_artwork();
-    cache_artwork(Some(paths), track, || {
+    let track = cache_artwork(Some(paths), revision.as_ref(), track, || {
         metadata.artwork().map(<[u8]>::to_vec)
-    })
+    });
+    PreparedTrack {
+        track,
+        artwork_revision: revision,
+    }
 }
 
-fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> Track {
+fn prepare_local_track(paths: Option<&CataloguePaths>, track: Track) -> PreparedTrack {
     let path = track.path().to_owned();
-    cache_artwork(paths, track, || {
+    let revision = paths.and_then(|paths| artwork_revision(paths, &track));
+    let track = cache_artwork(paths, revision.as_ref(), track, || {
         read_track(path).artwork().map(<[u8]>::to_vec)
-    })
+    });
+    PreparedTrack {
+        track,
+        artwork_revision: revision,
+    }
 }
 
 fn cache_artwork(
     paths: Option<&CataloguePaths>,
+    revision: Option<&Revision>,
     track: Track,
     read: impl FnOnce() -> Option<Vec<u8>>,
 ) -> Track {
-    let revision = paths.and_then(|paths| artwork_revision(paths, &track));
     let cover = match paths.zip(revision) {
-        Some((paths, revision)) => crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
-            .get_or_read(&revision, read),
+        Some((paths, revision)) => {
+            ArtworkCache::new(paths.artwork_cache()).get_or_read(revision, read)
+        }
         None => read().as_deref().and_then(crate::artwork_cache::thumbnail),
     };
     if let Some(bytes) = cover {
@@ -1964,10 +2020,7 @@ fn cache_artwork(
     track
 }
 
-fn artwork_revision(
-    paths: &CataloguePaths,
-    track: &Track,
-) -> Option<crate::artwork_cache::Revision> {
+fn artwork_revision(paths: &CataloguePaths, track: &Track) -> Option<Revision> {
     paths
         .open()
         .ok()?
