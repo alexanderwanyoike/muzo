@@ -15,7 +15,7 @@ use super::{
     library_content, library_transport, playback_error, playlists,
     sidebar_divider::Divider,
     sources, tint,
-    window_chrome::{PANE_GUTTER, pane_style},
+    window_chrome::{PANE_GUTTER, PANE_RADIUS, pane_style},
 };
 
 const NAV_SUMMARY_HEIGHT: f32 = 33.0;
@@ -274,11 +274,11 @@ pub(super) fn settings<'a>(
             dropbox.view(surfaces).into(),
             preferences,
         ))
-            .id(crate::desktop::settings_scroll::SOURCE_SETUP)
-            .width(Fill),
+        .id(crate::desktop::settings_scroll::SOURCE_SETUP)
+        .width(Fill),
         settings_section(
             "Library folders",
-            "Add folders here. Filesystem libraries sync automatically while the app is open and reconcile when it starts.",
+            "Filesystem libraries sync automatically while Muzo is open and when it starts.",
             sources::folder_form(sources, surfaces),
             preferences,
         ),
@@ -310,16 +310,16 @@ pub(super) fn settings_section<'a>(
     )
     .padding([16, 20])
     .width(Fill);
-    let header = iced::widget::stack![header]
-        .push_under(crate::desktop::material::chrome(appearance, surfaces, Fill))
-        .clip(true);
     container(column![
         header,
         line(surfaces),
         container(body).padding(20).width(Fill)
     ])
     .width(Fill)
-    .style(move |_| framed(surfaces.raised, surfaces, 4))
+    .style(move |_| {
+        pane_style(surfaces.raised)
+            .border(border::rounded(PANE_RADIUS).width(1).color(surfaces.line))
+    })
     .into()
 }
 
