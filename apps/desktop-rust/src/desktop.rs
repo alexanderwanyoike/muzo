@@ -1218,6 +1218,12 @@ impl Desktop {
                 let opened = self.windows.mini_opened(id);
                 if self.windows.is_mini(id) && self.windows.queue_open() {
                     Task::batch([opened, self.load_row_covers()])
+                } else if self.windows.is_library(id)
+                    && self.page == LibraryPage::Settings
+                    && let Some(appearance_focus::Choice::Dropbox(control)) = &self.appearance_focus
+                    && self.dropbox.focus_stops().contains(control)
+                {
+                    opened.chain(appearance_focus::Choice::Dropbox(control.clone()).take_focus())
                 } else {
                     opened
                 }
