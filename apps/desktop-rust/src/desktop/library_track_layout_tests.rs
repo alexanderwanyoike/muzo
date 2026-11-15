@@ -76,7 +76,7 @@ fn track_table(width: f32) -> Desktop {
 
 fn track_table_layout(desktop: &Desktop, width: f32) -> Table {
     let frame = Size::new(width, 800.0);
-    let mut view = desktop.view(desktop.windows.library_id());
+    let mut view = desktop.workspace(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
     let renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let widget = view.as_widget_mut();

@@ -244,7 +244,7 @@ fn paint_source_sidebar(desktop: &Desktop, cursor: mouse::Cursor) -> Vec<u8> {
     let id = desktop.windows.library_id();
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let mut ui = UserInterface::build(
-        desktop.view(id),
+        desktop.workspace(id),
         (FRAME.width, FRAME.height).into(),
         Cache::new(),
         &mut renderer,
@@ -264,7 +264,7 @@ fn paint_source_sidebar(desktop: &Desktop, cursor: mouse::Cursor) -> Vec<u8> {
 }
 
 fn click(desktop: &Desktop, point: Point) -> Vec<Message> {
-    let mut view = desktop.view(desktop.windows.library_id());
+    let mut view = desktop.workspace(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let bounds = Rectangle::with_size(Size::new(FRAME.width as f32, FRAME.height as f32));

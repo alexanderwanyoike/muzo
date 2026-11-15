@@ -77,7 +77,7 @@ pub(super) fn paint_with_cursor(
     size: Size<u32>,
     cursor: mouse::Cursor,
 ) -> Vec<u8> {
-    let mut view = desktop.view(id);
+    let mut view = desktop.workspace(id);
     let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&view);
     let bounds = Rectangle::with_size((size.width, size.height).into());

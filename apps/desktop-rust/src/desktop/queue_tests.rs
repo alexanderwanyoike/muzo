@@ -796,8 +796,8 @@ fn it_paints_the_walnut_material_in_the_mini_window() {
         &bounds,
     );
     let pixels = renderer.screenshot(Size::new(420, 560), 1.0, Color::WHITE);
-    let header = pixels.chunks_exact(420 * 4).nth(9).unwrap();
-    let grain = &header[70 * 4..230 * 4];
+    let material = pixels.chunks_exact(420 * 4).nth(55).unwrap();
+    let grain = &material[70 * 4..230 * 4];
     assert!(grain.chunks_exact(4).any(|pixel| pixel != &grain[..4]));
 }
 
