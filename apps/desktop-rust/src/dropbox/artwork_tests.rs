@@ -96,3 +96,25 @@ fn range_request(stream: &std::net::TcpStream) -> (usize, usize, String) {
     let (start, end) = range.split_once('-').unwrap();
     (start.parse().unwrap(), end.parse().unwrap(), headers)
 }
+
+#[test]
+fn it_requires_reauthorization_when_dropbox_rejects_an_artwork_token() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        range_request(&stream);
+        stream
+            .write_all(
+                b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+            .unwrap();
+    });
+    let client = Client::for_endpoint(&address).unwrap();
+    let result = client.read_artwork("expired-fixture-token", "/Music/Track.mp3");
+    assert!(
+        matches!(result, Err(super::DropboxError::Reconnect)),
+        "expected a new authorization after Dropbox rejected the token: {result:?}"
+    );
+    server.join().unwrap();
+}
