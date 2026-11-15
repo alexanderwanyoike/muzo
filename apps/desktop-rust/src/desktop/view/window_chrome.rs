@@ -29,6 +29,7 @@ pub(in crate::desktop) fn resize_edges(
         Length::Fixed,
         alignment::{Horizontal, Vertical},
         mouse::Interaction,
+        padding,
         widget::stack,
         window::Direction,
     };
@@ -61,22 +62,24 @@ pub(in crate::desktop) fn resize_edges(
             fill,
             ResizingHorizontally
         ),
-        grip(
+        container(grip(
             Direction::East,
             Right,
             Center,
             EDGE,
             fill,
-            ResizingHorizontally
-        ),
-        grip(
+            ResizingHorizontally,
+        ))
+        .padding(padding::top(TITLE_HEIGHT)),
+        container(grip(
             Direction::North,
             Middle,
             Top,
             fill,
             EDGE,
-            ResizingVertically
-        ),
+            ResizingVertically,
+        ))
+        .padding(padding::right(CAPTION_WIDTH * Caption::COUNT)),
         grip(
             Direction::South,
             Middle,
@@ -92,14 +95,6 @@ pub(in crate::desktop) fn resize_edges(
             EDGE,
             EDGE,
             ResizingDiagonallyDown
-        ),
-        grip(
-            Direction::NorthEast,
-            Right,
-            Top,
-            EDGE,
-            EDGE,
-            ResizingDiagonallyUp
         ),
         grip(
             Direction::SouthWest,
@@ -172,6 +167,9 @@ enum Caption {
 }
 
 impl Caption {
+    #[cfg(not(target_os = "macos"))]
+    const COUNT: u32 = 3;
+
     fn glyph(self) -> svg::Svg<'static> {
         let path = match self {
             Self::Minimize => "M1.5 8.5h7",
