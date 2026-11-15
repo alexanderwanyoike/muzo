@@ -211,3 +211,87 @@ fn it_preserves_ready_covers_until_the_backing_audio_changes() {
         "changed audio must load fresh artwork"
     );
 }
+
+#[test]
+fn it_keeps_rows_after_an_expanded_editor_in_the_cover_viewport() {
+    use iced::advanced::widget::operation::scrollable::{AbsoluteOffset, scroll_to};
+    use iced::{Event, Font, Pixels, Renderer, Size, advanced::clipboard, mouse, window};
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use crate::desktop::{
+        library_sources::TrackEditor, queue_tests::setup, track_editor_focus::SONGS_SCROLL,
+    };
+
+    let (mut desktop, _) = setup();
+    let mut source = snapshot(&["source"]);
+    source.selected = Some("source".into());
+    source.tracks = (0..40)
+        .map(|index| IndexedTrack {
+            id: index.to_string(),
+            title: format!("Track {index}"),
+            artist: String::new(),
+            album: None,
+            metadata_overridden: false,
+            path: PathBuf::from(format!("track-{index}.mp3")),
+            plays: 0,
+            duration_seconds: 0,
+            library_id: "source".into(),
+            file_size: 0,
+            file_mtime: 0,
+        })
+        .collect();
+    desktop.sources.snapshot = Some(source);
+    let visible_start = |desktop: &crate::desktop::Desktop| {
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut ui = UserInterface::build(
+            desktop.workspace(window::Id::unique()),
+            Size::new(1040.0, 750.0),
+            Cache::default(),
+            &mut renderer,
+        );
+        ui.operate(
+            &renderer,
+            &mut scroll_to(
+                SONGS_SCROLL.into(),
+                AbsoluteOffset {
+                    x: None,
+                    y: Some(620.0),
+                },
+            ),
+        );
+        let mut messages = Vec::new();
+        ui.update(
+            &[Event::Window(window::Event::RedrawRequested(
+                iced::time::Instant::now(),
+            ))],
+            mouse::Cursor::Unavailable,
+            &mut renderer,
+            &mut clipboard::Null,
+            &mut messages,
+        );
+        messages
+            .into_iter()
+            .find_map(|message| {
+                if let Message::ArtworkViewport(LibraryPage::Songs, rows) = message {
+                    Some(rows.start)
+                } else {
+                    None
+                }
+            })
+            .expect("Songs should report the viewport after scrolling")
+    };
+    let collapsed = visible_start(&desktop);
+    desktop.sources.editing = Some(Box::new(TrackEditor {
+        track_id: "0".into(),
+        library_id: "source".into(),
+        fields: Default::default(),
+        overridden: false,
+        error: None,
+        action_focus: None,
+    }));
+    let expanded = visible_start(&desktop);
+    assert!(
+        expanded < collapsed,
+        "the expanded row should shift which covers are visible"
+    );
+}
