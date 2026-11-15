@@ -227,8 +227,11 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::SelectPlaylist(id) => {
-            selected_playlist = Some(id);
-            previous_source
+            let mut snapshot = read_snapshot(&catalogue, None, Some(id), None, warnings)?;
+            snapshot.selected = previous_source
+                .filter(|id| snapshot.libraries.iter().any(|source| source.id == *id));
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
@@ -408,6 +411,7 @@ pub(super) struct Sources {
     pending_editor: Option<(String, String)>,
     selection_changed_during_operation: bool,
     loading_source: bool,
+    loading_playlist_selection: bool,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -445,6 +449,7 @@ impl Sources {
             pending_editor: None,
             selection_changed_during_operation: false,
             loading_source: false,
+            loading_playlist_selection: false,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -684,6 +689,7 @@ impl Sources {
                 | Operation::Reconcile(..)
         );
         self.loading_source = matches!(operation, Operation::Select(_));
+        self.loading_playlist_selection = matches!(operation, Operation::SelectPlaylist(_));
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
             .removal
@@ -760,6 +766,7 @@ impl Sources {
     pub fn apply(&mut self, result: Result<Snapshot, UpdateError>) {
         self.busy = false;
         self.loading_source = false;
+        let loading_playlist_selection = std::mem::take(&mut self.loading_playlist_selection);
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
@@ -828,10 +835,24 @@ impl Sources {
             self.folder_name.clear();
             self.folder_location.clear();
         }
-        if let Some(previous) = &self.snapshot {
+        let mut preserved_songs = false;
+        if let Some(previous) = &mut self.snapshot {
+            preserved_songs = loading_playlist_selection
+                && !selection_changed
+                && previous.selected == snapshot.selected;
+            if preserved_songs {
+                snapshot.tracks = std::mem::take(&mut previous.tracks);
+                for track in &snapshot.tracks {
+                    if let Some(cover) = previous.covers.remove(&track.id) {
+                        snapshot.covers.entry(track.id.clone()).or_insert(cover);
+                    }
+                }
+            }
             preserve_play_counts(&mut snapshot, previous);
         }
-        self.source_tracks_error = None;
+        if !preserved_songs {
+            self.source_tracks_error = None;
+        }
         self.error = snapshot.warnings.first().cloned();
         let roots: Vec<_> = snapshot
             .libraries
