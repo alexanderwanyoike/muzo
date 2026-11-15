@@ -60,7 +60,7 @@ pub enum Message {
     OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
-    SourcesUpdated(Result<Snapshot, String>),
+    SourcesUpdated(Result<Snapshot, library_sources::UpdateError>),
     SourceWatchTick,
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
