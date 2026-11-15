@@ -640,50 +640,82 @@ mod tests {
         use iced_runtime::{Action as UiAction, task};
 
         const CAPTURE: &str = "MUZO_AUTHORIZATION_BROWSER_TEST_RESULT";
-        const URL: &str = "https://www.dropbox.com/oauth2/authorize?fixture=true";
-        if std::env::var_os(CAPTURE).is_some() {
-            let mut settings = Settings::default();
-            let pending = settings.update(Action::OpenAuthorization(URL.into()), None);
-            if let Some(mut messages) = task::into_stream(pending) {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .build()
-                    .unwrap();
-                while let Some(message) = runtime.block_on(messages.next()) {
-                    if let UiAction::Output(Message::Dropbox(result)) = message {
-                        let _ = settings.update(result, None);
-                    }
-                }
+        const FIXTURE: &str = "MUZO_AUTHORIZATION_BROWSER_TEST_CASE";
+        if let Some(fixture) = std::env::var_os(FIXTURE) {
+            let mut settings = Settings {
+                app_key: "muzo-test-key".into(),
+                ..Default::default()
+            };
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .build()
+                .unwrap();
+            let mut pending = settings.update(Action::Begin, None);
+            while let Some(mut messages) = task::into_stream(pending) {
+                let Some(UiAction::Output(Message::Dropbox(result))) =
+                    runtime.block_on(messages.next())
+                else {
+                    panic!("expected a Dropbox authorization action");
+                };
+                pending = settings.update(result, None);
             }
-            assert!(settings.error.is_none());
+            assert!(settings.auth.is_some());
+            assert_eq!(
+                settings
+                    .error
+                    .as_deref()
+                    .map(|message| message.contains("Could not start the browser")),
+                (fixture == "handler-fails").then_some(true)
+            );
             return;
         }
 
-        let fixture = tempfile::tempdir().unwrap();
-        let capture = fixture.path().join("invocation");
-        for launcher in ["gio", "xdg-open"] {
-            let path = fixture.path().join(launcher);
-            fs::write(
-                &path,
-                format!("#!/bin/sh\nprintf '%s\\n' '{launcher}' \"$@\" > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\n"),
-            ).unwrap();
-            fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        for (mode, expected) in [
+            ("default", &["gio", "open"][..]),
+            ("handler-fails", &["gio", "open"][..]),
+            ("without-gio", &["xdg-open"][..]),
+        ] {
+            let fixture = tempfile::tempdir().unwrap();
+            let capture = fixture.path().join("invocation");
+            for launcher in ["gio", "xdg-open"] {
+                if mode == "without-gio" && launcher == "gio" {
+                    continue;
+                }
+                let status = if mode == "handler-fails" && launcher == "gio" {
+                    17
+                } else {
+                    0
+                };
+                let path = fixture.path().join(launcher);
+                fs::write(
+                    &path,
+                    format!("#!/bin/sh\nprintf '%s\\n' '{launcher}' \"$@\" > \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
+                ).unwrap();
+                fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+            }
+            let process = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "desktop::dropbox_panel::tests::it_uses_the_desktop_default_handler_for_dropbox_authorization",
+                ])
+                .env(CAPTURE, &capture)
+                .env(FIXTURE, mode)
+                .env("PATH", fixture.path())
+                .output()
+                .unwrap();
+            assert!(
+                process.status.success(),
+                "{mode}: {}",
+                String::from_utf8_lossy(&process.stdout)
+            );
+            let invoked = fs::read_to_string(capture).unwrap();
+            let (args, url) = invoked.trim_end().rsplit_once('\n').unwrap();
+            assert_eq!(args.split('\n').collect::<Vec<_>>(), expected);
+            assert!(
+                url.starts_with(
+                    "https://www.dropbox.com/oauth2/authorize?client_id=muzo-test-key&"
+                )
+            );
         }
-        let process = Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "desktop::dropbox_panel::tests::it_uses_the_desktop_default_handler_for_dropbox_authorization",
-            ])
-            .env(CAPTURE, &capture)
-            .env("PATH", fixture.path())
-            .output()
-            .unwrap();
-        assert!(
-            process.status.success(),
-            "{}",
-            String::from_utf8_lossy(&process.stdout)
-        );
-        let invoked = fs::read_to_string(capture).unwrap();
-        assert_eq!(invoked, format!("gio\nopen\n{URL}\n"));
     }
 
     #[test]
