@@ -9,7 +9,12 @@ use lofty::{config::WriteOptions, id3::v2::Id3v2Tag, picture::Picture, tag::TagE
 use super::Client;
 
 #[test]
-fn it_reads_embedded_dropbox_artwork_before_playback_using_only_a_byte_range() {
+fn it_reads_front_cover_in_the_first_dropbox_range_without_fetching_the_mp3_tail() {
+    use std::{
+        io::ErrorKind,
+        time::{Duration, Instant},
+    };
+
     const FILE_LENGTH: usize = 24 * 1024 * 1024;
     let mut cover = Cursor::new(Vec::new());
     DynamicImage::ImageRgba8(RgbaImage::from_pixel(4, 4, Rgba([243, 40, 109, 255])))
@@ -27,8 +32,23 @@ fn it_reads_embedded_dropbox_artwork_before_playback_using_only_a_byte_range() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = format!("http://{}", listener.local_addr().unwrap());
     let server = std::thread::spawn(move || {
+        let mut requests = 0;
         for expected_start in [0, FILE_LENGTH - 64 * 1024] {
-            let (mut stream, _) = listener.accept().unwrap();
+            let deadline = Instant::now() + Duration::from_millis(500);
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                        if Instant::now() >= deadline {
+                            return requests;
+                        }
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => panic!("Could not accept Dropbox range: {error}"),
+                }
+            };
+            stream.set_nonblocking(false).unwrap();
+            requests += 1;
             let (start, end, headers) = range_request(&stream);
             assert_eq!(start, expected_start);
             assert!(end - start < FILE_LENGTH / 10);
@@ -45,13 +65,19 @@ fn it_reads_embedded_dropbox_artwork_before_playback_using_only_a_byte_range() {
             )
             .unwrap();
             stream.write_all(&body).unwrap();
+            listener.set_nonblocking(true).unwrap();
         }
+        requests
     });
 
     let client = Client::for_endpoint(&address).unwrap();
     let result = client.read_artwork("fixture-token", "/Music/Track.mp3");
     assert_eq!(result.unwrap().as_deref(), Some(cover.as_slice()));
-    server.join().unwrap();
+    assert_eq!(
+        server.join().unwrap(),
+        1,
+        "requests beyond the embedded front cover"
+    );
 }
 
 #[test]
