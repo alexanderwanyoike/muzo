@@ -81,7 +81,11 @@ fn it_discards_artwork_completed_after_a_catalogue_revision() {
             generation: 0,
             id: "track".into(),
             target: Target::Library,
-            cover: Ok(Some(Handle::from_rgba(1, 1, vec![255; 4]))),
+            cover: Ok(Some(LoadedCover {
+                revision: Revision::new("fixture", "track", "track.mp3", 1, 1),
+                bytes: Vec::new(),
+                handle: Handle::from_rgba(1, 1, vec![255; 4]),
+            })),
         },
         Some(&mut snapshot.covers),
     );
@@ -199,7 +203,11 @@ fn it_keeps_the_thumbnail_limit_after_refresh_preserves_loaded_covers() {
             generation: 1,
             id: next.clone(),
             target: Target::Library,
-            cover: Ok(Some(cover)),
+            cover: Ok(Some(LoadedCover {
+                revision: Revision::new("fixture", &next, "track.mp3", 1, 1),
+                bytes: Vec::new(),
+                handle: cover,
+            })),
         },
         Some(&mut source.covers),
     );
