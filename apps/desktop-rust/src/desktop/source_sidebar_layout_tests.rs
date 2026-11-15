@@ -23,6 +23,7 @@ use super::{
 };
 
 const FRAME: Size<u32> = Size::new(850, 800);
+const SOURCE_NAME_CLICK_X: f32 = 150.0;
 const FIRST_SOURCE_Y: usize = 380;
 const SECOND_SOURCE_Y: usize = FIRST_SOURCE_Y + 32;
 
@@ -239,6 +240,52 @@ fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
     finish(&mut desktop, reload);
     let queued = desktop.update(Message::SourceWatchTick);
     finish(&mut desktop, queued);
+}
+
+#[test]
+fn it_does_not_click_the_replacement_for_a_source_removed_before_release() {
+    let mut desktop = desktop_with_sources();
+    let remaining = desktop.sources.snapshot.as_ref().unwrap().libraries[1]
+        .id
+        .clone();
+    let id = desktop.windows.library_id();
+    let size = (FRAME.width, FRAME.height).into();
+    let cursor = mouse::Cursor::Available(Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32));
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(desktop.view(id), size, Cache::new(), &mut renderer);
+    let mut messages = Vec::new();
+    ui.update(
+        &[Event::Mouse(mouse::Event::ButtonPressed(
+            mouse::Button::Left,
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(messages.is_empty());
+
+    let cache = ui.into_cache();
+    let mut next = desktop.sources.snapshot.clone().unwrap();
+    next.libraries.remove(0);
+    next.selected = None;
+    let _ = desktop.update(Message::SourcesUpdated(Ok(next)));
+    let mut ui = UserInterface::build(desktop.view(id), size, cache, &mut renderer);
+    ui.update(
+        &[Event::Mouse(mouse::Event::ButtonReleased(
+            mouse::Button::Left,
+        ))],
+        cursor,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(
+        !messages.iter().any(
+            |message| matches!(message, Message::SourceRowClicked(source) if source == &remaining)
+        ),
+        "releasing the removed row clicked its replacement: {messages:?}"
+    );
 }
 
 #[test]
