@@ -252,6 +252,71 @@ fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
 }
 
 #[test]
+fn it_shows_loading_tracks_when_the_selected_source_waits_for_a_scan() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let first = directory.path().join("Harbour Rehearsals");
+    let second = directory.path().join("Holloway Sessions");
+    std::fs::create_dir(&first).unwrap();
+    std::fs::create_dir(&second).unwrap();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    std::fs::copy(fixture, second.join("Recording.mp3")).unwrap();
+    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
+    let mut catalogue = run(&paths, Operation::Add(second)).unwrap();
+    let target = catalogue.selected.replace(previous.unwrap()).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(catalogue);
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+    assert!(reload.units() > 0);
+    let [choice]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, SECOND_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("the indexed source can be chosen during a scan");
+    let _ = desktop.update(choice);
+    assert_eq!(
+        desktop.sources.snapshot.as_ref().unwrap().selected.as_ref(),
+        Some(&target),
+    );
+
+    let labels = |desktop: &Desktop| {
+        rendered_labels(
+            desktop,
+            desktop.windows.library_id(),
+            (FRAME.width, FRAME.height).into(),
+        )
+    };
+    let pending = labels(&desktop);
+    assert!(
+        pending.contains_key("Loading tracks..."),
+        "The selected source is waiting for its read, but Songs displayed {pending:?}",
+    );
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, action| {
+        let mut actions = task::into_stream(action).expect("catalogue task");
+        let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+            panic!("expected the catalogue response");
+        };
+        let _ = desktop.update(updated);
+    };
+    finish(&mut desktop, reload);
+    assert!(labels(&desktop).contains_key("Loading tracks..."));
+    let selection = desktop.update(Message::SourceWatchTick);
+    assert!(labels(&desktop).contains_key("Loading tracks..."));
+    finish(&mut desktop, selection);
+
+    let snapshot = desktop.sources.snapshot.as_ref().unwrap();
+    assert_eq!(snapshot.selected.as_ref(), Some(&target));
+    assert_eq!(snapshot.tracks.len(), 1);
+    assert!(!labels(&desktop).contains_key("Loading tracks..."));
+}
+
+#[test]
 fn it_does_not_click_the_replacement_for_a_source_removed_before_release() {
     let mut desktop = desktop_with_sources();
     let remaining = desktop.sources.snapshot.as_ref().unwrap().libraries[1]
