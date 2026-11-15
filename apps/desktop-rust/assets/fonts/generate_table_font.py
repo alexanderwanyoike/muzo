@@ -56,6 +56,6 @@ with TTFont(directory / "Manrope-Regular.ttf", recalcTimestamp=False) as font:
 
     options = subset.Options(name_IDs=[int(name) for name in NameID])
     table_face = subset.Subsetter(options=options)
-    table_face.populate(text=digits + ": plays")
+    table_face.populate(text=digits + ": plays tracks")
     table_face.subset(font)
     font.save(directory / "MuzoTableText-Regular.ttf")

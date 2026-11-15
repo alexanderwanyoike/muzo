@@ -10,6 +10,10 @@ mod settings_scroll;
 mod sidebar;
 #[cfg(test)]
 mod sidebar_tests;
+
+#[cfg(test)]
+#[path = "desktop/source_sidebar_layout_tests.rs"]
+mod source_sidebar_layout_tests;
 pub use mini_focus::Control as MiniControl;
 mod track_editor_focus;
 mod updates;

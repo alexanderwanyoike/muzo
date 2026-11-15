@@ -7,6 +7,7 @@ pub(crate) const TABLE_FIGURES: Font = Font::with_name("Muzo Table Text");
 pub fn settings() -> Settings {
     let fonts = [
         include_bytes!("../assets/fonts/Manrope-Regular.ttf").as_slice(),
+        include_bytes!("../assets/fonts/Manrope-Semibold.ttf").as_slice(),
         include_bytes!("../assets/fonts/Manrope-Bold.ttf").as_slice(),
         include_bytes!("../assets/fonts/MuzoTableText-Regular.ttf").as_slice(),
     ];

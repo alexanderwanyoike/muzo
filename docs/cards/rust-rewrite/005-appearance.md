@@ -12,15 +12,21 @@ to keep transport controls above it.
 
 The visual reference is the Electron Studio theme. Compact and expanded window
 sizes, artwork and controls follow `player-window-mode.ts` and
-`compact-player.css`. Iced embeds the regular and bold [Manrope
+`compact-player.css`. Iced embeds the regular, semibold and bold [Manrope
 faces](https://github.com/google/fonts/tree/b31870aff700ab7a1d74fa0c6887d95beb9e0037/ofl/manrope),
-instanced at weights 400 and 700. The installers include the existing Manrope
+instanced at weights 400, 600 and 700 with FontTools. The installers include the existing Manrope
 SIL Open Font License.
 
 The library track table uses the tabular alternatives from the regular
 face. [The FontTools generator](../../../apps/desktop-rust/assets/fonts/generate_table_font.py)
 remaps the font's `tnum` glyphs and subsets the characters used by the
 numeric cells into the bundled Muzo Table Text face.
+
+Source rows follow `library-list.css` and `sidebar-panels.css` for the
+selection stripe, the name and track-count grid, and the separate remove
+target. The count uses the same tabular face as the track table. The cloud
+and remove glyphs come from the existing desktop's Lucide icons. The
+installers include the Lucide and Feather licences.
 
 The track table follows the original `music-views.css` grid at wide and compact
 widths, including the `themes.css` and `pulse-material.css` row colors. It

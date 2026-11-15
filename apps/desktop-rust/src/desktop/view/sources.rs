@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, compact, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library,
+    Icon, action, bold, icon_button, icon_tinted, label_text::replace_embedded_breaks, library,
+    source_row,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -42,6 +42,15 @@ fn matches_source(source: &crate::catalogue::Library, query: &str) -> bool {
             .to_lowercase()
             .contains(query)
 }
+
+const FILTERED_COUNT_SIZE: f32 = 10.0;
+const FILTERED_COUNT_LINE_HEIGHT: iced::Pixels = iced::Pixels(14.0);
+const FILTERED_COUNT_MARGIN: iced::Padding = iced::Padding {
+    top: 0.0,
+    bottom: 7.0,
+    left: 9.0,
+    right: 9.0,
+};
 
 pub(super) fn folder_form(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let can_edit = sources.folder_editable();
@@ -176,7 +185,9 @@ pub(super) fn indexed_sources<'a>(
 }
 
 pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a, Message> {
+    const FRAME_BORDER: f32 = 1.0;
     let surfaces = appearance.surfaces();
+    let row_colors = source_row::Colors::for_appearance(appearance);
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -188,46 +199,17 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
         .flat_map(|snapshot| &snapshot.libraries)
         .filter(|source| matches_source(source, &query))
         .map(|source| {
-            let current = selected_id == Some(source.id.as_str());
             let count = sources
                 .snapshot
                 .as_ref()
-                .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied())
-                .map(|count| format!("{count} {}", if count == 1 { "track" } else { "tracks" }));
-            row![
-                button(
-                    row![
-                        icon_tinted(Icon::Folder, move |theme| if current {
-                            theme.palette().primary
-                        } else {
-                            surfaces.muted
-                        })
-                        .width(15)
-                        .height(15),
-                        Element::new(EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())),
-                        text(count.unwrap_or_default())
-                            .size(9)
-                            .color(surfaces.muted),
-                    ]
-                    .spacing(8)
-                    .align_y(Alignment::Center)
-                )
-                .width(Fill)
-                .height(32)
-                .padding([5, 8])
-                .style(move |theme, status| source_button(theme, status, current, surfaces))
-                .on_press_maybe(
-                    (!sources.busy())
-                        .then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
-                ),
-                icon_button(
-                    Icon::Close,
-                    "Remove source",
-                    (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
-                ),
-            ]
-            .align_y(Alignment::Center)
-            .into()
+                .and_then(|snapshot| snapshot.track_counts.get(&source.id).copied());
+            source_row::view(
+                source,
+                count,
+                selected_id == Some(source.id.as_str()),
+                !sources.busy(),
+                row_colors,
+            )
         })
         .collect();
     let libraries = source_count(sources);
@@ -279,10 +261,11 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             body = body.push(
                 container(
                     text(format!("{matching} of {libraries} sources"))
-                        .size(10)
+                        .size(FILTERED_COUNT_SIZE)
+                        .line_height(FILTERED_COUNT_LINE_HEIGHT)
                         .color(surfaces.muted),
                 )
-                .padding([1, 9]),
+                .padding(FILTERED_COUNT_MARGIN),
             );
         }
         body = body.push(library::line(surfaces));
@@ -329,11 +312,15 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             .spacing(3),
         );
     }
-    container(body.push(library::line(surfaces)).push(add))
-        .style(move |_| library::framed(surfaces.raised, surfaces, 2))
-        .width(Fill)
-        .height(Fill)
-        .into()
+    container(
+        container(body.push(library::line(surfaces)).push(add))
+            .style(move |_| library::framed(surfaces.raised, surfaces, 2))
+            .padding(FRAME_BORDER)
+            .width(Fill)
+            .height(Fill),
+    )
+    .padding(iced::padding::right(FRAME_BORDER))
+    .into()
 }
 
 fn source_count(sources: &Sources) -> Option<usize> {
@@ -353,6 +340,8 @@ fn it_does_not_report_zero_libraries_before_loading_the_catalogue() {
 }
 
 fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+    const SEARCH_MARGIN: f32 = 8.0;
+    const SEARCH_BOTTOM_MARGIN: f32 = 6.0;
     let input = text_input("Search sources", &sources.search)
         .id(SOURCE_SEARCH)
         .size(11)
@@ -376,7 +365,12 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
         );
         field = field.push(container(clear).width(Fill).align_x(Alignment::End));
     }
-    container(field).padding(8).into()
+    container(field)
+        .padding(iced::Padding {
+            bottom: SEARCH_BOTTOM_MARGIN,
+            ..iced::Padding::new(SEARCH_MARGIN)
+        })
+        .into()
 }
 
 fn source_search_input(input: iced::widget::TextInput<'_, Message>) -> Element<'_, Message> {
@@ -454,22 +448,4 @@ fn search_style(
     style.background = surfaces.raised.into();
     style.border = border::rounded(4).width(1).color(surfaces.line);
     style
-}
-
-fn source_button(
-    theme: &Theme,
-    status: button::Status,
-    current: bool,
-    surfaces: Surfaces,
-) -> button::Style {
-    let style = action(theme, status);
-    if current {
-        button::Style {
-            background: Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into()),
-            border: border::rounded(0),
-            ..style
-        }
-    } else {
-        style
-    }
 }
