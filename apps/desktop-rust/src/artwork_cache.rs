@@ -192,6 +192,41 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_keeps_textured_covers_small_enough_to_reuse_across_a_large_library() {
+        let mut seed = 257_u32;
+        let image = image::RgbImage::from_fn(COVER_EDGE, COVER_EDGE, |x, y| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let texture = (seed >> 26) as u8;
+            image::Rgb([
+                38 + (x / 5) as u8 + texture,
+                60 + (y / 6) as u8 + texture,
+                80 + texture,
+            ])
+        });
+        let mut original = Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(image)
+            .write_to(&mut original, ImageFormat::Png)
+            .unwrap();
+        let folder = tempfile::tempdir().unwrap();
+        let cache = ArtworkCache::new(folder.path().into());
+        let revision = Revision::new("library", "track", "/Music/Track.mp3", 200, 1);
+        let cover = cache
+            .get_or_read(&revision, || Some(original.into_inner()))
+            .unwrap();
+
+        const LARGE_LIBRARY: u64 = 1_382;
+        let stored = fs::metadata(cache.entry_path(&revision)).unwrap().len();
+        assert!(
+            stored <= BUDGET_BYTES / LARGE_LIBRARY,
+            "{stored} bytes per cover would evict artwork in a {LARGE_LIBRARY}-track collection"
+        );
+        let reopened = ArtworkCache::new(folder.path().into());
+        assert_eq!(reopened.lookup(&revision), Some(cover.clone()));
+        let image = decode_cover(&cover).unwrap();
+        assert_eq!((image.width(), image.height()), (COVER_EDGE, COVER_EDGE));
+    }
+
+    #[test]
     fn it_remembers_an_absent_cover_for_the_same_revision_until_full_audio_is_available() {
         let folder = tempfile::tempdir().unwrap();
         let cache = ArtworkCache::new(folder.path().into());
