@@ -18,10 +18,10 @@ import {
 } from "./distribution-result";
 
 const execute = promisify(execFile);
+const require = createRequire(import.meta.url);
 const native = fileURLToPath(
   new URL("../../apps/desktop-rust/", import.meta.url),
 );
-const legacy = fileURLToPath(new URL("../../apps/desktop/", import.meta.url));
 const packageFiles = {
   linux: "latest-linux.yml",
   windows: "latest.yml",
@@ -120,7 +120,6 @@ async function buildPayload(
     await cp(join(native, "assets/licenses"), join(resources, "licenses"), {
       recursive: true,
     });
-    const require = createRequire(join(legacy, "package.json"));
     await run(
       process.execPath,
       [
@@ -131,13 +130,12 @@ async function buildPayload(
         "nsis",
         "--x64",
         "--config",
-        "electron-builder.config.json",
+        "windows-installer.json",
         `--config.extraMetadata.version=${version}`,
         `--config.directories.output=${stage}`,
         "--publish",
         "never",
       ],
-      legacy,
     );
     return;
   }

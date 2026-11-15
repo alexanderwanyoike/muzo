@@ -4,9 +4,6 @@ on:
   pull_request:
     paths:
       - "apps/desktop-rust/**"
-      - "apps/desktop/assets/icons/**"
-      - "apps/desktop/electron-builder.config.json"
-      - "apps/desktop/package.json"
       - "packages/distribution/**"
       - "package.json"
       - "yarn.lock"
