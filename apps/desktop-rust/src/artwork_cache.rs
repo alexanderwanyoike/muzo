@@ -159,3 +159,39 @@ pub(crate) fn decode_cover(bytes: &[u8]) -> Option<DynamicImage> {
     reader.limits(limits);
     reader.decode().ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_remembers_an_absent_cover_for_the_same_revision_until_full_audio_is_available() {
+        let folder = tempfile::tempdir().unwrap();
+        let cache = ArtworkCache::new(folder.path().into());
+        let revision = Revision::new("library", "track", "/Music/Track.m4a", 100, 1);
+        let updated = Revision::new("library", "track", "/Music/Track.m4a", 100, 2);
+
+        assert_eq!(
+            cache.get_or_try_read(&revision, || Ok::<_, ()>(None)),
+            Ok(None)
+        );
+        assert_eq!(
+            cache.get_or_try_read::<()>(&revision, || panic!(
+                "unchanged artwork must not be fetched again"
+            )),
+            Ok(None)
+        );
+        let full_cover = include_bytes!("../assets/icons/muzo.png").to_vec();
+        assert!(
+            cache
+                .get_or_read(&revision, || Some(full_cover.clone()))
+                .is_some()
+        );
+        assert!(
+            cache
+                .get_or_try_read(&updated, || Ok::<_, ()>(Some(full_cover)))
+                .unwrap()
+                .is_some()
+        );
+    }
+}
