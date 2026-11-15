@@ -1,6 +1,8 @@
 use iced::{
-    Alignment, Color, Element, Fill, Theme, border,
-    widget::{Space, button, column, container, row, scrollable, stack, text, text_input},
+    Alignment, Color, Element, Fill, Theme, border, color,
+    widget::{
+        Space, button, column, container, row, scrollable, stack, svg, text, text_input, tooltip,
+    },
 };
 
 use crate::{
@@ -13,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library, selection_fill,
+    Icon, action, bold, control_opacity, ellipsized_label::EllipsizedLabel, icon_button,
+    icon_tinted, label_text::replace_embedded_breaks, library, panel, selection_fill,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -183,6 +185,11 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     let selected_fill = selection_fill(appearance);
     let accent = appearance.theme().palette().primary;
     let selection_ink = appearance.accent_ink();
+    let danger = if appearance.mode == "dark" {
+        color!(0xf1a49a)
+    } else {
+        color!(0xab3e36)
+    };
     let query = sources.search.trim().to_lowercase();
     let selected_id = sources
         .snapshot
@@ -240,10 +247,10 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                             source.id.clone()
                         )))
                     ),
-                    icon_button(
-                        Icon::Close,
-                        "Remove source",
-                        (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone()))
+                    remove_button(
+                        (!sources.busy()).then(|| Message::RequestSourceRemoval(source.id.clone())),
+                        surfaces.muted,
+                        danger,
                     ),
                 ]
                 .align_y(Alignment::Center),
@@ -352,12 +359,15 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
             .spacing(3),
         );
     }
-    container(body.push(library::line(surfaces)).push(add))
-        .style(move |_| library::framed(surfaces.raised, surfaces, 2))
-        .padding(FRAME_BORDER)
-        .width(Fill)
-        .height(Fill)
-        .into()
+    container(
+        container(body.push(library::line(surfaces)).push(add))
+            .style(move |_| library::framed(surfaces.raised, surfaces, 2))
+            .padding(FRAME_BORDER)
+            .width(Fill)
+            .height(Fill),
+    )
+    .padding(iced::padding::right(FRAME_BORDER))
+    .into()
 }
 
 fn source_count(sources: &Sources) -> Option<usize> {
@@ -400,7 +410,12 @@ fn source_search(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> 
         );
         field = field.push(container(clear).width(Fill).align_x(Alignment::End));
     }
-    container(field).padding(8).into()
+    container(field)
+        .padding(iced::Padding {
+            bottom: 6.0,
+            ..iced::Padding::new(8.0)
+        })
+        .into()
 }
 
 fn source_search_input(input: iced::widget::TextInput<'_, Message>) -> Element<'_, Message> {
@@ -488,4 +503,40 @@ fn source_button(theme: &Theme, status: button::Status) -> button::Style {
         border: border::rounded(0),
         ..action(theme, status)
     }
+}
+
+fn remove_button(
+    message: Option<Message>,
+    muted: Color,
+    danger: Color,
+) -> Element<'static, Message> {
+    const SIZE: u32 = 22;
+    const HOVER_OPACITY: f32 = 0.08;
+    const CLOSE: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 44 44" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg>"#;
+    let enabled = message.is_some();
+    let icon = svg(svg::Handle::from_memory(CLOSE))
+        .width(SIZE)
+        .height(SIZE)
+        .opacity(control_opacity(enabled))
+        .style(move |_, status| svg::Style {
+            color: Some(if enabled && status == svg::Status::Hovered {
+                danger
+            } else {
+                muted
+            }),
+        });
+    tooltip(
+        button(icon)
+            .padding(0)
+            .style(move |_, status| button::Style {
+                background: matches!(status, button::Status::Hovered | button::Status::Pressed)
+                    .then(|| danger.scale_alpha(HOVER_OPACITY).into()),
+                ..button::Style::default()
+            })
+            .on_press_maybe(message),
+        text("Remove source").size(12),
+        tooltip::Position::FollowCursor,
+    )
+    .style(panel)
+    .into()
 }
