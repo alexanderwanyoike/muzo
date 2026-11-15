@@ -48,6 +48,7 @@ pub struct Snapshot {
     pub added_folders: Vec<String>,
     pub added_paths: Vec<String>,
     pub folder_error: Option<String>,
+    pub(super) failed_folders: Vec<(String, String)>,
 }
 
 pub struct Settings {
@@ -119,6 +120,9 @@ impl Settings {
                         .position(|(selection, _)| selection.eq_ignore_ascii_case(&path))
                     {
                         self.selected_folders.remove(index);
+                        self.snapshot
+                            .failed_folders
+                            .retain(|(failed, _)| !failed.eq_ignore_ascii_case(&path));
                     } else {
                         self.selected_folders.push((path, name));
                     }
@@ -291,6 +295,7 @@ impl Settings {
                     self.selected_folders.clear();
                     snapshot.path.clear();
                     snapshot.folders.clear();
+                    snapshot.failed_folders.clear();
                 }
                 self.selected_folders.retain(|(path, _)| {
                     !snapshot
@@ -438,6 +443,9 @@ impl Settings {
                             .spacing(7),
                         );
                     }
+                    for (path, error) in &self.snapshot.failed_folders {
+                        inner = inner.push(text(format!("{path}: {error}")).size(12));
+                    }
                     inner = inner.push(
                         button("Add selected folders")
                             .on_press_maybe((!self.busy).then_some(msg(Action::AddSelected))),
@@ -483,7 +491,7 @@ fn index_selected_folders(
     snapshot: &mut Snapshot,
     mut list: impl FnMut(&str) -> Result<Vec<Entry>, DropboxError>,
 ) {
-    let mut failures = Vec::new();
+    snapshot.failed_folders.clear();
     for (path, name) in folders {
         let result = (|| -> Result<(), Error> {
             let entries = list(&path)?;
@@ -495,11 +503,8 @@ fn index_selected_folders(
                 snapshot.added_paths.push(path.clone());
                 snapshot.added_folders.push(path);
             }
-            Err(error) => failures.push(format!("{name}: {error}")),
+            Err(error) => snapshot.failed_folders.push((path, error.to_string())),
         }
-    }
-    if !failures.is_empty() {
-        snapshot.folder_error = Some(failures.join("; "));
     }
 }
 
