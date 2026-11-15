@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
     advanced::{
@@ -5,16 +7,17 @@ use iced::{
         renderer::{Headless, Style},
         widget::Tree,
     },
+    futures::StreamExt,
     time, window,
 };
-use iced_runtime::{UserInterface, user_interface::Cache};
+use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
 
 use crate::appearance::sidebar::SidebarWidth;
 
 use super::{
-    Desktop, Message,
+    CataloguePaths, Desktop, Message,
     cover_layout_tests::paint,
-    library_sources::Operation,
+    library_sources::{Operation, Sources, run},
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
@@ -102,6 +105,57 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
             );
         }
     }
+}
+
+#[test]
+fn it_closes_the_selected_song_list_on_a_second_source_click_and_keeps_playing() {
+    let directory = tempfile::tempdir().unwrap();
+    let folder = directory.path().join("Harbour Rehearsals");
+    std::fs::create_dir(&folder).unwrap();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+    std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let snapshot = run(&paths, Operation::Add(folder)).unwrap();
+    let playing_id = snapshot.tracks[0].id.clone();
+
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(snapshot);
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let apply = |desktop: &mut Desktop, message| {
+        let mut pending = desktop.update(message);
+        while let Some(mut actions) = task::into_stream(pending) {
+            let Some(Action::Output(updated)) = runtime.block_on(actions.next()) else {
+                panic!("the catalogue task should return an update");
+            };
+            pending = desktop.update(updated);
+        }
+    };
+    apply(&mut desktop, Message::PlayIndexed(0));
+    assert!(desktop.session.as_ref().unwrap().is_playing());
+
+    let [message]: [Message; 1] = click(&desktop, Point::new(150.0, FIRST_SOURCE_Y as f32))
+        .try_into()
+        .expect("a click on the selected source row produces one action");
+    apply(&mut desktop, message);
+
+    assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+    assert!(
+        rendered_labels(
+            &desktop,
+            desktop.windows.library_id(),
+            Size::new(FRAME.width as f32, FRAME.height as f32),
+        )
+        .contains_key("No music yet")
+    );
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(
+        session.current().and_then(crate::track::Track::indexed_id),
+        Some(playing_id.as_str())
+    );
+    assert!(session.is_playing());
 }
 
 #[test]
