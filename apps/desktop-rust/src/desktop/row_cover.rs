@@ -4,11 +4,12 @@ use iced::widget::image::Handle;
 
 use crate::{
     artwork_cache::{decode_cover, thumbnail},
+    catalogue::IndexedTrack,
     local_track::read_track,
     track::Track,
 };
 
-use super::cover::centered_square;
+use super::{Snapshot, cover::centered_square};
 
 mod loader;
 mod remote;
@@ -44,6 +45,35 @@ pub(super) fn open_files(paths: Vec<PathBuf>) -> OpenedFiles {
         }
     }
     OpenedFiles { tracks, covers }
+}
+
+pub(super) fn retain_unchanged(previous: &Snapshot, next: &mut Snapshot) {
+    if previous.covers.is_empty() {
+        return;
+    }
+    let covered: HashMap<_, _> = snapshot_tracks(previous)
+        .filter_map(|track| Some((track.id.as_str(), (track, previous.covers.get(&track.id)?))))
+        .collect();
+    let unchanged: Covers = snapshot_tracks(next)
+        .filter_map(|track| {
+            let (before, handle) = covered.get(track.id.as_str())?;
+            (before.library_id == track.library_id
+                && before.path == track.path
+                && before.file_size == track.file_size
+                && before.file_mtime == track.file_mtime)
+                .then(|| (track.id.clone(), (*handle).clone()))
+        })
+        .collect();
+    next.covers.extend(unchanged);
+}
+
+fn snapshot_tracks(snapshot: &Snapshot) -> impl Iterator<Item = &IndexedTrack> {
+    snapshot.tracks.iter().chain(
+        snapshot
+            .playlist_entries
+            .iter()
+            .filter_map(|entry| entry.track.as_ref()),
+    )
 }
 
 pub(super) fn row_handle(bytes: &[u8]) -> Option<Handle> {

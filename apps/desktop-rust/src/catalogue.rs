@@ -72,6 +72,8 @@ pub struct IndexedTrack {
     pub plays: u32,
     pub duration_seconds: u32,
     pub library_id: String,
+    pub(crate) file_size: i64,
+    pub(crate) file_mtime: i64,
 }
 
 pub struct Catalogue {
@@ -145,7 +147,7 @@ impl Catalogue {
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
              COALESCE(override_album, album), file_path,
              (SELECT COUNT(*) FROM play_history h WHERE h.library_id=tracks.library_id AND h.track_id=tracks.id),
-             library_id, MAX(duration_seconds, 0), {HAS_METADATA_OVERRIDE}
+             library_id, MAX(duration_seconds, 0), {HAS_METADATA_OVERRIDE}, file_size, file_mtime
              FROM tracks WHERE library_id = ?1 ORDER BY rowid"
         ))?;
         let tracks = statement
@@ -160,6 +162,8 @@ impl Catalogue {
                     plays: row.get(5)?,
                     library_id: row.get(6)?,
                     duration_seconds: row.get(7)?,
+                    file_size: row.get(9)?,
+                    file_mtime: row.get(10)?,
                 })
             })?
             .collect::<Result<_, _>>()?;

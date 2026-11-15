@@ -45,6 +45,8 @@ fn it_prioritizes_visible_rows_past_the_previous_probe_limit() {
             plays: 0,
             duration_seconds: 0,
             library_id: "source".into(),
+            file_size: 0,
+            file_mtime: 0,
         });
     }
     let mut loader = Loader::default();
@@ -98,6 +100,8 @@ fn it_loads_the_first_covers_when_a_short_source_replaces_a_scrolled_one() {
             plays: 0,
             duration_seconds: 0,
             library_id: "source".into(),
+            file_size: 0,
+            file_mtime: 0,
         });
     }
     let mut loader = Loader::default();

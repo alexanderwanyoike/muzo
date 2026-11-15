@@ -474,6 +474,8 @@ fn it_does_not_regress_a_committed_play_count_when_an_older_snapshot_arrives() {
         path: PathBuf::from("track.mp3"),
         plays: 0,
         library_id: "first".into(),
+        file_size: 0,
+        file_mtime: 0,
         duration_seconds: 0,
     };
     older.tracks.push(row);
@@ -521,6 +523,8 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
         path: audio.path().into(),
         plays: 0,
         library_id: "local-library".into(),
+        file_size: 0,
+        file_mtime: 0,
         duration_seconds: 0,
     };
     playlist.playlist_entries = ["first", "second"]
@@ -612,6 +616,8 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
         plays: 0,
         duration_seconds: 3,
         library_id: "local-library".into(),
+        file_size: 0,
+        file_mtime: 0,
     };
     playlist.playlist_entries = vec![
         crate::catalogue::PlaylistEntry {
@@ -677,6 +683,8 @@ fn it_clears_direct_covers_when_catalogue_playback_replaces_the_queue() {
         plays: 0,
         duration_seconds: 1,
         library_id: "library".into(),
+        file_size: 0,
+        file_mtime: 0,
     }];
     desktop.sources.snapshot = Some(source);
     desktop.direct_covers.insert(
@@ -803,6 +811,8 @@ pub(super) fn editing_source() -> (Desktop, crate::catalogue::IndexedTrack) {
         plays: 0,
         duration_seconds: 1,
         library_id: "first".into(),
+        file_size: 0,
+        file_mtime: 0,
     };
     let mut selected = snapshot(&["first", "second"]);
     selected.selected = Some("first".into());

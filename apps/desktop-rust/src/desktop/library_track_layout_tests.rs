@@ -67,6 +67,8 @@ fn track_table(width: f32) -> Desktop {
         plays,
         duration_seconds,
         library_id: "records".into(),
+        file_size: 0,
+        file_mtime: 0,
     })
     .collect();
     desktop.sources.snapshot = Some(sources);

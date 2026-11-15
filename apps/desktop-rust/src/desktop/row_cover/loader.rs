@@ -150,7 +150,10 @@ impl Loader {
                 .attempted
                 .get(&track.id)
                 .is_some_and(|retry| retry.is_none_or(|time| time > now));
-            if attempted || self.pending.contains(&(self.generation, track.id.clone())) {
+            if snapshot.covers.contains_key(&track.id)
+                || attempted
+                || self.pending.contains(&(self.generation, track.id.clone()))
+            {
                 continue;
             }
             self.attempted.insert(track.id.clone(), None);

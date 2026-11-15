@@ -799,6 +799,7 @@ impl Sources {
         }
         if let Some(previous) = &self.snapshot {
             preserve_play_counts(&mut snapshot, previous);
+            super::row_cover::retain_unchanged(previous, &mut snapshot);
         }
         self.source_tracks_error = None;
         self.error = snapshot.warnings.first().cloned();
