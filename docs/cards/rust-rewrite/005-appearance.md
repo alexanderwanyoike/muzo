@@ -30,3 +30,6 @@ and follows `formatDuration.ts` for tracks that last an hour or more.
 The library matches the Electron window dimensions and the
 `styles.css` and `transport.css` arrangement of the top transport,
 resizable navigation sidebar, content toolbar and bottom update status.
+The transport uses the original 950px breakpoint for its columns, volume
+control and spacing. The display keeps its 610px maximum width and reuses
+the library label widget to abbreviate long now-playing metadata.
