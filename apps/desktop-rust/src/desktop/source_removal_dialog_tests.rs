@@ -11,6 +11,7 @@ use iced_runtime::{UserInterface, user_interface::Cache};
 
 use super::{
     CataloguePaths, Desktop, LibraryPage, Message, Operation, Sources,
+    cover_layout_tests::paint,
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
@@ -91,6 +92,36 @@ fn it_keeps_pointer_and_keyboard_input_in_the_dialog_and_focuses_cancel_first() 
     request(&mut desktop);
     send_key(&mut desktop, Named::Escape, Modifiers::empty());
     assert!(!labels(&desktop).contains_key(PROMPT));
+}
+
+#[test]
+fn it_draws_the_focus_outline_after_keyboard_navigation() {
+    let (mut desktop, _root) = desktop();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.appearance.accent = "glow-cyan".into();
+    request(&mut desktop);
+
+    assert!(!has_focus_outline(&desktop, 424..621));
+
+    send_key(&mut desktop, Named::Tab, Modifiers::empty());
+    assert!(has_focus_outline(&desktop, 505..621));
+    assert!(!has_focus_outline(&desktop, 424..495));
+
+    send_key(&mut desktop, Named::Tab, Modifiers::SHIFT);
+    assert!(has_focus_outline(&desktop, 424..495));
+}
+
+fn has_focus_outline(desktop: &Desktop, columns: std::ops::Range<usize>) -> bool {
+    let frame = Size::new(FRAME.width as u32, FRAME.height as u32);
+    let pixels = paint(desktop, desktop.windows.library_id(), frame);
+    let accent = desktop.appearance.accent_ink().into_rgba8();
+    (440..520).any(|y| {
+        columns.clone().any(|x| {
+            let offset = (y * frame.width as usize + x) * 4;
+            pixels[offset..offset + 4] == accent
+        })
+    })
 }
 
 #[test]
