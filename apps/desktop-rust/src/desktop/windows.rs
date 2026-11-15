@@ -85,7 +85,8 @@ pub struct Windows {
     resize_generation: u64,
     mini_size: Size,
     library_visibility: LibraryVisibility,
-    library_geometry: Option<(Size, bool)>,
+    library_normal_size: Size,
+    library_was_maximized: bool,
     surface_transition: Option<SurfaceTransition>,
 }
 
@@ -101,7 +102,8 @@ impl Windows {
                 resize_generation: 0,
                 mini_size: MINI_SIZE,
                 library_visibility: LibraryVisibility::Unknown,
-                library_geometry: None,
+                library_normal_size: LIBRARY_SIZE,
+                library_was_maximized: false,
                 surface_transition: None,
             },
             open.then(|id| {
@@ -179,8 +181,23 @@ impl Windows {
         if self.surface_transition != Some(SurfaceTransition::Preparing(id)) {
             return Task::none();
         }
-        self.library_geometry = Some((size, maximized));
+        self.record_library_size(id, size, maximized);
+        self.library_was_maximized = maximized;
         self.replace_mini_surface(id, false)
+    }
+
+    pub fn library_resized(&self, id: window::Id, size: Size) -> Task<Message> {
+        if self.library_visibility != LibraryVisibility::ReplaceSurface || !self.is_library(id) {
+            return Task::none();
+        }
+        window::is_maximized(id)
+            .map(move |maximized| Message::WaylandLibraryResized(id, size, maximized))
+    }
+
+    pub fn record_library_size(&mut self, id: window::Id, size: Size, maximized: bool) {
+        if self.is_library(id) && !maximized {
+            self.library_normal_size = size;
+        }
     }
 
     fn replace_mini_surface(&mut self, previous: window::Id, expanded: bool) -> Task<Message> {
@@ -230,11 +247,8 @@ impl Windows {
             self.queue_open = false;
             self.queue_resize = None;
             if self.library_visibility == LibraryVisibility::ReplaceSurface {
-                let Some((size, maximized)) = self.library_geometry.take() else {
-                    return Task::none();
-                };
-                let mut settings = settings(size, LIBRARY_MIN);
-                settings.maximized = maximized;
+                let mut settings = settings(self.library_normal_size, LIBRARY_MIN);
+                settings.maximized = self.library_was_maximized;
                 let (library, open) = window::open(settings);
                 self.library = library;
                 self.surface_transition = Some(SurfaceTransition::Opening(library));

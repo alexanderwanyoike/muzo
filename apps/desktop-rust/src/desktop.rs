@@ -131,6 +131,7 @@ pub enum Message {
     LibraryVisibilityKnown(window::Id, bool),
     LibraryVisibilityChecked(window::Id, bool),
     WaylandMiniPrepared(window::Id, iced::Size, bool),
+    WaylandLibraryResized(window::Id, iced::Size, bool),
     ShowLibrary,
     ToggleQueue,
     CycleMiniFocus(window::Id, bool),
@@ -1078,6 +1079,10 @@ impl Desktop {
             Message::WaylandMiniPrepared(id, size, maximized) => {
                 self.windows.open_wayland_mini(id, size, maximized)
             }
+            Message::WaylandLibraryResized(id, size, maximized) => {
+                self.windows.record_library_size(id, size, maximized);
+                Task::none()
+            }
             Message::EscapePressed(id) => {
                 if self.windows.is_library(id)
                     && let Some(picker) = &mut self.sources.playlist_picker
@@ -1147,6 +1152,8 @@ impl Desktop {
                     if was_open != self.windows.queue_open() {
                         return self.load_row_covers();
                     }
+                } else {
+                    return self.windows.library_resized(id, size);
                 }
                 Task::none()
             }
