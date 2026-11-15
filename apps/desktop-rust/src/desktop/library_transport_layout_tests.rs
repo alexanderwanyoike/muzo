@@ -3,7 +3,12 @@ use iced::{
     advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree},
 };
 
-use super::{Desktop, Message, cover_layout_tests::paint, queue_tests::setup};
+use crate::track::Track;
+
+use super::{
+    Desktop, Message, cover_layout_tests::paint, queue_tests::setup,
+    transport_time_layout_tests::rendered_labels,
+};
 
 #[test]
 fn it_places_the_transport_display_at_the_original_window_breakpoint() {
@@ -119,4 +124,56 @@ fn it_keeps_the_original_transport_button_hit_areas_and_actions() {
         click(&mut desktop, 807.0, 16.0).is_empty(),
         "outside the mini player button"
     );
+}
+
+#[test]
+fn it_abbreviates_now_playing_labels_inside_the_original_display_column() {
+    const TITLE: &str = "An unusually long recording from the coast containing the full rehearsals of a musical ensemble and studio outtakes recorded on two subsequent summer afternoons";
+    const ARTIST: &str = "The North Atlantic field recording assembly with orchestral musicians scattered through the streets of the city and several rural villages";
+    let (mut desktop, local) = setup();
+    desktop
+        .session
+        .as_mut()
+        .unwrap()
+        .replace_track(
+            0,
+            Track::new(
+                local.path().to_owned(),
+                TITLE.into(),
+                Some(ARTIST.into()),
+                None,
+                None,
+            ),
+        )
+        .unwrap();
+    let _ = desktop.update(Message::Select(0));
+    desktop.sidebar.layout_width(850.0);
+    let labels = rendered_labels(
+        &desktop,
+        desktop.windows.library_id(),
+        Size::new(850.0, 800.0),
+    );
+
+    for (full, expected_top) in [(TITLE, 19.0), (ARTIST, 34.4)] {
+        let (_, bounds) = labels
+            .iter()
+            .find(|(label, _)| {
+                label
+                    .strip_suffix('…')
+                    .is_some_and(|prefix| !prefix.is_empty() && full.starts_with(prefix))
+            })
+            .unwrap_or_else(|| panic!("no abbreviated now-playing label for {full:?}"));
+        assert!(
+            (bounds.x - 252.0).abs() < 0.5,
+            "metadata column: {bounds:?}"
+        );
+        assert!(
+            (bounds.width - 442.0).abs() < 0.5,
+            "metadata width: {bounds:?}"
+        );
+        assert!(
+            (bounds.y - expected_top).abs() < 0.8,
+            "metadata line position: {bounds:?}"
+        );
+    }
 }
