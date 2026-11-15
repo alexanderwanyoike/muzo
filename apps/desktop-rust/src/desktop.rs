@@ -1632,3 +1632,7 @@ fn artwork_revision(
 #[cfg(test)]
 #[path = "desktop/queue_tests.rs"]
 mod queue_tests;
+
+#[cfg(test)]
+#[path = "desktop/saved_names_tests.rs"]
+mod saved_names_tests;
