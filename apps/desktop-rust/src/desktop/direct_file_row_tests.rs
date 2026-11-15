@@ -128,7 +128,7 @@ fn it_keeps_a_direct_file_playable_after_clearing_a_source_from_a_mixed_queue() 
     source.selected = Some(SOURCE.into());
     desktop.sources.snapshot = Some(source);
 
-    let _ = desktop.update(Message::ClearSourceSelection(SOURCE.into()));
+    let _ = desktop.update(Message::SourceRowClicked(SOURCE.into()));
     let labels = rendered_labels(&desktop, desktop.windows.library_id(), LIBRARY_FRAME);
     assert!(
         !labels.contains_key(INDEXED_TITLE),

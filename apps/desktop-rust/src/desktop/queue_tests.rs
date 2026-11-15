@@ -879,7 +879,7 @@ fn it_discards_a_metadata_draft_when_opening_another_song() {
 fn it_discards_a_metadata_draft_when_switching_sources() {
     let (mut desktop, _) = editing_source();
 
-    let _ = desktop.update(Message::SourceOperation(Operation::Select("second".into())));
+    let _ = desktop.update(Message::SourceRowClicked("second".into()));
 
     assert!(desktop.sources.editing.is_none());
 }

@@ -91,7 +91,7 @@ fn it_keeps_the_source_selection_and_remove_clicks_in_the_original_hit_areas() {
         let y = y as f32;
         let select = click(&desktop, Point::new(279.0, y));
         assert!(
-            matches!(select.as_slice(), [Message::SourceOperation(Operation::Select(id))] if id == name),
+            matches!(select.as_slice(), [Message::SourceRowClicked(id)] if id == name),
             "the last pixel in the selection area should select {name}: {select:?}"
         );
         let remove = click(&desktop, Point::new(280.5, y));
