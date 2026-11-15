@@ -94,6 +94,27 @@ fn it_uses_the_original_volume_slider_geometry_and_five_percent_steps() {
 }
 
 #[test]
+fn it_maps_volume_along_the_thumb_travel_without_jumping_when_grabbed() {
+    const REFERENCE_VOLUME: f32 = 0.30;
+    let (mut desktop, _) = setup();
+    for (width, rail_click, thumb_center) in [(850.0, 781.0, 781.3), (1200.0, 1111.0, 1111.0)] {
+        let _ = desktop.update(Message::SetVolume(1.0));
+        let messages = click_header(&mut desktop, width, Point::new(rail_click, 34.0));
+        assert!(
+            matches!(messages.as_slice(), [Message::SetVolume(value)] if (value - REFERENCE_VOLUME).abs() < 0.005),
+            "click on the original thumb travel at {width}px gave {messages:?}"
+        );
+
+        let _ = desktop.update(Message::SetVolume(REFERENCE_VOLUME));
+        let grab = click_header(&mut desktop, width, Point::new(thumb_center, 40.0));
+        assert!(
+            grab.is_empty(),
+            "grabbing the thumb at {width}px changed the volume: {grab:?}"
+        );
+    }
+}
+
+#[test]
 fn it_keeps_the_original_transport_button_hit_areas_and_actions() {
     let (mut desktop, _) = setup();
     let _ = desktop.update(Message::Select(0));
