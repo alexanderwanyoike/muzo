@@ -86,3 +86,37 @@ fn it_uses_the_original_volume_slider_width_and_position_in_each_layout() {
         );
     }
 }
+
+#[test]
+fn it_keeps_the_original_transport_button_hit_areas_and_actions() {
+    let (mut desktop, _) = setup();
+    let _ = desktop.update(Message::Select(0));
+
+    let click = |desktop: &mut Desktop, x, y| click_header(desktop, 850.0, Point::new(x, y));
+    assert!(matches!(
+        click(&mut desktop, 73.5, 24.0).as_slice(),
+        [Message::TogglePlayback]
+    ));
+    assert!(matches!(
+        click(&mut desktop, 157.5, 40.0).as_slice(),
+        [Message::Next]
+    ));
+    assert!(
+        click(&mut desktop, 26.5, 40.0).is_empty(),
+        "Previous is disabled at the first track"
+    );
+    let _ = desktop.update(Message::Select(1));
+    assert!(matches!(
+        click(&mut desktop, 26.5, 40.0).as_slice(),
+        [Message::Previous]
+    ));
+
+    assert!(matches!(
+        click(&mut desktop, 811.0, 16.0).as_slice(),
+        [Message::ShowMini]
+    ));
+    assert!(
+        click(&mut desktop, 807.0, 16.0).is_empty(),
+        "outside the mini player button"
+    );
+}
