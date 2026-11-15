@@ -172,6 +172,37 @@ fn indexed_track(index: usize) -> IndexedTrack {
 }
 
 #[test]
+fn it_keeps_the_thumbnail_limit_after_refresh_preserves_loaded_covers() {
+    let temporary = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temporary.path());
+    let mut source = snapshot(&["source"]);
+    source.tracks = (0..ROW_LIMIT + 32).map(indexed_track).collect();
+    let cover = Handle::from_rgba(1, 1, vec![255; 4]);
+    for track in &source.tracks[..ROW_LIMIT] {
+        source.covers.insert(track.id.clone(), cover.clone());
+    }
+    let mut loader = Loader::default();
+    loader.catalogue_changed();
+    loader.visible(LibraryPage::Songs, ROW_LIMIT..ROW_LIMIT + 16);
+    let _ = loader.request(&paths, &mut source, LibraryPage::Songs);
+    let next = ROW_LIMIT.to_string();
+    assert!(loader.pending.contains(&(1, next.clone())));
+    loader.complete(
+        Complete {
+            generation: 1,
+            id: next.clone(),
+            cover: Ok(Some(cover)),
+        },
+        Some(&mut source),
+    );
+    assert!(source.covers.contains_key(&next));
+    assert!(
+        source.covers.len() <= ROW_LIMIT,
+        "preserving ready covers across refresh must keep the thumbnail limit"
+    );
+}
+
+#[test]
 fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     use iced::futures::StreamExt;
     use iced_runtime::{Action, task};
