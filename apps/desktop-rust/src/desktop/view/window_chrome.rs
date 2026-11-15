@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Color, Element, Fill, border,
-    widget::{Space, button, container, mouse_area, row, text, tooltip},
+    widget::{Space, button, container, mouse_area, row, svg, text, tooltip},
     window,
 };
 
@@ -10,7 +10,7 @@ use super::{Icon, Message, bold, icon_tinted, panel};
 
 const TITLE_HEIGHT: u32 = 32;
 const CAPTION_WIDTH: u32 = 32;
-const CAPTION_GLYPH: u32 = 13;
+const CAPTION_GLYPH: u32 = 10;
 pub(super) const PANE_GUTTER: f32 = 8.0;
 pub(super) const PANE_RADIUS: f32 = 12.0;
 
@@ -149,13 +149,13 @@ pub(in crate::desktop) fn title_bar<'a>(
         row![
             drag,
             tools,
-            caption(Icon::Minimize, "Minimize", Message::MinimizeWindow(id)),
+            caption(Caption::Minimize, "Minimize", Message::MinimizeWindow(id)),
             caption(
-                Icon::Maximize,
+                Caption::Maximize,
                 "Maximize or restore",
                 Message::ToggleWindowMaximized(id)
             ),
-            caption(Icon::Close, "Close", Message::CloseRequested(id)),
+            caption(Caption::Close, "Close", Message::CloseRequested(id)),
         ]
         .align_y(Alignment::Center),
     )
@@ -164,30 +164,52 @@ pub(in crate::desktop) fn title_bar<'a>(
     .into()
 }
 
-fn caption(icon: Icon, name: &'static str, message: Message) -> Element<'static, Message> {
+#[derive(Clone, Copy)]
+enum Caption {
+    Minimize,
+    Maximize,
+    Close,
+}
+
+impl Caption {
+    fn glyph(self) -> svg::Svg<'static> {
+        let path = match self {
+            Self::Minimize => "M1.5 8.5h7",
+            Self::Maximize => "M1.5 1.5h7v7h-7z",
+            Self::Close => "m1.5 2 7 6m0-6-7 6",
+        };
+        let markup = format!(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' fill='none' stroke='black' stroke-width='1.4' stroke-linecap='round'><path d='{path}'/></svg>"
+        );
+        svg(svg::Handle::from_memory(markup.into_bytes()))
+            .width(CAPTION_GLYPH)
+            .height(CAPTION_GLYPH)
+            .style(|theme: &iced::Theme, _| svg::Style {
+                color: Some(theme.palette().text),
+            })
+    }
+}
+
+fn caption(kind: Caption, name: &'static str, message: Message) -> Element<'static, Message> {
     tooltip(
-        button(
-            icon_tinted(icon, |theme| theme.palette().text)
-                .width(CAPTION_GLYPH)
-                .height(CAPTION_GLYPH),
-        )
-        .padding(0)
-        .width(CAPTION_WIDTH)
-        .height(TITLE_HEIGHT)
-        .on_press(message)
-        .style(move |theme, state| {
-            let active = matches!(state, button::Status::Hovered | button::Status::Pressed);
-            let fill = if matches!(icon, Icon::Close) {
-                iced::color!(0xb44542).scale_alpha(0.82)
-            } else {
-                theme.palette().text.scale_alpha(0.08)
-            };
-            button::Style {
-                background: active.then(|| fill.into()),
-                border: border::rounded(0),
-                ..button::Style::default()
-            }
-        }),
+        button(container(kind.glyph()).center(Fill))
+            .padding(0)
+            .width(CAPTION_WIDTH)
+            .height(TITLE_HEIGHT)
+            .on_press(message)
+            .style(move |theme, state| {
+                let active = matches!(state, button::Status::Hovered | button::Status::Pressed);
+                let fill = if matches!(kind, Caption::Close) {
+                    iced::color!(0xb44542).scale_alpha(0.82)
+                } else {
+                    theme.palette().text.scale_alpha(0.08)
+                };
+                button::Style {
+                    background: active.then(|| fill.into()),
+                    border: border::rounded(0),
+                    ..button::Style::default()
+                }
+            }),
         text(name).size(11),
         tooltip::Position::Bottom,
     )
