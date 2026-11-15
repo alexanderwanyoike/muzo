@@ -1,7 +1,8 @@
 use iced::{
-    Element, Font, Pixels, Rectangle, Renderer, Size, Vector,
+    Color, Element, Font, Pixels, Rectangle, Renderer, Size, Theme, Vector,
     advanced::{
-        Layout, layout,
+        Layout, layout, mouse,
+        renderer::{Headless, Style},
         widget::{Id, Operation, Tree, operation},
     },
 };
@@ -103,4 +104,44 @@ fn it_keeps_playlist_counts_clear_of_the_scrollbar_until_filtering_removes_it() 
         filtered_gap < SCROLLBAR_WIDTH,
         "filtered gap {filtered_gap}"
     );
+}
+
+#[test]
+fn it_keeps_overlong_playlist_names_out_of_the_track_count() {
+    let mut sources = playlists();
+    let expected = pixels_beside_playlist_name(&sources);
+    sources.snapshot.as_mut().unwrap().playlists[0].name =
+        "An evening of field recordings from the headland and the east coast".into();
+
+    assert!(
+        pixels_beside_playlist_name(&sources) == expected,
+        "the long name painted across the count or scrollbar"
+    );
+}
+
+fn pixels_beside_playlist_name(sources: &Sources) -> Vec<u8> {
+    let mut panel = sidebar(sources, Appearance::default().surfaces());
+    let mut tree = Tree::empty();
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let (node, bounds) = layout_sidebar(&mut panel, &mut tree, &renderer);
+    panel.as_widget().draw(
+        &tree,
+        &mut renderer,
+        &Theme::Light,
+        &Style::default(),
+        Layout::new(&node),
+        mouse::Cursor::Unavailable,
+        &Rectangle::with_size(node.size()),
+    );
+    let pixels = renderer.screenshot(PANEL_SIZE, 1.0, Color::WHITE);
+    let count = bounds.track_count.unwrap();
+    let row_start = count.y.floor() as usize;
+    let row_end = (count.y + count.height).ceil() as usize;
+    let pixels_after_name = count.x.floor() as usize * 4;
+    pixels
+        .chunks_exact(PANEL_SIZE.width as usize * 4)
+        .take(row_end)
+        .skip(row_start)
+        .flat_map(|row| row[pixels_after_name..].iter().copied())
+        .collect()
 }
