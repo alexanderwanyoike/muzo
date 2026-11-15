@@ -27,6 +27,12 @@ use glow::Glow;
 const TRANSPORT_HEIGHT: f32 = 81.0;
 const DISPLAY_MAX_WIDTH: f32 = 610.0;
 const PLAY_BUTTON_EDGE: f32 = 38.0;
+const PLAY_GLYPH_EDGE: f32 = 26.0;
+const SKIP_BUTTON_EDGE: f32 = 30.0;
+const SKIP_GLYPH_EDGE: f32 = 18.0;
+const MINI_BUTTON_WIDTH: f32 = 28.0;
+const MINI_BUTTON_HEIGHT: f32 = 24.0;
+const MINI_GLYPH_EDGE: f32 = 16.0;
 const SEEK_INPUT_HEIGHT: f32 = 14.0;
 const VOLUME_INPUT_HEIGHT: f32 = 16.0;
 
@@ -239,9 +245,9 @@ fn transport_button(
     style: impl Fn(&Theme, button::Status) -> button::Style + 'static,
 ) -> Element<'static, Message> {
     let (glyph_edge, width, height) = match kind {
-        Icon::Play | Icon::Pause => (26.0, PLAY_BUTTON_EDGE, PLAY_BUTTON_EDGE),
-        Icon::Mini => (16.0, 28.0, 24.0),
-        _ => (18.0, 30.0, 30.0),
+        Icon::Play | Icon::Pause => (PLAY_GLYPH_EDGE, PLAY_BUTTON_EDGE, PLAY_BUTTON_EDGE),
+        Icon::Mini => (MINI_GLYPH_EDGE, MINI_BUTTON_WIDTH, MINI_BUTTON_HEIGHT),
+        _ => (SKIP_GLYPH_EDGE, SKIP_BUTTON_EDGE, SKIP_BUTTON_EDGE),
     };
     let glyph = icon_tinted(kind, move |theme| {
         color.unwrap_or_else(|| theme.palette().text)
