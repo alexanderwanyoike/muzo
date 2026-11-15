@@ -5,12 +5,13 @@ use iced::{
 
 use crate::appearance::Surfaces;
 
-use super::{Action, Error, Message, Settings, folder_name, parse_interval};
+use super::{Action, Message, Settings, folder_name, parse_interval};
 use crate::desktop::view::{
     Icon, action, icon_tinted, panel, primary, settings_button, settings_input,
 };
 
 const FOLDER_LIST_HEIGHT: f32 = 240.0;
+const SELECTION_LIST_HEIGHT: f32 = 112.0;
 const FOLDER_SCROLLBAR_GAP: f32 = 6.0;
 const ACTION_GAP: f32 = 8.0;
 const FOLDER_ICON_EDGE: f32 = 15.0;
@@ -111,8 +112,10 @@ impl Settings {
     fn sync_interval(&self, surfaces: Surfaces) -> Column<'_, Message> {
         let minutes = parse_interval(&self.interval);
         let save = minutes
-            .filter(|minutes| *minutes != self.snapshot.interval)
-            .and_then(|_| self.command(Action::SaveInterval));
+            .as_ref()
+            .is_ok_and(|minutes| *minutes != self.snapshot.interval)
+            .then(|| self.command(Action::SaveInterval))
+            .flatten();
         let mut controls = column![
             text("Sync interval").size(12).color(surfaces.muted),
             row![
@@ -129,8 +132,8 @@ impl Settings {
             .align_y(Alignment::Center),
         ]
         .spacing(5);
-        if minutes.is_none() {
-            controls = controls.push(text(Error::InvalidInterval.to_string()).size(12));
+        if let Err(error) = minutes {
+            controls = controls.push(text(error.to_string()).size(12));
         }
         controls
     }
@@ -143,7 +146,13 @@ impl Settings {
             let folders = path.trim_start_matches('/').replace('/', " / ");
             format!("Dropbox / {folders}")
         };
-        let mut heading = row![text(breadcrumb).size(12).width(Fill),].spacing(ACTION_GAP);
+        let mut heading = row![
+            text(breadcrumb)
+                .size(12)
+                .width(Fill)
+                .wrapping(text::Wrapping::WordOrGlyph)
+        ]
+        .spacing(ACTION_GAP);
         if path != "/" {
             let (parent, _) = path.rsplit_once('/').unwrap_or(("/", ""));
             let parent = if parent.is_empty() { "/" } else { parent };
@@ -176,28 +185,33 @@ impl Settings {
                 .width(Fill),
             );
         }
-        let selected_elsewhere = self.selected_folders.iter().filter(|(selected, _)| {
-            !path.eq_ignore_ascii_case(selected)
-                && !self
-                    .snapshot
-                    .folders
-                    .iter()
-                    .any(|(visible, _)| visible.eq_ignore_ascii_case(selected))
-        });
-        for (selected, name) in selected_elsewhere {
-            browser = browser.push(
+        let count = self.selected_folders.len();
+        if count > 0 {
+            let rows = self.selected_folders.iter().map(|(selected, name)| {
                 row![
-                    text(selected).size(12).width(Fill),
+                    text(selected)
+                        .size(12)
+                        .width(Fill)
+                        .wrapping(text::Wrapping::WordOrGlyph),
                     quiet_button("Remove").on_press_maybe(
                         self.command(Action::SelectFolder(selected.clone(), name.clone()))
                     ),
                 ]
                 .spacing(ACTION_GAP)
-                .align_y(Alignment::Center),
-            );
-        }
-        let count = self.selected_folders.len();
-        if count > 0 {
+                .align_y(Alignment::Center)
+                .into()
+            });
+            browser = browser
+                .push(text("Selected folders").size(12).color(surfaces.muted))
+                .push(
+                    container(
+                        scrollable(column(rows).spacing(2))
+                            .spacing(FOLDER_SCROLLBAR_GAP)
+                            .height(Shrink),
+                    )
+                    .max_height(SELECTION_LIST_HEIGHT)
+                    .width(Fill),
+                );
             let label = if count == 1 {
                 "Add 1 folder".into()
             } else {

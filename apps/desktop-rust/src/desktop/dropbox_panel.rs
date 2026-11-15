@@ -352,7 +352,7 @@ fn run(
         Credentials::connect(&catalogue, &account, auth.client_id(), &refresh)?;
     }
     if let Action::SaveInterval = &action {
-        let minutes = parse_interval(interval).ok_or(Error::InvalidInterval)?;
+        let minutes = parse_interval(interval)?;
         catalogue.set_dropbox_interval(minutes)?;
     }
 
@@ -495,12 +495,13 @@ fn run(
     Ok(snapshot)
 }
 
-fn parse_interval(value: &str) -> Option<u16> {
-    value
-        .trim()
-        .parse()
-        .ok()
-        .filter(|minutes| (1..=60).contains(minutes))
+fn parse_interval(value: &str) -> Result<u16, Error> {
+    let minutes = value.trim().parse().map_err(|_| Error::InvalidInterval)?;
+    if (1..=60).contains(&minutes) {
+        Ok(minutes)
+    } else {
+        Err(Error::InvalidInterval)
+    }
 }
 
 fn folder_name(path: &str) -> String {
@@ -729,6 +730,53 @@ mod tests {
                 url.starts_with(
                     "https://www.dropbox.com/oauth2/authorize?client_id=muzo-test-key&"
                 )
+            );
+        }
+    }
+
+    #[test]
+    fn it_wraps_a_long_folder_name_beside_the_parent_folder_action() {
+        let mut settings = Settings::default();
+        let name = "M".repeat(100);
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = format!("/Music/{name}");
+
+        let labels = rendered_labels(&settings, 318.0);
+        let breadcrumb = labels.0.get(&format!("Dropbox / Music / {name}")).unwrap();
+        let parent = labels.0.get("Parent folder").unwrap();
+        assert!(
+            breadcrumb.height > 3.0 * parent.height,
+            "the unbroken folder name should wrap into the available width"
+        );
+    }
+
+    #[test]
+    fn it_shows_all_selected_paths_next_to_the_dropbox_add_action() {
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = "/Library".into();
+        for number in 1..=12 {
+            let name = format!("Folder {number}");
+            settings
+                .snapshot
+                .folders
+                .push((format!("/Library/{name}"), name));
+        }
+        settings.selected_folders = vec![
+            ("/Library/Folder 12".into(), "Folder 12".into()),
+            ("/Archive/Folder 12".into(), "Folder 12".into()),
+        ];
+
+        let labels = rendered_labels(&settings, 318.0);
+        for label in [
+            "/Library/Folder 12",
+            "/Archive/Folder 12",
+            "Remove",
+            "Add 2 folders",
+        ] {
+            assert!(
+                labels.0.contains_key(label),
+                "missing from selection summary: {label}"
             );
         }
     }
