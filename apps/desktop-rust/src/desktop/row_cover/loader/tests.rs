@@ -211,6 +211,29 @@ fn it_keeps_the_thumbnail_limit_after_refresh_preserves_loaded_covers() {
 }
 
 #[test]
+fn it_bounds_resident_covers_when_more_rows_fit_than_the_thumbnail_limit() {
+    let temporary = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temporary.path());
+    let mut source = snapshot(&["source"]);
+    source.tracks = (0..ROW_LIMIT + 1).map(indexed_track).collect();
+    let cover = Handle::from_rgba(1, 1, vec![255; 4]);
+    for track in &source.tracks[..ROW_LIMIT] {
+        source.covers.insert(track.id.clone(), cover.clone());
+    }
+    let mut loader = Loader::default();
+    loader.visible(LibraryPage::Songs, 0..ROW_LIMIT + 1);
+
+    assert_eq!(
+        loader
+            .request(&paths, &mut source, LibraryPage::Songs)
+            .units(),
+        0,
+        "an oversized viewport must preserve the thumbnail limit"
+    );
+    assert_eq!(source.covers.len(), ROW_LIMIT);
+}
+
+#[test]
 fn it_loads_an_unplayed_cover_when_opening_the_mini_queue_away_from_songs() {
     use iced::{Size, futures::StreamExt};
     use iced_runtime::{Action, task};
