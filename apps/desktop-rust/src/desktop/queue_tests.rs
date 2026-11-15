@@ -230,8 +230,8 @@ fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
     catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
     let row = catalogue.tracks(&library.id).unwrap().remove(0);
     let old = catalogue.artwork_revision(&library.id, &row.id).unwrap();
-    let track = Track::new(PathBuf::new(), row.title, None, None, None)
-        .with_indexed_id(row.id)
+    let track = Track::new(PathBuf::new(), row.title.clone(), None, None, None)
+        .with_indexed_id(row.id.clone())
         .with_library(library.id.clone())
         .with_remote(library.id, path.into());
 
@@ -259,13 +259,31 @@ fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
     )
     .unwrap();
     server.join().unwrap();
-    let track = prepare_downloaded_dropbox_track(&paths, track, downloaded, Some(old.clone()));
+    let cover = include_bytes!("../../assets/icons/muzo.png");
+    let queued = track.clone().with_artwork(cover.to_vec());
+    let prepared = prepare_downloaded_dropbox_track(&paths, track, downloaded, Some(old.clone()));
 
-    assert!(track.track.artwork().is_some());
+    assert!(prepared.track.artwork().is_some());
     assert!(
         ArtworkCache::new(paths.artwork_cache())
             .lookup(&old)
             .is_none()
+    );
+
+    let expected = prepared.track.artwork().unwrap().to_vec();
+    assert!(expected.as_slice() != cover);
+    let (mut desktop, _) = setup();
+    desktop.queue_artwork.replace([&row]);
+    desktop.queue_artwork.remember(&row.id, old);
+    desktop.session.as_mut().unwrap().replace(vec![queued]);
+    desktop.pending_track = Some(0);
+
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(prepared)));
+
+    let playing = desktop.session.as_ref().unwrap().current().unwrap();
+    assert!(
+        playing.artwork() == Some(expected.as_slice()),
+        "playback should display the cover embedded in the downloaded revision"
     );
 }
 
