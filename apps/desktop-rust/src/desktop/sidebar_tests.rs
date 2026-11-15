@@ -197,7 +197,7 @@ fn it_accumulates_sidebar_arrow_steps_and_saves_the_viewport_limits() {
     let mut library = Library::new(paths.clone());
     let arrow = key(Named::ArrowLeft, Modifiers::empty());
 
-    library.batch(&[arrow.clone()], NARROW_DIVIDER);
+    library.batch(std::slice::from_ref(&arrow), NARROW_DIVIDER);
     assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), initial);
 
     library.batch(&click_at(NARROW_DIVIDER), NARROW_DIVIDER);
