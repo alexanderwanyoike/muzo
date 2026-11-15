@@ -337,14 +337,11 @@ impl Desktop {
                 ))
             }
             Message::LibraryPage(page) => {
-                self.page = page;
-                self.appearance_focus = None;
-                self.editor_navigation.reset();
-                self.sources.close_track_panels();
+                self.set_library_page(page);
                 self.load_row_covers()
             }
             Message::OpenSourceSettings => {
-                let _ = self.update(Message::LibraryPage(LibraryPage::Settings));
+                self.set_library_page(LibraryPage::Settings);
                 settings_scroll::reveal_sources()
             }
             Message::SourceSearch(query) => {
@@ -359,7 +356,7 @@ impl Desktop {
             }
             Message::SourceRowClicked(id) => {
                 if let Some(task) = self.sources.toggle_selection(&id) {
-                    let _ = self.update(Message::LibraryPage(LibraryPage::Songs));
+                    self.set_library_page(LibraryPage::Songs);
                     task
                 } else {
                     Task::none()
@@ -1564,6 +1561,13 @@ impl Desktop {
             },
             move |result| Message::PlayRecorded(id, result),
         )
+    }
+
+    fn set_library_page(&mut self, page: LibraryPage) {
+        self.page = page;
+        self.appearance_focus = None;
+        self.editor_navigation.reset();
+        self.sources.close_track_panels();
     }
 
     fn load_row_covers(&mut self) -> Task<Message> {
