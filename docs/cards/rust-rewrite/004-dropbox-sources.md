@@ -19,3 +19,7 @@ documents the Linux Secret Service and KWallet namespaces and CBC derivation.
 sets the macOS Keychain identity and Windows Local State. The Rust side stores the
 migrated token in native secure storage and clears ciphertext from the copied
 catalogue only after that write succeeds.
+
+On Linux, authorization opens through the registered desktop HTTPS handler
+using [GIO](https://gnome.pages.gitlab.gnome.org/gtk/gio/type_func.AppInfo.launch_default_for_uri.html).
+On macOS and Windows, authorization uses the platform URL opener.
