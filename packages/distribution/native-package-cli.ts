@@ -18,10 +18,10 @@ import {
 } from "./distribution-result";
 
 const execute = promisify(execFile);
+const require = createRequire(import.meta.url);
 const native = fileURLToPath(
   new URL("../../apps/desktop-rust/", import.meta.url),
 );
-const legacy = fileURLToPath(new URL("../../apps/desktop/", import.meta.url));
 const packageFiles = {
   linux: "latest-linux.yml",
   windows: "latest.yml",
@@ -39,13 +39,9 @@ const cargoHosts = {
   "macos-x64": /^x86_64-apple-darwin$/u,
 };
 
-async function run(
-  executable: string,
-  args: string[],
-  cwd: string = native,
-): Promise<string> {
+async function run(executable: string, args: string[]): Promise<string> {
   const result = await execute(executable, args, {
-    cwd,
+    cwd: native,
     maxBuffer: 16 * 1024 * 1024,
     env: {
       ...process.env,
@@ -117,28 +113,23 @@ async function buildPayload(
     const resources = join(payload, "resources");
     await mkdir(resources, { recursive: true });
     await cp(executable, join(payload, "muzo.exe"));
-    await cp(join(legacy, "assets/licenses"), join(resources, "licenses"), {
+    await cp(join(native, "assets/licenses"), join(resources, "licenses"), {
       recursive: true,
     });
-    const require = createRequire(join(legacy, "package.json"));
-    await run(
-      process.execPath,
-      [
-        require.resolve("electron-builder/cli.js"),
-        "--prepackaged",
-        payload,
-        "--win",
-        "nsis",
-        "--x64",
-        "--config",
-        "electron-builder.config.json",
-        `--config.extraMetadata.version=${version}`,
-        `--config.directories.output=${stage}`,
-        "--publish",
-        "never",
-      ],
-      legacy,
-    );
+    await run(process.execPath, [
+      require.resolve("electron-builder/cli.js"),
+      "--prepackaged",
+      payload,
+      "--win",
+      "nsis",
+      "--x64",
+      "--config",
+      "windows-installer.json",
+      `--config.extraMetadata.version=${version}`,
+      `--config.directories.output=${stage}`,
+      "--publish",
+      "never",
+    ]);
     return;
   }
 

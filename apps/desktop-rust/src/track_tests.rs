@@ -18,7 +18,7 @@ fn it_reuses_persistent_artwork_without_probing_the_source_again() {
     let root = tempfile::tempdir().unwrap();
     let cache = ArtworkCache::new(root.path().to_path_buf());
     let revision = Revision::new("library", "track", "/Music/song.mp3", 100, 1);
-    let original = include_bytes!("../../desktop/assets/icons/muzo.png");
+    let original = include_bytes!("../assets/icons/muzo.png");
     let cover = cache
         .get_or_read(&revision, || Some(original.to_vec()))
         .unwrap();
@@ -43,7 +43,7 @@ fn it_retries_after_a_temporary_cover_probe_failure() {
     assert!(
         cache
             .get_or_read(&revision, || {
-                Some(include_bytes!("../../desktop/assets/icons/muzo.png").to_vec())
+                Some(include_bytes!("../assets/icons/muzo.png").to_vec())
             })
             .is_some()
     );

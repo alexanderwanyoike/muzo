@@ -235,11 +235,9 @@ fn settings(size: Size, min: Size) -> window::Settings {
     #[cfg(not(target_os = "linux"))]
     let platform_specific = window::settings::PlatformSpecific::default();
 
-    let icon = window::icon::from_file_data(
-        include_bytes!("../../../desktop/assets/icons/muzo-window.png"),
-        None,
-    )
-    .ok();
+    let icon =
+        window::icon::from_file_data(include_bytes!("../../assets/icons/muzo-window.png"), None)
+            .ok();
     window::Settings {
         size,
         min_size: Some(min),

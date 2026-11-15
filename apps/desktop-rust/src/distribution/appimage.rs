@@ -106,10 +106,7 @@ pub fn register(image: &Path, data: &Path) -> io::Result<()> {
 
     let icon = data.join("muzo/appimage.png");
     fs::create_dir_all(data.join("muzo"))?;
-    fs::write(
-        &icon,
-        include_bytes!("../../../desktop/assets/icons/muzo.png"),
-    )?;
+    fs::write(&icon, include_bytes!("../../assets/icons/muzo.png"))?;
     let icon = desktop_path(&icon)?.replace('\\', "\\\\");
     let escaped = image
         .chars()

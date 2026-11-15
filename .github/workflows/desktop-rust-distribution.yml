@@ -4,10 +4,6 @@ on:
   pull_request:
     paths:
       - "apps/desktop-rust/**"
-      - "apps/desktop/assets/icons/**"
-      - "apps/desktop/assets/licenses/**"
-      - "apps/desktop/electron-builder.config.json"
-      - "apps/desktop/package.json"
       - "packages/distribution/**"
       - "package.json"
       - "yarn.lock"
@@ -84,6 +80,10 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.context.outputs.sourceCommit }}
+          sparse-checkout: |
+            /*
+            !/apps/desktop/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
@@ -105,7 +105,9 @@ jobs:
         working-directory: .
         env:
           RUSTUP_TOOLCHAIN: "1.95"
-        run: yarn desktop:package --target ${{ matrix.label }}
+        run: |
+          test ! -e apps/desktop
+          yarn desktop:package --target ${{ matrix.label }}
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'
         timeout-minutes: 2

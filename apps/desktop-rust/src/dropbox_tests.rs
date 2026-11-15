@@ -253,7 +253,7 @@ fn it_invalidates_artwork_when_dropbox_replaces_a_file_with_the_same_size() {
     assert!(
         cache
             .get_or_read(&first, || Some(
-                include_bytes!("../../desktop/assets/icons/muzo.png").to_vec()
+                include_bytes!("../assets/icons/muzo.png").to_vec()
             ))
             .is_some()
     );

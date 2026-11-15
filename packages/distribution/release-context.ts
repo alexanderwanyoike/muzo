@@ -9,7 +9,7 @@ import {
 
 interface ReleaseContextInput {
   rootVersion: unknown;
-  desktopVersion: unknown;
+  desktopVersion?: unknown;
   native?: { workspace: unknown; binary: unknown; packager: unknown };
   sourceCommit: unknown;
   tag?: unknown;
@@ -37,7 +37,10 @@ export function releaseVersion({
       "invalidRelease",
       "The native workspace, Cargo and Packager versions must match the root version.",
     );
-  if (!isStableReleaseVersion(rootVersion) || rootVersion !== desktopVersion)
+  if (
+    !isStableReleaseVersion(rootVersion) ||
+    (native === undefined && rootVersion !== desktopVersion)
+  )
     return distributionFailure(
       "invalidRelease",
       "Root and desktop versions must match a stable release version.",
