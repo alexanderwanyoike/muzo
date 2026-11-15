@@ -362,6 +362,7 @@ pub(super) struct Sources {
     pub search: String,
     pub removal: Option<Removal>,
     pub error: Option<String>,
+    pub source_tracks_error: Option<String>,
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
@@ -398,6 +399,7 @@ impl Sources {
             search: String::new(),
             removal: None,
             error: None,
+            source_tracks_error: None,
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
@@ -697,6 +699,7 @@ impl Sources {
         let selected = (snapshot.selected.as_deref() != Some(id)).then(|| id.to_owned());
         snapshot.selected.clone_from(&selected);
         snapshot.tracks.clear();
+        self.source_tracks_error = None;
         self.selection_changed_during_operation |= self.busy;
         self.pending
             .retain(|queued| !matches!(queued.operation, Operation::Select(_)));
@@ -708,7 +711,7 @@ impl Sources {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
-        self.loading_source = false;
+        let loading_source = std::mem::take(&mut self.loading_source);
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
@@ -718,6 +721,12 @@ impl Sources {
         let selection_changed = std::mem::take(&mut self.selection_changed_during_operation);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
+            Err(error) if loading_source => {
+                if !selection_changed {
+                    self.source_tracks_error = Some(error);
+                }
+                return;
+            }
             Err(error) => {
                 if removing_source && let Some(removal) = &mut self.removal {
                     removal.failed(error);
@@ -768,6 +777,7 @@ impl Sources {
         if let Some(previous) = &self.snapshot {
             preserve_play_counts(&mut snapshot, previous);
         }
+        self.source_tracks_error = None;
         self.error = snapshot.warnings.first().cloned();
         let roots: Vec<_> = snapshot
             .libraries
