@@ -922,8 +922,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(result.libraries, [other.clone()]);
-        assert_eq!(result.selected, Some(other.id));
+        assert_eq!(result.selected.as_deref(), Some(other.id.as_str()));
+        assert_eq!(result.libraries, [other]);
     }
 
     #[test]
