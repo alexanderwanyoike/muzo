@@ -85,8 +85,12 @@ it("exercises the packaged macOS mini player and retains screenshots for both ar
       nested(step, "with", "name") === `muzo-macos-mini-\${{ matrix.label }}`,
   );
   expect(steps.indexOf(screenshots)).toBeGreaterThan(steps.indexOf(smoke));
-  expect(nested(screenshots, "if")).toContain("steps.macos-mini.outcome");
+  expect(nested(screenshots, "uses")).toMatch(/^actions\/upload-artifact@/u);
+  expect(nested(screenshots, "if")).toBe(
+    `\${{ !cancelled() && runner.os == 'macOS' && steps.macos-mini.outcome != 'skipped' }}`,
+  );
   expect(nested(screenshots, "with", "path")).toBe(
     `\${{ runner.temp }}/muzo-macos-mini-screenshots/*.png`,
   );
+  expect(nested(smoke, "timeout-minutes")).toBe(3);
 });
