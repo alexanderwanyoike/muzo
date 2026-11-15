@@ -191,7 +191,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          yarn exec -- node --test tests/manual/profile-upgrade.test.mjs
+          yarn node --test tests/manual/profile-upgrade.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
           Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
@@ -248,7 +248,7 @@ jobs:
         env:
           RUSTUP_TOOLCHAIN: "1.95"
         run: |
-          yarn exec -- node --test apps/desktop-rust/tests/manual/windows-updater-fixture-version.test.mjs
+          yarn node --test apps/desktop-rust/tests/manual/windows-updater-fixture-version.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           yarn exec -- node apps/desktop-rust/tests/manual/windows-updater-fixture-version.mjs '0.0.6'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -266,7 +266,7 @@ jobs:
           $install = Join-Path $env:RUNNER_TEMP 'muzo-in-app-upgrade'
           $setup = Start-Process -FilePath $legacy -ArgumentList '/S', "/D=$install" -Wait -PassThru
           if ($setup.ExitCode -ne 0) { throw "Legacy installer exited with code $($setup.ExitCode)" }
-          yarn exec -- node --test apps/desktop-rust/tests/manual/legacy-update-feed.test.mjs
+          yarn node --test apps/desktop-rust/tests/manual/legacy-update-feed.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           yarn exec -- node apps/desktop-rust/tests/manual/windows-in-app-upgrade.mjs `
             (Join-Path $install 'muzo.exe') $candidate.FullName (Join-Path $candidate.DirectoryName 'latest.yml') `
