@@ -1241,6 +1241,66 @@ mod artwork_tests {
 }
 
 #[cfg(test)]
+mod playlist_entry_transactions {
+    use super::*;
+
+    #[test]
+    fn it_keeps_playlist_order_when_the_updated_songs_cannot_be_read() {
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("Music");
+        std::fs::create_dir(&folder).unwrap();
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/tone.mp3");
+        std::fs::copy(fixture, folder.join("tone.mp3")).unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let song = run(&paths, Operation::Add(folder))
+            .unwrap()
+            .tracks
+            .remove(0);
+        let mut catalogue = paths.open().unwrap();
+        let playlist = catalogue.create_playlist("Rehearsals").unwrap();
+        let first = catalogue.add_to_playlist(&playlist.id, &song.id).unwrap();
+        let second = catalogue.add_to_playlist(&playlist.id, &song.id).unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO libraries (id, name, kind, location)
+                 VALUES ('other', 'Other source', 'filesystem', '/music/other');
+                 INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+                 VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
+            )
+            .unwrap();
+        let move_entry = || {
+            run_with_selection(
+                &paths,
+                Operation::MovePlaylistEntry(playlist.id.clone(), first.clone(), 1),
+                Some("other".into()),
+                Some(playlist.id.clone()),
+            )
+        };
+        let saved_order = || {
+            catalogue
+                .playlist_entries(&playlist.id)
+                .unwrap()
+                .into_iter()
+                .map(|entry| entry.id)
+                .collect::<Vec<_>>()
+        };
+
+        assert!(move_entry().is_err());
+        assert_eq!(saved_order(), [first.clone(), second.clone()]);
+
+        connection
+            .execute(
+                "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
+                [],
+            )
+            .unwrap();
+        move_entry().unwrap();
+        assert_eq!(saved_order(), [second, first]);
+    }
+}
+
+#[cfg(test)]
 mod count_tests {
     use super::*;
 
