@@ -1,6 +1,6 @@
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
-    advanced::{clipboard, mouse},
+    advanced::{clipboard, graphics::Viewport, mouse, renderer::Style},
     event::Status,
     keyboard::{
         Key, Location, Modifiers,
@@ -122,6 +122,59 @@ fn has_focus_outline(desktop: &Desktop, columns: std::ops::Range<usize>) -> bool
             pixels[offset..offset + 4] == accent
         })
     })
+}
+
+#[test]
+fn it_preserves_the_panel_and_backdrop_when_only_the_focused_button_repaints() {
+    let (mut desktop, _root) = desktop();
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    request(&mut desktop);
+    let size = Size::new(FRAME.width as u32, FRAME.height as u32);
+    let viewport = Viewport::with_physical_size(size, 1.0);
+    let mut mask = tiny_skia::Mask::new(size.width, size.height).unwrap();
+    let mut frame = tiny_skia::Pixmap::new(size.width, size.height).unwrap();
+    let window = desktop.windows.library_id();
+    let theme = desktop.theme(window);
+
+    let render =
+        |desktop: &Desktop, frame: &mut tiny_skia::Pixmap, mask: &mut tiny_skia::Mask, damage| {
+            let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+            let mut ui =
+                UserInterface::build(desktop.view(window), FRAME, Cache::new(), &mut renderer);
+            ui.draw(
+                &mut renderer,
+                &theme,
+                &Style::default(),
+                mouse::Cursor::Unavailable,
+            );
+            renderer.draw(
+                &mut frame.as_mut(),
+                mask,
+                &viewport,
+                &[damage],
+                theme.palette().background,
+            );
+        };
+    render(&desktop, &mut frame, &mut mask, Rectangle::with_size(FRAME));
+    let panel = frame.pixel(250, 300).unwrap();
+    let outside = frame.pixel(180, 400).unwrap();
+
+    send_key(&mut desktop, Named::Tab, Modifiers::empty());
+    render(
+        &desktop,
+        &mut frame,
+        &mut mask,
+        Rectangle {
+            x: 495.0,
+            y: 451.0,
+            width: 132.0,
+            height: 62.0,
+        },
+    );
+
+    assert_eq!(frame.pixel(250, 300).unwrap(), panel);
+    assert_eq!(frame.pixel(180, 400).unwrap(), outside);
 }
 
 #[test]
