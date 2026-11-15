@@ -447,6 +447,7 @@ impl Desktop {
                 Task::batch([local, remote, self.load_row_covers()])
             }
             Message::Dropbox(action) => {
+                let selection_changed = matches!(action, dropbox_panel::Action::SelectFolder(..));
                 let field = match &action {
                     dropbox_panel::Action::Begin => Some(dropbox_panel::Control::Code),
                     dropbox_panel::Action::CancelAuthorization => {
@@ -455,16 +456,14 @@ impl Desktop {
                     _ => None,
                 };
                 let task = self.dropbox.update(action, self.sources.paths());
-                if let Some(control) = field
-                    && matches!(
-                        self.appearance_focus,
-                        Some(appearance_focus::Choice::Dropbox(_))
-                    )
-                {
-                    Task::batch([task, self.focus_dropbox([control])])
-                } else {
-                    task
-                }
+                let focus = match field {
+                    Some(control) if self.page == LibraryPage::Settings => {
+                        self.focus_dropbox([control])
+                    }
+                    _ if selection_changed => self.restore_dropbox_focus(),
+                    _ => Task::none(),
+                };
+                Task::batch([task, focus])
             }
             Message::AppImageIntegration(result) => {
                 if let Err(error) = result {
@@ -598,18 +597,16 @@ impl Desktop {
                 }
                 self.dropbox.apply(result);
                 let reload = self.sources.reload();
-                if folder_navigation {
-                    Task::batch([
-                        reload,
-                        self.focus_dropbox([
-                            dropbox_panel::Control::SelectCurrent,
-                            dropbox_panel::Control::Parent,
-                            dropbox_panel::Control::Browse,
-                        ]),
+                let focus = if folder_navigation {
+                    self.focus_dropbox([
+                        dropbox_panel::Control::SelectCurrent,
+                        dropbox_panel::Control::Parent,
+                        dropbox_panel::Control::Browse,
                     ])
                 } else {
-                    reload
-                }
+                    self.restore_dropbox_focus()
+                };
+                Task::batch([reload, focus])
             }
             Message::DropboxLibraryRefreshed(id, result) => {
                 let exists = self.sources.snapshot.as_ref().is_some_and(|snapshot| {
@@ -1044,6 +1041,9 @@ impl Desktop {
                     && self.page == LibraryPage::Settings
                     && let Some(choice) = &self.appearance_focus
                 {
+                    if repeat && matches!(choice, appearance_focus::Choice::Dropbox(_)) {
+                        return Task::none();
+                    }
                     return choice
                         .message(&self.dropbox)
                         .map_or_else(Task::none, |message| self.update(message));
@@ -1603,6 +1603,23 @@ impl Desktop {
             },
             move |result| Message::PlayRecorded(id, result),
         )
+    }
+
+    fn restore_dropbox_focus(&mut self) -> Task<Message> {
+        use dropbox_panel::Control;
+
+        if let Some(appearance_focus::Choice::Dropbox(control)) = self.appearance_focus.as_ref()
+            && !self.dropbox.focus_stops().contains(control)
+        {
+            return self.focus_dropbox([
+                Control::SelectCurrent,
+                Control::Parent,
+                Control::Browse,
+                Control::Code,
+                Control::AppKey,
+            ]);
+        }
+        Task::none()
     }
 
     fn focus_dropbox(

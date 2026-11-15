@@ -71,7 +71,13 @@ impl Choice {
             Self::Material(id) => Message::Material(id),
             Self::Mode(id) => Message::AppearanceMode(id),
             Self::Accent(id) => Message::Accent(id),
-            Self::Dropbox(control) => return dropbox.control_message(control),
+            Self::Dropbox(control) => {
+                return dropbox
+                    .focus_stops()
+                    .contains(control)
+                    .then(|| dropbox.control_message(control))
+                    .flatten();
+            }
             Self::RemoveSource(_) | Self::Divider => return None,
         })
     }
