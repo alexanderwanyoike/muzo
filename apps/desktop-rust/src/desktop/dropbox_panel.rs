@@ -816,6 +816,32 @@ mod tests {
     }
 
     #[test]
+    fn it_focuses_reauthorization_when_an_expired_account_closes_the_folder_browser() {
+        use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice};
+        let root = tempfile::tempdir().unwrap();
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        desktop.sources = crate::desktop::library_sources::Sources::new(Some(
+            CataloguePaths::in_directory(root.path()),
+        ));
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::Browse));
+        let _ = desktop.update(Message::Dropbox(Action::Browse("/".into())));
+        let result = Snapshot {
+            reconnect: true,
+            ..desktop.dropbox.snapshot.clone()
+        };
+
+        let _ = desktop.update(Message::DropboxReady(Ok(result)));
+
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(Control::AppKey))
+        );
+    }
+
+    #[test]
     fn it_tabs_from_the_dropbox_field_focused_by_the_pointer() {
         use iced::{
             advanced::widget::operation::{Outcome, focusable},
