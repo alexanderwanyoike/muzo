@@ -15,6 +15,7 @@ const TRACK_COUNT: u64 = 47;
 const SCROLLBAR_WIDTH: f32 = 10.0;
 const PANEL_SIZE: Size<u32> = Size::new(224, 250);
 const PLAYLIST_ROWS: usize = 16;
+const RGBA_BYTES_PER_PIXEL: usize = 4;
 
 #[derive(Default)]
 struct SidebarBounds {
@@ -137,11 +138,11 @@ fn pixels_beside_playlist_name(sources: &Sources) -> Vec<u8> {
     let count = bounds.track_count.unwrap();
     let row_start = count.y.floor() as usize;
     let row_end = (count.y + count.height).ceil() as usize;
-    let pixels_after_name = count.x.floor() as usize * 4;
+    let count_start_byte = count.x.floor() as usize * RGBA_BYTES_PER_PIXEL;
     pixels
-        .chunks_exact(PANEL_SIZE.width as usize * 4)
+        .chunks_exact(PANEL_SIZE.width as usize * RGBA_BYTES_PER_PIXEL)
         .take(row_end)
         .skip(row_start)
-        .flat_map(|row| row[pixels_after_name..].iter().copied())
+        .flat_map(|row| row[count_start_byte..].iter().copied())
         .collect()
 }
