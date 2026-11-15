@@ -19,3 +19,11 @@ documents the Linux Secret Service and KWallet namespaces and CBC derivation.
 sets the macOS Keychain identity and Windows Local State. The Rust side stores the
 migrated token in native secure storage and clears ciphertext from the copied
 catalogue only after that write succeeds.
+
+Plasma 6 uses `kde-open` to respect the selected browser. Earlier KDE versions
+and Xfce use [xdg-open](https://portland.freedesktop.org/doc/xdg-open.html).
+If either desktop opener fails, Muzo tries the registered HTTPS handler through
+[GIO](https://gnome.pages.gitlab.gnome.org/gtk/gio/type_func.AppInfo.launch_default_for_uri.html).
+Other Linux desktops use GIO first and fall back to xdg-open if GIO is absent.
+On macOS and Windows, authorization uses the platform URL opener. Muzo can quit
+while the browser stays open.

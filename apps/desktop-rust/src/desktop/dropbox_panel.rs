@@ -9,6 +9,7 @@ use crate::{
 
 use super::{Message, library_sources::CataloguePaths};
 
+mod browser;
 mod view;
 
 #[derive(Debug, Clone)]
@@ -28,6 +29,7 @@ pub enum Action {
     Sync,
     SyncLibrary(String),
     OpenAuthorization(String),
+    AuthorizationOpened(String, Result<(), String>),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -143,7 +145,21 @@ impl Settings {
                 return Task::none();
             }
             Action::OpenAuthorization(url) => {
-                if let Err(error) = open::that_detached(url) {
+                return Task::perform(
+                    async move {
+                        let result = browser::open_default(url.clone())
+                            .await
+                            .map_err(|error| error.to_string());
+                        (url, result)
+                    },
+                    |(url, result)| Message::Dropbox(Action::AuthorizationOpened(url, result)),
+                );
+            }
+            Action::AuthorizationOpened(url, result) => {
+                let current = self.auth.as_ref().and_then(|auth| auth.url().ok());
+                if current.is_some_and(|current| current.as_str() == url)
+                    && let Err(error) = result
+                {
                     self.error = Some(format!("Could not start the browser: {error}"));
                 }
                 return Task::none();
@@ -618,6 +634,155 @@ mod tests {
                 .keys()
                 .any(|label| label == &format!("Select {folder}"))
         );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_uses_the_desktop_default_handler_for_dropbox_authorization() {
+        use std::{
+            fs, os::unix::fs::PermissionsExt, process::Command, time::Duration, time::Instant,
+        };
+
+        use iced::futures::StreamExt;
+        use iced_runtime::{Action as UiAction, task};
+
+        const CAPTURE: &str = "MUZO_AUTHORIZATION_BROWSER_TEST_RESULT";
+        const FIXTURE: &str = "MUZO_AUTHORIZATION_BROWSER_TEST_CASE";
+        if let Some(fixture) = std::env::var_os(FIXTURE) {
+            let mut settings = Settings {
+                app_key: "muzo-test-key".into(),
+                ..Default::default()
+            };
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .unwrap();
+            let mut pending = settings.update(Action::Begin, None);
+            while let Some(mut messages) = task::into_stream(pending) {
+                let Some(UiAction::Output(Message::Dropbox(result))) =
+                    runtime.block_on(messages.next())
+                else {
+                    panic!("expected a Dropbox authorization action");
+                };
+                let opens_browser = matches!(result, Action::OpenAuthorization(_));
+                pending = settings.update(result, None);
+                if fixture == "long-lived-launcher" && opens_browser {
+                    let started = Instant::now();
+                    let mut browser = task::into_stream(pending).unwrap();
+                    let result = runtime.block_on(async {
+                        tokio::time::timeout(Duration::from_secs(1), browser.next()).await
+                    });
+                    assert!(
+                        result.is_err(),
+                        "the desktop URL handler should still be running"
+                    );
+                    drop(runtime);
+                    assert!(
+                        started.elapsed() < Duration::from_secs(4),
+                        "closing Muzo waited for the browser handler"
+                    );
+                    return;
+                }
+            }
+            assert!(settings.auth.is_some());
+            assert_eq!(
+                settings
+                    .error
+                    .as_deref()
+                    .map(|message| message.contains("Could not start the browser")),
+                (fixture == "handler-fails").then_some(true)
+            );
+            return;
+        }
+
+        const URL_ARG: &str = "authorization-url";
+        for (mode, desktop, version, expected) in [
+            ("default", "X-Generic", "", &["gio", "open", URL_ARG][..]),
+            (
+                "handler-fails",
+                "X-Generic",
+                "",
+                &["gio", "open", URL_ARG][..],
+            ),
+            ("without-gio", "X-Generic", "", &["xdg-open", URL_ARG][..]),
+            ("desktop-default", "KDE", "5", &["xdg-open", URL_ARG][..]),
+            (
+                "desktop-handler-fails",
+                "KDE",
+                "5",
+                &["xdg-open", URL_ARG, "gio", "open", URL_ARG][..],
+            ),
+            ("plasma6-default", "KDE", "6", &["kde-open", URL_ARG][..]),
+            (
+                "long-lived-launcher",
+                "X-Generic",
+                "",
+                &["gio", "open", URL_ARG][..],
+            ),
+        ] {
+            let fixture = tempfile::tempdir().unwrap();
+            let capture = fixture.path().join("invocation");
+            for launcher in ["gio", "xdg-open", "kde-open"] {
+                if mode == "without-gio" && launcher == "gio" {
+                    continue;
+                }
+                let status = if (mode == "handler-fails" && launcher == "gio")
+                    || (mode == "desktop-handler-fails" && launcher == "xdg-open")
+                {
+                    17
+                } else {
+                    0
+                };
+                let path = fixture.path().join(launcher);
+                let use_registered_default = if launcher != "gio" {
+                    "if [ -n \"${BROWSER:-}\" ]; then printf '%s\\n' 'environment-override'; fi\n"
+                } else {
+                    ""
+                };
+                let wait_for_browser = if mode == "long-lived-launcher" && launcher == "gio" {
+                    "/bin/sleep 6\n"
+                } else {
+                    ""
+                };
+                fs::write(
+                    &path,
+                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} >> \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\n{wait_for_browser}exit {status}\n"),
+                ).unwrap();
+                fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+            }
+            let process = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "desktop::dropbox_panel::tests::it_uses_the_desktop_default_handler_for_dropbox_authorization",
+                ])
+                .env(CAPTURE, &capture)
+                .env(FIXTURE, mode)
+                .env("BROWSER", "inherited-override")
+                .env("XDG_CURRENT_DESKTOP", desktop)
+                .env("KDE_SESSION_VERSION", version)
+                .env("PATH", fixture.path())
+                .output()
+                .unwrap();
+            assert!(
+                process.status.success(),
+                "{mode}: {}",
+                String::from_utf8_lossy(&process.stdout)
+            );
+            let invoked = fs::read_to_string(capture).unwrap();
+            let invocations = invoked
+                .lines()
+                .map(|value| {
+                    if value.starts_with(
+                        "https://www.dropbox.com/oauth2/authorize?client_id=muzo-test-key&",
+                    ) {
+                        URL_ARG
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(invocations, expected, "{mode}");
+        }
     }
 
     #[test]
