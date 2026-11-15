@@ -460,12 +460,8 @@ impl Desktop {
                         self.appearance_focus,
                         Some(appearance_focus::Choice::Dropbox(_))
                     )
-                    && self.dropbox.focus_stops().contains(&control)
                 {
-                    let choice = appearance_focus::Choice::Dropbox(control);
-                    let focus = choice.take_focus();
-                    self.appearance_focus = Some(choice);
-                    Task::batch([task, focus])
+                    Task::batch([task, self.focus_dropbox([control])])
                 } else {
                     task
                 }
@@ -585,13 +581,35 @@ impl Desktop {
                 Task::none()
             }
             Message::DropboxReady(mut result) => {
+                let folder_navigation = matches!(
+                    self.appearance_focus,
+                    Some(appearance_focus::Choice::Dropbox(
+                        dropbox_panel::Control::Browse
+                            | dropbox_panel::Control::Parent
+                            | dropbox_panel::Control::OpenFolder(_),
+                    ))
+                ) && result.as_ref().is_ok_and(|snapshot| {
+                    !snapshot.path.is_empty() && snapshot.path != self.dropbox.snapshot.path
+                });
                 if let Ok(snapshot) = &mut result {
                     for library in std::mem::take(&mut snapshot.disconnected_libraries) {
                         self.remove_queued_library(&library);
                     }
                 }
                 self.dropbox.apply(result);
-                self.sources.reload()
+                let reload = self.sources.reload();
+                if folder_navigation {
+                    Task::batch([
+                        reload,
+                        self.focus_dropbox([
+                            dropbox_panel::Control::SelectCurrent,
+                            dropbox_panel::Control::Parent,
+                            dropbox_panel::Control::Browse,
+                        ]),
+                    ])
+                } else {
+                    reload
+                }
             }
             Message::DropboxLibraryRefreshed(id, result) => {
                 let exists = self.sources.snapshot.as_ref().is_some_and(|snapshot| {
@@ -1585,6 +1603,23 @@ impl Desktop {
             },
             move |result| Message::PlayRecorded(id, result),
         )
+    }
+
+    fn focus_dropbox(
+        &mut self,
+        targets: impl IntoIterator<Item = dropbox_panel::Control>,
+    ) -> Task<Message> {
+        let available = self.dropbox.focus_stops();
+        let Some(control) = targets
+            .into_iter()
+            .find(|control| available.contains(control))
+        else {
+            return Task::none();
+        };
+        let choice = appearance_focus::Choice::Dropbox(control);
+        let focus = choice.take_focus();
+        self.appearance_focus = Some(choice);
+        focus
     }
 
     fn set_library_page(&mut self, page: LibraryPage) {
