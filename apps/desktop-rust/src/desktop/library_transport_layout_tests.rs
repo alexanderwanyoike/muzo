@@ -257,6 +257,14 @@ fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
             "missing halo around the rail at ({x}, {y})"
         );
     }
+    for y in [59, 62] {
+        let green = at(500, y) + 1;
+        let difference = glow[green].saturating_sub(classic[green]);
+        assert!(
+            difference <= 16,
+            "the transport rail halo is too bright at {y}: {difference}"
+        );
+    }
     let volume_fill = at(790, 40);
     assert_eq!(&glow[volume_fill..volume_fill + 4], &[66, 233, 255, 255]);
 }
