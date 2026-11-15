@@ -141,12 +141,20 @@ try {
       await command("record_track_play", {input: {libraryId: library.id, trackId: track.id}});
     }
     const playlists = await command("list_playlists");
+    const updatedTracks = await command("list_tracks", {libraryId: library.id});
+    const history = await command("list_track_play_counts", {input: {libraryId: library.id}});
     return {
       tracks: tracks.length,
-      entries: playlists[0].entries.length,
+      orderedEntries: playlists[0].entries.map(({trackId}) => trackId),
+      expectedEntries: [first.id, second.id, first.id],
+      edit: updatedTracks.find(({id}) => id === first.id)?.title,
+      plays: history.reduce((sum, row) => sum + row.playCount, 0),
     };
   })()`);
-  assert.deepStrictEqual(counts, { tracks: 2, entries: 3 });
+  assert.equal(counts.tracks, 2);
+  assert.deepStrictEqual(counts.orderedEntries, counts.expectedEntries);
+  assert.equal(counts.edit, "Holloway edit");
+  assert.equal(counts.plays, 3);
 
   const preferences = await evaluate(`(() => {
     const settings = [...document.querySelectorAll(".app-sidebar__nav button")]
