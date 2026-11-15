@@ -161,7 +161,8 @@ const competingBuild = join(cache, "release");
 fs.mkdirSync(competingBuild, { recursive: true });
 fs.writeFileSync(join(competingBuild, "muzo-desktop"), "another checkout");
 const packaged = fs.readFileSync(join(config["binaries-dir"], "muzo-desktop"), "utf8");
-fs.writeFileSync(process.env.MUZO_FIXTURE_PACKAGER_CONFIG, JSON.stringify({ config, packaged }));
+const outputDir = process.argv[process.argv.indexOf("--out-dir") + 1];
+fs.writeFileSync(process.env.MUZO_FIXTURE_PACKAGER_CONFIG, JSON.stringify({ config, packaged, outputDir }));
 console.error("packager fixture reached");
 process.exit(43);
 `,
@@ -206,6 +207,7 @@ process.exit(43);
         dirname(artifacts),
         "keep executable artifacts off the installer output mount",
       ).toBe(cache);
+      expect(result).toHaveProperty("outputDir", join(artifacts, "package"));
     } finally {
       await rm(fixture, { recursive: true, force: true });
     }
