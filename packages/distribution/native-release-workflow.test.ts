@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parse as parseToml } from "smol-toml";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
@@ -41,9 +41,11 @@ it("makes the verified Rust installer workflow the sole tagged release publisher
   expect(releaseSteps).toContain("verify-release-tag.sh");
   expect(releaseSteps).toContain("--verify-tag --draft");
 
-  const legacy = workflow("distribution.yml");
-  expect(legacy).not.toHaveProperty("on.push");
-  expect(legacy).not.toHaveProperty("jobs.release");
+  expect(
+    existsSync(
+      new URL("../../.github/workflows/distribution.yml", import.meta.url),
+    ),
+  ).toBe(false);
 });
 
 it("runs the root native installer command for every release target", () => {
