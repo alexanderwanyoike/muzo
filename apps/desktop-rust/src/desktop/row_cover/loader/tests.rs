@@ -327,7 +327,9 @@ fn it_keeps_rows_after_an_expanded_editor_in_the_cover_viewport() {
         messages
             .into_iter()
             .find_map(|message| {
-                if let Message::ArtworkViewport(LibraryPage::Songs, rows) = message {
+                if let Message::ArtworkViewport(LibraryPage::Songs, rows) = message
+                    && !rows.is_empty()
+                {
                     Some(rows.start)
                 } else {
                     None

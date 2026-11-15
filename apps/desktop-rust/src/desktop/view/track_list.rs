@@ -296,21 +296,27 @@ pub(super) fn view<'a>(
     let row_height = ROW_CONTENT_HEIGHT + library::DIVIDER_HEIGHT;
     let plain_height =
         LIST_TOP_INSET + LIST_BOTTOM_INSET + row_height * snapshot.tracks.len() as f32;
-    column![
-        scrollable(songs)
-            .id(SONGS_SCROLL)
-            .height(Fill)
-            .on_scroll(move |viewport| {
-                let extra_height = (viewport.content_bounds().height - plain_height).max(0.0);
-                Message::ArtworkViewport(
-                    crate::desktop::LibraryPage::Songs,
-                    crate::desktop::row_cover::viewport_rows(
-                        viewport,
-                        row_height,
-                        LIST_TOP_INSET,
-                        extra_height,
-                    ),
-                )
-            })
-    ]
+    let page = crate::desktop::LibraryPage::Songs;
+    let list = scrollable(songs)
+        .id(SONGS_SCROLL)
+        .height(Fill)
+        .on_scroll(move |viewport| {
+            let extra_height = (viewport.content_bounds().height - plain_height).max(0.0);
+            Message::ArtworkViewport(
+                page,
+                crate::desktop::row_cover::viewport_rows(
+                    viewport,
+                    row_height,
+                    LIST_TOP_INSET,
+                    extra_height,
+                ),
+            )
+        });
+    column![crate::desktop::row_cover::watch_fit(
+        list,
+        page,
+        snapshot.selected.as_deref(),
+        snapshot.tracks.len(),
+        plain_height,
+    )]
 }

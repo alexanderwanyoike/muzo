@@ -326,20 +326,23 @@ pub fn tracks<'a>(
             .color(surfaces.muted)
             .into()
     } else {
-        scrollable(column(rows))
+        let page = crate::desktop::LibraryPage::Playlists;
+        let row_height = TRACK_HEIGHT + library::DIVIDER_HEIGHT;
+        let list = scrollable(column(rows))
             .height(Fill)
-            .on_scroll(|viewport| {
+            .on_scroll(move |viewport| {
                 Message::ArtworkViewport(
-                    crate::desktop::LibraryPage::Playlists,
-                    crate::desktop::row_cover::viewport_rows(
-                        viewport,
-                        TRACK_HEIGHT + library::DIVIDER_HEIGHT,
-                        0.0,
-                        0.0,
-                    ),
+                    page,
+                    crate::desktop::row_cover::viewport_rows(viewport, row_height, 0.0, 0.0),
                 )
-            })
-            .into()
+            });
+        crate::desktop::row_cover::watch_fit(
+            list,
+            page,
+            snapshot.selected_playlist.as_deref(),
+            count,
+            row_height * count as f32,
+        )
     };
     column![
         container(column![header, list].spacing(16))

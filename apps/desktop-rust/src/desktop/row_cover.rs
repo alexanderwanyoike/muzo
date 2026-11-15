@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use iced::widget::image::Handle;
+use iced::{
+    Element, Size,
+    widget::{image::Handle, sensor},
+};
 
 use crate::{
     artwork_cache::{decode_cover, thumbnail},
@@ -9,7 +12,7 @@ use crate::{
     track::Track,
 };
 
-use super::{Snapshot, cover::centered_square};
+use super::{LibraryPage, Message, Snapshot, cover::centered_square};
 
 mod loader;
 
@@ -20,6 +23,29 @@ pub(super) const ROW_LIMIT: usize = 512;
 
 pub type Covers = HashMap<String, Handle>;
 pub type DirectCovers = HashMap<PathBuf, Handle>;
+
+pub(in crate::desktop) fn watch_fit<'a>(
+    list: impl Into<Element<'a, Message>>,
+    page: LibraryPage,
+    identity: Option<&str>,
+    count: usize,
+    content_height: f32,
+) -> Element<'a, Message> {
+    // Iced does not report a scroll viewport when its contents already fit.
+    let report = move |size: Size| {
+        let rows = if content_height <= size.height {
+            count
+        } else {
+            0
+        };
+        Message::ArtworkViewport(page, 0..rows)
+    };
+    sensor(list)
+        .key((identity.map(str::to_owned), count))
+        .on_show(report)
+        .on_resize(report)
+        .into()
+}
 
 #[derive(Debug, Clone)]
 pub struct OpenedFiles {

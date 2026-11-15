@@ -396,7 +396,7 @@ impl Desktop {
                 Task::batch([queued, self.load_row_covers()])
             }
             Message::ArtworkViewport(page, rows) => {
-                if page != self.page {
+                if page != self.page || rows.is_empty() {
                     return Task::none();
                 }
                 self.row_covers.visible(page, rows);
