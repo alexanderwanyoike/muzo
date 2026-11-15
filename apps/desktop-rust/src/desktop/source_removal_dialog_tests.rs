@@ -95,6 +95,39 @@ fn it_keeps_pointer_and_keyboard_input_in_the_dialog_and_focuses_cancel_first() 
 }
 
 #[test]
+fn it_honours_a_cancellation_before_enter_in_the_same_keyboard_batch() {
+    let (mut desktop, _root) = desktop();
+    for (key, modifiers) in [
+        (Named::Tab, Modifiers::SHIFT),
+        (Named::Escape, Modifiers::empty()),
+    ] {
+        request(&mut desktop);
+        send_key(&mut desktop, Named::Tab, Modifiers::empty());
+
+        send_keys(
+            &mut desktop,
+            &[
+                key_event(key, modifiers),
+                key_event(Named::Enter, Modifiers::empty()),
+            ],
+        );
+
+        assert!(!desktop.sources.busy(), "{key:?} must prevent removal");
+        assert!(!labels(&desktop).contains_key(PROMPT));
+    }
+
+    request(&mut desktop);
+    send_keys(
+        &mut desktop,
+        &[
+            key_event(Named::Tab, Modifiers::empty()),
+            key_event(Named::Enter, Modifiers::empty()),
+        ],
+    );
+    assert!(labels(&desktop).contains_key("Removing..."));
+}
+
+#[test]
 fn it_draws_the_focus_outline_after_keyboard_navigation() {
     let (mut desktop, _root) = desktop();
     desktop.appearance.theme = "walnut".into();
@@ -205,7 +238,11 @@ fn it_keeps_the_confirmation_through_a_failed_removal_and_allows_retry() {
 }
 
 fn send_key(desktop: &mut Desktop, name: Named, modifiers: Modifiers) {
-    let keyboard = Event::Keyboard(iced::keyboard::Event::KeyPressed {
+    send_keys(desktop, &[key_event(name, modifiers)]);
+}
+
+fn key_event(name: Named, modifiers: Modifiers) -> Event {
+    Event::Keyboard(iced::keyboard::Event::KeyPressed {
         key: Key::Named(name),
         modified_key: Key::Named(name),
         physical_key: Physical::Unidentified(NativeCode::Unidentified),
@@ -213,9 +250,12 @@ fn send_key(desktop: &mut Desktop, name: Named, modifiers: Modifiers) {
         modifiers,
         text: None,
         repeat: false,
-    });
-    let (statuses, messages) = dispatch(desktop, &[keyboard], Point::ORIGIN);
-    assert_eq!(statuses, [Status::Captured], "{name:?}");
+    })
+}
+
+fn send_keys(desktop: &mut Desktop, events: &[Event]) {
+    let (statuses, messages) = dispatch(desktop, events, Point::ORIGIN);
+    assert_eq!(statuses, vec![Status::Captured; events.len()], "{events:?}");
     for message in messages {
         let _ = desktop.update(message);
     }
