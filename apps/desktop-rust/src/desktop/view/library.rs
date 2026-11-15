@@ -23,7 +23,7 @@ pub(in crate::desktop) fn library<'a>(
         &'a updates::Status,
         &'a sidebar::Sidebar,
         LibraryPage,
-        Option<crate::desktop::appearance_focus::Choice>,
+        Option<&'a crate::desktop::appearance_focus::Choice>,
     ),
     session: Option<&'a Session>,
     cover: Option<&'a image::Handle>,
@@ -244,7 +244,7 @@ pub(super) fn settings<'a>(
     dropbox: &'a dropbox_panel::Settings,
     sources: &'a Sources,
     audio: bool,
-    focus: Option<crate::desktop::appearance_focus::Choice>,
+    focus: Option<&crate::desktop::appearance_focus::Choice>,
 ) -> iced::widget::Column<'a, Message> {
     let surfaces = preferences.surfaces();
     let body = column![

@@ -72,6 +72,14 @@ impl Appearance {
         palette::accent_ink(&self.accent, self.mode == "dark")
     }
 
+    pub(crate) fn danger_ink(&self) -> iced::Color {
+        if self.mode == "dark" {
+            iced::color!(0xf1a49a)
+        } else {
+            iced::color!(0xab3e36)
+        }
+    }
+
     pub(crate) fn glow_highlight(&self) -> Option<iced::Color> {
         self.accent
             .starts_with("glow-")

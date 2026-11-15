@@ -2782,6 +2782,7 @@ dependencies = [
  "symphonia",
  "tempfile",
  "thiserror 2.0.21",
+ "tiny-skia",
  "tokio",
  "unicode-segmentation",
  "uuid",
