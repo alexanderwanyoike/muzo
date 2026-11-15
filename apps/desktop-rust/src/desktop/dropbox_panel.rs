@@ -635,6 +635,31 @@ mod tests {
     }
 
     #[test]
+    fn it_reserves_a_gutter_for_the_scrollbar_inside_a_long_folder_list() {
+        const WIDTH: f32 = 318.0;
+        const ARROW_RIGHT_GUTTER: f32 = 22.0;
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("account".into());
+        settings.snapshot.path = "/Music".into();
+        for index in 0..12 {
+            let name = format!("Album {index}");
+            settings
+                .snapshot
+                .folders
+                .push((format!("/Music/{name}"), name));
+        }
+        let labels = rendered_labels(&settings, WIDTH);
+        let chevron = labels
+            .0
+            .get("›")
+            .expect("the folder should have a navigation cue");
+        assert!(
+            chevron.x + chevron.width <= WIDTH - ARROW_RIGHT_GUTTER,
+            "the scrollbar covers the folder navigation cue: {chevron:?}"
+        );
+    }
+
+    #[test]
     fn it_reopens_authorization_when_the_displayed_account_needs_reconnecting() {
         let mut settings = Settings {
             snapshot: Snapshot {
