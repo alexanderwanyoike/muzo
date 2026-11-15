@@ -15,6 +15,10 @@ use crate::{
 
 use super::{Icon, action, bold, compact, icon_button, icon_tinted, library, track_play_button};
 
+#[cfg(test)]
+#[path = "playlist_sidebar_tests.rs"]
+mod sidebar_tests;
+
 pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     let query = sources.playlist_search.trim().to_lowercase();
     let snapshot = sources.snapshot.as_ref();
