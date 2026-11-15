@@ -172,3 +172,110 @@ impl Operation for RevealSources {
         )))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::desktop::{Desktop, LibraryPage, appearance_focus::Choice, dropbox_panel::Control};
+    use iced::{Font, Pixels, Renderer, Size, futures::StreamExt};
+    use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
+
+    #[derive(Default)]
+    struct ScrollPositions {
+        settings: f32,
+        folders: f32,
+        folder_list: Option<Id>,
+    }
+
+    impl Operation for ScrollPositions {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn scrollable(
+            &mut self,
+            id: Option<&Id>,
+            _: Rectangle,
+            _: Rectangle,
+            offset: Vector,
+            _: &mut dyn Scrollable,
+        ) {
+            if id == Some(&SCROLL.into()) {
+                self.settings = offset.y;
+            } else if id.is_some() && id == self.folder_list.as_ref() {
+                self.folders = offset.y;
+            }
+        }
+    }
+
+    #[test]
+    fn it_reveals_an_offscreen_dropbox_focus_target_inside_both_scroll_areas() {
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let window = desktop.windows.library_id();
+        desktop.page = LibraryPage::Settings;
+        desktop.dropbox.snapshot.account = Some("fixture".into());
+        desktop.dropbox.snapshot.path = "/Music".into();
+        desktop.dropbox.snapshot.folders = (1..=32)
+            .map(|index| {
+                (
+                    format!("/Music/Archive {index}"),
+                    format!("Archive {index}"),
+                )
+            })
+            .collect();
+        let last = "/Music/Archive 32".to_owned();
+        desktop.appearance_focus = Some(Choice::Dropbox(Control::SelectFolder(last.clone())));
+        let next = desktop.update(Message::CycleMiniFocus(window, false));
+        let target = Control::OpenFolder(last);
+        assert_eq!(
+            desktop.appearance_focus,
+            Some(Choice::Dropbox(target.clone()))
+        );
+
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let mut ui = UserInterface::build(
+            desktop.view(window),
+            Size::new(1050.0, 600.0),
+            Cache::default(),
+            &mut renderer,
+        );
+        let mut positions = ScrollPositions {
+            folder_list: target.nested_scroll(),
+            ..Default::default()
+        };
+        ui.operate(&renderer, &mut positions);
+        assert_eq!((positions.settings, positions.folders), (0.0, 0.0));
+
+        let mut actions = task::into_stream(next).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        while let Some(action) = runtime.block_on(async {
+            tokio::time::timeout(std::time::Duration::from_secs(2), actions.next())
+                .await
+                .unwrap()
+        }) {
+            let Action::Widget(mut operation) = action else {
+                panic!("expected a widget operation");
+            };
+            loop {
+                ui.operate(&renderer, operation.as_mut());
+                let Outcome::Chain(next) = operation.finish() else {
+                    break;
+                };
+                operation = next;
+            }
+        }
+
+        ui.operate(&renderer, &mut positions);
+        assert!(
+            positions.settings > 0.0,
+            "the outer Settings scroll should reveal Dropbox"
+        );
+        assert!(
+            positions.folders > 0.0,
+            "the inner folder list should reveal the focused row"
+        );
+    }
+}
