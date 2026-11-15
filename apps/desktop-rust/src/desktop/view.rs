@@ -216,8 +216,16 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
 }
 
 fn clock(duration: Duration) -> String {
-    let seconds = duration.as_secs();
-    format!("{}:{:02}", seconds / 60, seconds % 60)
+    const SECONDS_PER_MINUTE: u64 = 60;
+    const MINUTES_PER_HOUR: u64 = 60;
+    let total_minutes = duration.as_secs() / SECONDS_PER_MINUTE;
+    let seconds = duration.as_secs() % SECONDS_PER_MINUTE;
+    let hours = total_minutes / MINUTES_PER_HOUR;
+    if hours == 0 {
+        return format!("{total_minutes}:{seconds:02}");
+    }
+    let minutes = total_minutes % MINUTES_PER_HOUR;
+    format!("{hours}:{minutes:02}:{seconds:02}")
 }
 
 fn error_line<'a>(error: Option<impl text::IntoFragment<'a>>) -> Element<'a, Message> {
