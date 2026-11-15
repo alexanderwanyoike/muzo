@@ -1,5 +1,5 @@
 use iced::{
-    Alignment, Element, Fill, border,
+    Alignment, Color, Element, Fill, border,
     widget::{Space, button, container, mouse_area, row, text, tooltip},
     window,
 };
@@ -11,6 +11,14 @@ use super::{Icon, Message, bold, icon_tinted, panel};
 const TITLE_HEIGHT: u32 = 32;
 const CAPTION_WIDTH: u32 = 32;
 const CAPTION_GLYPH: u32 = 13;
+pub(super) const PANE_GUTTER: f32 = 8.0;
+pub(super) const PANE_RADIUS: f32 = 12.0;
+
+pub(super) fn pane_style(fill: Color) -> container::Style {
+    container::Style::default()
+        .background(fill)
+        .border(border::rounded(PANE_RADIUS))
+}
 
 #[cfg(not(target_os = "macos"))]
 pub(in crate::desktop) fn resize_edges(

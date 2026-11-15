@@ -10,10 +10,15 @@ use crate::{
 };
 
 use super::{
-    Icon, action, appearance, bold, error_line, icon_tinted, label_text::replace_embedded_breaks,
-    library_content, library_transport, playback_error, playlists, sidebar_divider::Divider,
+    Icon, action, appearance, bold, error_line, icon_tinted,
+    label_text::replace_embedded_breaks,
+    library_content, library_transport, playback_error, playlists,
+    sidebar_divider::Divider,
     sources,
+    window_chrome::{PANE_GUTTER, pane_style},
 };
+
+const NAV_SUMMARY_HEIGHT: f32 = 33.0;
 
 pub(in crate::desktop) fn library<'a>(
     sources: &'a Sources,
@@ -32,26 +37,43 @@ pub(in crate::desktop) fn library<'a>(
     let (preferences, update, sidebar, page, focus) = settings;
     let (error, retry) = playback;
     let surfaces = preferences.surfaces();
+    let shell = preferences.theme().palette().background;
     let width = sidebar.visible_width();
     let panes = row![
         container(navigation(sources, page, session, cover, preferences))
+            .padding(iced::Padding {
+                left: PANE_GUTTER,
+                right: PANE_GUTTER - sidebar::SPLITTER_WIDTH,
+                top: PANE_GUTTER,
+                bottom: PANE_GUTTER,
+            })
             .width(width)
             .height(Fill),
         Space::new().width(sidebar::SPLITTER_WIDTH),
-        column![
-            toolbar(sources, page, surfaces),
-            error_line(sources.error.as_deref().map(replace_embedded_breaks)),
-            library_content(
-                sources,
-                dropbox,
-                preferences,
-                session,
-                (page, focus),
-                cover,
-                sidebar.viewport_width(),
-            )
-            .height(Fill),
-        ]
+        container(
+            container(column![
+                toolbar(sources, page, surfaces),
+                error_line(sources.error.as_deref().map(replace_embedded_breaks)),
+                library_content(
+                    sources,
+                    dropbox,
+                    preferences,
+                    session,
+                    (page, focus),
+                    cover,
+                    sidebar.viewport_width(),
+                )
+                .height(Fill),
+            ])
+            .padding(iced::padding::bottom(PANE_GUTTER))
+            .width(Fill)
+            .height(Fill)
+            .style(move |_| pane_style(surfaces.raised)),
+        )
+        .padding(iced::Padding {
+            left: 0.0,
+            ..iced::Padding::new(PANE_GUTTER)
+        })
         .width(Fill)
         .height(Fill),
     ]
@@ -72,14 +94,14 @@ pub(in crate::desktop) fn library<'a>(
         row![Space::new().width(Fill), updates::view(update, surfaces)].align_y(Alignment::Center),
     )
     .padding([5, 12])
-    .style(move |_| container::Style::default().background(surfaces.chrome));
+    .style(move |_| container::Style::default().background(shell));
 
     container(Element::new(Divider::around(
         header.into(),
         panes.into(),
         footer.into(),
         width,
-        (surfaces.line, preferences.accent_ink()),
+        (shell, preferences.accent_ink()),
     )))
     .id(crate::desktop::appearance_focus::LIBRARY)
     .height(Fill)
@@ -103,14 +125,11 @@ fn navigation<'a>(
         .as_ref()
         .map_or(0, |snapshot| snapshot.track_counts.values().sum());
     let heading = container(
-        column![
-            text("Muzo").size(19).font(bold()),
-            text(format!("{libraries} libraries - {tracks} tracks"))
-                .size(10)
-                .color(surfaces.muted),
-        ]
-        .spacing(6),
+        text(format!("{libraries} libraries - {tracks} tracks"))
+            .size(11)
+            .color(surfaces.muted),
     )
+    .center_y(NAV_SUMMARY_HEIGHT)
     .padding([0, 10]);
     let nav = column![
         nav_item("Songs", Icon::Music, LibraryPage::Songs, page, surfaces),
@@ -143,7 +162,7 @@ fn navigation<'a>(
         .padding([18, 8])
         .width(Fill)
         .height(Fill)
-        .style(move |_| container::Style::default().background(surfaces.sidebar))
+        .style(move |_| pane_style(surfaces.chrome))
         .into()
 }
 
@@ -174,7 +193,7 @@ fn nav_item(
     .padding([7, 10])
     .style(move |theme, status| button::Style {
         background: if active {
-            Some(surfaces.raised.into())
+            Some(super::compact::tint(surfaces.chrome, theme.palette().primary, 0.16).into())
         } else {
             action(theme, status).background
         },
@@ -213,8 +232,7 @@ fn toolbar(sources: &Sources, page: LibraryPage, surfaces: Surfaces) -> Element<
         )
         .padding([0, 26])
         .center_y(64)
-        .width(Fill)
-        .style(move |_| container::Style::default().background(surfaces.raised)),
+        .width(Fill),
         line(surfaces),
     ]
     .into()
