@@ -47,9 +47,10 @@ impl Glow {
     pub(super) fn surround_seek(
         self,
         control: Element<'static, Message>,
+        progress: f32,
     ) -> Element<'static, Message> {
         stack![control]
-            .push_under(Element::new(SeekHalo(self.accent)))
+            .push_under(Element::new(SeekHalo::new(self.accent, progress)))
             .into()
     }
 
