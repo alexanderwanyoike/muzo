@@ -12,6 +12,7 @@ mod compact;
 mod ellipsized_label;
 mod label_text;
 mod library;
+mod library_transport;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
@@ -27,6 +28,8 @@ mod track_playlist;
 mod track_row;
 
 use super::{Message, library_sources::Sources};
+
+const LIBRARY_COMPACT_WIDTH: f32 = 950.0;
 
 fn muted(theme: &Theme) -> iced::widget::text::Style {
     let palette = theme.palette();

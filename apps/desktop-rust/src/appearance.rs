@@ -72,6 +72,12 @@ impl Appearance {
         palette::accent_ink(&self.accent, self.mode == "dark")
     }
 
+    pub(crate) fn glow_highlight(&self) -> Option<iced::Color> {
+        self.accent
+            .starts_with("glow-")
+            .then(|| palette::accent_ink(&self.accent, true))
+    }
+
     fn valid(&self) -> bool {
         MATERIALS.iter().any(|(id, _)| *id == self.theme)
             && MODES.iter().any(|(id, _)| *id == self.mode)

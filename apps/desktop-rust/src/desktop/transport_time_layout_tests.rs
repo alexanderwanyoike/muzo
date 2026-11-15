@@ -6,6 +6,7 @@ use iced::{
         Layout, layout,
         widget::{Id, Operation, Tree},
     },
+    window,
 };
 
 use crate::session::{AudioError, AudioPlayback, Session};
@@ -69,6 +70,21 @@ impl Operation for Labels {
     }
 }
 
+pub(super) fn rendered_labels(
+    desktop: &Desktop,
+    id: window::Id,
+    frame: Size,
+) -> HashMap<String, Rectangle> {
+    let mut view = desktop.view(id);
+    let mut tree = Tree::new(&view);
+    let renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+    let widget = view.as_widget_mut();
+    let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(frame, frame));
+    let mut labels = Labels::default();
+    widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+    labels.0
+}
+
 #[test]
 fn it_allows_long_timestamps_to_fit_in_both_player_timelines() {
     const ELAPSED: &str = "10:00:01";
@@ -78,20 +94,13 @@ fn it_allows_long_timestamps_to_fit_in_both_player_timelines() {
     let library = desktop.windows.library_id();
     let _ = desktop.update(Message::ShowMini);
     let mini = desktop.windows.mini_id().expect("mini player opened");
-    let renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
-
     for (id, frame) in [
         (library, Size::new(850.0, 800.0)),
         (mini, Size::new(420.0, 560.0)),
     ] {
-        let mut view = desktop.view(id);
-        let mut tree = Tree::new(&view);
-        let widget = view.as_widget_mut();
-        let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(frame, frame));
-        let mut labels = Labels::default();
-        widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
-        let elapsed = labels.0[ELAPSED];
-        let total = labels.0[TOTAL];
+        let labels = rendered_labels(&desktop, id, frame);
+        let elapsed = labels[ELAPSED];
+        let total = labels[TOTAL];
         assert!(
             elapsed.width > SHORT_CELL_WIDTH,
             "elapsed time was constrained to {elapsed:?}"

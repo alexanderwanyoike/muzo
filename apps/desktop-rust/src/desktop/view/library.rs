@@ -1,21 +1,18 @@
-use std::time::Duration;
-
 use iced::{
     Alignment, Element, Fill, Length, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, slider, text},
+    widget::{Space, button, column, container, image, row, scrollable, text},
 };
 
 use crate::{
     appearance::{Appearance, Surfaces},
     desktop::{LibraryPage, Message, dropbox_panel, library_sources::Sources, sidebar, updates},
     session::Session,
-    track::Track,
 };
 
 use super::{
-    Icon, action, appearance, bold, clock_label, compact, control_opacity, error_line, icon_button,
-    icon_tinted, label_text::replace_embedded_breaks, library_content, playback_error, playlists,
-    sidebar_divider::Divider, sources,
+    Icon, action, appearance, bold, error_line, icon_tinted, label_text::replace_embedded_breaks,
+    library_content, library_transport, playback_error, playlists, sidebar_divider::Divider,
+    sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -61,7 +58,14 @@ pub(in crate::desktop) fn library<'a>(
     .width(Fill)
     .height(Fill);
     let header = column![
-        transport(session, cover, retry, surfaces, preferences),
+        library_transport::view(
+            session,
+            cover,
+            retry,
+            surfaces,
+            preferences,
+            sidebar.viewport_width()
+        ),
         playback_error(error, retry, false, Message::RetryTrack),
     ];
     let footer = container(
@@ -80,126 +84,6 @@ pub(in crate::desktop) fn library<'a>(
     .id(crate::desktop::appearance_focus::LIBRARY)
     .height(Fill)
     .into()
-}
-
-fn transport<'a>(
-    session: Option<&'a Session>,
-    cover: Option<&image::Handle>,
-    retry: bool,
-    surfaces: Surfaces,
-    preferences: &Appearance,
-) -> Element<'a, Message> {
-    let active = session.and_then(Session::current);
-    let playing = session.is_some_and(Session::is_playing);
-    let index = session.and_then(Session::current_index);
-    let (position, duration) = session.map_or((Duration::ZERO, Duration::ZERO), Session::observe);
-    let controls = row![
-        icon_button(
-            Icon::Previous,
-            "Previous track",
-            index.is_some_and(|i| i > 0).then_some(Message::Previous)
-        ),
-        chrome_play(playing, retry || active.is_some()),
-        icon_button(
-            Icon::Next,
-            "Next track",
-            index
-                .zip(session)
-                .is_some_and(|(i, s)| i + 1 < s.tracks().len())
-                .then_some(Message::Next)
-        ),
-    ]
-    .spacing(13)
-    .align_y(Alignment::Center);
-    let controls = container(controls).center_x(218);
-
-    let timeline = row![
-        clock_label(position, surfaces.muted),
-        slider(
-            0.0..=duration.as_secs_f32().max(0.1),
-            position.as_secs_f32(),
-            Message::Seek
-        )
-        .height(13)
-        .step(0.1)
-        .style(move |theme, _| compact::slider_style(theme, surfaces, false)),
-        clock_label(duration, surfaces.muted),
-    ]
-    .spacing(6)
-    .align_y(Alignment::Center);
-    let display = container(
-        row![
-            small_cover(cover, 43.0, surfaces),
-            column![
-                text(active.map_or("Not Playing", Track::title))
-                    .font(bold())
-                    .size(11)
-                    .wrapping(text::Wrapping::None),
-                text(active.and_then(Track::artist).unwrap_or("Select a track"))
-                    .size(10)
-                    .color(surfaces.muted)
-                    .wrapping(text::Wrapping::None),
-                timeline,
-            ]
-            .width(Fill)
-            .align_x(Alignment::Center)
-        ]
-        .spacing(12)
-        .align_y(Alignment::Center),
-    )
-    .width(Fill)
-    .max_width(610)
-    .padding([7, 12])
-    .style(move |_| framed(surfaces.raised.scale_alpha(0.70), surfaces, 5));
-    let volume = row![
-        icon_tinted(Icon::Volume, move |_| surfaces.muted)
-            .width(16)
-            .height(16),
-        slider(
-            0.0..=1.0,
-            session.map_or(1.0, Session::volume),
-            Message::SetVolume
-        )
-        .width(100)
-        .step(0.01)
-        .style(move |theme, _| compact::slider_style(theme, surfaces, true)),
-    ]
-    .spacing(10)
-    .align_y(Alignment::Center);
-    let volume = container(volume).align_x(Alignment::End).width(170);
-    let surface = iced::widget::stack![
-        crate::desktop::material::chrome(preferences, surfaces, 81),
-        container(
-            row![controls, container(display).center_x(Fill), volume]
-                .spacing(20)
-                .align_y(Alignment::Center)
-        )
-        .padding([0, 24])
-        .center_y(81),
-    ];
-    let mini = row![
-        Space::new().width(Fill),
-        icon_button(Icon::Mini, "Mini player", Some(Message::ShowMini)),
-    ];
-    column![
-        iced::widget::stack![surface, container(mini).padding([2, 10])],
-        line(surfaces),
-    ]
-    .into()
-}
-
-fn chrome_play(playing: bool, enabled: bool) -> Element<'static, Message> {
-    let glyph = icon_tinted(if playing { Icon::Pause } else { Icon::Play }, |theme| {
-        theme.palette().text
-    })
-    .opacity(control_opacity(enabled))
-    .width(26)
-    .height(26);
-    button(container(glyph).center(34))
-        .padding(0)
-        .style(action)
-        .on_press_maybe(enabled.then_some(Message::TogglePlayback))
-        .into()
 }
 
 fn navigation<'a>(
@@ -498,51 +382,4 @@ pub(in crate::desktop) fn settings_input(
             }
             style
         })
-}
-
-#[cfg(test)]
-mod tests {
-    use iced::{
-        Color, Font, Pixels, Rectangle, Renderer, Size,
-        advanced::{
-            Layout, layout, mouse,
-            renderer::{Headless, Style},
-            widget::Tree,
-        },
-    };
-
-    use super::*;
-
-    fn play_icon_pixels(enabled: bool) -> Vec<u8> {
-        let mut button = chrome_play(false, enabled);
-        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-        let mut tree = Tree::new(&button);
-        let widget = button.as_widget_mut();
-        let size = Size::new(34, 34);
-        let bounds = Rectangle::with_size(Size::new(34.0, 34.0));
-        let node = widget.layout(
-            &mut tree,
-            &renderer,
-            &layout::Limits::new(bounds.size(), bounds.size()),
-        );
-        widget.draw(
-            &tree,
-            &mut renderer,
-            &Theme::Light,
-            &Style::default(),
-            Layout::new(&node),
-            mouse::Cursor::Unavailable,
-            &bounds,
-        );
-        renderer.screenshot(size, 1.0, Color::WHITE)
-    }
-
-    #[test]
-    fn it_dims_the_play_glyph_when_no_track_is_selected() {
-        let active = play_icon_pixels(true);
-        let disabled = play_icon_pixels(false);
-        let darkest = |pixels: &[u8]| pixels.chunks_exact(4).map(|color| color[0]).min().unwrap();
-        assert!(darkest(&active) < darkest(&disabled));
-        assert!(darkest(&disabled) < 255);
-    }
 }
