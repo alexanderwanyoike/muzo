@@ -96,7 +96,7 @@ fn it_reevaluates_a_pending_track_index_when_an_unrelated_source_is_removed() {
     let _ = desktop.update(Message::SourcesUpdated(Ok(snapshot(&["second"]))));
     let _ = desktop.update(Message::RemoteTrackReady(
         0,
-        Ok(local.with_library("second".into())),
+        Ok(local.with_library("second".into()).into()),
     ));
 
     assert_eq!(desktop.now_playing().map(|(index, _)| index), Some(0));
@@ -138,9 +138,9 @@ fn it_keeps_the_catalogued_title_when_a_cached_download_has_no_embedded_title() 
 
     let track = Track::new(PathBuf::new(), indexed.title.clone(), None, None, None)
         .with_indexed_id(indexed.id);
-    let played = prepare_dropbox_track(&paths, track, local);
+    let played = prepare_dropbox_track(&paths, track, local, None);
 
-    assert_eq!(played.title(), indexed.title);
+    assert_eq!(played.track.title(), indexed.title);
     assert_eq!(
         catalogue.tracks(&library.id).unwrap()[0].title,
         indexed.title
@@ -154,9 +154,14 @@ fn it_plays_a_download_if_its_optional_metadata_cache_cannot_be_opened() {
     std::fs::create_dir(root.path().join("muzo-rust.sqlite")).unwrap();
     let (_, audio) = setup();
     let path = audio.path().to_path_buf();
-    let result = prepare_dropbox_track(&paths, audio.with_indexed_id("track".into()), path.clone());
+    let result = prepare_dropbox_track(
+        &paths,
+        audio.with_indexed_id("track".into()),
+        path.clone(),
+        None,
+    );
 
-    assert_eq!(result.path(), path);
+    assert_eq!(result.track.path(), path);
 }
 
 #[test]
@@ -193,10 +198,10 @@ fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
         .unwrap();
     let current = catalogue.artwork_revision(&library.id, &row.id).unwrap();
     assert_ne!(old, current);
-    let prepared = prepare_dropbox_track(&paths, track, audio);
+    let prepared = prepare_dropbox_track(&paths, track, audio, Some(old.clone()));
     let cache = crate::artwork_cache::ArtworkCache::new(paths.artwork_cache());
 
-    assert!(prepared.artwork().is_some());
+    assert!(prepared.track.artwork().is_some());
     assert!(
         cache.lookup(&current).is_none(),
         "the old download must not mark a newer cover as current"
@@ -271,7 +276,7 @@ fn it_ignores_late_audio_from_a_disconnected_dropbox_account() {
     };
 
     let _ = desktop.update(Message::DropboxReady(Ok(snapshot)));
-    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(remote_audio)));
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(remote_audio.into())));
 
     let session = desktop.session.as_ref().unwrap();
     assert_eq!(session.current_index(), None);
@@ -432,10 +437,10 @@ fn it_can_reopen_cached_catalogue_artwork_without_the_original_audio() {
         .with_library(library.id);
 
     let first = prepare_local_track(Some(&paths), item.clone());
-    assert!(first.artwork().is_some());
+    assert!(first.track.artwork().is_some());
     std::fs::remove_file(file).unwrap();
     let reopened = prepare_local_track(Some(&paths), item);
-    assert_eq!(reopened.artwork(), first.artwork());
+    assert_eq!(reopened.track.artwork(), first.track.artwork());
 }
 
 #[test]
@@ -560,7 +565,10 @@ fn it_shows_a_cached_dropbox_cover_when_audio_fails_before_the_cover_read_finish
     let _ = desktop.update(Message::RemoteTrackReady(request, Err("Offline".into())));
     let _ = desktop.update(Message::RemoteCachedCoverReady(
         request,
-        Some(include_bytes!("../../assets/icons/muzo.png").to_vec()),
+        Ok(Some(CachedCover {
+            revision: Revision::new("library", "track", "/Music/Track.mp3", 1, 1),
+            bytes: include_bytes!("../../assets/icons/muzo.png").to_vec(),
+        })),
     ));
 
     assert!(desktop.cover.thumbnail().is_some());
@@ -648,7 +656,7 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
         let ready = desktop.session.as_ref().unwrap().tracks()[index].clone();
         let _ = desktop.update(Message::RemoteTrackReady(
             desktop.playback_request,
-            Ok(ready),
+            Ok(ready.into()),
         ));
         let session = desktop.session.as_ref().unwrap();
         assert_eq!(session.current().unwrap().playlist_entry(), Some(entry));
@@ -744,7 +752,7 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
     let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
     let _ = desktop.update(Message::RemoteTrackReady(
         desktop.playback_request,
-        Ok(ready),
+        Ok(ready.into()),
     ));
     let generation = desktop.session.as_ref().unwrap().start_generation();
 
@@ -753,7 +761,7 @@ fn it_restarts_the_playback_queue_from_the_first_playable_playlist_entry() {
     let ready = desktop.session.as_ref().unwrap().tracks()[0].clone();
     let _ = desktop.update(Message::RemoteTrackReady(
         desktop.playback_request,
-        Ok(ready),
+        Ok(ready.into()),
     ));
     let session = desktop.session.as_ref().unwrap();
     assert_eq!(session.start_generation(), generation + 1);

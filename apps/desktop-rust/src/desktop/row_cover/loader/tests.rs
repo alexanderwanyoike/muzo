@@ -525,7 +525,7 @@ fn it_refreshes_the_playing_track_artwork_without_restarting_audio_after_a_scan(
         .with_artwork(old.to_vec());
     let _ = desktop.update(Message::RemoteTrackReady(
         desktop.playback_request,
-        Ok(track),
+        Ok(track.into()),
     ));
     let before = desktop.session.as_ref().unwrap().start_generation();
     let old_cover = desktop.cover.thumbnail().unwrap().clone();
