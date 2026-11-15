@@ -1107,6 +1107,11 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let folder = root.path().join("New source");
         std::fs::create_dir(&folder).unwrap();
+        std::fs::write(
+            folder.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let paths = CataloguePaths::in_directory(root.path());
         let catalogue = paths.open().unwrap();
         let playlist = catalogue.create_playlist("Existing playlist").unwrap();
@@ -1217,7 +1222,17 @@ mod tests {
         let first = root.path().join("first");
         let added = root.path().join("added");
         std::fs::create_dir(&first).unwrap();
+        std::fs::write(
+            first.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         std::fs::create_dir(&added).unwrap();
+        std::fs::write(
+            added.join("tone.mp3"),
+            include_bytes!("../../tests/fixtures/tone.mp3"),
+        )
+        .unwrap();
         let snapshot = run(&paths, Operation::Add(first)).unwrap();
         let selected = snapshot.selected.clone().unwrap();
         let mut sources = Sources::new(Some(paths));
