@@ -186,6 +186,7 @@ pub fn tracks<'a>(
     cover: Option<&image::Handle>,
     surfaces: Surfaces,
 ) -> iced::widget::Column<'a, Message> {
+    const TRACK_HEIGHT: f32 = 58.0;
     let Some(playlist) = &snapshot.selected_playlist else {
         return column![];
     };
@@ -274,7 +275,7 @@ pub fn tracks<'a>(
             column![
                 container(content)
                     .padding([0, 8])
-                    .center_y(58)
+                    .center_y(TRACK_HEIGHT)
                     .width(Fill)
                     .style(move |theme: &iced::Theme| {
                         let base = theme.palette().background;
@@ -325,7 +326,15 @@ pub fn tracks<'a>(
             .color(surfaces.muted)
             .into()
     } else {
-        scrollable(column(rows)).height(Fill).into()
+        scrollable(column(rows))
+            .height(Fill)
+            .on_scroll(|viewport| {
+                Message::ArtworkViewport(
+                    crate::desktop::LibraryPage::Playlists,
+                    crate::desktop::row_cover::viewport_rows(viewport, TRACK_HEIGHT + 1.0, 0.0),
+                )
+            })
+            .into()
     };
     column![
         container(column![header, list].spacing(16))

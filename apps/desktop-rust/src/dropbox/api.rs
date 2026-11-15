@@ -63,10 +63,18 @@ impl Client {
     }
 
     pub(super) fn with_endpoints(api: &str, content: &str) -> Result<Self, DropboxError> {
+        Self::with_timeout(api, content, Duration::from_secs(120))
+    }
+
+    pub(crate) fn for_artwork(timeout: Duration) -> Result<Self, DropboxError> {
+        Self::with_timeout(API, CONTENT, timeout)
+    }
+
+    fn with_timeout(api: &str, content: &str, timeout: Duration) -> Result<Self, DropboxError> {
         let http = Http::builder()
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(120))
+            .timeout(timeout)
             .build()?;
         Ok(Self {
             http,

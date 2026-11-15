@@ -293,5 +293,17 @@ pub(super) fn view<'a>(
             container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
         );
     }
-    column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
+    column![
+        scrollable(songs)
+            .id(SONGS_SCROLL)
+            .height(Fill)
+            .on_scroll(|viewport| Message::ArtworkViewport(
+                crate::desktop::LibraryPage::Songs,
+                crate::desktop::row_cover::viewport_rows(
+                    viewport,
+                    ROW_CONTENT_HEIGHT + 1.0,
+                    LIST_TOP_INSET
+                ),
+            ))
+    ]
 }

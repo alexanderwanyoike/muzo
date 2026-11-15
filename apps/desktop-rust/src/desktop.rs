@@ -62,6 +62,8 @@ pub enum Message {
     SourceOperation(Operation),
     SourcesUpdated(Result<Snapshot, library_sources::UpdateError>),
     SourceWatchTick,
+    ArtworkViewport(LibraryPage, std::ops::Range<usize>),
+    ArtworkReady(row_cover::Complete),
     PlayRecorded(String, Result<u32, String>),
     Dropbox(dropbox_panel::Action),
     DropboxReady(Result<dropbox_panel::Snapshot, String>),
@@ -168,6 +170,7 @@ pub struct Desktop {
     cover: Cover,
     direct_covers: row_cover::DirectCovers,
     queue_covers: row_cover::Covers,
+    row_covers: row_cover::Loader,
     sources: Sources,
     dropbox: dropbox_panel::Settings,
     playback_request: u64,
@@ -249,6 +252,7 @@ impl Desktop {
                 cover: Cover::default(),
                 direct_covers: Default::default(),
                 queue_covers: Default::default(),
+                row_covers: row_cover::Loader::default(),
                 sources: Sources::new(None),
                 dropbox: dropbox_panel::Settings::default(),
                 playback_request: 0,
@@ -338,7 +342,7 @@ impl Desktop {
                 self.appearance_focus = None;
                 self.editor_navigation.reset();
                 self.sources.close_track_panels();
-                Task::none()
+                self.load_row_covers()
             }
             Message::OpenSourceSettings => {
                 let _ = self.update(Message::LibraryPage(LibraryPage::Settings));
@@ -384,8 +388,24 @@ impl Desktop {
                         self.remove_queued_library(&library);
                     }
                 }
+                if result.is_ok() {
+                    self.row_covers.catalogue_changed();
+                }
                 self.sources.apply(result);
-                self.sources.start_pending().unwrap_or_else(Task::none)
+                let queued = self.sources.start_pending().unwrap_or_else(Task::none);
+                Task::batch([queued, self.load_row_covers()])
+            }
+            Message::ArtworkViewport(page, rows) => {
+                if page != self.page {
+                    return Task::none();
+                }
+                self.row_covers.visible(page, rows);
+                self.load_row_covers()
+            }
+            Message::ArtworkReady(cover) => {
+                self.row_covers
+                    .complete(cover, self.sources.snapshot.as_mut());
+                self.load_row_covers()
             }
             Message::SourceWatchTick => {
                 let local = self.sources.poll();
@@ -1508,6 +1528,14 @@ impl Desktop {
             },
             move |result| Message::PlayRecorded(id, result),
         )
+    }
+
+    fn load_row_covers(&mut self) -> Task<Message> {
+        let (Some(paths), Some(snapshot)) = (self.sources.paths(), &mut self.sources.snapshot)
+        else {
+            return Task::none();
+        };
+        self.row_covers.request(&paths, snapshot, self.page)
     }
 
     pub fn subscription(&self) -> Subscription<Message> {

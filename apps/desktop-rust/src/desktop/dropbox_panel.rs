@@ -685,7 +685,7 @@ fn refresh_library(paths: &CataloguePaths, id: &str) -> Result<(String, usize), 
     Ok((library.name, tracks))
 }
 
-fn account_credentials(
+pub(super) fn account_credentials(
     catalogue: &Catalogue,
     account: &str,
 ) -> Result<(String, String), DropboxError> {
