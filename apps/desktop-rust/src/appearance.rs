@@ -72,14 +72,6 @@ impl Appearance {
         palette::accent_ink(&self.accent, self.mode == "dark")
     }
 
-    pub(crate) fn focus_ink(&self) -> iced::Color {
-        match (self.theme.as_str(), self.mode.as_str()) {
-            ("pulse", "dark") => iced::Color::WHITE,
-            ("pulse", _) => iced::color!(0x171717),
-            _ => self.accent_ink(),
-        }
-    }
-
     pub(crate) fn danger_ink(&self) -> iced::Color {
         if self.mode == "dark" {
             iced::color!(0xf1a49a)

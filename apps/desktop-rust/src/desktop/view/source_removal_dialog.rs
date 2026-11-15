@@ -1,5 +1,5 @@
 use iced::{
-    Color, ContentFit, Element, Event, Fill, Font, Length, Padding, Pixels, border,
+    Color, ContentFit, Element, Event, Fill, Font, Length, Pixels,
     keyboard::{self, Key, Modifiers, key::Named},
     widget::{button, column, container, row, scrollable, stack, svg, text},
     window,
@@ -15,7 +15,10 @@ use crate::{
     },
 };
 
-use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal, pulse_row_fills};
+use super::{
+    SOURCE_ACTION_FOCUS_TINT, bold, compact::tint, label_text::replace_embedded_breaks, library,
+    modal::Modal, pulse_row_fills,
+};
 
 const DESCRIPTION: &str = "This removes the source, its indexed tracks, metadata edits and play counts from Muzo. Your music files stay where they are. Playlist entries remain, marked unavailable.";
 const PANEL_WIDTH: f32 = 440.0;
@@ -25,7 +28,6 @@ const TEXT_GAP: f32 = 12.0;
 const ACTION_INSET: f32 = 24.0;
 const ACTION_GAP: f32 = 8.0;
 const ACTION_HEIGHT: f32 = 30.0;
-const FOCUS_OUTSET: f32 = 5.0;
 const SHADOW_INSET: f32 = 88.0;
 const SHADOW: &[u8] = include_bytes!("../../../assets/materials/dialog-shadow.svg");
 const MAX_COPY_HEIGHT: f32 =
@@ -86,7 +88,6 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
 
     let cancel_colors = ActionColors {
         surfaces,
-        outline: appearance.focus_ink(),
         hover,
         danger: None,
     };
@@ -110,8 +111,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
             ..cancel_colors
         },
     );
-    let actions = row![cancel, confirm].spacing(ACTION_GAP - 2.0 * FOCUS_OUTSET);
-    let inner_inset = CONTENT_INSET - FOCUS_OUTSET;
+    let actions = row![cancel, confirm].spacing(ACTION_GAP);
     let copy = container(
         scrollable(copy)
             .id(DETAILS)
@@ -119,20 +119,13 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
             .spacing(SCROLLBAR_GAP)
             .height(Length::Shrink),
     )
-    .padding([0.0, FOCUS_OUTSET])
     .max_height(MAX_COPY_HEIGHT);
-    let panel = container(
-        column![copy, container(actions).align_right(Fill)].spacing(ACTION_INSET - FOCUS_OUTSET),
-    )
-    .padding(Padding {
-        top: CONTENT_INSET,
-        right: inner_inset,
-        bottom: inner_inset,
-        left: inner_inset,
-    })
-    .width(Fill)
-    .max_width(PANEL_WIDTH)
-    .style(move |_| library::framed(surfaces.raised, surfaces, 8));
+    let panel =
+        container(column![copy, container(actions).align_right(Fill)].spacing(ACTION_INSET))
+            .padding(CONTENT_INSET)
+            .width(Fill)
+            .max_width(PANEL_WIDTH)
+            .style(move |_| library::framed(surfaces.raised, surfaces, 8));
 
     // Tiny-Skia paints a quad's built-in shadow outside its partial redraw clip.
     let shadow = svg(svg::Handle::from_memory(SHADOW))
@@ -155,7 +148,6 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
 #[derive(Clone, Copy)]
 struct ActionColors {
     surfaces: Surfaces,
-    outline: Color,
     hover: Option<Color>,
     danger: Option<Color>,
 }
@@ -168,28 +160,39 @@ fn action(
 ) -> Element<'static, Message> {
     let ActionColors {
         surfaces,
-        outline,
         hover,
         danger,
     } = colors;
     let focused = focused && message.is_some();
-    let control = button(text(label).size(13).line_height(Pixels(18.0)))
+    button(text(label).size(13).line_height(Pixels(18.0)))
         .height(ACTION_HEIGHT)
         .padding([6, 12])
         .style(move |theme, status| {
             let mut style = library::bordered_button(theme, status, surfaces);
             if let Some(danger) = danger {
-                style.background = Some(danger.into());
+                let fill = if focused {
+                    tint(danger, surfaces.raised, SOURCE_ACTION_FOCUS_TINT)
+                } else {
+                    danger
+                };
+                style.background = Some(fill.into());
                 style.border.color = danger;
                 style.text_color = surfaces.raised;
+            } else if focused {
+                style.background = Some(
+                    tint(
+                        surfaces.raised,
+                        theme.palette().text,
+                        SOURCE_ACTION_FOCUS_TINT,
+                    )
+                    .into(),
+                );
             } else if status == button::Status::Hovered
                 || hover.is_some() && status == button::Status::Pressed
             {
                 style.background = Some(
                     hover
-                        .unwrap_or_else(|| {
-                            super::compact::tint(surfaces.raised, theme.palette().text, 0.05)
-                        })
+                        .unwrap_or_else(|| tint(surfaces.raised, theme.palette().text, 0.05))
                         .into(),
                 );
             }
@@ -200,17 +203,7 @@ fn action(
             }
             style
         })
-        .on_press_maybe(message);
-    container(control)
-        .padding(FOCUS_OUTSET)
-        .style(move |_| {
-            let border = if focused {
-                border::rounded(10).width(2).color(outline)
-            } else {
-                border::Border::default()
-            };
-            container::Style::default().border(border)
-        })
+        .on_press_maybe(message)
         .into()
 }
 

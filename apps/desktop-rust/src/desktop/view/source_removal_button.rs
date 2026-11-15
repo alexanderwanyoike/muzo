@@ -1,5 +1,5 @@
 use iced::{
-    Color, Event, Length, Rectangle, Renderer, Size, Theme,
+    Event, Length, Rectangle, Renderer, Size, Theme,
     advanced::{
         Clipboard, Layout, Renderer as _, Shell, Widget, layout, mouse, renderer,
         widget::{Id, Operation, Tree, operation::Focusable, tree},
@@ -13,12 +13,13 @@ use iced::{
 
 use crate::desktop::{Message, source_removal::Launcher};
 
+use super::SOURCE_ACTION_FOCUS_TINT;
+
 pub(super) struct RemovalButton<'a> {
     button: Button<'a, Message>,
     launcher: Launcher,
     id: Id,
     enabled: bool,
-    outline: Color,
 }
 
 struct State {
@@ -45,12 +46,7 @@ impl Focusable for State {
 }
 
 impl<'a> RemovalButton<'a> {
-    pub(super) fn new(
-        button: Button<'a, Message>,
-        launcher: Launcher,
-        enabled: bool,
-        outline: Color,
-    ) -> Self {
+    pub(super) fn new(button: Button<'a, Message>, launcher: Launcher, enabled: bool) -> Self {
         let button = button.on_press_maybe(
             enabled.then(|| Message::RequestSourceRemoval(launcher.source_id().to_owned())),
         );
@@ -59,7 +55,6 @@ impl<'a> RemovalButton<'a> {
             button,
             launcher,
             enabled,
-            outline,
         }
     }
 }
@@ -196,13 +191,14 @@ impl Widget<Message, Theme, Renderer> for RemovalButton<'_> {
             viewport,
         );
         if self.enabled && tree.state.downcast_ref::<State>().focused {
+            const FILL_INSET: f32 = 2.0;
             renderer.fill_quad(
                 renderer::Quad {
-                    bounds: layout.bounds(),
-                    border: border::rounded(5).width(2).color(self.outline),
+                    bounds: layout.bounds().shrink(FILL_INSET),
+                    border: border::rounded(3),
                     ..renderer::Quad::default()
                 },
-                Color::TRANSPARENT,
+                theme.palette().text.scale_alpha(SOURCE_ACTION_FOCUS_TINT),
             );
         }
     }

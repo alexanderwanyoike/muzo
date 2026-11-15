@@ -39,7 +39,6 @@ pub(super) struct Colors {
     hover: Color,
     muted: Color,
     danger: Color,
-    focus_ink: Color,
 }
 
 impl Colors {
@@ -57,7 +56,6 @@ impl Colors {
             hover,
             muted: appearance.surfaces().muted,
             danger: appearance.danger_ink(),
-            focus_ink: appearance.focus_ink(),
         }
     }
 }
@@ -139,12 +137,7 @@ fn remove_button(source_id: &str, enabled: bool, colors: Colors) -> Element<'sta
     const HOVER_OPACITY: f32 = 0.08;
     // The SVG covers the button so its ink responds throughout the hit area.
     const CLOSE: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 44 44" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"><path d="m18 6-12 12M6 6l12 12"/></svg>"#;
-    let Colors {
-        muted,
-        danger,
-        focus_ink,
-        ..
-    } = colors;
+    let Colors { muted, danger, .. } = colors;
     let icon = svg(svg::Handle::from_memory(CLOSE))
         .width(SIZE)
         .height(SIZE)
@@ -167,7 +160,6 @@ fn remove_button(source_id: &str, enabled: bool, colors: Colors) -> Element<'sta
                 }),
             Launcher::Sidebar(source_id.to_owned()),
             enabled,
-            focus_ink,
         )),
         text("Remove source").size(ICON_TOOLTIP_TEXT_SIZE),
         tooltip::Position::FollowCursor,

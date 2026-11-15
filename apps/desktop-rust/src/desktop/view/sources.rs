@@ -130,7 +130,6 @@ pub(super) fn indexed_sources<'a>(
                 remove,
                 Launcher::Settings(source.id.clone()),
                 !sources.busy(),
-                appearance.focus_ink(),
             )),
         ]
         .spacing(8);
