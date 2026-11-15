@@ -176,6 +176,8 @@ fn it_suppresses_retries_for_m4a_artwork_beyond_the_range_budget() {
                     Err(error) => panic!("could not accept artwork range: {error}"),
                 }
             };
+            // An accepted socket can inherit the listener's nonblocking mode.
+            stream.set_nonblocking(false).unwrap();
             stream.set_read_timeout(io_timeout).unwrap();
             stream.set_write_timeout(io_timeout).unwrap();
             let (start, end, _) = range_request(&stream);
