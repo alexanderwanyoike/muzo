@@ -811,8 +811,11 @@ impl Desktop {
             }
             Message::RemoteCachedCoverReady(request, cover) => {
                 if request == self.playback_request
-                    && let (Some(index), Some(bytes), Some(session)) =
-                        (self.pending_track, cover, self.session.as_mut())
+                    && let (Some(index), Some(bytes), Some(session)) = (
+                        self.pending_track.or(self.failed_track),
+                        cover,
+                        self.session.as_mut(),
+                    )
                     && let Some(track) = session.tracks().get(index)
                 {
                     let track = track.clone().with_artwork(bytes);
@@ -1538,7 +1541,7 @@ impl Desktop {
                 },
                 move |result| Message::RemoteTrackReady(request, result),
             );
-            return cover.chain(audio);
+            return Task::batch([cover, audio]);
         }
         if track.indexed_id().is_some() && track.artwork().is_none() && track.remote().is_none() {
             self.pending_track = Some(index);
