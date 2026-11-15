@@ -9,7 +9,8 @@ export XDG_DATA_HOME="$profile/data"
 export XDG_CACHE_HOME="$profile/cache"
 export XDG_RUNTIME_DIR="$profile/runtime"
 export MUZO_DATA_DIR="$XDG_DATA_HOME/muzo"
-mkdir -m 700 "$XDG_RUNTIME_DIR"
+export TMPDIR="$profile/tmp"
+mkdir -m 700 "$XDG_RUNTIME_DIR" "$TMPDIR"
 unset DISPLAY WAYLAND_DISPLAY WAYLAND_SOCKET DBUS_SESSION_BUS_ADDRESS PULSE_SERVER
 export APPIMAGE_EXTRACT_AND_RUN=1
 export GVFS_DISABLE_FUSE=1
