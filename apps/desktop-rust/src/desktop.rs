@@ -391,13 +391,21 @@ impl Desktop {
                 let revisions = if result.is_ok() {
                     self.row_covers.catalogue_changed();
                     let pending = self.pending_track;
+                    let failed = self.failed_track;
                     let playback = self.session.as_ref().into_iter().flat_map(|session| {
                         [
                             session.current(),
                             pending.and_then(|index| session.tracks().get(index)),
+                            failed.and_then(|index| session.tracks().get(index)),
                         ]
                         .into_iter()
                         .flatten()
+                        .chain(
+                            session
+                                .tracks()
+                                .iter()
+                                .filter(|track| track.artwork().is_some()),
+                        )
                         .filter_map(Track::indexed_id)
                     });
                     let queued = self.queue_covers.keys().map(String::as_str).chain(playback);
@@ -455,16 +463,7 @@ impl Desktop {
                     if !from_queue && self.queue_covers.len() < row_cover::ROW_LIMIT {
                         self.queue_covers.insert(id.clone(), loaded.handle);
                     }
-                    if let Some(session) = &mut self.session
-                        && let Some(index) = session.current_index()
-                        && let Some(track) = session.current()
-                        && track.indexed_id() == Some(id.as_str())
-                        && track.artwork() != Some(loaded.bytes.as_slice())
-                    {
-                        let track = track.clone().with_artwork(loaded.bytes);
-                        self.cover = Cover::from_track(Some(&track));
-                        let _ = session.replace_track(index, track);
-                    }
+                    self.apply_completed_cover(&id, &loaded.bytes);
                 }
                 self.load_row_covers()
             }
@@ -1626,6 +1625,30 @@ impl Desktop {
         self.sources.close_track_panels();
     }
 
+    fn apply_completed_cover(&mut self, id: &str, bytes: &[u8]) {
+        let Some(session) = &mut self.session else {
+            return;
+        };
+        let active = session.current_index();
+        let prepared: Vec<_> = session
+            .tracks()
+            .iter()
+            .enumerate()
+            .filter(|(index, track)| {
+                track.indexed_id() == Some(id)
+                    && (Some(*index) == active || track.artwork().is_some())
+                    && track.artwork() != Some(bytes)
+            })
+            .map(|(index, track)| (index, track.clone().with_artwork(bytes.to_vec())))
+            .collect();
+        for (index, track) in prepared {
+            if Some(index) == active {
+                self.cover = Cover::from_track(Some(&track));
+            }
+            let _ = session.replace_track(index, track);
+        }
+    }
+
     fn refresh_stale_queue_artwork(&mut self, changed: &[String]) -> Task<Message> {
         let Some(session) = &mut self.session else {
             return Task::none();
@@ -1638,8 +1661,14 @@ impl Desktop {
         let need_preparation = self
             .pending_track
             .filter(|index| session.tracks().get(*index).is_some_and(matches));
+        let failed_revision = self
+            .failed_track
+            .is_some_and(|index| session.tracks().get(index).is_some_and(matches));
+        if failed_revision {
+            self.playback_request += 1;
+        }
         if session.current().is_some_and(matches)
-            || (session.current().is_none() && need_preparation.is_some())
+            || (session.current().is_none() && (need_preparation.is_some() || failed_revision))
         {
             self.cover = Cover::default();
         }
