@@ -34,6 +34,8 @@ The transport uses the original 950px breakpoint for its columns, volume
 control and spacing. The display keeps its 610px maximum width and reuses
 the library label widget to abbreviate long now-playing metadata.
 The transport uses the five-percent volume steps from `NowPlayingBar.tsx`
-and measures pointer travel between the thumb centers, as Chromium's range
-control does. It follows `glow-accents.css` for the playback and volume shadows
+and measures pointer travel between the thumb centers. Mouse presses on the
+thumb keep the current level until the pointer moves, following
+[Chromium's range control](https://chromium.googlesource.com/chromium/src/+/259286fb5706438088c858361ff942239598ea3b/third_party/blink/renderer/core/html/forms/slider_thumb_element.cc#226).
+The transport follows `glow-accents.css` for the playback and volume shadows
 and paints the thin seek rail's softer halo over its full redraw bounds.
