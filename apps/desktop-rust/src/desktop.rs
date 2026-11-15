@@ -1648,5 +1648,9 @@ fn artwork_revision(
 mod queue_tests;
 
 #[cfg(test)]
+#[path = "desktop/queue_shortcut_tests.rs"]
+mod queue_shortcut_tests;
+
+#[cfg(test)]
 #[path = "desktop/saved_names_tests.rs"]
 mod saved_names_tests;
