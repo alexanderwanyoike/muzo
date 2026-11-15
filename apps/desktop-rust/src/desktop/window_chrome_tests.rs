@@ -75,6 +75,26 @@ fn it_draws_the_requested_mini_layout_in_the_first_frame_at_the_target_size() {
     assert!(!rendered_labels(&desktop, mini, compact).contains_key("Playback queue"));
 }
 
+#[test]
+fn it_keeps_the_title_bar_inside_the_same_compact_strip_in_both_windows() {
+    let (mut desktop, _) = Desktop::with_session(Err(String::new()));
+    let _ = desktop.update(Message::ShowMini);
+    for (window, size) in [
+        (desktop.windows.library_id(), Size::new(1200.0, 800.0)),
+        (desktop.windows.mini_id().unwrap(), Size::new(420.0, 560.0)),
+    ] {
+        assert!(matches!(
+            click(&desktop, window, size, Point::new(125.0, 20.0)).as_slice(),
+            [Message::DragWindow(target)] if *target == window
+        ));
+        assert!(
+            click(&desktop, window, size, Point::new(125.0, 35.0))
+                .iter()
+                .all(|message| !matches!(message, Message::DragWindow(_)))
+        );
+    }
+}
+
 fn click(desktop: &Desktop, id: window::Id, size: Size, point: Point) -> Vec<Message> {
     let mut view = desktop.view(id);
     let mut tree = Tree::new(&view);
