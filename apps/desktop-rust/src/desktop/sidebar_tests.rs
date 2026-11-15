@@ -13,6 +13,7 @@ use super::{CataloguePaths, Desktop, LibraryPage, Sources, input_message};
 
 const VIEW_WIDTH: f32 = 800.0;
 const DRAG_HEIGHT: f32 = 260.0;
+const NARROW_DIVIDER: Point = Point::new(279.5, DRAG_HEIGHT);
 
 struct Library {
     desktop: Desktop,
@@ -121,6 +122,84 @@ fn it_saves_the_sidebar_drag_only_on_release() {
     let committed = SidebarWidth::new(245.0);
     assert_eq!(library.desktop.sidebar.preferred_width(), committed);
     assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), committed);
+}
+
+fn click_at(position: Point) -> [Event; 3] {
+    [
+        Event::Mouse(mouse::Event::CursorMoved { position }),
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+    ]
+}
+
+#[test]
+fn it_saves_the_default_sidebar_width_after_two_completed_clicks() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    save(&paths.sidebar(), SidebarWidth::new(340.0)).unwrap();
+    let mut library = Library::new(paths.clone());
+    let [movement, press, release] = click_at(NARROW_DIVIDER);
+
+    library.batch(
+        &[movement, press.clone(), release.clone(), press, release],
+        NARROW_DIVIDER,
+    );
+    library.resize(1200.0);
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 240.0);
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::default()
+    );
+}
+
+#[test]
+fn it_treats_clicks_interrupted_by_another_target_as_separate() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let previous = SidebarWidth::new(340.0);
+    save(&paths.sidebar(), previous).unwrap();
+    let mut library = Library::new(paths.clone());
+    let outside = Point::new(500.0, 480.0);
+    let events = [
+        click_at(NARROW_DIVIDER),
+        click_at(outside),
+        click_at(NARROW_DIVIDER),
+    ]
+    .concat();
+
+    library.batch(&events, NARROW_DIVIDER);
+
+    assert_eq!(library.desktop.sidebar.preferred_width(), previous);
+    assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), previous);
+}
+
+#[test]
+fn it_commits_a_returning_drag_after_a_click_without_resetting_the_sidebar() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let mut library = Library::new(paths.clone());
+    let [movement, press, release] = click_at(NARROW_DIVIDER);
+
+    library.batch(
+        &[
+            movement.clone(),
+            press.clone(),
+            release.clone(),
+            press,
+            Event::Mouse(mouse::Event::CursorMoved {
+                position: Point::new(245.5, DRAG_HEIGHT),
+            }),
+            movement,
+            release,
+        ],
+        NARROW_DIVIDER,
+    );
+
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(279.0)
+    );
 }
 
 #[test]
