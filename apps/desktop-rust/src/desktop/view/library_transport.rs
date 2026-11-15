@@ -82,7 +82,6 @@ pub(super) fn view<'a>(
     const LABEL_LINE_HEIGHT: f32 = 1.4;
     const MINI_BUTTON_INSET: [u16; 2] = [4, 12];
     const TIMELINE_GAP: f32 = 7.0;
-    const VOLUME_STEP: f32 = 0.05;
     let columns = TransportColumns::for_viewport(viewport_width);
     let glow = Glow::for_appearance(preferences);
     let active = session.and_then(Session::current);
@@ -167,12 +166,12 @@ pub(super) fn view<'a>(
     let volume = slider(0.0..=1.0, level, Message::SetVolume)
         .width(columns.volume_slider)
         .height(VOLUME_INPUT_HEIGHT)
-        .step(VOLUME_STEP)
+        .step(volume::VOLUME_STEP)
         .style(move |theme, _| {
             let style = compact::slider_style(theme, surfaces, true);
             glow.map_or(style, |glow| glow.volume_ink(style))
         });
-    let volume = volume::within_thumb_travel(volume);
+    let volume = volume::within_thumb_travel(volume, level);
     let volume = match glow {
         Some(glow) => glow.surround_volume(volume, columns.volume_slider, level),
         None => volume,
