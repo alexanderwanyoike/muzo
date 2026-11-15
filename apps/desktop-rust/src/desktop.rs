@@ -73,6 +73,7 @@ pub enum Message {
     AppearanceMode(&'static str),
     Accent(&'static str),
     AppearancePointerPressed(window::Id),
+    SettingsFieldFocused(window::Id, iced::advanced::widget::Id),
     CheckUpdate,
     AppImageIntegration(Result<(), String>),
     UpdateReceived(updates::Status),
@@ -576,6 +577,19 @@ impl Desktop {
                     {
                         picker.focus = None;
                     }
+                    if self.page == LibraryPage::Settings {
+                        return appearance_focus::focused_settings_field(id);
+                    }
+                }
+                Task::none()
+            }
+            Message::SettingsFieldFocused(id, field) => {
+                if self.windows.is_library(id)
+                    && self.page == LibraryPage::Settings
+                    && self.appearance_focus.is_none()
+                {
+                    self.appearance_focus = dropbox_panel::Control::focused_field(&field)
+                        .map(appearance_focus::Choice::Dropbox);
                 }
                 Task::none()
             }

@@ -34,6 +34,12 @@ impl Control {
         matches!(self, Self::Interval | Self::AppKey | Self::Code)
     }
 
+    pub(in crate::desktop) fn focused_field(id: &Id) -> Option<Self> {
+        [Self::Interval, Self::AppKey, Self::Code]
+            .into_iter()
+            .find(|control| control.id() == *id)
+    }
+
     pub(in crate::desktop) fn nested_scroll(&self) -> Option<Id> {
         match self {
             Self::SelectFolder(_) | Self::OpenFolder(_) => Some(FOLDERS_SCROLL.into()),

@@ -5,6 +5,7 @@ use iced::{
         operation::{focusable, scope},
     },
     widget::operation::{AbsoluteOffset, scroll_to},
+    window,
 };
 
 use crate::appearance::{ACCENTS, MATERIALS, MODES};
@@ -16,6 +17,11 @@ use super::{
 
 pub(super) const SCROLL: &str = "appearance-settings";
 pub(super) const LIBRARY: &str = "library-window";
+
+pub(super) fn focused_settings_field(window: window::Id) -> Task<Message> {
+    operate(scope(LIBRARY.into(), focusable::find_focused()))
+        .map(move |field| Message::SettingsFieldFocused(window, field))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Choice {
