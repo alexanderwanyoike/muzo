@@ -37,6 +37,9 @@ You do not need to build Muzo yourself.
 Muzo 1.0.0 is the first stable release. The installers are unsigned, and macOS
 builds are unnotarized. Each release includes checksums.
 
+If you upgrade from v0.0.6, Muzo imports your libraries, playlists, play history,
+metadata edits and appearance settings on first launch.
+
 1. Open **Settings** and add a music folder. Subfolders are included automatically.
 2. Choose a source under **Sources**, then play a song or build a playlist.
 3. Explore **Appearance** in Settings to find a material and accent you like.
