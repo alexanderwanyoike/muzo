@@ -17,7 +17,8 @@ use iced::{
 use iced_runtime::{Action, UserInterface, task, user_interface::Cache};
 
 use super::{
-    Desktop, LibraryPage, Message, input_message,
+    CataloguePaths, Desktop, LibraryPage, Message, input_message,
+    library_sources::{Operation as SourceOperation, Sources},
     queue_tests::{setup, snapshot},
 };
 
@@ -70,6 +71,33 @@ fn it_does_not_open_the_previous_source_when_tab_and_space_release_arrive_togeth
         library.focus().id,
         Some("source-remove-sidebar:Harbour Rehearsals".to_owned().into()),
     );
+}
+
+#[test]
+fn it_restores_launcher_focus_when_the_user_cancels_after_a_failed_removal() {
+    let profile = tempfile::tempdir().unwrap();
+    let mut library = KeyboardLibrary::new(LibraryPage::Songs);
+    let snapshot = library.desktop.sources.snapshot.take();
+    library.desktop.sources = Sources::new(Some(CataloguePaths::in_directory(profile.path())));
+    library.desktop.sources.snapshot = snapshot;
+    let target = "source-remove-sidebar:Harbour Rehearsals";
+    library.tab_to(target, Modifiers::empty());
+    library.press(Named::Enter, Modifiers::empty());
+
+    let _ = library
+        .desktop
+        .update(Message::SourceOperation(SourceOperation::Remove(
+            "Harbour Rehearsals".into(),
+        )));
+    assert!(library.desktop.sources.busy());
+    library.focus();
+    let _ = library
+        .desktop
+        .update(Message::SourcesUpdated(Err("Catalogue unavailable".into())));
+    library.press(Named::Escape, Modifiers::empty());
+
+    assert!(library.desktop.sources.removal.is_none());
+    assert_eq!(library.focus().id, Some(target.to_owned().into()));
 }
 
 fn key_press(name: Named, modifiers: Modifiers) -> Event {
