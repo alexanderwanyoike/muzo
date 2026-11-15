@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { access, mkdir, readFile, readdir } from "node:fs/promises";
+import { access, mkdir, open, readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -97,9 +97,12 @@ for (const path of [
 }
 await mkdir(fixture);
 const feed = await startLegacyUpdateFeed(candidate, manifest, legacyMain);
+const logPath = join(fixture, "electron.log");
+const output = await open(logPath, "wx");
 const legacy = spawn(legacyExecutable, ["--remote-debugging-port=0"], {
-  stdio: "ignore",
+  stdio: ["ignore", output.fd, output.fd],
 });
+await output.close();
 let startupError;
 legacy.once("error", (error) => {
   startupError = error;
@@ -176,6 +179,13 @@ try {
   console.log(
     "The native installer replaced Electron and reopened its migrated profile.",
   );
+} catch (error) {
+  const log = await readFile(logPath, "utf8");
+  for (const line of log.split(/\r?\n/u)) {
+    if (line.startsWith("[muzo-updater-fixture]")) console.error(line);
+  }
+  if (error.stdout) console.error(error.stdout);
+  throw error;
 } finally {
   if (legacy.exitCode === null) legacy.kill();
   await feed.close();

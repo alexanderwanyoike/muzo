@@ -54,6 +54,15 @@ function configureLegacyApp(source, address) {
     "  }",
     "  return fixtureFetch(input, options);",
     "};",
+    'const fixtureDialog = require("electron").dialog;',
+    "const showFixtureDialog = fixtureDialog.showMessageBox.bind(fixtureDialog);",
+    "fixtureDialog.showMessageBox = (...args) => {",
+    "  const options = args.at(-1);",
+    '  if (options?.message?.startsWith("Restart Muzo to install")) {',
+    '    console.error("[muzo-updater-fixture] Restart requested", process.pid, options.buttons);',
+    "  }",
+    "  return showFixtureDialog(...args);",
+    "};",
   ];
   return fixture.join("\n") + "\n" + routed;
 }
