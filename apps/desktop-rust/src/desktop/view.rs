@@ -49,6 +49,7 @@ fn library_content<'a>(
     session: Option<&'a Session>,
     page: (super::LibraryPage, Option<super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
+    viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {
     use super::LibraryPage;
     let (page, focus) = page;
@@ -76,7 +77,14 @@ fn library_content<'a>(
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(snapshot, session, cover, sources, preferences.surfaces())
+        sources::tracks(
+            snapshot,
+            session,
+            cover,
+            sources,
+            preferences.surfaces(),
+            viewport_width,
+        )
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
@@ -152,6 +160,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         None,
         (super::LibraryPage::Songs, None),
         None,
+        super::windows::LIBRARY_SIZE.width,
     )
     .into();
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));

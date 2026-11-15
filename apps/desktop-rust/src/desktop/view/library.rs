@@ -44,8 +44,16 @@ pub(in crate::desktop) fn library<'a>(
         column![
             toolbar(sources, page, surfaces),
             error_line(sources.error.as_deref().map(replace_embedded_breaks)),
-            library_content(sources, dropbox, preferences, session, (page, focus), cover)
-                .height(Fill),
+            library_content(
+                sources,
+                dropbox,
+                preferences,
+                session,
+                (page, focus),
+                cover,
+                sidebar.viewport_width(),
+            )
+            .height(Fill),
         ]
         .width(Fill)
         .height(Fill),

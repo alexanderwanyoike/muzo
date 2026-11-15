@@ -477,13 +477,60 @@ fn source_button(
     }
 }
 
+#[derive(Clone, Copy)]
+struct TrackRowMetrics {
+    inset: f32,
+    gap: f32,
+    play: f32,
+    number: f32,
+    artwork: f32,
+    duration: f32,
+    history: f32,
+    action: f32,
+}
+
+impl TrackRowMetrics {
+    fn for_viewport(width: f32) -> Self {
+        const COMPACT_WIDTH: f32 = 950.0;
+        if width <= COMPACT_WIDTH {
+            Self {
+                inset: 15.0,
+                gap: 7.0,
+                play: 24.0,
+                number: 18.0,
+                artwork: 36.0,
+                duration: 38.0,
+                history: 52.0,
+                action: 26.0,
+            }
+        } else {
+            Self {
+                inset: 24.0,
+                gap: 10.0,
+                play: 25.0,
+                number: 24.0,
+                artwork: 40.0,
+                duration: 48.0,
+                history: 65.0,
+                action: 28.0,
+            }
+        }
+    }
+}
+
 pub fn tracks<'a>(
     snapshot: &'a Snapshot,
     session: Option<&Session>,
     cover: Option<&image::Handle>,
     sources: &'a Sources,
     surfaces: Surfaces,
+    viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {
+    const ROW_CONTENT_HEIGHT: f32 = 56.0;
+    const ARTWORK_EDGE: f32 = 38.0;
+    const LIST_TOP_INSET: f32 = 8.0;
+    const LIST_BOTTOM_INSET: f32 = 30.0;
+    let metrics = TrackRowMetrics::for_viewport(viewport_width);
     let busy = sources.busy();
     let saving_editor = sources.editor_save_pending();
     let adding_track = sources.track_add_pending();
@@ -528,15 +575,18 @@ pub fn tracks<'a>(
         .spacing(4)
         .width(Fill);
         let body = row![
-            play,
-            container(text(index + 1).size(10).color(surfaces.muted)).center_x(18),
-            library::small_cover(
+            container(play).center_x(metrics.play),
+            container(text(index + 1).size(10).color(surfaces.muted))
+                .align_x(Alignment::End)
+                .width(metrics.number),
+            container(library::small_cover(
                 cover
                     .filter(|_| active)
                     .or_else(|| snapshot.covers.get(&track.id)),
-                36.0,
+                ARTWORK_EDGE.min(metrics.artwork),
                 surfaces
-            ),
+            ))
+            .width(metrics.artwork),
             metadata,
             container(
                 text(clock(std::time::Duration::from_secs(
@@ -545,29 +595,37 @@ pub fn tracks<'a>(
                 .size(10)
                 .color(surfaces.muted)
             )
-            .center_x(56),
+            .align_x(Alignment::End)
+            .width(metrics.duration),
             container(
-                text(format!("{} plays", track.plays))
-                    .size(10)
-                    .color(surfaces.muted)
+                text(format!(
+                    "{} {}",
+                    track.plays,
+                    if track.plays == 1 { "play" } else { "plays" }
+                ))
+                .size(10)
+                .color(surfaces.muted)
             )
-            .center_x(58),
-            icon_button(
+            .align_x(Alignment::End)
+            .width(metrics.history),
+            container(icon_button(
                 Icon::Edit,
                 "Edit track",
                 (!busy && !saving_editor && !adding_track)
                     .then(|| Message::EditTrack(track.clone()))
-            ),
-            icon_button(
+            ))
+            .center_x(metrics.action),
+            container(icon_button(
                 Icon::AddToPlaylist,
                 "Add to playlist",
                 (!busy && !saving_editor && !adding_track)
                     .then(|| Message::OpenPlaylistPicker(track.clone()))
-            ),
+            ))
+            .center_x(metrics.action),
         ]
-        .spacing(8)
+        .spacing(metrics.gap)
         .align_y(Alignment::Center);
-        let mut content = column![container(body).center_y(59)];
+        let mut content = column![container(body).center_y(ROW_CONTENT_HEIGHT)];
         if let Some(editor) = &sources.editing
             && editor.track_id == track.id
             && editor.library_id == track.library_id
@@ -595,19 +653,22 @@ pub fn tracks<'a>(
         column![
             container(content)
                 .width(Fill)
-                .padding([0, 24])
+                .padding([0.0, metrics.inset])
                 .style(move |theme: &Theme| {
                     let base = theme.palette().background;
                     let background = if active {
                         compact::tint(base, theme.palette().primary, 0.09)
                     } else if index % 2 == 1 {
-                        compact::tint(base, surfaces.line, 0.18)
+                        compact::tint(base, theme.palette().text, 0.02)
                     } else {
                         base
                     };
                     container::Style::default().background(background)
                 }),
-            library::line(surfaces),
+            library::line(Surfaces {
+                line: surfaces.line.scale_alpha(0.5),
+                ..surfaces
+            }),
         ]
         .into()
     });
@@ -621,7 +682,11 @@ pub fn tracks<'a>(
             .center(Fill)
         ];
     }
-    let mut songs = column(list);
+    let mut songs = column(list).padding(iced::Padding {
+        top: LIST_TOP_INSET,
+        bottom: LIST_BOTTOM_INSET,
+        ..Default::default()
+    });
     if let Some(message) = &sources.playlist_message {
         songs = songs.push(
             container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
