@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn it_tabs_from_the_dropbox_field_focused_by_the_pointer() {
         use iced::{
-            advanced::widget::operation::focusable,
+            advanced::widget::operation::{Outcome, focusable},
             futures::{FutureExt, StreamExt},
         };
         use iced_runtime::{Action as UiAction, UserInterface, task, user_interface::Cache};
@@ -754,11 +754,23 @@ mod tests {
         };
         {
             let mut ui = UserInterface::build(desktop.view(window), size, cache, &mut renderer);
-            ui.operate(&renderer, query.as_mut());
-            let _ = query.finish();
+            loop {
+                ui.operate(&renderer, query.as_mut());
+                let Outcome::Chain(next) = query.finish() else {
+                    break;
+                };
+                query = next;
+            }
         }
-        let Some(UiAction::Output(message)) = actions.next().now_or_never().flatten() else {
-            panic!("expected the focused app key field");
+        drop(query);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let received = runtime
+            .block_on(async { tokio::time::timeout(Duration::from_secs(1), actions.next()).await });
+        let Ok(Some(UiAction::Output(message))) = received else {
+            panic!("expected the focused app key field: {received:?}");
         };
         let _ = desktop.update(message);
         let _ = desktop.update(Message::CycleMiniFocus(window, false));
