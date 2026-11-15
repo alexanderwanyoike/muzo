@@ -7,9 +7,9 @@ description = "Desktop music player"
 publisher = "Muzo"
 category = "Music"
 out-dir = "out/rust-distribution"
-icons = ["../desktop/assets/icons/muzo.png", "../desktop/assets/icons/muzo.ico", "../desktop/assets/icons/muzo.icns"]
+icons = ["assets/icons/muzo.png", "assets/icons/muzo.ico", "assets/icons/muzo.icns"]
 license-file = "../../LICENSE"
-resources = ["../desktop/assets/licenses"]
+resources = ["assets/licenses"]
 
 [[binaries]]
 path = "muzo-desktop"

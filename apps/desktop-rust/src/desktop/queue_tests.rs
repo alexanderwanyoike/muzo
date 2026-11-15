@@ -443,7 +443,7 @@ fn it_keeps_a_cached_dropbox_cover_visible_when_the_audio_request_fails() {
     let revision = catalogue.artwork_revision(&library.id, &row.id).unwrap();
     crate::artwork_cache::ArtworkCache::new(paths.artwork_cache())
         .get_or_read(&revision, || {
-            Some(include_bytes!("../../../desktop/assets/icons/muzo.png").to_vec())
+            Some(include_bytes!("../../assets/icons/muzo.png").to_vec())
         })
         .unwrap();
     let (mut desktop, _) = setup();

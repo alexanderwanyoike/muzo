@@ -5,7 +5,6 @@ on:
     paths:
       - "apps/desktop-rust/**"
       - "apps/desktop/assets/icons/**"
-      - "apps/desktop/assets/licenses/**"
       - "apps/desktop/electron-builder.config.json"
       - "apps/desktop/package.json"
       - "packages/distribution/**"

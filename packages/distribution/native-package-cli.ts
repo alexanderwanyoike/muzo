@@ -117,7 +117,7 @@ async function buildPayload(
     const resources = join(payload, "resources");
     await mkdir(resources, { recursive: true });
     await cp(executable, join(payload, "muzo.exe"));
-    await cp(join(legacy, "assets/licenses"), join(resources, "licenses"), {
+    await cp(join(native, "assets/licenses"), join(resources, "licenses"), {
       recursive: true,
     });
     const require = createRequire(join(legacy, "package.json"));
