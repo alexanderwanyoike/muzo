@@ -138,9 +138,12 @@ fn it_closes_the_selected_song_list_on_a_second_source_click_and_keeps_playing()
     apply(&mut desktop, Message::PlayIndexed(0));
     assert!(desktop.session.as_ref().unwrap().is_playing());
 
-    let [message]: [Message; 1] = click(&desktop, Point::new(150.0, FIRST_SOURCE_Y as f32))
-        .try_into()
-        .expect("a click on the selected source row produces one action");
+    let [message]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("a click on the selected source row produces one action");
     apply(&mut desktop, message);
 
     assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
@@ -173,9 +176,12 @@ fn it_clears_the_selected_source_while_the_catalogue_is_loading() {
     let reload = desktop.update(Message::SourceOperation(Operation::Reload));
     assert!(desktop.sources.busy());
 
-    let [message]: [Message; 1] = click(&desktop, Point::new(150.0, FIRST_SOURCE_Y as f32))
-        .try_into()
-        .expect("the selected source row remains clickable while the catalogue loads");
+    let [message]: [Message; 1] = click(
+        &desktop,
+        Point::new(SOURCE_NAME_CLICK_X, FIRST_SOURCE_Y as f32),
+    )
+    .try_into()
+    .expect("the selected source row remains clickable while the catalogue loads");
     let cleared = desktop.update(message);
     assert_eq!(cleared.units(), 0, "clearing needs no catalogue task");
     assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
@@ -209,9 +215,12 @@ fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
     let reload = desktop.update(Message::SourceOperation(Operation::Reload));
 
     for expected in [Some(target.as_str()), None] {
-        let [message]: [Message; 1] = click(&desktop, Point::new(150.0, SECOND_SOURCE_Y as f32))
-            .try_into()
-            .expect("the other source row must remain clickable during the reload");
+        let [message]: [Message; 1] = click(
+            &desktop,
+            Point::new(SOURCE_NAME_CLICK_X, SECOND_SOURCE_Y as f32),
+        )
+        .try_into()
+        .expect("the other source row must remain clickable during the reload");
         let _ = desktop.update(message);
         assert_eq!(
             desktop
