@@ -85,6 +85,11 @@ impl Loader {
         } else {
             snapshot.playlist_entries.len()
         };
+        let visible = if visible.start >= last || last <= visible.len() {
+            0..visible.len().max(DEFAULT_ROWS.end)
+        } else {
+            visible
+        };
         let first = visible.start.min(last);
         let end = visible.end.min(last);
         let indices = (first..end)
