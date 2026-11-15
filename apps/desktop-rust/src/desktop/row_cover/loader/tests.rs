@@ -433,6 +433,63 @@ fn it_preserves_ready_covers_until_the_backing_audio_changes() {
 }
 
 #[test]
+fn it_invalidates_only_changed_queue_covers_when_settings_is_open() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
+
+    use crate::desktop::{library_sources::Sources, queue_tests::setup};
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let folder = root.path().join("music");
+    fs::create_dir(&folder).unwrap();
+    for name in ["first.mp3", "second.mp3"] {
+        fs::write(
+            folder.join(name),
+            include_bytes!("../../../../tests/fixtures/embedded-cover.mp3"),
+        )
+        .unwrap();
+    }
+    let mut source = run(&paths, Operation::Add(folder)).unwrap();
+    let unchanged = source.tracks[0].id.clone();
+    let changed = source.tracks[1].id.clone();
+    let old = Handle::from_rgba(1, 1, vec![255; 4]);
+    source.covers.insert(unchanged.clone(), old.clone());
+    source.covers.insert(changed.clone(), old.clone());
+    let (mut desktop, _) = setup();
+    desktop.sources = Sources::new(Some(paths.clone()));
+    desktop.sources.snapshot = Some(source);
+    let _ = desktop.update(Message::PlayIndexed(0));
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    assert_eq!(desktop.queue_covers.get(&changed), Some(&old));
+
+    let database = rusqlite::Connection::open(root.path().join("muzo-rust.sqlite")).unwrap();
+    database
+        .execute(
+            "UPDATE tracks SET file_mtime = file_mtime + 1 WHERE id = ?",
+            [&changed],
+        )
+        .unwrap();
+    let next = run(&paths, Operation::Reload).unwrap();
+    assert!(next.tracks.is_empty());
+    let update = desktop.update(Message::SourcesUpdated(Ok(next)));
+    if let Some(mut stream) = task::into_stream(update) {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        while let Some(Action::Output(message)) = runtime.block_on(stream.next()) {
+            let _ = desktop.update(message);
+        }
+    }
+
+    assert!(
+        !desktop.queue_covers.contains_key(&changed),
+        "the changed queued track must drop its stale artwork"
+    );
+    assert_eq!(desktop.queue_covers.get(&unchanged), Some(&old));
+}
+
+#[test]
 fn it_keeps_rows_after_an_expanded_editor_in_the_cover_viewport() {
     use iced::advanced::widget::operation::scrollable::{AbsoluteOffset, scroll_to};
     use iced::{Event, Font, Pixels, Renderer, Size, advanced::clipboard, mouse, window};
