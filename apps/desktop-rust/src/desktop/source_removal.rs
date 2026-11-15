@@ -1,4 +1,34 @@
 use crate::catalogue::Library;
+use iced::{
+    Task,
+    widget::operation::{AbsoluteOffset, RelativeOffset, scroll_by, snap_to},
+};
+
+use super::Message;
+
+pub(super) const DETAILS: &str = "source-removal-details";
+
+#[derive(Debug, Clone, Copy)]
+pub enum Scroll {
+    By(f32),
+    Start,
+    End,
+}
+
+impl Scroll {
+    pub(super) fn apply(self) -> Task<Message> {
+        match self {
+            Self::By(y) => scroll_by(DETAILS, AbsoluteOffset { x: 0.0, y }),
+            Self::Start | Self::End => snap_to(
+                DETAILS,
+                RelativeOffset {
+                    x: None,
+                    y: Some(if matches!(self, Self::End) { 1.0 } else { 0.0 }),
+                },
+            ),
+        }
+    }
+}
 
 pub(super) struct Removal {
     pub source: Library,

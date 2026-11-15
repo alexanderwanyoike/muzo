@@ -7,7 +7,12 @@ use iced::{
 
 use crate::{
     appearance::{Appearance, Surfaces},
-    desktop::{Message, library_sources::Operation, source_removal::Removal, windows::LIBRARY_MIN},
+    desktop::{
+        Message,
+        library_sources::Operation,
+        source_removal::{DETAILS, Removal, Scroll},
+        windows::LIBRARY_MIN,
+    },
 };
 
 use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal};
@@ -25,6 +30,8 @@ const SHADOW_INSET: f32 = 88.0;
 const SHADOW: &[u8] = include_bytes!("../../../assets/materials/dialog-shadow.svg");
 const MAX_COPY_HEIGHT: f32 =
     LIBRARY_MIN.height - 2.0 * (SHADOW_INSET + CONTENT_INSET) - ACTION_INSET - ACTION_HEIGHT;
+const LINE_SCROLL: f32 = 23.0;
+const PAGE_SCROLL: f32 = MAX_COPY_HEIGHT - LINE_SCROLL;
 
 pub(in crate::desktop) fn layer<'a>(
     page: Element<'a, Message>,
@@ -99,9 +106,14 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
     );
     let actions = row![cancel, confirm].spacing(ACTION_GAP - 2.0 * FOCUS_OUTSET);
     let inner_inset = CONTENT_INSET - FOCUS_OUTSET;
-    let copy = container(scrollable(copy).width(Fill).height(Length::Shrink))
-        .padding([0.0, FOCUS_OUTSET])
-        .max_height(MAX_COPY_HEIGHT);
+    let copy = container(
+        scrollable(copy)
+            .id(DETAILS)
+            .width(Fill)
+            .height(Length::Shrink),
+    )
+    .padding([0.0, FOCUS_OUTSET])
+    .max_height(MAX_COPY_HEIGHT);
     let panel = container(
         column![copy, container(actions).align_right(Fill)].spacing(ACTION_INSET - FOCUS_OUTSET),
     )
@@ -189,6 +201,20 @@ fn key_action(event: &Event) -> Option<Message> {
             Key::Named(Named::Tab) => Some(Message::CycleSourceRemovalFocus),
             Key::Named(Named::Enter) if !repeat => Some(Message::ActivateSourceRemovalFocus),
             Key::Named(Named::Space) if !repeat => Some(Message::SetSourceRemovalSpaceArmed(true)),
+            Key::Named(Named::ArrowUp) => {
+                Some(Message::ScrollSourceRemoval(Scroll::By(-LINE_SCROLL)))
+            }
+            Key::Named(Named::ArrowDown) => {
+                Some(Message::ScrollSourceRemoval(Scroll::By(LINE_SCROLL)))
+            }
+            Key::Named(Named::PageUp) => {
+                Some(Message::ScrollSourceRemoval(Scroll::By(-PAGE_SCROLL)))
+            }
+            Key::Named(Named::PageDown) => {
+                Some(Message::ScrollSourceRemoval(Scroll::By(PAGE_SCROLL)))
+            }
+            Key::Named(Named::Home) => Some(Message::ScrollSourceRemoval(Scroll::Start)),
+            Key::Named(Named::End) => Some(Message::ScrollSourceRemoval(Scroll::End)),
             _ => None,
         },
         Event::Keyboard(keyboard::Event::KeyReleased {

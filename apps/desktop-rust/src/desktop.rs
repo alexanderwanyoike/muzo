@@ -79,6 +79,7 @@ pub enum Message {
     ActivateSourceRemovalFocus,
     SetSourceRemovalSpaceArmed(bool),
     ReleaseSourceRemovalSpace,
+    ScrollSourceRemoval(source_removal::Scroll),
     PlayIndexed(usize),
     PlayPlaylist(String),
     StartPlaylist(String),
@@ -568,6 +569,13 @@ impl Desktop {
                     .is_some_and(source_removal::Removal::take_space_armed)
                 {
                     self.update(Message::ActivateSourceRemovalFocus)
+                } else {
+                    Task::none()
+                }
+            }
+            Message::ScrollSourceRemoval(scroll) => {
+                if self.sources.removal.is_some() {
+                    scroll.apply()
                 } else {
                     Task::none()
                 }
