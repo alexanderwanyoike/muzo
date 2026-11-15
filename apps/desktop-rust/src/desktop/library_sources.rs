@@ -372,7 +372,7 @@ pub(super) struct Sources {
     last_playlist_choice: Option<String>,
     adding_track: Option<PlaylistAddition>,
     pending_editor: Option<(String, String)>,
-    deselected_during_operation: Option<String>,
+    selection_changed_during_operation: bool,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -407,7 +407,7 @@ impl Sources {
             last_playlist_choice: None,
             adding_track: None,
             pending_editor: None,
-            deselected_during_operation: None,
+            selection_changed_during_operation: false,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -667,16 +667,18 @@ impl Sources {
         )
     }
 
-    pub(super) fn clear_selection(&mut self, id: &str) {
-        if let Some(snapshot) = self.snapshot.as_mut()
-            && snapshot.selected.as_deref() == Some(id)
-        {
-            let deselected = snapshot.selected.take();
-            snapshot.tracks.clear();
-            if self.busy {
-                self.deselected_during_operation = deselected;
-            }
+    pub(super) fn toggle_selection(&mut self, id: &str) -> Option<Task<Message>> {
+        let snapshot = self.snapshot.as_mut()?;
+        if !snapshot.libraries.iter().any(|source| source.id == id) {
+            return None;
         }
+        let selected = (snapshot.selected.as_deref() != Some(id)).then(|| id.to_owned());
+        snapshot.selected.clone_from(&selected);
+        snapshot.tracks.clear();
+        self.selection_changed_during_operation |= self.busy;
+        self.pending
+            .retain(|operation| !matches!(operation, Operation::Select(_)));
+        Some(selected.map_or_else(Task::none, |id| self.start(Operation::Select(id))))
     }
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
@@ -687,7 +689,7 @@ impl Sources {
         let saving_editor = std::mem::take(&mut self.saving_editor);
         let loading_editor = std::mem::take(&mut self.loading_editor);
         let adding_track = self.adding_track.take();
-        let deselected = self.deselected_during_operation.take();
+        let selection_changed = std::mem::take(&mut self.selection_changed_during_operation);
         let mut snapshot = match result {
             Ok(snapshot) => snapshot,
             Err(error) => {
@@ -714,9 +716,16 @@ impl Sources {
                 return;
             }
         };
-        if deselected.is_some() && snapshot.selected == deselected {
-            snapshot.selected = None;
-            snapshot.tracks.clear();
+        if selection_changed {
+            let selected = self
+                .snapshot
+                .as_ref()
+                .and_then(|previous| previous.selected.as_ref())
+                .filter(|id| snapshot.libraries.iter().any(|source| &source.id == *id));
+            if snapshot.selected.as_ref() != selected {
+                snapshot.selected = selected.cloned();
+                snapshot.tracks.clear();
+            }
         }
         if removing_source {
             self.removal = None;

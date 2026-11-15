@@ -6,7 +6,7 @@ use iced::{
 use crate::{
     appearance::Appearance,
     catalogue::Library,
-    desktop::{Message, library_sources::Operation, source_removal::Launcher},
+    desktop::{Message, source_removal::Launcher},
 };
 
 use super::{
@@ -64,14 +64,9 @@ pub(super) fn view(
     source: &Library,
     count: Option<u64>,
     current: bool,
-    enabled: bool,
+    remove_enabled: bool,
     colors: Colors,
 ) -> Element<'_, Message> {
-    let selection = if current {
-        Some(Message::ClearSourceSelection(source.id.clone()))
-    } else {
-        enabled.then(|| Message::SourceOperation(Operation::Select(source.id.clone())))
-    };
     let glyph = if source.kind == "dropbox" {
         Icon::Cloud
     } else {
@@ -116,8 +111,8 @@ pub(super) fn view(
                 .height(HEIGHT)
                 .padding(ROW_PADDING)
                 .style(move |theme, status| source_button(theme, status, colors.hover))
-                .on_press_maybe(selection),
-            remove_button(&source.id, enabled, colors),
+                .on_press(Message::SourceRowClicked(source.id.clone())),
+            remove_button(&source.id, remove_enabled, colors),
         ]
         .align_y(Alignment::Center),
     )

@@ -54,7 +54,7 @@ pub enum Message {
     SubmitFolder,
     SourceSearch(String),
     ClearSourceSearch,
-    ClearSourceSelection(String),
+    SourceRowClicked(String),
     OpenSourceSettings,
     LibraryPage(LibraryPage),
     SourceOperation(Operation),
@@ -347,19 +347,16 @@ impl Desktop {
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
             }
-            Message::ClearSourceSelection(id) => {
-                self.sources.clear_selection(&id);
-                self.update(Message::LibraryPage(LibraryPage::Songs))
+            Message::SourceRowClicked(id) => {
+                if let Some(task) = self.sources.toggle_selection(&id) {
+                    let _ = self.update(Message::LibraryPage(LibraryPage::Songs));
+                    task
+                } else {
+                    Task::none()
+                }
             }
             Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
-            Message::SourceOperation(operation) => {
-                if matches!(operation, Operation::Select(_)) {
-                    self.page = LibraryPage::Songs;
-                    self.editor_navigation.reset();
-                    self.sources.close_track_panels();
-                }
-                self.sources.start(operation)
-            }
+            Message::SourceOperation(operation) => self.sources.start(operation),
             Message::SourcesUpdated(result) => {
                 if let (Some(previous), Ok(next)) = (&self.sources.snapshot, &result) {
                     let removed: Vec<_> = previous
