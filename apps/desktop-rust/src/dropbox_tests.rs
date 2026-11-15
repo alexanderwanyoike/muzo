@@ -307,3 +307,31 @@ fn it_rolls_back_a_dropbox_source_if_the_initial_track_index_cannot_be_written()
         .unwrap();
     assert_eq!(reopened.tracks(&library.id).unwrap().len(), 1);
 }
+
+#[test]
+fn it_keeps_a_dropbox_folder_without_supported_audio_out_of_the_catalogue() {
+    use crate::{catalogue::Catalogue, dropbox::Entry};
+
+    let root = tempfile::tempdir().unwrap();
+    let mut catalogue = Catalogue::open(&root.path().join("muzo.sqlite"), None).unwrap();
+    catalogue.save_dropbox_account("account", "client").unwrap();
+    let entries: Vec<Entry> = serde_json::from_str(
+        r#"[{".tag":"folder","name":"Images","path_display":"/Music/Images"},
+            {".tag":"file","name":"notes.txt","path_display":"/Music/notes.txt"}]"#,
+    )
+    .unwrap();
+
+    let result = catalogue.add_dropbox_indexed("account", "/Music", "Music", &entries);
+
+    assert!(
+        result.is_err(),
+        "a Dropbox library with no supported tracks was added"
+    );
+    assert!(
+        catalogue
+            .dropbox_libraries_for("account")
+            .unwrap()
+            .is_empty()
+    );
+    assert!(catalogue.libraries().unwrap().is_empty());
+}

@@ -137,6 +137,11 @@ fn it_reopens_the_same_rust_catalogue_across_launches() {
     let root = std::env::temp_dir().join(format!("muzo-launch-{}", uuid::Uuid::new_v4()));
     let music = root.join("Music");
     fs::create_dir_all(&music).unwrap();
+    fs::write(
+        music.join("tone.mp3"),
+        include_bytes!("../tests/fixtures/tone.mp3"),
+    )
+    .unwrap();
     let paths = crate::desktop::library_sources::CataloguePaths::in_directory(&root);
     let snapshot = crate::desktop::library_sources::run(
         &paths,
@@ -412,6 +417,11 @@ fn it_keeps_the_custom_name_when_indexing_a_filesystem_source() {
     let root = tempfile::tempdir().unwrap();
     let folder = root.path().join("raw-folder-name");
     fs::create_dir(&folder).unwrap();
+    fs::write(
+        folder.join("tone.mp3"),
+        include_bytes!("../tests/fixtures/tone.mp3"),
+    )
+    .unwrap();
     let path = root.path().join("catalogue.sqlite");
     let mut catalogue = Catalogue::open(&path, None).unwrap();
 
@@ -421,4 +431,31 @@ fn it_keeps_the_custom_name_when_indexing_a_filesystem_source() {
     assert_eq!(library.name, "Weekend records");
     assert_eq!(catalogue.libraries().unwrap(), vec![library]);
     assert!(catalogue.add_named_folder(&folder, "Other").is_err());
+}
+
+#[test]
+fn it_keeps_a_folder_without_supported_audio_out_of_the_catalogue() {
+    let root = tempfile::tempdir().unwrap();
+    let folder = root.path().join("Empty Music");
+    fs::create_dir(&folder).unwrap();
+    fs::write(folder.join("readme.txt"), "not audio").unwrap();
+    let mut catalogue = Catalogue::open(&root.path().join("muzo.sqlite"), None).unwrap();
+
+    let result = catalogue.add_named_folder(&folder, "Empty Music");
+
+    assert!(
+        result.is_err(),
+        "a library with no supported tracks was added"
+    );
+    assert!(catalogue.libraries().unwrap().is_empty());
+
+    let nested = folder.join("Disc 1");
+    fs::create_dir(&nested).unwrap();
+    fs::write(
+        nested.join("Recording.mp3"),
+        include_bytes!("../tests/fixtures/tone.mp3"),
+    )
+    .unwrap();
+    let source = catalogue.add_named_folder(&folder, "Empty Music").unwrap();
+    assert_eq!(catalogue.tracks(&source.id).unwrap().len(), 1);
 }

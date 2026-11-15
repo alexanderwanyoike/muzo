@@ -37,6 +37,8 @@ pub enum CatalogueError {
     EmptyLibraryName,
     #[error("Library location must not be empty.")]
     EmptyLibraryLocation,
+    #[error("This folder contains no supported audio files.")]
+    NoSupportedAudio,
     #[error("This folder is already indexed.")]
     DuplicateFolder,
     #[error("This folder source no longer exists.")]
