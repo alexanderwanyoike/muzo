@@ -642,7 +642,9 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn it_uses_the_desktop_default_handler_for_dropbox_authorization() {
-        use std::{fs, os::unix::fs::PermissionsExt, process::Command};
+        use std::{
+            fs, os::unix::fs::PermissionsExt, process::Command, time::Duration, time::Instant,
+        };
 
         use iced::futures::StreamExt;
         use iced_runtime::{Action as UiAction, task};
@@ -655,6 +657,7 @@ mod tests {
                 ..Default::default()
             };
             let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
                 .build()
                 .unwrap();
             let mut pending = settings.update(Action::Begin, None);
@@ -664,7 +667,25 @@ mod tests {
                 else {
                     panic!("expected a Dropbox authorization action");
                 };
+                let opens_browser = matches!(result, Action::OpenAuthorization(_));
                 pending = settings.update(result, None);
+                if fixture == "long-lived-launcher" && opens_browser {
+                    let started = Instant::now();
+                    let mut browser = task::into_stream(pending).unwrap();
+                    let result = runtime.block_on(async {
+                        tokio::time::timeout(Duration::from_secs(1), browser.next()).await
+                    });
+                    assert!(
+                        result.is_err(),
+                        "the desktop URL handler should still be running"
+                    );
+                    drop(runtime);
+                    assert!(
+                        started.elapsed() < Duration::from_secs(4),
+                        "closing Muzo waited for the browser handler"
+                    );
+                    return;
+                }
             }
             assert!(settings.auth.is_some());
             assert_eq!(
@@ -695,6 +716,12 @@ mod tests {
                 &["xdg-open", URL_ARG, "gio", "open", URL_ARG][..],
             ),
             ("plasma6-default", "KDE", "6", &["kde-open", URL_ARG][..]),
+            (
+                "long-lived-launcher",
+                "X-Generic",
+                "",
+                &["gio", "open", URL_ARG][..],
+            ),
         ] {
             let fixture = tempfile::tempdir().unwrap();
             let capture = fixture.path().join("invocation");
@@ -715,9 +742,14 @@ mod tests {
                 } else {
                     ""
                 };
+                let wait_for_browser = if mode == "long-lived-launcher" && launcher == "gio" {
+                    "/bin/sleep 6\n"
+                } else {
+                    ""
+                };
                 fs::write(
                     &path,
-                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} >> \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\nexit {status}\n"),
+                    format!("#!/bin/sh\n{{ {use_registered_default}printf '%s\\n' '{launcher}' \"$@\"; }} >> \"$MUZO_AUTHORIZATION_BROWSER_TEST_RESULT\"\n{wait_for_browser}exit {status}\n"),
                 ).unwrap();
                 fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
             }
