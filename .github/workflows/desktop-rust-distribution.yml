@@ -103,6 +103,7 @@ jobs:
           RUSTUP_TOOLCHAIN: "1.95"
         run: |
           test ! -e apps/desktop
+          if [[ "$RUNNER_OS" != Linux ]]; then yarn desktop:build; fi
           yarn desktop:package --target ${{ matrix.label }}
       - name: Verify Linux AppImage
         if: runner.os == 'Linux'

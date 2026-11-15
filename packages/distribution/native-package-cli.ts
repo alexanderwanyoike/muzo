@@ -54,7 +54,7 @@ async function run(executable: string, args: string[]): Promise<string> {
   return result.stdout;
 }
 
-async function buildExecutables(target: ReleaseTarget) {
+async function buildExecutables(target: ReleaseTarget, artifacts: string) {
   const { stdout } = await execute("cargo", ["-vV"], { cwd: native });
   const host = /^host: (.*)$/mu.exec(stdout)?.[1]?.trim();
   if (!host || !cargoHosts[target.id].test(host))
@@ -63,15 +63,44 @@ async function buildExecutables(target: ReleaseTarget) {
       "The Rust toolchain must match the requested installer architecture.",
     );
 
+  const { stdout: description } = await execute(
+    "cargo",
+    ["metadata", "--locked", "--no-deps", "--format-version", "1"],
+    { cwd: native },
+  );
+  const metadata: unknown = JSON.parse(description);
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    !("target_directory" in metadata) ||
+    typeof metadata.target_directory !== "string"
+  )
+    return distributionFailure(
+      "storage",
+      "Cargo did not report its build directory.",
+    );
+  const buildDirectory =
+    "build_directory" in metadata &&
+    typeof metadata.build_directory === "string"
+      ? metadata.build_directory
+      : metadata.target_directory;
+
   const { stdout: messages, stderr } = await execute(
     "cargo",
     [
       "build",
       "--locked",
       "--release",
+      "--target-dir",
+      artifacts,
       "--message-format=json-render-diagnostics",
     ],
-    { cwd: native, maxBuffer: 16 * 1024 * 1024 },
+    {
+      cwd: native,
+      maxBuffer: 16 * 1024 * 1024,
+      // Keep reusable intermediates in Cargo's cache and publish this run's executables privately.
+      env: { ...process.env, CARGO_BUILD_BUILD_DIR: buildDirectory },
+    },
   );
   process.stderr.write(stderr);
   const executables = new Map<string, string>();
@@ -186,17 +215,22 @@ async function packageNative(): Promise<DistributionResult<string>> {
     const output = values.output
       ? resolve(process.env.INIT_CWD ?? process.cwd(), values.output)
       : join(native, "out/rust-distribution");
-    const executables = await buildExecutables(target);
-    if (!executables.ok) return executables;
-    const builtTarget = await execute(executables.value.namer, ["--target-id"]);
-    if (builtTarget.stdout.trim() !== target.id)
-      return distributionFailure(
-        "invalidRelease",
-        "Cargo built a different installer target.",
-      );
     await mkdir(output, { recursive: true });
     const stage = await mkdtemp(join(output, ".muzo-package-"));
     try {
+      const executables = await buildExecutables(
+        target,
+        join(stage, "cargo-artifacts"),
+      );
+      if (!executables.ok) return executables;
+      const builtTarget = await execute(executables.value.namer, [
+        "--target-id",
+      ]);
+      if (builtTarget.stdout.trim() !== target.id)
+        return distributionFailure(
+          "invalidRelease",
+          "Cargo built a different installer target.",
+        );
       await buildPayload(
         target,
         version.value,
