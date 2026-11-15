@@ -48,7 +48,6 @@ it("resolves the native release context without an Electron workspace", async ()
         "--import",
         pathToFileURL(require.resolve("tsx/esm")).href,
         join(checkout, "packages/distribution/release-context-cli.ts"),
-        "--native",
         "--source-commit",
         sourceCommit,
       ],

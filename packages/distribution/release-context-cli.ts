@@ -13,11 +13,10 @@ async function run(): Promise<DistributionResult<string>> {
       options: {
         "source-commit": { type: "string" },
         "github-output": { type: "string" },
-        native: { type: "boolean" },
       },
     });
     const result = releaseContext({
-      ...(await readReleaseVersions(values.native ?? false)),
+      ...(await readReleaseVersions()),
       sourceCommit: values["source-commit"] ?? process.env.GITHUB_SHA,
       tag:
         process.env.GITHUB_REF_TYPE === "tag"

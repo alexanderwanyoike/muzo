@@ -14,6 +14,7 @@ import { pathToFileURL } from "node:url";
 
 const legacyDatabase = "muzo.sqlite";
 const nativeDatabase = "muzo-rust.sqlite";
+const levelDbHousekeeping = new Set(["LOCK", "LOG", "LOG.old"]);
 
 const queries = {
   sources:
@@ -63,7 +64,7 @@ function fingerprint({ data, leveldb }) {
   const sha256 = (path) =>
     createHash("sha256").update(readFileSync(path)).digest("hex");
   const settings = readdirSync(leveldb, { withFileTypes: true }).filter(
-    (entry) => entry.isFile() && entry.name !== "LOCK",
+    (entry) => entry.isFile() && !levelDbHousekeeping.has(entry.name),
   );
   return {
     catalogue: sha256(join(data, legacyDatabase)),

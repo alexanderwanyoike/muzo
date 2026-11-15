@@ -12,11 +12,10 @@ use super::{
     volume::thumb_travel,
 };
 
-const INNER_BLUR: f32 = 14.0;
-const OUTER_BLUR: f32 = 28.0;
+const PLAYBACK_BLUR: f32 = 10.0;
 const VOLUME_BLUR: f32 = 5.0;
-const INNER_OPACITY: f32 = 0.32;
-const OUTER_OPACITY: f32 = 0.12;
+const PLAYBACK_OPACITY: f32 = 0.20;
+const VOLUME_OPACITY: f32 = 0.32;
 
 #[derive(Clone, Copy)]
 pub(super) struct Glow {
@@ -47,23 +46,9 @@ impl Glow {
             border: border::rounded(PLAY_BUTTON_EDGE / 2.0)
                 .width(1.0)
                 .color(self.outline),
-            shadow: self.shadow(INNER_BLUR, INNER_OPACITY),
+            shadow: self.shadow(PLAYBACK_BLUR, PLAYBACK_OPACITY),
             ..button::Style::default()
         }
-    }
-
-    pub(super) fn surround_playback(
-        self,
-        control: Element<'static, Message>,
-    ) -> Element<'static, Message> {
-        let halo = container(Space::new())
-            .center(PLAY_BUTTON_EDGE)
-            .style(move |_| {
-                container::Style::default()
-                    .border(border::rounded(PLAY_BUTTON_EDGE / 2.0))
-                    .shadow(self.shadow(OUTER_BLUR, OUTER_OPACITY))
-            });
-        stack![control].push_under(halo).into()
     }
 
     pub(super) fn surround_seek(
@@ -87,7 +72,7 @@ impl Glow {
         width: f32,
         volume: f32,
     ) -> Element<'static, Message> {
-        let shadow = self.shadow(VOLUME_BLUR, INNER_OPACITY);
+        let shadow = self.shadow(VOLUME_BLUR, VOLUME_OPACITY);
         let diameter = VOLUME_THUMB_RADIUS * 2.0;
         let thumb = container(Space::new()).center(diameter).style(move |_| {
             container::Style::default()
