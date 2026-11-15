@@ -299,6 +299,10 @@ impl Settings {
         self.refresh_status = Some((id, status));
     }
 
+    pub(super) fn is_connecting(&self) -> bool {
+        self.connecting
+    }
+
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
         let connecting = std::mem::take(&mut self.connecting);

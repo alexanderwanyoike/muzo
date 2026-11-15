@@ -594,16 +594,14 @@ impl Desktop {
                 Task::none()
             }
             Message::DropboxReady(mut result) => {
-                let folder_navigation = matches!(
-                    self.appearance_focus,
-                    Some(appearance_focus::Choice::Dropbox(
-                        dropbox_panel::Control::Browse
-                            | dropbox_panel::Control::Parent
-                            | dropbox_panel::Control::OpenFolder(_),
-                    ))
-                ) && result.as_ref().is_ok_and(|snapshot| {
-                    !snapshot.path.is_empty() && snapshot.path != self.dropbox.snapshot.path
-                });
+                let settings_visible = self.page == LibraryPage::Settings;
+                let submitted_code = settings_visible && self.dropbox.is_connecting();
+                let entered_folder = settings_visible
+                    && result.as_ref().is_ok_and(|snapshot| {
+                        snapshot.account == self.dropbox.snapshot.account
+                            && !snapshot.path.is_empty()
+                            && snapshot.path != self.dropbox.snapshot.path
+                    });
                 if let Ok(snapshot) = &mut result {
                     for library in std::mem::take(&mut snapshot.disconnected_libraries) {
                         self.remove_queued_library(&library);
@@ -611,7 +609,13 @@ impl Desktop {
                 }
                 self.dropbox.apply(result);
                 let reload = self.sources.reload();
-                let focus = if folder_navigation {
+                let focus = if submitted_code {
+                    self.focus_dropbox([
+                        dropbox_panel::Control::Code,
+                        dropbox_panel::Control::Browse,
+                        dropbox_panel::Control::AppKey,
+                    ])
+                } else if entered_folder {
                     self.focus_dropbox([
                         dropbox_panel::Control::SelectCurrent,
                         dropbox_panel::Control::Parent,
