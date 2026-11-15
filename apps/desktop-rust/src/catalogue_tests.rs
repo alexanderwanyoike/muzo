@@ -9,6 +9,17 @@ use rusqlite::Connection;
 use crate::catalogue::Catalogue;
 
 #[test]
+fn it_reports_a_missing_artwork_track_as_a_catalogue_error() {
+    let root = tempfile::tempdir().unwrap();
+    let catalogue = Catalogue::open(&root.path().join("muzo.sqlite"), None).unwrap();
+
+    assert!(matches!(
+        catalogue.artwork_revision("library", "missing"),
+        Err(crate::catalogue::CatalogueError::UnknownTrack)
+    ));
+}
+
+#[test]
 fn it_imports_a_tauri_catalogue_without_touching_the_legacy_database() {
     let root = std::env::temp_dir().join(format!(
         "muzo-catalog-{}-{}",
