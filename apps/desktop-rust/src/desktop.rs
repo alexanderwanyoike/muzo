@@ -1657,6 +1657,10 @@ fn artwork_revision(
 mod cover_layout_tests;
 
 #[cfg(test)]
+#[path = "desktop/direct_file_row_tests.rs"]
+mod direct_file_row_tests;
+
+#[cfg(test)]
 #[path = "desktop/queue_tests.rs"]
 mod queue_tests;
 
