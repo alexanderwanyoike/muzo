@@ -122,9 +122,15 @@ impl Catalogue {
     }
 
     pub fn remove(&mut self, library_id: &str) -> Result<(), CatalogueError> {
-        let transaction = self
-            .database
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        self.remove_with_snapshot(library_id, |_| Ok(()))
+    }
+
+    pub(crate) fn remove_with_snapshot<T>(
+        &self,
+        library_id: &str,
+        snapshot: impl FnOnce(&Self) -> Result<T, CatalogueError>,
+    ) -> Result<T, CatalogueError> {
+        let transaction = self.begin_write()?;
         transaction.execute(
             "DELETE FROM play_history WHERE library_id = ?1",
             [library_id],
@@ -134,8 +140,9 @@ impl Catalogue {
         if removed == 0 {
             return Err(CatalogueError::UnknownFolder);
         }
+        let result = snapshot(self)?;
         transaction.commit()?;
-        Ok(())
+        Ok(result)
     }
 }
 

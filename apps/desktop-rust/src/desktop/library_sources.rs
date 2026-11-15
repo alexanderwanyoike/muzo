@@ -177,8 +177,17 @@ fn run_with_selection(
             None
         }
         Operation::Remove(id) => {
-            catalogue.remove(&id)?;
-            previous_source.clone()
+            let mut snapshot = catalogue.remove_with_snapshot(&id, |catalogue| {
+                read_snapshot(
+                    catalogue,
+                    previous_source,
+                    selected_playlist,
+                    None,
+                    warnings,
+                )
+            })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::CreatePlaylist(name) => {
             let transaction = catalogue.begin_write()?;
@@ -949,6 +958,59 @@ mod tests {
         assert_eq!(source.name, "For later");
         assert_eq!(snapshot.selected.as_ref(), Some(&source.id));
         assert_eq!(snapshot.selected_playlist.as_ref(), Some(&playlist.id));
+    }
+
+    #[test]
+    fn it_keeps_the_source_when_removal_cannot_return_the_updated_catalogue() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let catalogue = paths.open().unwrap();
+        let playlist = catalogue.create_playlist("Existing playlist").unwrap();
+        let connection = rusqlite::Connection::open(&paths.current).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO libraries (id, name, kind, location) VALUES
+                     ('victim', 'Source to remove', 'filesystem', '/music/temporary'),
+                     ('other', 'Other source', 'filesystem', '/music/other');
+                 INSERT INTO tracks (id, library_id, title, artist, duration_seconds, file_path, file_size, file_mtime)
+                 VALUES ('bad', 'other', 'Other track', '', 'invalid', '/music/other/track.mp3', 0, 0);",
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO playlist_entries (id, playlist_id, track_id, position)
+                 VALUES ('entry', ?1, 'bad', 0)",
+                [&playlist.id],
+            )
+            .unwrap();
+
+        let remove = || {
+            run_with_selection(
+                &paths,
+                Operation::Remove("victim".into()),
+                Some("victim".into()),
+                Some(playlist.id.clone()),
+            )
+        };
+
+        assert!(remove().is_err());
+        assert!(
+            catalogue
+                .libraries()
+                .unwrap()
+                .iter()
+                .any(|source| source.id == "victim"),
+            "an unsuccessful catalogue update must leave the source intact"
+        );
+
+        connection
+            .execute(
+                "UPDATE tracks SET duration_seconds = 1 WHERE id = 'bad'",
+                [],
+            )
+            .unwrap();
+        let updated = remove().unwrap();
+        assert!(updated.libraries.iter().all(|source| source.id != "victim"));
     }
 
     #[test]
