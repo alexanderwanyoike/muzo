@@ -34,4 +34,6 @@ The transport uses the original 950px breakpoint for its columns, volume
 control and spacing. The display keeps its 610px maximum width and reuses
 the library label widget to abbreviate long now-playing metadata.
 The transport uses the five-percent volume steps from `NowPlayingBar.tsx`
-and draws the halos and accent ink from `glow-accents.css` with Iced shadows.
+and measures pointer travel between the thumb centers, as Chromium's range
+control does. It follows `glow-accents.css` for the playback and volume shadows
+and paints the thin seek rail's softer halo over its full redraw bounds.
