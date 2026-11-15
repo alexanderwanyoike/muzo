@@ -117,6 +117,61 @@ fn it_loads_the_first_covers_when_a_short_source_replaces_a_scrolled_one() {
 }
 
 #[test]
+fn it_reports_every_visible_song_when_a_tall_viewport_needs_no_scrollbar() {
+    use iced::{Event, Font, Pixels, Renderer, Size, advanced::clipboard, mouse, window};
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use crate::desktop::queue_tests::setup;
+
+    let (mut desktop, _) = setup();
+    let mut source = snapshot(&["source"]);
+    source.selected = Some("source".into());
+    let count = 25;
+    source.tracks = (0..count).map(indexed_track).collect();
+    desktop.sources.snapshot = Some(source);
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.workspace(window::Id::unique()),
+        Size::new(1440.0, 2000.0),
+        Cache::default(),
+        &mut renderer,
+    );
+    let mut messages = Vec::new();
+    ui.update(
+        &[Event::Window(window::Event::RedrawRequested(
+            iced::time::Instant::now(),
+        ))],
+        mouse::Cursor::Unavailable,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut messages,
+    );
+    assert!(
+        messages.into_iter().any(|message| matches!(
+            message,
+            Message::ArtworkViewport(LibraryPage::Songs, rows) if rows == (0..count)
+        )),
+        "Songs should request all {count} visible covers when every row fits"
+    );
+}
+
+fn indexed_track(index: usize) -> IndexedTrack {
+    IndexedTrack {
+        id: index.to_string(),
+        title: format!("Track {index}"),
+        artist: String::new(),
+        album: None,
+        metadata_overridden: false,
+        path: PathBuf::from(format!("track-{index}.mp3")),
+        plays: 0,
+        duration_seconds: 0,
+        library_id: "source".into(),
+        file_size: 0,
+        file_mtime: 0,
+    }
+}
+
+#[test]
 fn it_retries_a_failed_cover_read_when_returning_to_that_list() {
     use iced::futures::StreamExt;
     use iced_runtime::{Action, task};
