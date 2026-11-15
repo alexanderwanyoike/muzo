@@ -1,4 +1,4 @@
-use super::{Message, bold};
+use super::{Message, bold, label_text::single_line};
 use iced::{
     Length, Pixels, Point, Rectangle, Renderer, Size, Theme,
     advanced::{
@@ -49,19 +49,6 @@ fn shape(content: &str) -> Paragraph {
         paragraph.resize(paragraph.min_bounds());
     }
     paragraph
-}
-
-fn single_line(name: &str) -> String {
-    name.split(|character: char| {
-        character.is_ascii_whitespace()
-            || matches!(
-                character,
-                '\u{001c}'..='\u{001e}' | '\u{0085}' | '\u{2028}' | '\u{2029}'
-            )
-    })
-    .filter(|word| !word.is_empty())
-    .collect::<Vec<_>>()
-    .join(" ")
 }
 
 impl State {

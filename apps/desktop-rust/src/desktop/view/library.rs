@@ -14,7 +14,8 @@ use crate::{
 
 use super::{
     Icon, action, appearance, bold, clock, compact, control_opacity, error_line, icon_button,
-    icon_tinted, library_content, playback_error, playlists, sidebar_divider::Divider, sources,
+    icon_tinted, label_text::single_paragraph, library_content, playback_error, playlists,
+    sidebar_divider::Divider, sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -314,7 +315,7 @@ fn toolbar(sources: &Sources, page: LibraryPage, surfaces: Surfaces) -> Element<
         container(
             column![
                 text(eyebrow).size(9).color(surfaces.muted),
-                text(title).size(18).font(bold()),
+                text(single_paragraph(title)).size(18).font(bold()),
             ]
             .spacing(3)
         )

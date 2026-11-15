@@ -9,6 +9,7 @@ use crate::session::Session;
 
 mod appearance;
 mod compact;
+mod label_text;
 mod library;
 mod playlist_popup;
 mod playlists;

@@ -13,8 +13,10 @@ use crate::{
     track::Track,
 };
 
-use super::sidebar_name::SidebarName;
-use super::{Icon, action, bold, compact, icon_button, icon_tinted, library, track_play_button};
+use super::{
+    Icon, action, bold, compact, icon_button, icon_tinted, label_text::single_paragraph, library,
+    sidebar_name::SidebarName, track_play_button,
+};
 
 #[cfg(test)]
 #[path = "playlist_sidebar_tests.rs"]
@@ -296,7 +298,7 @@ pub fn tracks<'a>(
         .map_or("Playlist", |item| item.name.as_str());
     let count = snapshot.playlist_entries.len();
     let header = row![
-        text(name).font(bold()).size(14),
+        text(single_paragraph(name)).font(bold()).size(14),
         text(format!(
             "{count} {}",
             if count == 1 { "track" } else { "tracks" }

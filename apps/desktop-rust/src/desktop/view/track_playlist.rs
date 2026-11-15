@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use iced::{
     Alignment, Element, Fill, Length, border,
     widget::{button, column, container, pick_list, row, scrollable, text},
@@ -15,9 +17,19 @@ use crate::{
 
 use super::{
     focus_ring,
+    label_text::single_paragraph,
     library::{bordered_button, settings_button},
     playlist_popup::Choice,
 };
+
+#[derive(Clone, Copy, PartialEq)]
+struct PlaylistLabel<'a>(&'a Playlist);
+
+impl Display for PlaylistLabel<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&single_paragraph(self.0.name.as_str()))
+    }
+}
 
 pub(super) fn picker<'a>(
     draft: &'a PlaylistPicker,
@@ -46,8 +58,9 @@ pub(super) fn picker<'a>(
         row![text("No playlists yet.").size(13), cancel]
     } else {
         let focused = !pending && draft.focus == Some(Control::Choice);
-        let anchor = pick_list::<Playlist, _, _, _, _, _>(playlists, selected, |playlist| {
-            Message::ChooseTrackPlaylist(playlist.id)
+        let labels: Vec<_> = playlists.iter().map(PlaylistLabel).collect();
+        let anchor = pick_list(labels, selected.map(PlaylistLabel), |playlist| {
+            Message::ChooseTrackPlaylist(playlist.0.id.clone())
         })
         .text_size(11)
         .padding([7, 9])
@@ -111,30 +124,34 @@ fn playlist_options<'a>(
     let options = column(playlists.iter().map(|playlist| {
         let highlighted = playlist.id == preview;
         container(
-            button(text(&playlist.name).size(11).wrapping(text::Wrapping::None))
-                .width(Fill)
-                .height(28)
-                .padding([5, 8])
-                .style(move |theme, status| {
-                    let style = iced::overlay::menu::default(theme);
-                    let background = if highlighted {
-                        Some(style.selected_background)
-                    } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
-                        Some(theme.extended_palette().background.weak.color.into())
+            button(
+                text(single_paragraph(playlist.name.as_str()))
+                    .size(11)
+                    .wrapping(text::Wrapping::None),
+            )
+            .width(Fill)
+            .height(28)
+            .padding([5, 8])
+            .style(move |theme, status| {
+                let style = iced::overlay::menu::default(theme);
+                let background = if highlighted {
+                    Some(style.selected_background)
+                } else if matches!(status, button::Status::Hovered | button::Status::Pressed) {
+                    Some(theme.extended_palette().background.weak.color.into())
+                } else {
+                    None
+                };
+                button::Style {
+                    background,
+                    text_color: if highlighted {
+                        style.selected_text_color
                     } else {
-                        None
-                    };
-                    button::Style {
-                        background,
-                        text_color: if highlighted {
-                            style.selected_text_color
-                        } else {
-                            style.text_color
-                        },
-                        ..Default::default()
-                    }
-                })
-                .on_press(Message::ChooseTrackPlaylist(playlist.id.clone())),
+                        style.text_color
+                    },
+                    ..Default::default()
+                }
+            })
+            .on_press(Message::ChooseTrackPlaylist(playlist.id.clone())),
         )
         .id(playlist_picker_focus::option_id(&playlist.id))
         .into()

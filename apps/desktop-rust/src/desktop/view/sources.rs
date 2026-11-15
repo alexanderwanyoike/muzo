@@ -15,8 +15,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, clock, compact, icon_button, icon_tinted, library,
-    sidebar_name::SidebarName, track_metadata, track_playlist,
+    Icon, action, bold, clock, compact, icon_button, icon_tinted, label_text::single_paragraph,
+    library, sidebar_name::SidebarName, track_metadata, track_playlist,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -145,11 +145,11 @@ pub(super) fn indexed_sources<'a>(
         body = body.push(library::line(surfaces)).push(
             row![
                 column![
-                    text(&source.name)
+                    text(single_paragraph(source.name.as_str()))
                         .size(12)
                         .font(bold())
                         .wrapping(text::Wrapping::WordOrGlyph),
-                    text(source.location.to_string_lossy())
+                    text(single_paragraph(source.location.to_string_lossy()))
                         .size(11)
                         .color(surfaces.muted)
                         .wrapping(text::Wrapping::WordOrGlyph),
@@ -309,11 +309,17 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
     }) {
         body = body.push(
             row![
-                button(text(format!("Remove {}?", source.name)).size(10))
-                    .style(action)
-                    .on_press(Message::SourceOperation(Operation::Remove(
-                        source.id.clone()
-                    ))),
+                button(
+                    text(format!(
+                        "Remove {}?",
+                        single_paragraph(source.name.as_str())
+                    ))
+                    .size(10)
+                )
+                .style(action)
+                .on_press(Message::SourceOperation(Operation::Remove(
+                    source.id.clone()
+                ))),
                 button(text("Cancel").size(10))
                     .style(action)
                     .on_press(Message::CancelSourceRemoval),
@@ -612,7 +618,8 @@ pub fn tracks<'a>(
     }
     let mut songs = column(list);
     if let Some(message) = &sources.playlist_message {
-        songs = songs.push(container(text(message).size(12)).padding([12, 24]));
+        songs = songs
+            .push(container(text(single_paragraph(message.as_str())).size(12)).padding([12, 24]));
     }
     column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
 }
