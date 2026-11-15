@@ -1,7 +1,7 @@
 use iced::{
-    Color, Element, Event, Fill, Font, Padding, Pixels, Shadow, Vector, border, color,
+    Color, ContentFit, Element, Event, Fill, Font, Padding, Pixels, border, color,
     keyboard::{self, Key, key::Named},
-    widget::{button, column, container, row, text},
+    widget::{button, column, container, row, stack, svg, text},
 };
 
 use crate::{
@@ -19,6 +19,8 @@ const TEXT_GAP: f32 = 12.0;
 const ACTION_INSET: f32 = 24.0;
 const ACTION_GAP: f32 = 8.0;
 const FOCUS_OUTSET: f32 = 5.0;
+const SHADOW_INSET: f32 = 88.0;
+const SHADOW: &[u8] = include_bytes!("../../../assets/materials/dialog-shadow.svg");
 
 pub(in crate::desktop) fn layer<'a>(
     page: Element<'a, Message>,
@@ -111,13 +113,18 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
     })
     .width(Fill)
     .max_width(PANEL_WIDTH)
-    .style(move |_| {
-        library::framed(surfaces.raised, surfaces, 8).shadow(Shadow {
-            color: Color::BLACK.scale_alpha(0.267),
-            offset: Vector::new(0.0, 16.0),
-            blur_radius: 70.0,
-        })
-    });
+    .style(move |_| library::framed(surfaces.raised, surfaces, 8));
+
+    // Tiny-Skia paints a quad's built-in shadow outside its partial redraw clip.
+    let shadow = svg(svg::Handle::from_memory(SHADOW))
+        .width(Fill)
+        .height(Fill)
+        .content_fit(ContentFit::Fill);
+    let shadowed_panel =
+        stack![container(panel).padding(SHADOW_INSET).width(Fill)].push_under(shadow);
+    let panel = container(shadowed_panel)
+        .width(Fill)
+        .max_width(PANEL_WIDTH + 2.0 * SHADOW_INSET);
 
     container(panel)
         .center(Fill)
