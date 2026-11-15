@@ -1,6 +1,9 @@
 use iced::{
     Event, Font, Pixels, Point, Rectangle, Renderer, Size,
-    advanced::{Layout, Shell, clipboard, layout, mouse, widget::Tree},
+    advanced::{
+        Layout, Shell, clipboard, layout, mouse,
+        widget::{Operation, Tree, operation},
+    },
     keyboard::{
         Key, Location, Modifiers,
         key::{Named, NativeCode, Physical},
@@ -104,6 +107,47 @@ impl Library {
             0.0,
         );
     }
+
+    fn tab(&mut self, backwards: bool) {
+        let id = self.desktop.windows.library_id();
+        let tab = key(
+            Named::Tab,
+            if backwards {
+                Modifiers::SHIFT
+            } else {
+                Modifiers::empty()
+            },
+        );
+        let message = input_message(tab, iced::event::Status::Ignored, id).unwrap();
+        assert!(self.desktop.update(message).units() > 0);
+
+        let mut focus: Box<dyn Operation> = if backwards {
+            Box::new(operation::focusable::focus_previous())
+        } else {
+            Box::new(operation::focusable::focus_next())
+        };
+        let mut view = self.desktop.view(id);
+        let widget = view.as_widget_mut();
+        self.tree.diff(&*widget);
+        let size = Size::new(self.width, 600.0);
+        let node = widget.layout(
+            &mut self.tree,
+            &self.renderer,
+            &layout::Limits::new(size, size),
+        );
+        loop {
+            widget.operate(
+                &mut self.tree,
+                Layout::new(&node),
+                &self.renderer,
+                focus.as_mut(),
+            );
+            let operation::Outcome::Chain(next) = focus.finish() else {
+                break;
+            };
+            focus = next;
+        }
+    }
 }
 
 #[test]
@@ -130,6 +174,77 @@ fn click_at(position: Point) -> [Event; 3] {
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
     ]
+}
+
+fn key(name: Named, modifiers: Modifiers) -> Event {
+    Event::Keyboard(iced::keyboard::Event::KeyPressed {
+        key: Key::Named(name),
+        modified_key: Key::Named(name),
+        physical_key: Physical::Unidentified(NativeCode::Unidentified),
+        location: Location::Standard,
+        modifiers,
+        text: None,
+        repeat: false,
+    })
+}
+
+#[test]
+fn it_accumulates_sidebar_arrow_steps_and_saves_the_viewport_limits() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let initial = SidebarWidth::new(340.0);
+    save(&paths.sidebar(), initial).unwrap();
+    let mut library = Library::new(paths.clone());
+    let arrow = key(Named::ArrowLeft, Modifiers::empty());
+
+    library.batch(&[arrow.clone()], NARROW_DIVIDER);
+    assert_eq!(load_or_import(&paths.sidebar(), None).unwrap(), initial);
+
+    library.batch(&click_at(NARROW_DIVIDER), NARROW_DIVIDER);
+    library.batch(&[arrow.clone(), arrow], NARROW_DIVIDER);
+    assert_eq!(library.desktop.sidebar.visible_width(), 263.0);
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(263.0)
+    );
+
+    library.input(key(Named::Home, Modifiers::empty()), 0.0);
+    assert_eq!(library.desktop.sidebar.visible_width(), 192.0);
+    library.input(key(Named::End, Modifiers::empty()), 0.0);
+    assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+    library.resize(1200.0);
+    library.input(key(Named::End, Modifiers::empty()), 0.0);
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(360.0)
+    );
+}
+
+#[test]
+fn it_takes_and_leaves_divider_focus_in_both_library_panels() {
+    for page in [LibraryPage::Songs, LibraryPage::Playlists] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+        library.desktop.page = page;
+        library.desktop.sources.snapshot = Some(super::queue_tests::snapshot(&["source"]));
+        let left = key(Named::ArrowLeft, Modifiers::empty());
+
+        library.tab(false);
+        library.input(left.clone(), 0.0);
+        assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+
+        library.tab(false);
+        library.input(left.clone(), 0.0);
+        assert_eq!(library.desktop.sidebar.visible_width(), 271.0);
+
+        library.tab(false);
+        library.input(left.clone(), 0.0);
+        assert_eq!(library.desktop.sidebar.visible_width(), 271.0);
+
+        library.tab(true);
+        library.input(left, 0.0);
+        assert_eq!(library.desktop.sidebar.visible_width(), 263.0);
+    }
 }
 
 #[test]
