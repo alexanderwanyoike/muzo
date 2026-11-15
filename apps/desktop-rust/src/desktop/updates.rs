@@ -269,6 +269,29 @@ mod tests {
 
     use super::*;
 
+    #[cfg(target_os = "windows")]
+    #[test]
+    #[ignore = "requires a downloaded NSIS installer and an isolated installed profile"]
+    fn it_restarts_with_the_installed_windows_update() {
+        let installer = PathBuf::from(std::env::var_os("MUZO_RESTART_INSTALLER").unwrap());
+        let (platform, arch) = Target::WindowsX64.manifest_identity();
+        let update = Update {
+            version: env!("CARGO_PKG_VERSION").parse().unwrap(),
+            asset: crate::distribution::Artifact {
+                name: installer
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned(),
+                platform: platform.into(),
+                arch: arch.into(),
+                size: installer.metadata().unwrap().len(),
+                sha256: std::env::var("MUZO_RESTART_INSTALLER_SHA256").unwrap(),
+            },
+        };
+        launch(&update, &installer).unwrap();
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn it_launches_a_verified_windows_update_silently_and_requests_relaunch() {
