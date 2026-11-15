@@ -205,6 +205,26 @@ fn it_updates_the_library_layout_when_the_window_resizes_behind_the_dialog() {
 }
 
 #[test]
+fn it_keeps_both_actions_visible_at_the_minimum_window_size_with_long_source_details() {
+    let (mut desktop, _root) = desktop();
+    let source = &mut desktop.sources.snapshot.as_mut().unwrap().libraries[0];
+    source.name = "Holloway Sessions ".repeat(140);
+    source.location = format!("/music/{}", "late-night-rehearsals/".repeat(150)).into();
+    request(&mut desktop);
+
+    let frame = Size::new(800.0, 600.0);
+    let labels = rendered_labels(&desktop, desktop.windows.library_id(), frame);
+    for action in ["Cancel", "Remove source"] {
+        let bounds = labels[action];
+        assert!(bounds.height >= 18.0, "{action}: {bounds:?}");
+        assert!(
+            bounds.y + bounds.height < frame.height - 25.0,
+            "{action}: {bounds:?}"
+        );
+    }
+}
+
+#[test]
 fn it_draws_the_focus_outline_after_keyboard_navigation() {
     let (mut desktop, _root) = desktop();
     desktop.appearance.theme = "walnut".into();
