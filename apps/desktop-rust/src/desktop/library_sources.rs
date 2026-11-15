@@ -898,6 +898,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_returns_the_current_catalogue_if_the_confirmed_source_has_already_gone() {
+        let root = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(root.path());
+        let mut catalogue = paths.open().unwrap();
+        let first_path = root.path().join("first");
+        let other_path = root.path().join("other");
+        std::fs::create_dir(&first_path).unwrap();
+        std::fs::create_dir(&other_path).unwrap();
+        let first = catalogue.add_folder(&first_path).unwrap();
+        let other = catalogue.add_folder(&other_path).unwrap();
+        catalogue.remove(&first.id).unwrap();
+
+        let result = run_with_selection(
+            &paths,
+            Operation::Remove(first.id.clone()),
+            Some(first.id),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(result.libraries, [other.clone()]);
+        assert_eq!(result.selected, Some(other.id));
+    }
+
+    #[test]
     fn it_rolls_back_a_track_add_when_the_resulting_snapshot_cannot_be_read() {
         let root = tempfile::tempdir().unwrap();
         let paths = CataloguePaths::in_directory(root.path());
