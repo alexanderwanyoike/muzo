@@ -254,6 +254,80 @@ mod tests {
 
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn it_launches_a_verified_windows_update_silently_and_requests_relaunch() {
+        use std::{fs, os::unix::fs::PermissionsExt, process::Command, time::Duration};
+
+        use sha2::{Digest, Sha256};
+
+        const FIXTURE: &str = "MUZO_NSIS_LAUNCH_FIXTURE";
+        const RECORD: &str = "MUZO_NSIS_LAUNCH_RECORD";
+        if let Some(installer) = std::env::var_os(FIXTURE) {
+            let installer = PathBuf::from(installer);
+            let bytes = fs::read(&installer).unwrap();
+            let (platform, arch) = Target::WindowsX64.manifest_identity();
+            let update = Update {
+                version: semver::Version::new(0, 0, 7),
+                asset: crate::distribution::Artifact {
+                    name: installer
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned(),
+                    platform: platform.into(),
+                    arch: arch.into(),
+                    size: bytes.len() as u64,
+                    sha256: format!("{:x}", Sha256::digest(&bytes)),
+                },
+            };
+            launch(&update, &installer).unwrap();
+            return;
+        }
+
+        let folder = tempfile::tempdir().unwrap();
+        let installer = folder.path().join("Muzo fixture setup.exe");
+        let open = folder.path().join("xdg-open");
+        let record = folder.path().join("arguments");
+        for program in [&installer, &open] {
+            fs::write(
+                program,
+                "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$MUZO_NSIS_LAUNCH_RECORD\"\n",
+            )
+            .unwrap();
+            fs::set_permissions(program, fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let child = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "desktop::updates::tests::it_launches_a_verified_windows_update_silently_and_requests_relaunch",
+            ])
+            .env_clear()
+            .env(FIXTURE, &installer)
+            .env(RECORD, &record)
+            .env("PATH", folder.path())
+            .output()
+            .unwrap();
+        assert!(
+            child.status.success(),
+            "{}",
+            String::from_utf8_lossy(&child.stdout)
+        );
+        let mut flags = String::new();
+        for _ in 0..100 {
+            flags = fs::read_to_string(&record).unwrap_or_default();
+            if !flags.is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert_eq!(
+            flags.lines().collect::<Vec<_>>(),
+            ["--updated", "/S", "--force-run"],
+            "Windows Restart should update quietly and reopen Muzo"
+        );
+    }
+
     #[test]
     fn it_centres_the_status_label_inside_the_footer_pill() {
         use iced::{
