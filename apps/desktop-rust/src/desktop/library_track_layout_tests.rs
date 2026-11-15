@@ -221,14 +221,18 @@ fn it_keeps_compact_artwork_a_38_pixel_square() {
 
 #[test]
 fn it_aligns_different_digits_in_the_index_duration_and_history_columns() {
-    iced::advanced::graphics::text::font_system()
-        .write()
-        .unwrap()
-        .load_font(
-            include_bytes!("../../assets/fonts/Manrope-Regular.ttf")
-                .as_slice()
-                .into(),
-        );
+    {
+        let mut fonts = iced::advanced::graphics::text::font_system()
+            .write()
+            .unwrap();
+        let bundled = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/fonts");
+        for entry in std::fs::read_dir(bundled).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().is_some_and(|extension| extension == "ttf") {
+                fonts.load_font(std::fs::read(path).unwrap().into());
+            }
+        }
+    }
     let Table { labels, .. } = track_table_layout(&track_table(1200.0), 1200.0);
     for (first, second) in [("1", "4"), ("0:11", "0:44"), ("2 plays", "8 plays")] {
         let a = labels[first];
