@@ -1,6 +1,6 @@
 use iced::{
     Alignment, Element, Fill, Theme, border,
-    widget::{Space, button, column, container, image, row, scrollable, stack, text, text_input},
+    widget::{Space, button, column, container, row, scrollable, stack, text, text_input},
 };
 
 use crate::{
@@ -8,16 +8,13 @@ use crate::{
     desktop::{
         Message,
         dropbox_panel::{Action, Settings as DropboxSettings},
-        library_sources::{Operation, Snapshot, Sources},
-        track_editor_focus::SONGS_SCROLL,
+        library_sources::{Operation, Sources},
     },
-    session::Session,
 };
 
 use super::{
-    Icon, action, bold, clock, compact, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library, sidebar_name::SidebarName, track_metadata,
-    track_playlist,
+    Icon, action, bold, compact, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library,
 };
 
 pub(in crate::desktop) const SOURCE_SEARCH: &str = "source-search";
@@ -207,7 +204,7 @@ pub fn sidebar<'a>(sources: &'a Sources, appearance: &Appearance) -> Element<'a,
                         })
                         .width(15)
                         .height(15),
-                        Element::new(SidebarName(&source.name)),
+                        Element::new(EllipsizedLabel::new(source.name.as_str(), 11.0).font(bold())),
                         text(count.unwrap_or_default())
                             .size(9)
                             .color(surfaces.muted),
@@ -475,157 +472,4 @@ fn source_button(
     } else {
         style
     }
-}
-
-pub fn tracks<'a>(
-    snapshot: &'a Snapshot,
-    session: Option<&Session>,
-    cover: Option<&image::Handle>,
-    sources: &'a Sources,
-    surfaces: Surfaces,
-) -> iced::widget::Column<'a, Message> {
-    let busy = sources.busy();
-    let saving_editor = sources.editor_save_pending();
-    let adding_track = sources.track_add_pending();
-    let playing = session.is_some_and(Session::is_playing);
-    let current = session.and_then(Session::current);
-    let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
-        let active = current.is_some_and(|current| {
-            current
-                .indexed_id()
-                .map_or_else(|| current.path() == track.path, |id| id == track.id)
-        });
-        let play = super::track_play_button(
-            if active && playing {
-                Icon::Pause
-            } else {
-                Icon::Play
-            },
-            if active && playing { "Pause" } else { "Play" },
-            Some(if active {
-                Message::TogglePlayback
-            } else {
-                Message::PlayIndexed(index)
-            }),
-        );
-        let song_detail = track
-            .album
-            .as_deref()
-            .or(track.metadata_overridden.then_some("Edited in Muzo"));
-        let metadata = column![
-            text(&track.title)
-                .size(12)
-                .font(bold())
-                .wrapping(text::Wrapping::None),
-            text(match song_detail {
-                Some(detail) if !detail.is_empty() => format!("{} - {detail}", track.artist),
-                _ => track.artist.clone(),
-            })
-            .size(10)
-            .color(surfaces.muted)
-            .wrapping(text::Wrapping::None),
-        ]
-        .spacing(4)
-        .width(Fill);
-        let body = row![
-            play,
-            container(text(index + 1).size(10).color(surfaces.muted)).center_x(18),
-            library::small_cover(
-                cover
-                    .filter(|_| active)
-                    .or_else(|| snapshot.covers.get(&track.id)),
-                36.0,
-                surfaces
-            ),
-            metadata,
-            container(
-                text(clock(std::time::Duration::from_secs(
-                    track.duration_seconds.into()
-                )))
-                .size(10)
-                .color(surfaces.muted)
-            )
-            .center_x(56),
-            container(
-                text(format!("{} plays", track.plays))
-                    .size(10)
-                    .color(surfaces.muted)
-            )
-            .center_x(58),
-            icon_button(
-                Icon::Edit,
-                "Edit track",
-                (!busy && !saving_editor && !adding_track)
-                    .then(|| Message::EditTrack(track.clone()))
-            ),
-            icon_button(
-                Icon::AddToPlaylist,
-                "Add to playlist",
-                (!busy && !saving_editor && !adding_track)
-                    .then(|| Message::OpenPlaylistPicker(track.clone()))
-            ),
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center);
-        let mut content = column![container(body).center_y(59)];
-        if let Some(editor) = &sources.editing
-            && editor.track_id == track.id
-            && editor.library_id == track.library_id
-        {
-            content = content.push(track_metadata::editor(
-                editor,
-                busy,
-                saving_editor,
-                surfaces,
-            ));
-        }
-        if let Some(draft) = sources
-            .playlist_picker
-            .as_ref()
-            .filter(|draft| draft.track_id == track.id)
-        {
-            content = content.push(track_playlist::picker(
-                draft,
-                &snapshot.playlists,
-                busy,
-                adding_track,
-                surfaces,
-            ));
-        }
-        column![
-            container(content)
-                .width(Fill)
-                .padding([0, 24])
-                .style(move |theme: &Theme| {
-                    let base = theme.palette().background;
-                    let background = if active {
-                        compact::tint(base, theme.palette().primary, 0.09)
-                    } else if index % 2 == 1 {
-                        compact::tint(base, surfaces.line, 0.18)
-                    } else {
-                        base
-                    };
-                    container::Style::default().background(background)
-                }),
-            library::line(surfaces),
-        ]
-        .into()
-    });
-    if snapshot.tracks.is_empty() {
-        return column![
-            container(
-                text("No tracks yet. Muzo syncs filesystem libraries automatically.")
-                    .size(13)
-                    .color(surfaces.muted)
-            )
-            .center(Fill)
-        ];
-    }
-    let mut songs = column(list);
-    if let Some(message) = &sources.playlist_message {
-        songs = songs.push(
-            container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
-        );
-    }
-    column![scrollable(songs).id(SONGS_SCROLL).height(Fill)]
 }

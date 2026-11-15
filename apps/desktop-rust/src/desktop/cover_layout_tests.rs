@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use iced::{
-    Color, Font, Pixels, Rectangle, Renderer, Size,
+    Font, Pixels, Rectangle, Renderer, Size,
     advanced::{
         Layout, layout, mouse,
         renderer::{Headless, Style},
@@ -67,7 +67,16 @@ fn show_queue(desktop: &mut Desktop) -> window::Id {
     mini
 }
 
-fn paint(desktop: &Desktop, id: window::Id, size: Size<u32>) -> Vec<u8> {
+pub(super) fn paint(desktop: &Desktop, id: window::Id, size: Size<u32>) -> Vec<u8> {
+    paint_with_cursor(desktop, id, size, mouse::Cursor::Unavailable)
+}
+
+pub(super) fn paint_with_cursor(
+    desktop: &Desktop,
+    id: window::Id,
+    size: Size<u32>,
+    cursor: mouse::Cursor,
+) -> Vec<u8> {
     let mut view = desktop.view(id);
     let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&view);
@@ -78,16 +87,17 @@ fn paint(desktop: &Desktop, id: window::Id, size: Size<u32>) -> Vec<u8> {
         &renderer,
         &layout::Limits::new(bounds.size(), bounds.size()),
     );
+    let theme = desktop.theme(id);
     widget.draw(
         &tree,
         &mut renderer,
-        &desktop.theme(id),
+        &theme,
         &Style::default(),
         Layout::new(&node),
-        mouse::Cursor::Unavailable,
+        cursor,
         &bounds,
     );
-    renderer.screenshot(size, 1.0, Color::WHITE)
+    renderer.screenshot(size, 1.0, theme.palette().background)
 }
 
 fn assert_centred_square(pixels: &[u8], stride: usize, area_width: usize, edge: usize) {

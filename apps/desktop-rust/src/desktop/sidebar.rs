@@ -40,6 +40,10 @@ impl Default for Sidebar {
 }
 
 impl Sidebar {
+    pub(super) fn viewport_width(&self) -> f32 {
+        self.viewport
+    }
+
     pub(super) fn layout_width(&mut self, viewport: f32) {
         self.viewport = viewport;
     }

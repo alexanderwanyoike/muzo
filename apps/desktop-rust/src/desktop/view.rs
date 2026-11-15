@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use iced::{
-    Alignment, Color, Element, Fill, Font, Theme, border, color, font,
+    Alignment, Color, Element, Fill, Font, Length, Theme, border, color, font,
     widget::{Space, button, column, container, image, row, scrollable, svg, text, tooltip},
 };
 
@@ -9,20 +9,22 @@ use crate::session::Session;
 
 mod appearance;
 mod compact;
+mod ellipsized_label;
 mod label_text;
 mod library;
 mod playlist_popup;
 mod playlists;
 mod sidebar_divider;
-mod sidebar_name;
 #[cfg(test)]
 #[path = "view/sidebar_name_tests.rs"]
 mod sidebar_name_tests;
 mod sleeve_image;
 mod source_search_input;
 mod sources;
+mod track_list;
 mod track_metadata;
 mod track_playlist;
+mod track_row;
 
 use super::{Message, library_sources::Sources};
 
@@ -49,6 +51,7 @@ fn library_content<'a>(
     session: Option<&'a Session>,
     page: (super::LibraryPage, Option<super::appearance_focus::Choice>),
     cover: Option<&image::Handle>,
+    viewport_width: f32,
 ) -> iced::widget::Column<'a, Message> {
     use super::LibraryPage;
     let (page, focus) = page;
@@ -76,7 +79,14 @@ fn library_content<'a>(
         .as_ref()
         .filter(|snapshot| snapshot.selected.is_some())
     {
-        sources::tracks(snapshot, session, cover, sources, preferences.surfaces())
+        track_list::view(
+            snapshot,
+            session,
+            cover,
+            sources,
+            preferences,
+            viewport_width,
+        )
     } else if let Some(session) = session.filter(|session| !session.tracks().is_empty()) {
         let heading = row![
             text("Title").size(12).style(muted).width(Fill),
@@ -152,6 +162,7 @@ fn it_keeps_the_songs_scroll_area_visible_while_editing_metadata() {
         None,
         (super::LibraryPage::Songs, None),
         None,
+        super::windows::LIBRARY_SIZE.width,
     )
     .into();
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
@@ -207,8 +218,35 @@ fn queue_rows(session: &Session) -> iced::widget::Column<'_, Message> {
 }
 
 fn clock(duration: Duration) -> String {
-    let seconds = duration.as_secs();
-    format!("{}:{:02}", seconds / 60, seconds % 60)
+    const SECONDS_PER_MINUTE: u64 = 60;
+    const MINUTES_PER_HOUR: u64 = 60;
+    let total_minutes = duration.as_secs() / SECONDS_PER_MINUTE;
+    let seconds = duration.as_secs() % SECONDS_PER_MINUTE;
+    let hours = total_minutes / MINUTES_PER_HOUR;
+    if hours == 0 {
+        return format!("{total_minutes}:{seconds:02}");
+    }
+    let minutes = total_minutes % MINUTES_PER_HOUR;
+    format!("{hours}:{minutes:02}:{seconds:02}")
+}
+
+fn clock_label(duration: Duration, color: Color) -> Element<'static, Message> {
+    const SHORT_TIME_WIDTH: f32 = 27.0;
+    let label = clock(duration);
+    let width = if label.len() <= "00:00".len() {
+        Length::Fixed(SHORT_TIME_WIDTH)
+    } else {
+        Length::Shrink
+    };
+    container(
+        text(label)
+            .font(crate::fonts::TABLE_FIGURES)
+            .size(9)
+            .color(color)
+            .wrapping(text::Wrapping::None),
+    )
+    .center_x(width)
+    .into()
 }
 
 fn error_line<'a>(error: Option<impl text::IntoFragment<'a>>) -> Element<'a, Message> {

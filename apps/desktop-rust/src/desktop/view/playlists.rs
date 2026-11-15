@@ -14,8 +14,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, compact, icon_button, icon_tinted, label_text::replace_embedded_breaks,
-    library, sidebar_name::SidebarName, track_play_button,
+    Icon, action, bold, compact, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, track_play_button,
 };
 
 #[cfg(test)]
@@ -45,7 +45,7 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
                 })
                 .width(15)
                 .height(15),
-                Element::new(SidebarName(&playlist.name)),
+                Element::new(EllipsizedLabel::new(playlist.name.as_str(), 11.0).font(bold())),
                 text(count.unwrap_or_default())
                     .size(9)
                     .color(surfaces.muted),

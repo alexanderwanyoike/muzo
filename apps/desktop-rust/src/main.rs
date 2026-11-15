@@ -3,13 +3,11 @@
     windows_subsystem = "windows"
 )]
 
-use muzo_desktop::desktop::Desktop;
+use muzo_desktop::{desktop::Desktop, fonts};
 
 fn main() -> iced::Result {
     iced::daemon(Desktop::boot, Desktop::update, Desktop::view)
-        .font(include_bytes!("../assets/fonts/Manrope-Regular.ttf").as_slice())
-        .font(include_bytes!("../assets/fonts/Manrope-Bold.ttf").as_slice())
-        .default_font(iced::Font::with_name("Manrope"))
+        .settings(fonts::settings())
         .title(Desktop::title)
         .theme(Desktop::theme)
         .subscription(Desktop::subscription)
