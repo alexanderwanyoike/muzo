@@ -1523,7 +1523,7 @@ fn input_message_for_platform(
     else {
         return None;
     };
-    use iced::keyboard::{Key, key::Named};
+    use iced::keyboard::{Key, Modifiers, key::Named};
     let command = if macos {
         modifiers.logo()
     } else {
@@ -1541,7 +1541,11 @@ fn input_message_for_platform(
         (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
         (Key::Character("o"), true) => Some(Message::OpenFiles),
         (Key::Character("q"), true) if !macos => Some(Message::ToggleQueue),
-        (Key::Character("q"), true) if modifiers.shift() => Some(Message::ToggleQueue),
+        (Key::Character("l"), true)
+            if macos && modifiers == (Modifiers::LOGO | Modifiers::SHIFT) =>
+        {
+            Some(Message::ToggleQueue)
+        }
         _ => None,
     }
 }
