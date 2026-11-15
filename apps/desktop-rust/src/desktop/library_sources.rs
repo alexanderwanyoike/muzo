@@ -171,10 +171,10 @@ fn run_with_selection(
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
-        Operation::Select(id) => Some(id),
+        Operation::Select(id) => (previous_source.as_ref() != Some(&id)).then_some(id),
         Operation::Refresh(id) => {
             catalogue.refresh(&id)?;
-            None
+            previous_source
         }
         Operation::Remove(id) => {
             let mut snapshot = catalogue.remove_with_snapshot(&id, |catalogue| {
@@ -205,7 +205,7 @@ fn run_with_selection(
         }
         Operation::SelectPlaylist(id) => {
             selected_playlist = Some(id);
-            previous_source.clone()
+            previous_source
         }
         Operation::AddToPlaylist(playlist, track) => {
             let transaction = catalogue.begin_write()?;
@@ -224,12 +224,12 @@ fn run_with_selection(
         Operation::MovePlaylistEntry(id, entry, delta) => {
             catalogue.move_playlist_entry(&id, &entry, delta)?;
             selected_playlist = Some(id);
-            previous_source.clone()
+            previous_source
         }
         Operation::RemovePlaylistEntry(id, entry) => {
             catalogue.remove_playlist_entry(&id, &entry)?;
             selected_playlist = Some(id);
-            previous_source.clone()
+            previous_source
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let metadata = catalogue.track_metadata(&id, &library_id)?;
@@ -249,7 +249,7 @@ fn run_with_selection(
                 error: None,
                 action_focus: None,
             }));
-            previous_source.clone().or(Some(library_id))
+            previous_source.or(Some(library_id))
         }
         Operation::EditTrack(id, library_id, edit) => {
             let transaction = catalogue.begin_write()?;
@@ -265,7 +265,7 @@ fn run_with_selection(
             load_covers(paths, &catalogue, &mut snapshot);
             return Ok(snapshot);
         }
-        Operation::Reload => previous_source.clone(),
+        Operation::Reload => previous_source,
         Operation::Startup | Operation::Reconcile(_, _) => {
             for source in catalogue
                 .libraries()?
@@ -279,19 +279,13 @@ fn run_with_selection(
             match operation {
                 Operation::Reconcile(selected, playlist) => {
                     selected_playlist = playlist;
-                    selected
+                    selected.or(previous_source)
                 }
-                _ => None,
+                _ => previous_source,
             }
         }
     };
-    let mut snapshot = read_snapshot(
-        &catalogue,
-        selected.or(previous_source),
-        selected_playlist,
-        editor,
-        warnings,
-    )?;
+    let mut snapshot = read_snapshot(&catalogue, selected, selected_playlist, editor, warnings)?;
     load_covers(paths, &catalogue, &mut snapshot);
     Ok(snapshot)
 }

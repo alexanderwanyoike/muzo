@@ -336,18 +336,10 @@ impl Desktop {
                 )
             }
             Message::SourceOperation(operation) => {
-                if let Operation::Select(id) = &operation {
+                if matches!(operation, Operation::Select(_)) {
                     self.page = LibraryPage::Songs;
-                    if self
-                        .sources
-                        .snapshot
-                        .as_ref()
-                        .and_then(|snapshot| snapshot.selected.as_ref())
-                        != Some(id)
-                    {
-                        self.editor_navigation.reset();
-                        self.sources.close_track_panels();
-                    }
+                    self.editor_navigation.reset();
+                    self.sources.close_track_panels();
                 }
                 self.sources.pending_remove = None;
                 self.sources.start(operation)
