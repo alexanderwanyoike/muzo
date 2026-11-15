@@ -74,6 +74,29 @@ fn it_does_not_open_the_previous_source_when_tab_and_space_release_arrive_togeth
 }
 
 #[test]
+fn it_does_not_open_the_previous_source_when_enter_arrives_with_tab() {
+    for (from, next, modifiers) in [
+        ("Canal Sessions", "Harbour Rehearsals", Modifiers::empty()),
+        ("Harbour Rehearsals", "Canal Sessions", Modifiers::SHIFT),
+    ] {
+        let mut library = KeyboardLibrary::new(LibraryPage::Songs);
+        library.tab_to(&format!("source-remove-sidebar:{from}"), Modifiers::empty());
+        library.inputs(&[
+            key_press(Named::Tab, modifiers),
+            key_press(Named::Enter, Modifiers::empty()),
+        ]);
+
+        assert!(library.desktop.sources.removal.is_none());
+        assert_eq!(
+            library.focus().id,
+            Some(format!("source-remove-sidebar:{next}").into()),
+        );
+        library.press(Named::Enter, Modifiers::empty());
+        library.assert_confirmation_for(next);
+    }
+}
+
+#[test]
 fn it_restores_launcher_focus_when_the_user_cancels_after_a_failed_removal() {
     let profile = tempfile::tempdir().unwrap();
     let mut library = KeyboardLibrary::new(LibraryPage::Songs);
