@@ -10,6 +10,8 @@ mod settings_scroll;
 mod sidebar;
 #[cfg(test)]
 mod sidebar_tests;
+#[cfg(test)]
+mod song_search_tests;
 mod source_removal;
 
 #[cfg(test)]
