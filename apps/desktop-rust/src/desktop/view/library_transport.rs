@@ -19,6 +19,10 @@ use super::{
     panel,
 };
 
+const TRANSPORT_HEIGHT: f32 = 81.0;
+const DISPLAY_MAX_WIDTH: f32 = 610.0;
+const PLAY_BUTTON_EDGE: f32 = 38.0;
+
 struct TransportColumns {
     controls: f32,
     volume: f32,
@@ -59,7 +63,12 @@ pub(super) fn view<'a>(
 ) -> Element<'a, Message> {
     const COVER_EDGE: f32 = 43.0;
     const COVER_COLUMN: f32 = 46.0;
+    const COVER_GAP: f32 = 12.0;
+    const CONTROL_GAP: f32 = 17.0;
+    const DISPLAY_PADDING: [u16; 2] = [8, 13];
     const LABEL_LINE_HEIGHT: f32 = 1.4;
+    const MINI_BUTTON_INSET: [u16; 2] = [4, 12];
+    const TIMELINE_GAP: f32 = 7.0;
     let columns = TransportColumns::for_viewport(viewport_width);
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
@@ -83,7 +92,7 @@ pub(super) fn view<'a>(
             None,
         ),
     ]
-    .spacing(17)
+    .spacing(CONTROL_GAP)
     .align_y(Alignment::Center);
     let controls = container(controls).center_x(columns.controls);
 
@@ -99,7 +108,7 @@ pub(super) fn view<'a>(
         .style(move |theme, _| compact::slider_style(theme, surfaces, false)),
         clock_label(duration, surfaces.muted),
     ]
-    .spacing(7)
+    .spacing(TIMELINE_GAP)
     .align_y(Alignment::Center);
     let display = container(
         row![
@@ -125,12 +134,12 @@ pub(super) fn view<'a>(
             .width(Fill)
             .align_x(Alignment::Center)
         ]
-        .spacing(12)
+        .spacing(COVER_GAP)
         .align_y(Alignment::Center),
     )
     .width(Fill)
-    .max_width(610)
-    .padding([8, 13])
+    .max_width(DISPLAY_MAX_WIDTH)
+    .padding(DISPLAY_PADDING)
     .style(move |_| framed(surfaces.raised.scale_alpha(0.70), surfaces, 5));
     let volume = row![
         icon_tinted(Icon::Volume, move |_| surfaces.muted)
@@ -154,14 +163,14 @@ pub(super) fn view<'a>(
         .align_x(Alignment::End)
         .width(columns.volume);
     let surface = iced::widget::stack![
-        crate::desktop::material::chrome(preferences, surfaces, 81),
+        crate::desktop::material::chrome(preferences, surfaces, TRANSPORT_HEIGHT),
         container(
             row![controls, container(display).center_x(Fill), volume]
                 .spacing(columns.gap)
                 .align_y(Alignment::Center)
         )
         .padding([0.0, columns.padding])
-        .center_y(81),
+        .center_y(TRANSPORT_HEIGHT),
     ];
     let mini = row![
         Space::new().width(Fill),
@@ -173,7 +182,7 @@ pub(super) fn view<'a>(
         ),
     ];
     column![
-        iced::widget::stack![surface, container(mini).padding([4, 12])],
+        iced::widget::stack![surface, container(mini).padding(MINI_BUTTON_INSET)],
         line(surfaces),
     ]
     .into()
@@ -200,7 +209,7 @@ fn transport_button(
     color: Option<Color>,
 ) -> Element<'static, Message> {
     let (glyph_edge, width, height) = match kind {
-        Icon::Play | Icon::Pause => (26.0, 38.0, 38.0),
+        Icon::Play | Icon::Pause => (26.0, PLAY_BUTTON_EDGE, PLAY_BUTTON_EDGE),
         Icon::Mini => (16.0, 28.0, 24.0),
         _ => (18.0, 30.0, 30.0),
     };
@@ -240,8 +249,8 @@ mod tests {
         let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
         let mut tree = Tree::new(&button);
         let widget = button.as_widget_mut();
-        let size = Size::new(34, 34);
-        let bounds = Rectangle::with_size(Size::new(34.0, 34.0));
+        let size = Size::new(PLAY_BUTTON_EDGE as u32, PLAY_BUTTON_EDGE as u32);
+        let bounds = Rectangle::with_size(Size::new(PLAY_BUTTON_EDGE, PLAY_BUTTON_EDGE));
         let node = widget.layout(
             &mut tree,
             &renderer,
