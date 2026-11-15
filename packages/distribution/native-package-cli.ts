@@ -229,7 +229,9 @@ async function packageNative(): Promise<DistributionResult<string>> {
 
     await mkdir(output, { recursive: true });
     await mkdir(cargo.value.target, { recursive: true });
-    const artifacts = await mkdtemp(join(cargo.value.target, ".muzo-package-bin-"));
+    const artifacts = await mkdtemp(
+      join(cargo.value.target, ".muzo-package-bin-"),
+    );
     let publication: string | undefined;
     try {
       // Cargo Packager runs generated helpers from its own output directory.
@@ -264,7 +266,8 @@ async function packageNative(): Promise<DistributionResult<string>> {
       publication = await mkdtemp(join(output, ".muzo-package-"));
       await cp(join(stage, name), join(publication, name));
       const metadata = packageFiles[target.platform];
-      if (metadata) await cp(join(stage, metadata), join(publication, metadata));
+      if (metadata)
+        await cp(join(stage, metadata), join(publication, metadata));
       await publishNativePackage(publication, output, name, metadata);
       return { ok: true, value: join(output, name) };
     } finally {
