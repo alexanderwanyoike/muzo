@@ -1547,7 +1547,6 @@ impl Desktop {
                     id,
                     &self.appearance,
                     iced::widget::Space::new().into(),
-                    view::window_chrome::LIBRARY_TITLE_HEIGHT,
                 ),
                 workspace,
             ]

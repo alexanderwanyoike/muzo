@@ -88,7 +88,6 @@ fn mini_at_size<'a>(
         ]
         .align_y(Alignment::Center)
         .into(),
-        window_chrome::MINI_TITLE_HEIGHT,
     );
 
     let track = session.and_then(Session::current);

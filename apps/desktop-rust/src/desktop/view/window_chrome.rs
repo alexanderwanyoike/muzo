@@ -8,9 +8,9 @@ use crate::appearance::Appearance;
 
 use super::{Icon, Message, bold, icon_tinted, panel};
 
-pub(in crate::desktop) const LIBRARY_TITLE_HEIGHT: u32 = 40;
-pub(super) const MINI_TITLE_HEIGHT: u32 = 50;
+const TITLE_HEIGHT: u32 = 32;
 const CAPTION_WIDTH: u32 = 32;
+const CAPTION_GLYPH: u32 = 13;
 
 #[cfg(not(target_os = "macos"))]
 pub(in crate::desktop) fn resize_edges(
@@ -117,7 +117,6 @@ pub(in crate::desktop) fn title_bar<'a>(
     id: window::Id,
     appearance: &Appearance,
     tools: Element<'a, Message>,
-    height: u32,
 ) -> Element<'a, Message> {
     let background = appearance.surfaces().chrome;
     let accent = appearance.accent_ink();
@@ -133,7 +132,7 @@ pub(in crate::desktop) fn title_bar<'a>(
     let drag = mouse_area(
         container(brand)
             .padding([0, 12])
-            .center_y(height)
+            .center_y(TITLE_HEIGHT)
             .width(Fill),
     )
     .on_press(Message::DragWindow(id))
@@ -142,19 +141,13 @@ pub(in crate::desktop) fn title_bar<'a>(
         row![
             drag,
             tools,
-            caption(
-                Icon::Minimize,
-                "Minimize",
-                Message::MinimizeWindow(id),
-                height
-            ),
+            caption(Icon::Minimize, "Minimize", Message::MinimizeWindow(id)),
             caption(
                 Icon::Maximize,
                 "Maximize or restore",
-                Message::ToggleWindowMaximized(id),
-                height
+                Message::ToggleWindowMaximized(id)
             ),
-            caption(Icon::Close, "Close", Message::CloseRequested(id), height),
+            caption(Icon::Close, "Close", Message::CloseRequested(id)),
         ]
         .align_y(Alignment::Center),
     )
@@ -163,21 +156,16 @@ pub(in crate::desktop) fn title_bar<'a>(
     .into()
 }
 
-fn caption(
-    icon: Icon,
-    name: &'static str,
-    message: Message,
-    height: u32,
-) -> Element<'static, Message> {
+fn caption(icon: Icon, name: &'static str, message: Message) -> Element<'static, Message> {
     tooltip(
         button(
             icon_tinted(icon, |theme| theme.palette().text)
-                .width(16)
-                .height(16),
+                .width(CAPTION_GLYPH)
+                .height(CAPTION_GLYPH),
         )
         .padding(0)
         .width(CAPTION_WIDTH)
-        .height(height)
+        .height(TITLE_HEIGHT)
         .on_press(message)
         .style(move |theme, state| {
             let active = matches!(state, button::Status::Hovered | button::Status::Pressed);
