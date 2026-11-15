@@ -579,4 +579,60 @@ mod tests {
 
         assert_eq!(windows.close_requested(retired).units(), 0);
     }
+
+    #[test]
+    fn it_waits_for_the_native_backend_before_opening_the_first_mini() {
+        let (mut windows, _) = Windows::open();
+
+        assert_eq!(windows.show_mini().units(), 0);
+        assert!(windows.mini_id().is_none());
+    }
+
+    #[test]
+    fn it_restores_the_last_native_resize_after_the_first_maximized_mini_round_trip() {
+        use crate::desktop::{Desktop, Message};
+        use iced::{futures::StreamExt, window};
+        use iced_runtime::{Action, task};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let original = desktop.windows.library_id();
+        let _ = desktop.update(Message::LibraryVisibilityKnown(original, true));
+        let floating = iced::Size::new(1050.0, 750.0);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let mut resize =
+            task::into_stream(desktop.update(Message::MiniResized(original, floating))).unwrap();
+        let Some(Action::Window(window::Action::GetMaximized(target, state))) =
+            runtime.block_on(resize.next())
+        else {
+            panic!("a Wayland library resize should read the maximize state");
+        };
+        assert_eq!(target, original);
+        state.send(false).unwrap();
+        let Some(Action::Output(record_size)) = runtime.block_on(resize.next()) else {
+            panic!("a normal resize should record the floating geometry");
+        };
+        let _ = desktop.update(record_size);
+
+        let _ = desktop.update(Message::ShowMini);
+        let _ = desktop.update(Message::WaylandMiniPrepared(
+            original,
+            iced::Size::new(1440.0, 900.0),
+            true,
+        ));
+        let compact = desktop.windows.mini_id().unwrap();
+        let _ = desktop.update(Message::MiniOpened(compact));
+        let mut restore = task::into_stream(desktop.update(Message::ShowLibrary)).unwrap();
+        assert!(
+            matches!(runtime.block_on(restore.next()), Some(Action::Window(window::Action::Close(id))) if id == compact)
+        );
+        let Some(Action::Window(window::Action::Open(_, settings, _))) =
+            runtime.block_on(restore.next())
+        else {
+            panic!("returning to the library should open its replacement");
+        };
+        assert!(settings.maximized);
+        assert_eq!(settings.size, floating);
+    }
 }
