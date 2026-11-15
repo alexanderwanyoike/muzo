@@ -37,7 +37,7 @@ pub(in crate::desktop) struct QueueArtwork {
 #[derive(Debug, Clone)]
 pub struct QueueReconciled {
     generation: u64,
-    changes: Vec<(String, Option<Revision>)>,
+    changes: Result<Vec<(String, Option<Revision>)>, String>,
 }
 
 impl QueueArtwork {
@@ -70,17 +70,17 @@ impl QueueArtwork {
             .retain(|_, version| version.library != library);
     }
 
-    pub(in crate::desktop) fn reconcile(
+    pub(in crate::desktop) fn reconcile<'a>(
         &mut self,
         paths: Option<CataloguePaths>,
-        covers: &Covers,
+        track_ids: impl IntoIterator<Item = &'a str>,
     ) -> Task<Message> {
         let Some(paths) = paths else {
             return Task::none();
         };
-        let cached: Vec<_> = covers
-            .keys()
-            .filter_map(|id| Some((id.clone(), self.versions.get(id)?.clone())))
+        let cached: HashMap<_, _> = track_ids
+            .into_iter()
+            .filter_map(|id| Some((id.to_owned(), self.versions.get(id)?.clone())))
             .collect();
         if cached.is_empty() {
             return Task::none();
@@ -91,7 +91,8 @@ impl QueueArtwork {
             async move {
                 tokio::task::spawn_blocking(move || changed_versions(&paths, cached))
                     .await
-                    .unwrap_or_default()
+                    .map_err(|error| error.to_string())?
+                    .map_err(|error| error.to_string())
             },
             move |changes| {
                 Message::QueueArtworkReconciled(QueueReconciled {
@@ -102,46 +103,62 @@ impl QueueArtwork {
         )
     }
 
-    pub(in crate::desktop) fn apply(&mut self, result: QueueReconciled, covers: &mut Covers) {
-        if result.generation != self.generation {
-            return;
+    pub(in crate::desktop) fn remember(&mut self, id: &str, revision: Revision) {
+        if let Some(version) = self.versions.get_mut(id) {
+            version.artwork = MediaVersion::Confirmed(revision);
         }
-        for (id, revision) in result.changes {
+    }
+
+    pub(in crate::desktop) fn apply(
+        &mut self,
+        result: QueueReconciled,
+        covers: &mut Covers,
+    ) -> Vec<String> {
+        if result.generation != self.generation {
+            return Vec::new();
+        }
+        let changes = match result.changes {
+            Ok(changes) => changes,
+            Err(error) => {
+                eprintln!("Could not check queued artwork revisions: {error}");
+                return Vec::new();
+            }
+        };
+        let mut updated = Vec::with_capacity(changes.len());
+        for (id, revision) in changes {
             covers.remove(&id);
             if let Some(revision) = revision {
-                if let Some(version) = self.versions.get_mut(&id) {
-                    version.artwork = MediaVersion::Confirmed(revision);
-                }
+                self.remember(&id, revision);
             } else {
                 self.versions.remove(&id);
             }
+            updated.push(id);
         }
+        updated
     }
 }
 
 fn changed_versions(
     paths: &CataloguePaths,
-    cached: Vec<(String, QueuedVersion)>,
-) -> Vec<(String, Option<Revision>)> {
-    let Ok(catalogue) = paths.open() else {
-        return Vec::new();
-    };
-    cached
-        .into_iter()
-        .filter_map(|(id, old)| {
-            let previous = match old.artwork {
-                MediaVersion::Snapshot {
-                    path,
-                    size,
-                    modified,
-                } => Revision::new(&old.library, &id, &path.to_string_lossy(), size, modified),
-                MediaVersion::Confirmed(revision) => revision,
-            };
-            match catalogue.artwork_revision(&old.library, &id) {
-                Ok(current) if current != previous => Some((id, Some(current))),
-                Err(CatalogueError::UnknownTrack) => Some((id, None)),
-                _ => None,
-            }
-        })
-        .collect()
+    cached: HashMap<String, QueuedVersion>,
+) -> Result<Vec<(String, Option<Revision>)>, CatalogueError> {
+    let catalogue = paths.open()?;
+    let mut changes = Vec::new();
+    for (id, old) in cached {
+        let previous = match old.artwork {
+            MediaVersion::Snapshot {
+                path,
+                size,
+                modified,
+            } => Revision::new(&old.library, &id, &path.to_string_lossy(), size, modified),
+            MediaVersion::Confirmed(revision) => revision,
+        };
+        match catalogue.artwork_revision(&old.library, &id) {
+            Ok(current) if current != previous => changes.push((id, Some(current))),
+            Ok(_) => {}
+            Err(CatalogueError::UnknownTrack) => changes.push((id, None)),
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(changes)
 }

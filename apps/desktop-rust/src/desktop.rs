@@ -390,8 +390,18 @@ impl Desktop {
                 }
                 let revisions = if result.is_ok() {
                     self.row_covers.catalogue_changed();
-                    self.queue_artwork
-                        .reconcile(self.sources.paths(), &self.queue_covers)
+                    let pending = self.pending_track;
+                    let playback = self.session.as_ref().into_iter().flat_map(|session| {
+                        [
+                            session.current(),
+                            pending.and_then(|index| session.tracks().get(index)),
+                        ]
+                        .into_iter()
+                        .flatten()
+                        .filter_map(Track::indexed_id)
+                    });
+                    let queued = self.queue_covers.keys().map(String::as_str).chain(playback);
+                    self.queue_artwork.reconcile(self.sources.paths(), queued)
                 } else {
                     Task::none()
                 };
@@ -405,8 +415,9 @@ impl Desktop {
                 Task::batch([queued, artwork, revisions])
             }
             Message::QueueArtworkReconciled(result) => {
-                self.queue_artwork.apply(result, &mut self.queue_covers);
-                self.load_row_covers()
+                let changed = self.queue_artwork.apply(result, &mut self.queue_covers);
+                let preparation = self.refresh_stale_queue_artwork(&changed);
+                Task::batch([preparation, self.load_row_covers()])
             }
             Message::ArtworkViewport(page, rows) => {
                 if page != self.page || rows.is_empty() {
@@ -439,12 +450,21 @@ impl Desktop {
                         .map(|source| &mut source.covers)
                 };
                 let ready = self.row_covers.complete(cover, covers);
-                if !from_queue
-                    && queued
-                    && self.queue_covers.len() < row_cover::ROW_LIMIT
-                    && let Some((id, handle)) = ready
-                {
-                    self.queue_covers.insert(id, handle);
+                if queued && let Some((id, loaded)) = ready {
+                    self.queue_artwork.remember(&id, loaded.revision);
+                    if !from_queue && self.queue_covers.len() < row_cover::ROW_LIMIT {
+                        self.queue_covers.insert(id.clone(), loaded.handle);
+                    }
+                    if let Some(session) = &mut self.session
+                        && let Some(index) = session.current_index()
+                        && let Some(track) = session.current()
+                        && track.indexed_id() == Some(id.as_str())
+                        && track.artwork() != Some(loaded.bytes.as_slice())
+                    {
+                        let track = track.clone().with_artwork(loaded.bytes);
+                        self.cover = Cover::from_track(Some(&track));
+                        let _ = session.replace_track(index, track);
+                    }
                 }
                 self.load_row_covers()
             }
@@ -1603,10 +1623,50 @@ impl Desktop {
         self.sources.close_track_panels();
     }
 
+    fn refresh_stale_queue_artwork(&mut self, changed: &[String]) -> Task<Message> {
+        let Some(session) = &mut self.session else {
+            return Task::none();
+        };
+        if changed.is_empty() {
+            return Task::none();
+        }
+        let changed: std::collections::HashSet<_> = changed.iter().map(String::as_str).collect();
+        let matches = |track: &Track| track.indexed_id().is_some_and(|id| changed.contains(id));
+        let need_preparation = self
+            .pending_track
+            .filter(|index| session.tracks().get(*index).is_some_and(matches));
+        if session.current().is_some_and(matches)
+            || (session.current().is_none() && need_preparation.is_some())
+        {
+            self.cover = Cover::default();
+        }
+        let invalidated: Vec<_> = session
+            .tracks()
+            .iter()
+            .enumerate()
+            .filter(|(_, track)| track.artwork().is_some() && matches(track))
+            .map(|(index, track)| (index, track.clone().without_artwork()))
+            .collect();
+        for (index, track) in invalidated {
+            let _ = session.replace_track(index, track);
+        }
+        need_preparation.map_or_else(Task::none, |index| self.select_track(index))
+    }
+
     fn load_row_covers(&mut self) -> Task<Message> {
         let Some(paths) = self.sources.paths() else {
             return Task::none();
         };
+        if self.cover.thumbnail().is_none()
+            && let Some(track) = self.session.as_ref().and_then(Session::current)
+        {
+            let playback = self
+                .row_covers
+                .request_playing(&paths, track, &mut self.queue_covers);
+            if playback.units() > 0 {
+                return playback;
+            }
+        }
         if self.windows.queue_open()
             && let Some(session) = &self.session
         {
