@@ -230,9 +230,12 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::MovePlaylistEntry(id, entry, delta) => {
-            catalogue.move_playlist_entry(&id, &entry, delta)?;
-            selected_playlist = Some(id);
-            previous_source.clone()
+            let mut snapshot =
+                catalogue.move_playlist_entry_with_snapshot(&id, &entry, delta, |catalogue| {
+                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+                })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::RemovePlaylistEntry(id, entry) => {
             catalogue.remove_playlist_entry(&id, &entry)?;

@@ -122,7 +122,17 @@ impl Catalogue {
         entry: &str,
         delta: i8,
     ) -> Result<(), CatalogueError> {
-        let transaction = self.database.transaction_with_behavior(Immediate)?;
+        self.move_playlist_entry_with_snapshot(playlist, entry, delta, |_| Ok(()))
+    }
+
+    pub(crate) fn move_playlist_entry_with_snapshot<T>(
+        &self,
+        playlist: &str,
+        entry: &str,
+        delta: i8,
+        snapshot: impl FnOnce(&Self) -> Result<T, CatalogueError>,
+    ) -> Result<T, CatalogueError> {
+        let transaction = self.begin_write()?;
         let mut ids = entry_ids(&transaction, playlist)?;
         let index = ids
             .iter()
@@ -135,8 +145,9 @@ impl Catalogue {
             ids.swap(index, destination);
             apply_order(&transaction, playlist, &ids)?;
         }
+        let result = snapshot(self)?;
         transaction.commit()?;
-        Ok(())
+        Ok(result)
     }
 
     pub fn remove_playlist_entry(
