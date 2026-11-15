@@ -1,4 +1,4 @@
-use rusqlite::{Transaction, TransactionBehavior::Immediate, params};
+use rusqlite::{Transaction, params};
 use uuid::Uuid;
 
 use super::{Catalogue, CatalogueError, IndexedTrack};
@@ -155,7 +155,16 @@ impl Catalogue {
         playlist: &str,
         entry: &str,
     ) -> Result<(), CatalogueError> {
-        let transaction = self.database.transaction_with_behavior(Immediate)?;
+        self.remove_playlist_entry_with_snapshot(playlist, entry, |_| Ok(()))
+    }
+
+    pub(crate) fn remove_playlist_entry_with_snapshot<T>(
+        &self,
+        playlist: &str,
+        entry: &str,
+        snapshot: impl FnOnce(&Self) -> Result<T, CatalogueError>,
+    ) -> Result<T, CatalogueError> {
+        let transaction = self.begin_write()?;
         let removed = transaction.execute(
             "DELETE FROM playlist_entries WHERE playlist_id=?1 AND id=?2",
             params![playlist, entry],
@@ -164,8 +173,9 @@ impl Catalogue {
             return Err(CatalogueError::UnknownPlaylistEntry);
         }
         apply_order(&transaction, playlist, &entry_ids(&transaction, playlist)?)?;
+        let result = snapshot(self)?;
         transaction.commit()?;
-        Ok(())
+        Ok(result)
     }
 }
 

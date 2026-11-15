@@ -238,9 +238,12 @@ fn run_with_selection(
             return Ok(snapshot);
         }
         Operation::RemovePlaylistEntry(id, entry) => {
-            catalogue.remove_playlist_entry(&id, &entry)?;
-            selected_playlist = Some(id);
-            previous_source.clone()
+            let mut snapshot =
+                catalogue.remove_playlist_entry_with_snapshot(&id, &entry, |catalogue| {
+                    read_snapshot(catalogue, previous_source, Some(id.clone()), None, warnings)
+                })?;
+            load_covers(paths, &catalogue, &mut snapshot);
+            return Ok(snapshot);
         }
         Operation::LoadTrackEditor(id, library_id) => {
             let metadata = catalogue.track_metadata(&id, &library_id)?;
