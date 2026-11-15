@@ -258,14 +258,12 @@ pub(super) fn view<'a>(
         .into()
     });
     if snapshot.tracks.is_empty() {
-        return column![
-            container(
-                text("No tracks yet. Muzo syncs filesystem libraries automatically.")
-                    .size(13)
-                    .color(surfaces.muted)
-            )
-            .center(Fill)
-        ];
+        let message = if sources.source_tracks_loading() {
+            "Loading tracks..."
+        } else {
+            "No tracks yet. Muzo syncs filesystem libraries automatically."
+        };
+        return column![container(text(message).size(13).color(surfaces.muted)).center(Fill)];
     }
     let mut songs = column(list).padding(iced::Padding {
         top: LIST_TOP_INSET,

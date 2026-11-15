@@ -378,6 +378,7 @@ pub(super) struct Sources {
     adding_track: Option<PlaylistAddition>,
     pending_editor: Option<(String, String)>,
     selection_changed_during_operation: bool,
+    loading_source: bool,
     loading_editor: bool,
     saving_editor: bool,
     busy: bool,
@@ -413,6 +414,7 @@ impl Sources {
             adding_track: None,
             pending_editor: None,
             selection_changed_during_operation: false,
+            loading_source: false,
             loading_editor: false,
             saving_editor: false,
             busy: false,
@@ -452,6 +454,14 @@ impl Sources {
 
     pub fn busy(&self) -> bool {
         self.busy
+    }
+
+    pub(super) fn source_tracks_loading(&self) -> bool {
+        self.loading_source
+            || self
+                .pending
+                .iter()
+                .any(|queued| matches!(queued.operation, Operation::Select(_)))
     }
 
     pub fn playlist_save_pending(&self) -> bool {
@@ -635,6 +645,7 @@ impl Sources {
         };
         let operation = queued.operation;
         self.selection_changed_during_operation = queued.selection_superseded;
+        self.loading_source = matches!(operation, Operation::Select(_));
         self.busy = true;
         self.removing_source = matches!(&operation, Operation::Remove(id) if self
             .removal
@@ -697,6 +708,7 @@ impl Sources {
 
     pub fn apply(&mut self, result: Result<Snapshot, String>) {
         self.busy = false;
+        self.loading_source = false;
         let removing_source = std::mem::take(&mut self.removing_source);
         let creating_playlist = std::mem::take(&mut self.creating_playlist);
         let adding_folder = std::mem::take(&mut self.adding_folder);
