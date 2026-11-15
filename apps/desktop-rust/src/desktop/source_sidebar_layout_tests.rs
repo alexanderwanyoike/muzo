@@ -17,7 +17,7 @@ use crate::appearance::sidebar::SidebarWidth;
 use super::{
     CataloguePaths, Desktop, Message,
     cover_layout_tests::paint,
-    library_sources::{Operation, Sources, run},
+    library_sources::{Operation, Sources, UpdateError, run},
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
 };
@@ -341,7 +341,10 @@ fn it_shows_the_source_read_error_instead_of_an_empty_track_list() {
     let selection = desktop.update(Message::SourceRowClicked("Other library".into()));
     assert!(selection.units() > 0);
 
-    let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+    let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+        library_id: "Other library".into(),
+        reason: READ_ERROR.into(),
+    })));
 
     let labels = rendered_labels(
         &desktop,
@@ -373,7 +376,10 @@ fn it_discards_a_source_read_error_after_selection_changes() {
         assert!(selection.units() > 0);
         let _ = desktop.update(Message::SourceRowClicked(next.into()));
 
-        let _ = desktop.update(Message::SourcesUpdated(Err(READ_ERROR.into())));
+        let _ = desktop.update(Message::SourcesUpdated(Err(UpdateError::Tracks {
+            library_id: "Other library".into(),
+            reason: READ_ERROR.into(),
+        })));
 
         let labels = rendered_labels(
             &desktop,
