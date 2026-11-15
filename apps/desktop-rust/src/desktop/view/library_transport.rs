@@ -20,6 +20,7 @@ use super::{
 };
 
 mod glow;
+mod volume;
 use glow::Glow;
 
 const TRANSPORT_HEIGHT: f32 = 81.0;
@@ -164,9 +165,10 @@ pub(super) fn view<'a>(
             let style = compact::slider_style(theme, surfaces, true);
             glow.map_or(style, |glow| glow.volume_ink(style))
         });
+    let volume = volume::within_thumb_travel(volume);
     let volume = match glow {
-        Some(glow) => glow.surround_volume(volume.into(), columns.volume_slider, level),
-        None => volume.into(),
+        Some(glow) => glow.surround_volume(volume, columns.volume_slider, level),
+        None => volume,
     };
     let volume = row![
         icon_tinted(Icon::Volume, move |_| surfaces.muted)

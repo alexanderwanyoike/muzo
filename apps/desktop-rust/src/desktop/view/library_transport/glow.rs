@@ -8,6 +8,7 @@ use crate::appearance::Appearance;
 use super::{
     Message, PLAY_BUTTON_EDGE, SEEK_INPUT_HEIGHT, VOLUME_INPUT_HEIGHT,
     compact::{SLIDER_RAIL_HEIGHT, VOLUME_THUMB_RADIUS},
+    volume::thumb_travel,
 };
 
 const INNER_BLUR: f32 = 14.0;
@@ -99,8 +100,11 @@ impl Glow {
                 .border(border::rounded(VOLUME_THUMB_RADIUS))
                 .shadow(shadow)
         });
-        let thumb_shadow = container(row![Space::new().width((width - diameter) * volume), thumb])
-            .center_y(VOLUME_INPUT_HEIGHT);
+        let thumb_shadow = container(row![
+            Space::new().width(thumb_travel(width) * volume),
+            thumb
+        ])
+        .center_y(VOLUME_INPUT_HEIGHT);
         stack![control]
             .push_under(thumb_shadow)
             .push_under(rail_shadow(VOLUME_INPUT_HEIGHT, shadow))
