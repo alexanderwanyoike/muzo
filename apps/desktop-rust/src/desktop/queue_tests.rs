@@ -1195,6 +1195,51 @@ fn it_shows_a_saved_source_with_a_paragraph_separator_in_settings() {
 }
 
 #[test]
+fn it_displays_a_refresh_warning_for_a_saved_name_with_a_paragraph_separator() {
+    let (mut desktop, _) = setup();
+    let mut data = snapshot(&["first"]);
+    data.libraries[0].name = SAVED_NAME_WITH_SEPARATOR.into();
+    let warning = format!("{SAVED_NAME_WITH_SEPARATOR}: Folder is unavailable");
+    data.warnings.push(warning.clone());
+    let _ = desktop.update(Message::SourcesUpdated(Ok(data)));
+
+    let labels = rendered_labels(&desktop);
+
+    assert!(
+        labels
+            .iter()
+            .any(|label| label == "Studio حفلة: Folder is unavailable")
+    );
+    assert_eq!(desktop.sources.error.as_deref(), Some(warning.as_str()));
+}
+
+#[test]
+fn it_displays_dropbox_refresh_for_a_saved_name_with_a_paragraph_separator() {
+    let (mut desktop, _) = setup();
+    let mut data = snapshot(&["first"]);
+    data.libraries[0].name = SAVED_NAME_WITH_SEPARATOR.into();
+    desktop.page = LibraryPage::Settings;
+    desktop.sources.snapshot = Some(data);
+    desktop.dropbox.refreshing = Some("first".into());
+    let _ = desktop.update(Message::DropboxLibraryRefreshed(
+        "first".into(),
+        Ok((SAVED_NAME_WITH_SEPARATOR.into(), 1)),
+    ));
+
+    let labels = rendered_labels(&desktop);
+
+    assert!(
+        labels
+            .iter()
+            .any(|label| label == "Refreshed Studio حفلة: 1 track.")
+    );
+    assert_eq!(
+        desktop.sources.snapshot.unwrap().libraries[0].name,
+        SAVED_NAME_WITH_SEPARATOR
+    );
+}
+
+#[test]
 fn it_names_a_source_with_a_paragraph_separator_when_confirming_removal() {
     let (mut desktop, _) = setup();
     let mut data = snapshot(&["first"]);
