@@ -1406,7 +1406,7 @@ mod artwork_tests {
     use super::*;
 
     #[test]
-    fn it_prepares_bounded_cover_art_for_an_unplayed_catalogued_song() {
+    fn it_delivers_source_rows_before_reading_embedded_covers() {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("songs");
         std::fs::create_dir(&source).unwrap();
@@ -1419,8 +1419,9 @@ mod artwork_tests {
 
         let snapshot = run(&paths, Operation::Add(source)).unwrap();
         let row = &snapshot.tracks[0];
-        assert!(snapshot.covers.contains_key(&row.id));
         assert_eq!(row.plays, 0);
+        assert!(snapshot.covers.is_empty(), "source rows waited for artwork");
+        assert!(!paths.artwork_cache().exists());
     }
 }
 
