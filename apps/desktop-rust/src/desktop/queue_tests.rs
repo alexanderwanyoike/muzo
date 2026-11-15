@@ -210,6 +210,66 @@ fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
 }
 
 #[test]
+fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+    };
+
+    let root = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(root.path());
+    let mut catalogue = paths.open().unwrap();
+    catalogue.save_dropbox_account("account", "key").unwrap();
+    let library = catalogue.add_dropbox("account", "/Music", "Music").unwrap();
+    let path = "/Music/Track.mp3";
+    let body = include_bytes!("../../tests/fixtures/embedded-cover.mp3");
+    let entry = serde_json::from_value(serde_json::json!({
+        ".tag":"file", "name":"Track.mp3", "path_display":path, "size":body.len(), "rev":"old"
+    }))
+    .unwrap();
+    catalogue.sync_dropbox(&library.id, &[entry]).unwrap();
+    let row = catalogue.tracks(&library.id).unwrap().remove(0);
+    let old = catalogue.artwork_revision(&library.id, &row.id).unwrap();
+    let track = Track::new(PathBuf::new(), row.title, None, None, None)
+        .with_indexed_id(row.id)
+        .with_library(library.id.clone())
+        .with_remote(library.id, path.into());
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let client =
+        crate::dropbox::Client::for_endpoint(&format!("http://{}", listener.local_addr().unwrap()))
+            .unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(3)))
+            .unwrap();
+        let mut request = [0; 1024];
+        assert!(stream.read(&mut request).unwrap() > 0);
+        let metadata = serde_json::json!({"rev":"new", "size":body.len()});
+        write!(stream, "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nDropbox-API-Result: {metadata}\r\nConnection: close\r\n\r\n", body.len()).unwrap();
+        stream.write_all(body).unwrap();
+    });
+    let downloaded = crate::dropbox::cache::download(
+        &client,
+        "fixture-token",
+        &paths.dropbox_cache(),
+        "account",
+        path,
+    )
+    .unwrap();
+    server.join().unwrap();
+    let track = prepare_dropbox_track(&paths, track, downloaded, Some(old.clone()));
+
+    assert!(track.track.artwork().is_some());
+    assert!(
+        ArtworkCache::new(paths.artwork_cache())
+            .lookup(&old)
+            .is_none()
+    );
+}
+
+#[test]
 fn it_restores_a_revised_cover_when_replaying_downloaded_dropbox_audio() {
     let (mut desktop, audio) = setup();
     let prepared = audio
@@ -232,6 +292,83 @@ fn it_restores_a_revised_cover_when_replaying_downloaded_dropbox_audio() {
     assert_eq!(
         desktop.session.as_ref().unwrap().start_generation(),
         generation + 1
+    );
+    assert!(desktop.cover.sleeve().is_some());
+}
+
+#[test]
+fn it_keeps_newer_row_artwork_when_an_older_playback_worker_finishes_late() {
+    let (mut desktop, audio) = setup();
+    let row = crate::catalogue::IndexedTrack {
+        id: "changed".into(),
+        title: "Track".into(),
+        artist: String::new(),
+        album: None,
+        metadata_overridden: false,
+        path: audio.path().into(),
+        plays: 0,
+        library_id: "library".into(),
+        file_size: 1,
+        file_mtime: 1,
+        duration_seconds: 1,
+    };
+    let old = Revision::new("library", "changed", "track.mp3", 1, 1);
+    let latest = Revision::new("library", "changed", "track.mp3", 1, 2);
+    desktop.queue_artwork.replace([&row]);
+    desktop.queue_artwork.remember("changed", latest);
+    let fresh = include_bytes!("../../assets/icons/muzo.png");
+    let previous = audio.with_indexed_id(row.id).with_artwork(fresh.to_vec());
+    let outdated = previous.clone().with_artwork(vec![0]);
+    desktop.session.as_mut().unwrap().replace(vec![previous]);
+    desktop.pending_track = Some(0);
+
+    let _ = desktop.update(Message::RemoteTrackReady(
+        0,
+        Ok(PreparedTrack {
+            track: outdated,
+            artwork_revision: Some(old),
+        }),
+    ));
+
+    let current = desktop.session.as_ref().unwrap().current().unwrap();
+    assert!(current.artwork() == Some(fresh.as_slice()));
+}
+
+#[test]
+fn it_updates_visible_songs_and_the_player_when_full_audio_provides_artwork() {
+    let (mut desktop, audio) = setup();
+    let mut source = snapshot(&["library"]);
+    source.tracks.push(crate::catalogue::IndexedTrack {
+        id: "track".into(),
+        title: "Track".into(),
+        artist: String::new(),
+        album: None,
+        metadata_overridden: false,
+        path: audio.path().into(),
+        plays: 0,
+        library_id: "library".into(),
+        file_size: 1,
+        file_mtime: 1,
+        duration_seconds: 1,
+    });
+    desktop.sources.snapshot = Some(source);
+    let prepared = audio.with_indexed_id("track".into());
+    let session = desktop.session.as_mut().unwrap();
+    session.replace(vec![prepared.clone()]);
+    session.select(0).unwrap();
+    desktop.pending_track = Some(0);
+
+    let ready = prepared.with_artwork(include_bytes!("../../assets/icons/muzo.png").to_vec());
+    let _ = desktop.update(Message::RemoteTrackReady(0, Ok(ready.into())));
+
+    assert!(
+        desktop
+            .sources
+            .snapshot
+            .as_ref()
+            .unwrap()
+            .covers
+            .contains_key("track")
     );
     assert!(desktop.cover.sleeve().is_some());
 }
