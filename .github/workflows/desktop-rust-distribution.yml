@@ -1,0 +1,343 @@
+name: Rust desktop installers
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop-rust/**"
+      - "packages/distribution/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/scripts/verify-release-tag.sh"
+      - ".github/workflows/desktop-rust-distribution.yml"
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-desktop-installers-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  context:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+      sourceCommit: ${{ steps.release.outputs.sourceCommit }}
+      tagObject: ${{ steps.tag.outputs.object }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require annotated release tags on main
+        id: tag
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          test "$(git cat-file -t "$GITHUB_REF")" = tag
+          test "$(git rev-parse "${GITHUB_REF}^{commit}")" = "$GITHUB_SHA"
+          git merge-base --is-ancestor HEAD origin/main
+          printf 'object=%s\n' "$(git rev-parse "$GITHUB_REF")" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - name: Resolve matching native release versions
+        id: release
+        run: yarn release:context --source-commit "$(git rev-parse HEAD)" --github-output "$GITHUB_OUTPUT"
+
+  package:
+    needs: context
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Build against the same glibc baseline as the previous AppImage.
+          - os: ubuntu-22.04
+            label: linux-x64
+          - os: windows-latest
+            label: windows-x64
+          - os: macos-15
+            label: macos-arm64
+            macho: arm64
+          - os: macos-15-intel
+            label: macos-x64
+            macho: x86_64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/desktop-rust
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - name: Install Linux build and packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libasound2-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev libfuse2 file xvfb xauth xdotool dbus
+      - run: rustup toolchain install 1.95 --profile minimal
+      - name: Install Cargo Packager
+        if: runner.os != 'Windows'
+        run: |
+          yarn exec cargo -- +1.95 install cargo-packager --locked --version 0.11.8 --root "$RUNNER_TEMP/muzo-packager"
+          echo "$RUNNER_TEMP/muzo-packager/bin" >> "$GITHUB_PATH"
+      - run: yarn install --frozen-lockfile
+        working-directory: .
+      - name: Build the native installer
+        working-directory: .
+        env:
+          RUSTUP_TOOLCHAIN: "1.95"
+        run: |
+          test ! -e apps/desktop
+          if [[ "$RUNNER_OS" != Linux ]]; then yarn desktop:build; fi
+          yarn desktop:package --target ${{ matrix.label }}
+      - name: Verify Linux AppImage
+        if: runner.os == 'Linux'
+        timeout-minutes: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x out/rust-distribution/*.AppImage
+          appimage=$(realpath out/rust-distribution/*.AppImage)
+          smoke_root=$(mktemp -d "$RUNNER_TEMP/muzo-appimage-verification.XXXXXXXX")
+          trap 'rm -rf -- "$smoke_root"' EXIT
+          inherited_profile="$smoke_root/profile"
+          inherited_tmp="$smoke_root/tmp"
+          mkdir "$smoke_root/inspection" "$inherited_profile" "$inherited_tmp"
+          (
+            cd "$smoke_root/inspection"
+            "$appimage" --appimage-extract >/dev/null
+            test -f squashfs-root/AppRun
+            find squashfs-root -name muzo-desktop -type f | grep .
+            find squashfs-root -name libxkbcommon-x11.so.0 | grep .
+          )
+          MUZO_DATA_DIR="$inherited_profile" TMPDIR="$inherited_tmp" bash tests/manual/linux-appimage-start.sh out/rust-distribution/*.AppImage
+          if [[ -n "$(find "$inherited_profile" -mindepth 1 -print -quit)" ]]; then
+            echo "The startup check wrote outside its temporary profile." >&2
+            exit 1
+          fi
+          if [[ -n "$(find "$inherited_tmp" -mindepth 1 -print -quit)" ]]; then
+            echo "The startup check left temporary files behind." >&2
+            exit 1
+          fi
+      - name: Verify macOS disk image
+        if: runner.os == 'macOS'
+        id: macos-mini
+        timeout-minutes: 3
+        shell: bash
+        env:
+          MUZO_ARCH: ${{ matrix.macho }}
+        run: |
+          set -euo pipefail
+          image=(out/rust-distribution/*.dmg)
+          test "${#image[@]}" -eq 1
+          hdiutil verify "${image[0]}"
+          mountpoint=$(mktemp -d "$RUNNER_TEMP/muzo-mounted.XXXXXX")
+          trap 'hdiutil detach "$mountpoint" -force -quiet || true; rmdir "$mountpoint"' EXIT
+          hdiutil attach "${image[0]}" -readonly -nobrowse -noautoopen -mountpoint "$mountpoint"
+          test "$(readlink "$mountpoint/Applications")" = /Applications
+          bundle="$mountpoint/Muzo.app/Contents"
+          plist="$bundle/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = com.muzo.desktop
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$plist")
+          test -x "$bundle/MacOS/$executable"
+          cmp target/release/muzo-desktop "$bundle/MacOS/$executable"
+          lipo "$bundle/MacOS/$executable" -verify_arch "$MUZO_ARCH"
+          swift tests/manual/macos-mini.swift "$mountpoint/Muzo.app" "$RUNNER_TEMP/muzo-macos-mini-screenshots"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() && runner.os == 'macOS' && steps.macos-mini.outcome != 'skipped' }}
+        with:
+          name: muzo-macos-mini-${{ matrix.label }}
+          path: ${{ runner.temp }}/muzo-macos-mini-screenshots/*.png
+      - name: Verify an installed macOS profile upgrade
+        if: runner.os == 'macOS'
+        timeout-minutes: 4
+        shell: bash
+        env:
+          MUZO_LEGACY_TARGET: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          candidate=(out/rust-distribution/*.dmg)
+          test "${#candidate[@]}" -eq 1
+          root=$(mktemp -d "$RUNNER_TEMP/muzo-macos-profile.XXXXXXXX")
+          bash tests/manual/macos-upgrade.sh "$MUZO_LEGACY_TARGET" "${candidate[0]}" "$root/profile-fixture"
+      - name: Verify Windows installer container
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem out/rust-distribution -Filter "*-setup.exe" | Select-Object -First 1
+          if (!$installer -or $installer.Length -lt 1024) { throw "Installer missing" }
+          $stream = $installer.OpenRead()
+          try {
+            if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw "Invalid PE installer" }
+          } finally {
+            $stream.Dispose()
+          }
+      - name: Verify an installed Windows upgrade
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          yarn node --test tests/manual/profile-upgrade.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne '0a21cc92b92f39a0f8ee406284eb434ec45ab2ad3565cb648d69e356e31e53dc') {
+            throw 'The legacy installer checksum changed.'
+          }
+          $candidate = Get-ChildItem out/rust-distribution -Filter '*-setup.exe' | Select-Object -First 1
+          ./tests/manual/windows-upgrade.ps1 -LegacyInstaller $legacy -RustInstaller $candidate.FullName `
+            -InstallDirectory (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-custom') `
+            -RustBinary 'target/release/muzo-desktop.exe' `
+            -FixtureDirectory (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-profile')
+      - name: Exercise the installed Windows mini player
+        if: runner.os == 'Windows'
+        id: windows-mini
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          ./tests/manual/windows-mini.ps1 `
+            -Binary (Join-Path $env:RUNNER_TEMP 'muzo-upgrade-custom/muzo.exe') `
+            -Screenshots (Join-Path $env:RUNNER_TEMP 'muzo-windows-mini-screenshots')
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.windows-mini.outcome != 'skipped' }}
+        with:
+          name: muzo-windows-mini-screenshots
+          path: ${{ runner.temp }}/muzo-windows-mini-screenshots/*.png
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: muzo-rust-${{ matrix.label }}
+          path: |
+            apps/desktop-rust/out/rust-distribution/Muzo-*.AppImage
+            apps/desktop-rust/out/rust-distribution/Muzo-*.exe
+            apps/desktop-rust/out/rust-distribution/Muzo-*.dmg
+            apps/desktop-rust/out/rust-distribution/latest*.yml
+          if-no-files-found: error
+
+  windows-in-app-upgrade:
+    needs: context
+    if: github.ref_type != 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - run: rustup toolchain install 1.95 --profile minimal
+      - name: Build a successor to the published Electron app
+        shell: pwsh
+        env:
+          RUSTUP_TOOLCHAIN: "1.95"
+        run: |
+          yarn node --test apps/desktop-rust/tests/manual/windows-updater-fixture-version.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-updater-fixture-version.mjs '0.0.6'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn desktop:package --target windows-x64 --output update-fixture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Download and Restart in the installed Electron app
+        shell: pwsh
+        run: |
+          $legacy = Join-Path $env:RUNNER_TEMP 'Muzo-legacy-setup.exe'
+          Invoke-WebRequest 'https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/Muzo-0.0.6-windows-x64-setup.exe' -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne '0a21cc92b92f39a0f8ee406284eb434ec45ab2ad3565cb648d69e356e31e53dc') {
+            throw 'The legacy installer checksum changed.'
+          }
+          $candidate = Get-ChildItem update-fixture -Filter '*-setup.exe' | Select-Object -First 1
+          $install = Join-Path $env:RUNNER_TEMP 'muzo-in-app-upgrade'
+          $setup = Start-Process -FilePath $legacy -ArgumentList '/S', "/D=$install" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Legacy installer exited with code $($setup.ExitCode)" }
+          yarn node --test apps/desktop-rust/tests/manual/legacy-update-feed.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn exec -- node apps/desktop-rust/tests/manual/windows-in-app-upgrade.mjs `
+            (Join-Path $install 'muzo.exe') $candidate.FullName (Join-Path $candidate.DirectoryName 'latest.yml') `
+            (Join-Path $env:RUNNER_TEMP 'muzo-updater-profile')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify the installed Rust restart
+        shell: pwsh
+        run: |
+          $candidate = Get-ChildItem update-fixture -Filter '*-setup.exe' | Select-Object -First 1
+          ./apps/desktop-rust/tests/manual/windows-native-restart.ps1 -Installer $candidate.FullName `
+            -InstallDirectory (Join-Path $env:RUNNER_TEMP 'muzo-in-app-upgrade')
+
+  assemble:
+    needs: [context, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: yarn install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: muzo-rust-*
+          path: release-input
+          merge-multiple: true
+      - name: Assemble and verify the existing release contract
+        env:
+          MUZO_VERSION: ${{ needs.context.outputs.version }}
+          MUZO_TAG: ${{ needs.context.outputs.tag }}
+          MUZO_SOURCE_COMMIT: ${{ needs.context.outputs.sourceCommit }}
+        run: |
+          set -euo pipefail
+          yarn release:assemble --input "$GITHUB_WORKSPACE/release-input" --output "$GITHUB_WORKSPACE/release-set" --version "$MUZO_VERSION" --tag "$MUZO_TAG" --source-commit "$MUZO_SOURCE_COMMIT"
+          cd release-set
+          sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: muzo-rust-release-set
+          path: release-set/*
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag' && github.event_name == 'push' && github.event.created
+    needs: [context, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          ref: ${{ needs.context.outputs.sourceCommit }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: muzo-rust-release-set
+          path: release-set
+      - name: Create a draft release without replacing existing releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          MUZO_RELEASE_TAG: ${{ needs.context.outputs.tag }}
+          MUZO_TAG_OBJECT: ${{ needs.context.outputs.tagObject }}
+          MUZO_SOURCE_COMMIT: ${{ needs.context.outputs.sourceCommit }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/verify-release-tag.sh origin "$MUZO_RELEASE_TAG" "$MUZO_TAG_OBJECT" "$MUZO_SOURCE_COMMIT"
+          gh release create "$MUZO_RELEASE_TAG" release-set/* --verify-tag --draft --title "$MUZO_RELEASE_TAG" --notes "Download the installer for your platform. These preview builds are not signed or notarized. Review the installers and SHA256SUMS before publishing this draft."

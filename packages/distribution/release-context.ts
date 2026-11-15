@@ -9,7 +9,7 @@ import {
 
 interface ReleaseContextInput {
   rootVersion: unknown;
-  desktopVersion: unknown;
+  native: { workspace: unknown; binary: unknown; packager: unknown };
   sourceCommit: unknown;
   tag?: unknown;
 }
@@ -18,22 +18,46 @@ export interface ReleaseContext {
   tag: string;
   sourceCommit: string;
 }
-export function releaseContext(
-  input: ReleaseContextInput,
-): DistributionResult<ReleaseContext> {
-  const { rootVersion, desktopVersion, sourceCommit, tag } = input;
+export function releaseVersion({
+  rootVersion,
+  native,
+}: Omit<
+  ReleaseContextInput,
+  "sourceCommit" | "tag"
+>): DistributionResult<string> {
+  if (!isStableReleaseVersion(rootVersion))
+    return distributionFailure(
+      "invalidRelease",
+      "Root version must be a stable release version.",
+    );
   if (
-    !isStableReleaseVersion(rootVersion) ||
-    rootVersion !== desktopVersion ||
-    !isReleaseSourceCommit(sourceCommit) ||
-    (tag !== undefined && tag !== `v${rootVersion}`)
+    [native.workspace, native.binary, native.packager].some(
+      (version) => version !== rootVersion,
+    )
   )
     return distributionFailure(
       "invalidRelease",
-      "Root and desktop versions must match a stable release tag and exact source commit.",
+      "The native workspace, Cargo and Packager versions must match the root version.",
+    );
+  return { ok: true, value: rootVersion };
+}
+
+export function releaseContext(
+  input: ReleaseContextInput,
+): DistributionResult<ReleaseContext> {
+  const version = releaseVersion(input);
+  if (!version.ok) return version;
+  const { sourceCommit, tag } = input;
+  if (
+    !isReleaseSourceCommit(sourceCommit) ||
+    (tag !== undefined && tag !== `v${version.value}`)
+  )
+    return distributionFailure(
+      "invalidRelease",
+      "The release requires a matching tag and the exact source commit.",
     );
   return {
     ok: true,
-    value: { version: rootVersion, tag: `v${rootVersion}`, sourceCommit },
+    value: { version: version.value, tag: `v${version.value}`, sourceCommit },
   };
 }

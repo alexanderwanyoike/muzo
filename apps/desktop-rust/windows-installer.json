@@ -1,0 +1,31 @@
+{
+  "appId": "com.muzo.desktop",
+  "productName": "Muzo",
+  "electronVersion": "43.0.0",
+  "extraMetadata": {
+    "name": "@muzo/desktop",
+    "description": "Muzo desktop music player",
+    "author": { "name": "Muzo" }
+  },
+  "directories": {
+    "buildResources": "assets/icons"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "alexanderwanyoike",
+    "repo": "muzo",
+    "releaseType": "draft"
+  },
+  "win": {
+    "target": ["nsis"],
+    "executableName": "muzo",
+    "icon": "assets/icons/muzo.ico",
+    "signAndEditExecutable": false,
+    "artifactName": "Muzo-${version}-windows-${arch}-setup.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
