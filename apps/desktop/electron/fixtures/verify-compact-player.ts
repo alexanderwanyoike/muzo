@@ -10,6 +10,8 @@ const [page, preload, resultPath] = process.argv.slice(-3);
 if (!page || !preload || !resultPath)
   throw new Error("Compact fixture paths required");
 const LIBRARY_LAYOUT_HEIGHT = 600;
+const WHEEL_ATTEMPTS = 4;
+const WHEEL_SETTLE_MS = 150;
 const track = {
   id: "first",
   libraryId: "music",
@@ -365,15 +367,22 @@ void app.whenReady().then(async () => {
           await window.webContents.executeJavaScript(
             "new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))",
           );
-          window.webContents.sendInputEvent({
-            type: "mouseWheel",
-            ...point,
-            deltaX: 0,
-            deltaY: -300,
-          });
-          await until(
-            "document.querySelector('.compact-queue__list').scrollTop > 0",
-          );
+          const scrolled =
+            "document.querySelector('.compact-queue__list').scrollTop > 0";
+          // Chromium can dispatch the first wheel event without scrolling after a resize.
+          for (let attempt = 0; attempt < WHEEL_ATTEMPTS; attempt += 1) {
+            window.webContents.sendInputEvent({
+              type: "mouseWheel",
+              ...point,
+              deltaX: 0,
+              deltaY: -300,
+            });
+            const moved: unknown = await window.webContents.executeJavaScript(
+              `new Promise(resolve => setTimeout(() => resolve(${scrolled}), ${WHEEL_SETTLE_MS}))`,
+            );
+            if (moved === true) break;
+          }
+          await until(scrolled);
           await window.webContents.executeJavaScript(
             "document.querySelector('.compact-queue__list button').focus()",
           );
