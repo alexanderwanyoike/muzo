@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { parse as parseToml } from "smol-toml";
 import { expect, it } from "vitest";
 import { parse } from "yaml";
 
@@ -85,6 +86,16 @@ it("starts the packaged AppImage on the Linux upgrade baseline", () => {
   expect(nested(smoke, "run")).toMatch(
     /bash tests\/manual\/linux-appimage-start\.sh out\/rust-distribution\/\*\.AppImage/u,
   );
+});
+
+it("includes the keyboard library that Iced loads at X11 startup", () => {
+  const packager = parseToml(
+    readFileSync(
+      new URL("../../apps/desktop-rust/Packager.toml", import.meta.url),
+      "utf8",
+    ),
+  );
+  expect(nested(packager, "appimage", "libs")).toContain("libxkbcommon-x11.so.0");
 });
 
 it("exercises the packaged macOS mini player and retains screenshots for both architectures", () => {
