@@ -133,10 +133,16 @@ describe("Muzo project site", () => {
     }
   });
 
-  it("provides canonical sharing metadata with a real project screenshot", () => {
+  it("shares the native desktop screenshot from the public site", () => {
+    const publicSite = "https://muzo.alphaneuron.net/";
     expect(
       document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
-    ).toBe(base);
+    ).toBe(publicSite);
+    expect(
+      document
+        .querySelector('meta[property="og:url"]')
+        ?.getAttribute("content"),
+    ).toBe(publicSite);
     expect(document.querySelector('meta[name="viewport"]')).not.toBeNull();
     expect(
       document
@@ -147,8 +153,9 @@ describe("Muzo project site", () => {
       document
         .querySelector('meta[property="og:image"]')
         ?.getAttribute("content") ?? "";
-    expect(share.startsWith(base)).toBe(true);
-    localFile(share);
+    const screenshot = "images/muzo-player.jpg";
+    expect(share).toBe(`${publicSite}${screenshot}`);
+    localFile(screenshot);
     expect(document.querySelectorAll("script")).toHaveLength(0);
   });
 });
