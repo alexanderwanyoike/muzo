@@ -304,14 +304,7 @@ fn read_snapshot(
     warnings: Vec<String>,
 ) -> Result<Snapshot, CatalogueError> {
     let libraries = catalogue.libraries()?;
-    let selected = selected
-        .filter(|id| libraries.iter().any(|source| source.id == *id))
-        .or_else(|| {
-            libraries
-                .iter()
-                .find(|source| source.kind == "filesystem")
-                .map(|source| source.id.clone())
-        });
+    let selected = selected.filter(|id| libraries.iter().any(|source| source.id == *id));
     let playlists = catalogue.playlists()?;
     let selected_playlist = selected_playlist
         .filter(|id| playlists.iter().any(|item| item.id == *id))
