@@ -617,6 +617,36 @@ mod tests {
     }
 
     #[test]
+    fn it_exits_after_play_history_finishes_even_if_wayland_replaced_the_requested_window() {
+        use crate::desktop::{Desktop, Message};
+        use iced::futures::{FutureExt, StreamExt};
+        use iced_runtime::{Action, task};
+
+        let (mut desktop, _) = Desktop::with_session(Err("No audio in fixture".into()));
+        let library = desktop.windows.library_id();
+        let _ = desktop.update(Message::LibraryVisibilityKnown(library, true));
+        desktop.plays_pending = 1;
+        assert_eq!(desktop.update(Message::CloseRequested(library)).units(), 0);
+
+        let _ = desktop.update(Message::ShowMini);
+        let _ = desktop.update(Message::WaylandMiniPrepared(
+            library,
+            super::LIBRARY_SIZE,
+            false,
+        ));
+        let compact = desktop.windows.mini_id().unwrap();
+        let _ = desktop.update(Message::MiniOpened(compact));
+        let saved = desktop.update(Message::PlayRecorded("fixture".into(), Ok(1)));
+
+        let mut actions =
+            task::into_stream(saved).expect("the deferred application exit should be retained");
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Exit)
+        ));
+    }
+
+    #[test]
     fn it_restores_the_last_native_resize_after_the_first_maximized_mini_round_trip() {
         use crate::desktop::{Desktop, Message};
         use iced::{futures::StreamExt, window};
