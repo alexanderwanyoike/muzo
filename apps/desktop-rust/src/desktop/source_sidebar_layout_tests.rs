@@ -192,6 +192,56 @@ fn it_clears_the_selected_source_while_the_catalogue_is_loading() {
 }
 
 #[test]
+fn it_tracks_two_clicks_on_another_source_while_the_catalogue_is_loading() {
+    let directory = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(directory.path());
+    let first = directory.path().join("Harbour Rehearsals");
+    let second = directory.path().join("Holloway Sessions");
+    std::fs::create_dir(&first).unwrap();
+    std::fs::create_dir(&second).unwrap();
+    let previous = run(&paths, Operation::Add(first)).unwrap().selected;
+    let mut snapshot = run(&paths, Operation::Add(second)).unwrap();
+    let target = snapshot.selected.replace(previous.unwrap()).unwrap();
+    let mut desktop = desktop_with_sources();
+    desktop.sources = Sources::new(Some(paths));
+    desktop.sources.snapshot = Some(snapshot);
+    let reload = desktop.update(Message::SourceOperation(Operation::Reload));
+
+    for expected in [Some(target.as_str()), None] {
+        let [message]: [Message; 1] = click(&desktop, Point::new(150.0, SECOND_SOURCE_Y as f32))
+            .try_into()
+            .expect("the other source row must remain clickable during the reload");
+        let _ = desktop.update(message);
+        assert_eq!(
+            desktop
+                .sources
+                .snapshot
+                .as_ref()
+                .unwrap()
+                .selected
+                .as_deref(),
+            expected
+        );
+    }
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let finish = |desktop: &mut Desktop, action| {
+        if let Some(mut task) = task::into_stream(action) {
+            let Some(Action::Output(updated)) = runtime.block_on(task.next()) else {
+                panic!("expected the catalogue response");
+            };
+            let _ = desktop.update(updated);
+        }
+        assert_eq!(desktop.sources.snapshot.as_ref().unwrap().selected, None);
+    };
+    finish(&mut desktop, reload);
+    let queued = desktop.update(Message::SourceWatchTick);
+    finish(&mut desktop, queued);
+}
+
+#[test]
 fn it_draws_distinct_glyphs_for_dropbox_and_filesystem_sources() {
     let mut desktop = desktop_with_sources();
     let id = desktop.windows.library_id();
