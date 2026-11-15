@@ -69,6 +69,7 @@ pub(super) fn view<'a>(
     const LABEL_LINE_HEIGHT: f32 = 1.4;
     const MINI_BUTTON_INSET: [u16; 2] = [4, 12];
     const TIMELINE_GAP: f32 = 7.0;
+    const VOLUME_STEP: f32 = 0.05;
     let columns = TransportColumns::for_viewport(viewport_width);
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
@@ -152,7 +153,7 @@ pub(super) fn view<'a>(
                 Message::SetVolume
             )
             .width(columns.volume_slider)
-            .step(0.01)
+            .step(VOLUME_STEP)
             .style(move |theme, _| compact::slider_style(theme, surfaces, true))
         )
         .padding([0, 2]),
