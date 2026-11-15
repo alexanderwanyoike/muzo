@@ -6,6 +6,11 @@ import { setTimeout as delay } from "node:timers/promises";
 const startupTimeoutMs = 20_000;
 const requestTimeoutMs = 10_000;
 const pollMs = 250;
+const audioFixtures = [
+  ["tone.mp3", "Tone.mp3"],
+  ["embedded-cover.mp3", "Artwork.mp3"],
+];
+const resizedSidebarWidth = 312;
 
 async function connectToRenderer(profile) {
   const deadline = Date.now() + startupTimeoutMs;
@@ -97,14 +102,12 @@ assert(
   "Expected the Chromium profile, audio directory, and report path",
 );
 await mkdir(folder);
-await copyFile(
-  new URL("../fixtures/tone.mp3", import.meta.url),
-  join(folder, "Tone.mp3"),
-);
-await copyFile(
-  new URL("../fixtures/embedded-cover.mp3", import.meta.url),
-  join(folder, "Artwork.mp3"),
-);
+for (const [fixture, name] of audioFixtures) {
+  await copyFile(
+    new URL(`../fixtures/${fixture}`, import.meta.url),
+    join(folder, name),
+  );
+}
 
 const socket = await connectToRenderer(profile);
 const evaluate = renderer(socket);
@@ -126,7 +129,7 @@ try {
       input: {name: "Holloway Sessions", kind: "filesystem", location: ${JSON.stringify(folder)}},
     });
     const tracks = await command("list_tracks", {libraryId: library.id});
-    if (tracks.length !== 2) throw new Error("Both audio files must be indexed");
+    if (tracks.length !== ${audioFixtures.length}) throw new Error("Both audio files must be indexed");
     const [first, second] = tracks;
     await command("edit_track_metadata", {input: {
       libraryId: library.id, trackId: first.id, title: "Holloway edit",
@@ -134,27 +137,24 @@ try {
       genre: "Ambient", year: 2024,
     }});
     const playlist = await command("create_playlist", {input: {name: "Evening Walk"}});
-    for (const track of [first, second, first]) {
+    const orderedTracks = [first, second, first];
+    for (const track of orderedTracks) {
       await command("add_track_to_playlist", {input: {playlistId: playlist.id, trackId: track.id}});
-    }
-    for (const track of [first, first, second]) {
       await command("record_track_play", {input: {libraryId: library.id, trackId: track.id}});
     }
     const playlists = await command("list_playlists");
     const updatedTracks = await command("list_tracks", {libraryId: library.id});
     const history = await command("list_track_play_counts", {input: {libraryId: library.id}});
     return {
-      tracks: tracks.length,
       orderedEntries: playlists[0].entries.map(({trackId}) => trackId),
-      expectedEntries: [first.id, second.id, first.id],
+      expectedEntries: orderedTracks.map(({id}) => id),
       edit: updatedTracks.find(({id}) => id === first.id)?.title,
       plays: history.reduce((sum, row) => sum + row.playCount, 0),
     };
   })()`);
-  assert.equal(counts.tracks, 2);
   assert.deepStrictEqual(counts.orderedEntries, counts.expectedEntries);
   assert.equal(counts.edit, "Holloway edit");
-  assert.equal(counts.plays, 3);
+  assert.equal(counts.plays, counts.expectedEntries.length);
 
   const preferences = await evaluate(`(() => {
     const settings = [...document.querySelectorAll(".app-sidebar__nav button")]
@@ -182,7 +182,7 @@ try {
   })`);
   assert.deepStrictEqual(saved, {
     appearance: { theme: "walnut", mode: "dark", accent: "glow-cyan" },
-    sidebar: 312,
+    sidebar: resizedSidebarWidth,
   });
   await writeFile(report, JSON.stringify(saved));
   console.log(
