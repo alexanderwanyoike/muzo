@@ -10,7 +10,7 @@ use iced::{
 use iced_runtime::{UserInterface, user_interface::Cache};
 
 use super::{
-    CataloguePaths, Desktop, LibraryPage, Message, Sources,
+    CataloguePaths, Desktop, LibraryPage, Message, Operation, Sources,
     cover_layout_tests::paint,
     queue_tests::{setup, snapshot},
     transport_time_layout_tests::rendered_labels,
@@ -125,6 +125,21 @@ fn it_honours_a_cancellation_before_enter_in_the_same_keyboard_batch() {
         ],
     );
     assert!(labels(&desktop).contains_key("Removing..."));
+}
+
+#[test]
+fn it_does_not_remove_a_source_without_its_open_confirmation() {
+    let (mut desktop, _root) = desktop();
+    let remove_another =
+        || Message::SourceOperation(Operation::Remove("Harbour Rehearsals".into()));
+
+    let _ = desktop.update(remove_another());
+    assert!(!desktop.sources.busy());
+
+    request(&mut desktop);
+    let _ = desktop.update(remove_another());
+    assert!(!desktop.sources.busy());
+    assert!(labels(&desktop).contains_key(PROMPT));
 }
 
 #[test]
