@@ -241,6 +241,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_centres_the_status_label_inside_the_footer_pill() {
+        const ALIGNMENT_TOLERANCE: f32 = 0.75;
+        let surfaces = crate::appearance::Appearance::default().surfaces();
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 34.0));
+        for label in ["Up to date", "Downloading 50%", "Retry", "Restart"] {
+            let mut element: Element<'_, Message> = pill(label, None, surfaces).into();
+            let mut tree = Tree::new(&element);
+            let node = element
+                .as_widget_mut()
+                .layout(&mut tree, &renderer, &limits);
+            let layout = iced::advanced::Layout::new(&node);
+            let bounds = layout.bounds();
+            let mut content = layout.children().next().expect("status pill label");
+            while let Some(child) = content.children().next() {
+                content = child;
+            }
+            let ink = content.bounds();
+            let top = ink.y - bounds.y;
+            let bottom = bounds.y + bounds.height - ink.y - ink.height;
+            assert!(
+                (top - bottom).abs() <= ALIGNMENT_TOLERANCE,
+                "{label} is vertically unbalanced: {top} px above, {bottom} px below"
+            );
+        }
+    }
+
+    #[test]
     fn it_reserves_footer_space_for_the_update_failure_reason() {
         let surfaces = crate::appearance::Appearance::default().surfaces();
         let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));

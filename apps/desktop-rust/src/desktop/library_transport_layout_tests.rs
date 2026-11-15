@@ -272,9 +272,14 @@ fn it_draws_the_original_glowing_play_control_when_a_track_is_available() {
             CYAN,
             "active control needs the accent fill"
         );
+        const EDGE_SAMPLE: (usize, usize) = (70, 40);
+        const MAX_HALO_BOOST: u8 = 22;
+        let (x, y) = EDGE_SAMPLE;
+        let halo = pixel(frame, x, y)[1].saturating_sub(pixel(&idle, x, y)[1]);
+        assert!(halo > 4, "the halo should extend just beyond the button");
         assert!(
-            pixel(frame, 70, 40)[1] > pixel(&idle, 70, 40)[1] + 4,
-            "the halo should extend beyond the button"
+            halo <= MAX_HALO_BOOST,
+            "the halo competes with the glyph: {halo}"
         );
     }
 }
