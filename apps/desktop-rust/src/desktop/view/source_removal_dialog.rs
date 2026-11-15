@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal};
+use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal, pulse_row_fills};
 
 const DESCRIPTION: &str = "This removes the source, its indexed tracks, metadata edits and play counts from Muzo. Your music files stay where they are. Playlist entries remain, marked unavailable.";
 const PANEL_WIDTH: f32 = 440.0;
@@ -47,7 +47,17 @@ pub(in crate::desktop) fn layer<'a>(
 
 fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Message> {
     let surfaces = appearance.surfaces();
-    let accent = appearance.accent_ink();
+    let (outline, hover) = pulse_row_fills(appearance).map_or_else(
+        || (appearance.accent_ink(), None),
+        |fills| {
+            let neutral = if appearance.mode == "dark" {
+                Color::WHITE
+            } else {
+                color!(0x171717)
+            };
+            (neutral, Some(fills.hover))
+        },
+    );
     let danger = if appearance.mode == "dark" {
         color!(0xf1a49a)
     } else {
@@ -88,11 +98,17 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         );
     }
 
+    let cancel_colors = ActionColors {
+        surfaces,
+        outline,
+        hover,
+        danger: None,
+    };
     let cancel = action(
         "Cancel",
         (!removal.busy).then_some(Message::CancelSourceRemoval),
         removal.show_keyboard_focus && removal.cancel_focused,
-        (surfaces, accent, None),
+        cancel_colors,
     );
     let confirm = action(
         if removal.busy {
@@ -103,7 +119,10 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         (!removal.busy)
             .then(|| Message::SourceOperation(Operation::Remove(removal.source.id.clone()))),
         removal.show_keyboard_focus && !removal.cancel_focused,
-        (surfaces, accent, Some(danger)),
+        ActionColors {
+            danger: Some(danger),
+            ..cancel_colors
+        },
     );
     let actions = row![cancel, confirm].spacing(ACTION_GAP - 2.0 * FOCUS_OUTSET);
     let inner_inset = CONTENT_INSET - FOCUS_OUTSET;
@@ -147,13 +166,26 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         .into()
 }
 
+#[derive(Clone, Copy)]
+struct ActionColors {
+    surfaces: Surfaces,
+    outline: Color,
+    hover: Option<Color>,
+    danger: Option<Color>,
+}
+
 fn action(
     label: &'static str,
     message: Option<Message>,
     focused: bool,
-    colors: (Surfaces, Color, Option<Color>),
+    colors: ActionColors,
 ) -> Element<'static, Message> {
-    let (surfaces, accent, danger) = colors;
+    let ActionColors {
+        surfaces,
+        outline,
+        hover,
+        danger,
+    } = colors;
     let focused = focused && message.is_some();
     let control = button(text(label).size(13).line_height(Pixels(18.0)))
         .height(ACTION_HEIGHT)
@@ -164,9 +196,16 @@ fn action(
                 style.background = Some(danger.into());
                 style.border.color = danger;
                 style.text_color = surfaces.raised;
-            } else if status == button::Status::Hovered {
-                style.background =
-                    Some(super::compact::tint(surfaces.raised, theme.palette().text, 0.05).into());
+            } else if status == button::Status::Hovered
+                || hover.is_some() && status == button::Status::Pressed
+            {
+                style.background = Some(
+                    hover
+                        .unwrap_or_else(|| {
+                            super::compact::tint(surfaces.raised, theme.palette().text, 0.05)
+                        })
+                        .into(),
+                );
             }
             if status == button::Status::Disabled {
                 style.background = style.background.map(|color| color.scale_alpha(0.4));
@@ -180,7 +219,7 @@ fn action(
         .padding(FOCUS_OUTSET)
         .style(move |_| {
             let border = if focused {
-                border::rounded(10).width(2).color(accent)
+                border::rounded(10).width(2).color(outline)
             } else {
                 border::Border::default()
             };
