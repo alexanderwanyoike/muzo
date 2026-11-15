@@ -5,7 +5,7 @@
   "extraMetadata": {
     "name": "@muzo/desktop",
     "description": "Muzo desktop music player",
-    "author": "Muzo"
+    "author": { "name": "Muzo" }
   },
   "directories": {
     "buildResources": "assets/icons"
