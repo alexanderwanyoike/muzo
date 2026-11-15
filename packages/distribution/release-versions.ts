@@ -32,10 +32,10 @@ async function nativeVersions() {
 }
 
 export async function readReleaseVersions(native: boolean) {
-  const [rootVersion, desktopVersion, rust] = await Promise.all([
-    workspaceVersion("package.json"),
-    workspaceVersion("apps/desktop/package.json"),
-    native ? nativeVersions() : undefined,
-  ]);
-  return { rootVersion, desktopVersion, native: rust };
+  const rootVersion = await workspaceVersion("package.json");
+  if (native) return { rootVersion, native: await nativeVersions() };
+  return {
+    rootVersion,
+    desktopVersion: await workspaceVersion("apps/desktop/package.json"),
+  };
 }
