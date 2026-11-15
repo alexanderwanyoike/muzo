@@ -32,6 +32,7 @@ impl Client {
             deadline: Instant::now() + ARTWORK_TIMEOUT,
             authorization_failed: false,
             range_failed: false,
+            budget_exhausted: false,
         };
         let result = (|| {
             stream.fetch(0)?;
@@ -44,6 +45,9 @@ impl Client {
         })();
         if stream.authorization_failed {
             return Err(DropboxError::Reconnect);
+        }
+        if stream.budget_exhausted {
+            return Ok(result.ok().flatten());
         }
         // Lofty can return partial metadata after an I/O error reading the next atom.
         if stream.range_failed && result.is_ok() {
@@ -65,6 +69,7 @@ struct ArtworkStream<'a> {
     deadline: Instant,
     authorization_failed: bool,
     range_failed: bool,
+    budget_exhausted: bool,
 }
 
 impl ArtworkStream<'_> {
@@ -76,8 +81,12 @@ impl ArtworkStream<'_> {
 
     fn read_range(&mut self, start: u64) -> io::Result<()> {
         let allowance = RANGE_BYTES.min(self.budget);
-        if allowance == 0 || self.deadline <= Instant::now() {
-            return Err(io::Error::other("Dropbox artwork read budget exhausted"));
+        if allowance == 0 {
+            self.budget_exhausted = true;
+            return Err(io::Error::other("Dropbox artwork byte budget exhausted"));
+        }
+        if self.deadline <= Instant::now() {
+            return Err(io::Error::other("Dropbox artwork read timed out"));
         }
         let end = start.saturating_add(allowance - 1);
         let response = self
