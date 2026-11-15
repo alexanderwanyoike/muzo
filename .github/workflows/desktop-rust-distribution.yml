@@ -66,9 +66,11 @@ jobs:
           - os: macos-15
             label: macos-arm64
             macho: arm64
+            legacy_sha256: dab8ba61cba09174fa57cebc3bbe1eff8bd0a9c21416c737b3b76c295aca2cbf
           - os: macos-15-intel
             label: macos-x64
             macho: x86_64
+            legacy_sha256: 7188c61ed2383527ff04167cf400a7fd0a2f6fba0cefbb979f3d882d4f5770c9
     runs-on: ${{ matrix.os }}
     timeout-minutes: 35
     defaults:
@@ -166,6 +168,34 @@ jobs:
         with:
           name: muzo-macos-mini-${{ matrix.label }}
           path: ${{ runner.temp }}/muzo-macos-mini-screenshots/*.png
+      - name: Verify an installed macOS profile upgrade
+        if: runner.os == 'macOS'
+        timeout-minutes: 4
+        shell: bash
+        env:
+          MUZO_LEGACY_ASSET: Muzo-0.0.6-${{ matrix.label }}.dmg
+          MUZO_LEGACY_SHA256: ${{ matrix.legacy_sha256 }}
+        run: |
+          set -euo pipefail
+          candidate=(out/rust-distribution/*.dmg)
+          test "${#candidate[@]}" -eq 1
+          root=$(mktemp -d "$RUNNER_TEMP/muzo-macos-profile.XXXXXXXX")
+          legacy_image="$root/$MUZO_LEGACY_ASSET"
+          legacy_mount="$root/legacy"
+          candidate_mount="$root/candidate"
+          mkdir "$legacy_mount" "$candidate_mount"
+          cleanup() {
+            hdiutil detach "$candidate_mount" -force -quiet || true
+            hdiutil detach "$legacy_mount" -force -quiet || true
+          }
+          trap cleanup EXIT
+          curl --fail --silent --show-error --location \
+            "https://github.com/alexanderwanyoike/muzo/releases/download/v0.0.6/$MUZO_LEGACY_ASSET" \
+            --output "$legacy_image"
+          printf '%s  %s\n' "$MUZO_LEGACY_SHA256" "$legacy_image" | shasum -a 256 -c -
+          hdiutil attach "$legacy_image" -readonly -nobrowse -noautoopen -mountpoint "$legacy_mount"
+          hdiutil attach "${candidate[0]}" -readonly -nobrowse -noautoopen -mountpoint "$candidate_mount"
+          bash tests/manual/macos-upgrade.sh "$legacy_mount/Muzo.app" "$candidate_mount/Muzo.app" "$root/profile-fixture"
       - name: Verify Windows installer container
         if: runner.os == 'Windows'
         shell: pwsh
