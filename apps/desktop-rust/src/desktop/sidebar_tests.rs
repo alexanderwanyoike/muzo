@@ -1,20 +1,23 @@
 use iced::{
-    Event, Font, Pixels, Point, Rectangle, Renderer, Size,
+    Event, Font, Pixels, Point, Rectangle, Renderer, Size, Theme,
     advanced::{
-        Layout, Shell, clipboard, layout, mouse,
-        widget::{Operation, Tree, operation},
+        Layout, Shell, Widget, clipboard, layout, mouse,
+        widget::{Tree, operation},
     },
+    futures::{FutureExt, StreamExt},
     keyboard::{
         Key, Location, Modifiers,
         key::{Named, NativeCode, Physical},
     },
 };
+use iced_runtime::{Action, task};
 
 use crate::appearance::sidebar::{SidebarWidth, load_or_import, save};
 
-use super::{CataloguePaths, Desktop, LibraryPage, Sources, input_message};
+use super::{CataloguePaths, Desktop, LibraryPage, Message, Sources, input_message};
 
 const VIEW_WIDTH: f32 = 800.0;
+const VIEW_HEIGHT: f32 = 600.0;
 const DRAG_HEIGHT: f32 = 260.0;
 const NARROW_DIVIDER: Point = Point::new(279.5, DRAG_HEIGHT);
 
@@ -49,13 +52,8 @@ impl Library {
         {
             let mut view = self.desktop.view(id);
             let widget = view.as_widget_mut();
-            self.tree.diff(&*widget);
-            let bounds = Rectangle::with_size(Size::new(self.width, 600.0));
-            let node = widget.layout(
-                &mut self.tree,
-                &self.renderer,
-                &layout::Limits::new(bounds.size(), bounds.size()),
-            );
+            let bounds = Rectangle::with_size(Size::new(self.width, VIEW_HEIGHT));
+            let node = layout_library(widget, &mut self.tree, &self.renderer, bounds.size());
             for event in events {
                 let status = {
                     let mut shell = Shell::new(&mut messages);
@@ -103,7 +101,7 @@ impl Library {
     fn resize(&mut self, width: f32) {
         self.width = width;
         self.input(
-            Event::Window(iced::window::Event::Resized(Size::new(width, 600.0))),
+            Event::Window(iced::window::Event::Resized(Size::new(width, VIEW_HEIGHT))),
             0.0,
         );
     }
@@ -119,35 +117,48 @@ impl Library {
             },
         );
         let message = input_message(tab, iced::event::Status::Ignored, id).unwrap();
-        assert!(self.desktop.update(message).units() > 0);
-
-        let mut focus: Box<dyn Operation> = if backwards {
-            Box::new(operation::focusable::focus_previous())
-        } else {
-            Box::new(operation::focusable::focus_next())
-        };
+        let tasks = self.desktop.update(message);
+        let mut actions = task::into_stream(tasks).expect("Tab schedules a focus change");
         let mut view = self.desktop.view(id);
         let widget = view.as_widget_mut();
-        self.tree.diff(&*widget);
-        let size = Size::new(self.width, 600.0);
-        let node = widget.layout(
+        let node = layout_library(
+            widget,
             &mut self.tree,
             &self.renderer,
-            &layout::Limits::new(size, size),
+            Size::new(self.width, VIEW_HEIGHT),
         );
-        loop {
-            widget.operate(
-                &mut self.tree,
-                Layout::new(&node),
-                &self.renderer,
-                focus.as_mut(),
-            );
-            let operation::Outcome::Chain(next) = focus.finish() else {
-                break;
+        while let Some(action) = actions
+            .next()
+            .now_or_never()
+            .expect("a ready widget action")
+        {
+            let Action::Widget(mut operation) = action else {
+                panic!("Tab should only operate on the library widgets");
             };
-            focus = next;
+            loop {
+                widget.operate(
+                    &mut self.tree,
+                    Layout::new(&node),
+                    &self.renderer,
+                    operation.as_mut(),
+                );
+                let operation::Outcome::Chain(next) = operation.finish() else {
+                    break;
+                };
+                operation = next;
+            }
         }
     }
+}
+
+fn layout_library(
+    widget: &mut dyn Widget<Message, Theme, Renderer>,
+    tree: &mut Tree,
+    renderer: &Renderer,
+    size: Size,
+) -> layout::Node {
+    tree.diff(&*widget);
+    widget.layout(tree, renderer, &layout::Limits::new(size, size))
 }
 
 #[test]
