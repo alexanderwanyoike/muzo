@@ -19,7 +19,7 @@ make your own.
 - **Bring your music.** Add local folders or browse and select folders from Dropbox.
 - **Keep things organised.** Search your sources, build playlists and see what is coming up in the playback queue.
 - **Keep a little player nearby.** Switch to the mini player with album artwork and an optional queue.
-- **Make it yours.** Choose from seven materials, light or dark appearances and ten accent colours.
+- **Make it yours.** Choose from eight materials, light or dark appearances and sixteen accent colours.
 - **Enjoy your album covers.** Embedded artwork is cached locally so it is ready when you return.
 
 ## Download and listen
@@ -95,7 +95,7 @@ the app; the desktop window remains opaque. Your choices are saved between sessi
 Found something that feels off? [Open an issue](https://github.com/alexanderwanyoike/muzo/issues)
 with your operating system, Muzo version and what happened. Screenshots are welcome.
 
-Muzo is built with Electron, React and TypeScript. To work on it, install
+The native Muzo desktop uses Rust and Iced. Install Rust 1.95 or newer,
 Node.js 22.12 or newer and Yarn Classic 1.22.22 or newer, then run:
 
 ```sh
@@ -103,24 +103,26 @@ yarn install
 yarn desktop:dev
 ```
 
-Linux development and native tests need Electron's GTK/audio runtime dependencies
-and Xvfb. CI lists the required system packages.
+On Debian and Ubuntu, install the ALSA, Wayland and xkbcommon development
+packages (`libasound2-dev`, `libwayland-dev` and `libxkbcommon-dev`).
+The packaged Linux startup check uses Xvfb. CI lists the required system packages.
 
 | Check | Command |
 | --- | --- |
-| Formatting | `yarn format:check` |
+| Rust formatting | `yarn workspace @muzo/desktop-rust format:check` |
+| JavaScript formatting | `yarn format:check` |
 | Lint | `yarn lint` |
 | Types | `yarn typecheck` |
 | Tests | `yarn test` |
-| Desktop build | `yarn desktop:build` |
-| Package and distributables | `yarn desktop:package` and `yarn desktop:make` |
+| Rust build | `yarn desktop:build` |
+| Native installer | `yarn desktop:package`, `yarn desktop:make`, or `yarn desktop:distribute` |
 | Website | `yarn site:verify` and `yarn site:build` |
 
 Start feature branches from `dev` and target PRs at `dev`. Releases promote `dev`
 to `main`. We use merge commits and preserve the red, green and refactor commits.
 See [AGENTS.md](./AGENTS.md) for the engineering conventions.
 
-- [Desktop smoke tests](./docs/testing/desktop-ui-smoke-test.md)
+- [Electron comparison smoke tests](./docs/testing/desktop-ui-smoke-test.md)
 - [Native packaging and releases](./docs/distribution.md)
 - [Project site](./docs/project-site.md)
 - [Planned and completed work](./docs/cards)

@@ -1,0 +1,22 @@
+name = "muzo-desktop"
+product-name = "Muzo"
+identifier = "com.muzo.desktop"
+version = "0.0.6"
+description = "Desktop music player"
+publisher = "Muzo"
+category = "Music"
+out-dir = "out/rust-distribution"
+icons = ["assets/icons/muzo.png", "assets/icons/muzo.ico", "assets/icons/muzo.icns"]
+license-file = "../../LICENSE"
+resources = ["assets/licenses"]
+
+[[binaries]]
+path = "muzo-desktop"
+main = true
+
+[appimage]
+# Iced loads this SONAME dynamically, so linuxdeploy cannot infer it from the executable.
+libs = ["libxkbcommon-x11.so.0"]
+
+[appimage.files]
+"assets/linux-notices" = "usr/share/doc/muzo-desktop/licenses"

@@ -1,10 +1,11 @@
-import { appendFile, readFile } from "node:fs/promises";
+import { appendFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import {
   distributionFailure,
   type DistributionResult,
 } from "./distribution-result";
 import { releaseContext } from "./release-context";
+import { readReleaseVersions } from "./release-versions";
 
 async function run(): Promise<DistributionResult<string>> {
   try {
@@ -14,18 +15,8 @@ async function run(): Promise<DistributionResult<string>> {
         "github-output": { type: "string" },
       },
     });
-    const root = new URL("../../", import.meta.url);
-    async function version(path: string): Promise<unknown> {
-      const metadata: unknown = JSON.parse(
-        await readFile(new URL(path, root), "utf8"),
-      );
-      return metadata && typeof metadata === "object" && "version" in metadata
-        ? metadata.version
-        : undefined;
-    }
     const result = releaseContext({
-      rootVersion: await version("package.json"),
-      desktopVersion: await version("apps/desktop/package.json"),
+      ...(await readReleaseVersions()),
       sourceCommit: values["source-commit"] ?? process.env.GITHUB_SHA,
       tag:
         process.env.GITHUB_REF_TYPE === "tag"

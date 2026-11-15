@@ -1,0 +1,352 @@
+use iced::{
+    Alignment, Element, Fill,
+    widget::{Space, button, column, container, image, row, scrollable, text, text_input},
+};
+
+use crate::{
+    appearance::Surfaces,
+    desktop::{
+        Message,
+        library_sources::{Operation, Snapshot, Sources},
+    },
+    session::Session,
+    track::Track,
+};
+
+use super::{
+    Icon, action, bold, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, tint, track_play_button,
+};
+
+#[cfg(test)]
+#[path = "playlist_sidebar_tests.rs"]
+mod sidebar_tests;
+
+pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
+    let query = sources.playlist_search.trim().to_lowercase();
+    let snapshot = sources.snapshot.as_ref();
+    let matches = snapshot
+        .into_iter()
+        .flat_map(|snapshot| &snapshot.playlists)
+        .filter(|playlist| playlist.name.to_lowercase().contains(&query));
+    let match_count = matches.clone().count();
+    let entries = matches.map(|playlist| {
+        let active = snapshot.and_then(|snapshot| snapshot.selected_playlist.as_deref())
+            == Some(playlist.id.as_str());
+        let count = snapshot
+            .and_then(|snapshot| snapshot.playlist_counts.get(&playlist.id).copied())
+            .map(|count| count.to_string());
+        button(
+            row![
+                icon_tinted(Icon::Queue, move |theme| if active {
+                    theme.palette().primary
+                } else {
+                    surfaces.muted
+                })
+                .width(15)
+                .height(15),
+                Element::new(EllipsizedLabel::new(playlist.name.as_str(), 11.0).font(bold())),
+                text(count.unwrap_or_default())
+                    .size(9)
+                    .color(surfaces.muted),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .height(32)
+        .padding([5, 8])
+        .width(Fill)
+        .style(move |theme, status| {
+            let mut style = action(theme, status);
+            if active {
+                style.background =
+                    Some(tint(surfaces.sidebar, theme.palette().primary, 0.13).into());
+            }
+            style
+        })
+        .on_press_maybe(
+            (!sources.busy())
+                .then(|| Message::SourceOperation(Operation::SelectPlaylist(playlist.id.clone()))),
+        )
+        .into()
+    });
+    let heading = container(
+        row![
+            icon_tinted(Icon::Queue, move |_| surfaces.muted)
+                .width(14)
+                .height(14),
+            text("Playlists").size(11).font(bold()),
+            Space::new().width(Fill),
+            text(snapshot.map_or(0, |snapshot| snapshot.playlists.len()))
+                .size(9)
+                .color(surfaces.muted),
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center),
+    )
+    .padding([0, 10])
+    .center_y(32)
+    .style(move |_| container::Style::default().background(surfaces.chrome));
+    let clear = (!query.is_empty()).then(|| Message::PlaylistSearch(String::new()));
+    let search = container(
+        row![
+            text_input("Search playlists", &sources.playlist_search)
+                .size(11)
+                .padding([8, 9])
+                .on_input(Message::PlaylistSearch),
+            icon_button(Icon::Close, "Clear search", clear),
+        ]
+        .align_y(Alignment::Center),
+    )
+    .padding(8);
+    let mut rows = column![];
+    if !query.is_empty() {
+        rows = rows.push(
+            container(
+                text(format!("{match_count} matches"))
+                    .size(10)
+                    .color(surfaces.muted),
+            )
+            .padding([3, 9]),
+        );
+        if match_count == 0 {
+            rows = rows.push(
+                container(
+                    text("No playlists match your search.")
+                        .size(11)
+                        .color(surfaces.muted),
+                )
+                .padding([5, 9]),
+            );
+        }
+    }
+    rows = rows.push(column(entries));
+    let footer: Element<'_, Message> = if sources.show_playlist_form {
+        let can_edit = !sources.playlist_save_pending();
+        let can_submit = can_edit && !sources.busy() && !sources.playlist_name.trim().is_empty();
+        container(
+            column![
+                text_input("Playlist name", &sources.playlist_name)
+                    .id("new-playlist-name")
+                    .size(11)
+                    .on_input_maybe(can_edit.then_some(Message::PlaylistName))
+                    .on_submit_maybe(can_submit.then_some(Message::CreatePlaylist)),
+                row![
+                    button(text("Create playlist").size(11))
+                        .style(action)
+                        .on_press_maybe(can_submit.then_some(Message::CreatePlaylist)),
+                    button(text("Cancel").size(11))
+                        .style(action)
+                        .on_press_maybe(can_edit.then_some(Message::ShowPlaylistForm(false))),
+                ]
+                .spacing(6)
+            ]
+            .spacing(6),
+        )
+        .padding(8)
+        .into()
+    } else {
+        button(
+            row![
+                text("+").size(16).color(surfaces.muted),
+                text("New playlist").size(11)
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+        )
+        .width(Fill)
+        .height(32)
+        .padding([5, 11])
+        .style(move |theme, status| button::Style {
+            background: Some(surfaces.chrome.into()),
+            ..action(theme, status)
+        })
+        .on_press(Message::ShowPlaylistForm(true))
+        .into()
+    };
+    container(column![
+        heading,
+        library::line(surfaces),
+        search,
+        library::line(surfaces),
+        scrollable(rows).spacing(0).height(Fill),
+        library::line(surfaces),
+        footer,
+    ])
+    .width(Fill)
+    .height(Fill)
+    .style(move |_| library::framed(surfaces.raised, surfaces, 2))
+    .into()
+}
+
+pub fn tracks<'a>(
+    snapshot: &'a Snapshot,
+    busy: bool,
+    session: Option<&Session>,
+    cover: Option<&image::Handle>,
+    surfaces: Surfaces,
+) -> iced::widget::Column<'a, Message> {
+    const TRACK_HEIGHT: f32 = 58.0;
+    let Some(playlist) = &snapshot.selected_playlist else {
+        return column![];
+    };
+    let active_entry = session
+        .and_then(Session::current)
+        .and_then(Track::playlist_entry);
+    let playing = session.is_some_and(Session::is_playing);
+    let rows = snapshot
+        .playlist_entries
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            let active = active_entry == Some(entry.id.as_str());
+            let (label, artist, play) =
+                entry
+                    .track
+                    .as_ref()
+                    .map_or(("Unavailable track", "", None), |track| {
+                        (
+                            track.title.as_str(),
+                            track.artist.as_str(),
+                            Some(Message::PlayPlaylist(entry.id.clone())),
+                        )
+                    });
+            let content = row![
+                library::small_cover(
+                    cover.filter(|_| active).or_else(|| entry
+                        .track
+                        .as_ref()
+                        .and_then(|track| snapshot.covers.get(&track.id))),
+                    38.0,
+                    surfaces
+                ),
+                column![
+                    text(label).size(12).wrapping(text::Wrapping::None),
+                    text(artist)
+                        .size(10)
+                        .color(surfaces.muted)
+                        .wrapping(text::Wrapping::None),
+                ]
+                .spacing(4)
+                .width(Fill),
+                text(
+                    entry
+                        .track
+                        .as_ref()
+                        .map_or(String::new(), |track| format!("{} plays", track.plays))
+                )
+                .size(10)
+                .color(surfaces.muted),
+                track_play_button(
+                    if active && playing {
+                        Icon::Pause
+                    } else {
+                        Icon::Play
+                    },
+                    if active && playing { "Pause" } else { "Play" },
+                    play,
+                ),
+                icon_button(
+                    Icon::Up,
+                    "Move up",
+                    (!busy && index > 0).then(|| Message::SourceOperation(
+                        Operation::MovePlaylistEntry(playlist.clone(), entry.id.clone(), -1)
+                    ))
+                ),
+                icon_button(
+                    Icon::Down,
+                    "Move down",
+                    (!busy && index + 1 < snapshot.playlist_entries.len()).then(|| {
+                        Message::SourceOperation(Operation::MovePlaylistEntry(
+                            playlist.clone(),
+                            entry.id.clone(),
+                            1,
+                        ))
+                    })
+                ),
+                button(text("Remove").size(10))
+                    .style(action)
+                    .on_press_maybe((!busy).then(|| Message::SourceOperation(
+                        Operation::RemovePlaylistEntry(playlist.clone(), entry.id.clone())
+                    ))),
+            ]
+            .spacing(7)
+            .align_y(Alignment::Center);
+            column![
+                container(content)
+                    .padding([0, 8])
+                    .center_y(TRACK_HEIGHT)
+                    .width(Fill)
+                    .style(move |theme: &iced::Theme| {
+                        let base = theme.palette().background;
+                        let background = if active {
+                            tint(base, theme.palette().primary, 0.12)
+                        } else if index % 2 == 1 {
+                            tint(base, surfaces.line, 0.24)
+                        } else {
+                            base
+                        };
+                        container::Style::default().background(background)
+                    }),
+                library::line(surfaces)
+            ]
+            .into()
+        });
+    let name = snapshot
+        .playlists
+        .iter()
+        .find(|item| item.id == *playlist)
+        .map_or("Playlist", |item| item.name.as_str());
+    let count = snapshot.playlist_entries.len();
+    let header = row![
+        text(replace_embedded_breaks(name)).font(bold()).size(14),
+        text(format!(
+            "{count} {}",
+            if count == 1 { "track" } else { "tracks" }
+        ))
+        .size(10)
+        .color(surfaces.muted),
+        Space::new().width(Fill),
+        button(text("Play playlist").size(12))
+            .padding([6, 11])
+            .style(move |theme, status| library::bordered_button(theme, status, surfaces))
+            .on_press_maybe(
+                snapshot
+                    .playlist_entries
+                    .iter()
+                    .any(|entry| entry.track.is_some())
+                    .then(|| Message::StartPlaylist(playlist.clone()))
+            ),
+    ]
+    .spacing(14)
+    .align_y(Alignment::Center);
+    let list: Element<'_, Message> = if count == 0 {
+        text("Playlist is empty")
+            .size(13)
+            .color(surfaces.muted)
+            .into()
+    } else {
+        let page = crate::desktop::LibraryPage::Playlists;
+        let row_height = TRACK_HEIGHT + library::DIVIDER_HEIGHT;
+        let list = scrollable(column(rows))
+            .height(Fill)
+            .on_scroll(move |viewport| {
+                Message::ArtworkViewport(
+                    page,
+                    crate::desktop::row_cover::viewport_rows(viewport, row_height, 0.0, 0.0),
+                )
+            });
+        crate::desktop::row_cover::watch_fit(
+            list,
+            snapshot.selected_playlist.as_deref(),
+            count,
+            row_height * count as f32,
+            move |rows| Message::ArtworkViewport(page, rows),
+        )
+    };
+    column![
+        container(column![header, list].spacing(16))
+            .padding([26, 24])
+            .height(Fill)
+    ]
+}

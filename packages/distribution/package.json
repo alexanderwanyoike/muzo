@@ -10,10 +10,12 @@
     "test": "vitest run --environment node",
     "clean": "tsc --build --clean",
     "context": "tsx release-context-cli.ts",
-    "assemble": "tsx assemble-release-cli.ts"
+    "assemble": "tsx assemble-release-cli.ts",
+    "package:native": "tsx native-package-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
+    "electron-builder": "26.18.0",
     "eslint": "^9.14.0",
     "eslint-config-airbnb-extended": "3.3.0",
     "globals": "^15.11.0",
@@ -23,6 +25,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "smol-toml": "1.9.1",
     "yaml": "2.9.1"
   }
 }
