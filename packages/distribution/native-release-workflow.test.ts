@@ -68,3 +68,24 @@ it("runs the root native installer command for every release target", () => {
   expect(JSON.stringify(steps)).not.toContain("hdiutil create");
   expect(JSON.stringify(steps)).not.toContain("--prepackaged");
 });
+
+it("exercises the packaged macOS mini player and retains screenshots for both architectures", () => {
+  const native = workflow("desktop-rust-distribution.yml");
+  const configured = nested(native, "jobs", "package", "steps");
+  expect(Array.isArray(configured)).toBe(true);
+  const steps = configured as unknown[];
+  const smoke = steps.find((step) => nested(step, "id") === "macos-mini");
+  expect(nested(smoke, "if")).toBe("runner.os == 'macOS'");
+  expect(nested(smoke, "run")).toMatch(
+    /hdiutil attach[\s\S]+swift tests\/manual\/macos-mini\.swift "\$mountpoint\/Muzo\.app" "\$RUNNER_TEMP\/muzo-macos-mini-screenshots"/u,
+  );
+
+  const screenshots = steps.find(
+    (step) => nested(step, "with", "name") === "muzo-macos-mini-${{ matrix.label }}",
+  );
+  expect(steps.indexOf(screenshots)).toBeGreaterThan(steps.indexOf(smoke));
+  expect(nested(screenshots, "if")).toContain("steps.macos-mini.outcome");
+  expect(nested(screenshots, "with", "path")).toBe(
+    "${{ runner.temp }}/muzo-macos-mini-screenshots/*.png",
+  );
+});
