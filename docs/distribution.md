@@ -55,7 +55,7 @@ installers, release manifest and both update YAML files.
 
 Run the command on the installer's native operating system and architecture.
 Install [Cargo Packager](https://docs.crabnebula.dev/packager/) 0.11.8 on Linux or
-macOS. The Windows installer uses the packaging dependency installed by Yarn.
+macOS. The Windows installer uses the build-time NSIS dependency installed by Yarn.
 
 ```sh
 yarn install
@@ -75,8 +75,8 @@ packages in `apps/desktop/out/`.
 ## CI and release promotion
 
 The Rust desktop installers workflow runs on relevant pull requests, annotated
-version-tag pushes and manual runs. It validates the root version, both workspace
-versions, Cargo and Packager against the exact checkout before launching four
+version-tag pushes and manual runs. It validates the root version, the Rust
+workspace version, Cargo and Packager against the exact checkout before launching four
 native installer jobs. It builds the Linux AppImage, Windows NSIS installer and
 both macOS DMGs described in [the Rust distribution card](cards/rust-rewrite/006-distribution.md).
 The Electron distribution workflow remains available on relevant PRs to dev/main
