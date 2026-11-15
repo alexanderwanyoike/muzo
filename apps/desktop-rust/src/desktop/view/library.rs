@@ -14,8 +14,9 @@ use crate::{
 
 use super::{
     Icon, LIBRARY_COMPACT_WIDTH, action, appearance, bold, clock_label, compact, control_opacity,
-    error_line, icon_tinted, label_text::replace_embedded_breaks, library_content, panel,
-    playback_error, playlists, sidebar_divider::Divider, sources,
+    ellipsized_label::EllipsizedLabel, error_line, icon_tinted,
+    label_text::replace_embedded_breaks, library_content, panel, playback_error, playlists,
+    sidebar_divider::Divider, sources,
 };
 
 pub(in crate::desktop) fn library<'a>(
@@ -127,6 +128,9 @@ fn transport<'a>(
     preferences: &Appearance,
     viewport_width: f32,
 ) -> Element<'a, Message> {
+    const COVER_EDGE: f32 = 43.0;
+    const COVER_COLUMN: f32 = 46.0;
+    const LABEL_LINE_HEIGHT: f32 = 1.4;
     let columns = TransportColumns::for_viewport(viewport_width);
     let active = session.and_then(Session::current);
     let playing = session.is_some_and(Session::is_playing);
@@ -161,25 +165,32 @@ fn transport<'a>(
             position.as_secs_f32(),
             Message::Seek
         )
-        .height(13)
+        .height(14)
         .step(0.1)
         .style(move |theme, _| compact::slider_style(theme, surfaces, false)),
         clock_label(duration, surfaces.muted),
     ]
-    .spacing(6)
+    .spacing(7)
     .align_y(Alignment::Center);
     let display = container(
         row![
-            small_cover(cover, 43.0, surfaces),
+            container(small_cover(cover, COVER_EDGE, surfaces)).width(COVER_COLUMN),
             column![
-                text(active.map_or("Not Playing", Track::title))
-                    .font(bold())
-                    .size(11)
-                    .wrapping(text::Wrapping::None),
-                text(active.and_then(Track::artist).unwrap_or("Select a track"))
-                    .size(10)
+                Element::new(
+                    EllipsizedLabel::new(active.map_or("Not Playing", Track::title), 11.0)
+                        .font(bold())
+                        .line_height(LABEL_LINE_HEIGHT)
+                        .center_x()
+                ),
+                Element::new(
+                    EllipsizedLabel::new(
+                        active.and_then(Track::artist).unwrap_or("Select a track"),
+                        10.0
+                    )
                     .color(surfaces.muted)
-                    .wrapping(text::Wrapping::None),
+                    .line_height(LABEL_LINE_HEIGHT)
+                    .center_x()
+                ),
                 timeline,
             ]
             .width(Fill)
@@ -190,7 +201,7 @@ fn transport<'a>(
     )
     .width(Fill)
     .max_width(610)
-    .padding([7, 12])
+    .padding([8, 13])
     .style(move |_| framed(surfaces.raised.scale_alpha(0.70), surfaces, 5));
     let volume = row![
         icon_tinted(Icon::Volume, move |_| surfaces.muted)
