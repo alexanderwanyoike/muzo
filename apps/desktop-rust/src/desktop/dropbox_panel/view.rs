@@ -233,7 +233,7 @@ impl Settings {
         }
         let count = self.selected_folders.len();
         if count > 0 {
-            let rows = self.selected_folders.iter().map(|(selected, _)| {
+            let rows = self.selected_folders.iter().map(|(selected, name)| {
                 let label = self
                     .snapshot
                     .failed_folders
@@ -249,9 +249,7 @@ impl Settings {
                         .width(Fill)
                         .wrapping(text::Wrapping::WordOrGlyph),
                     keyboard_button(
-                        quiet_button("Remove").on_press_maybe(
-                            self.control_message(&Control::RemoveSelected(selected.clone()))
-                        ),
+                        quiet_button("Remove").on_press_maybe(self.folder_message(selected, name)),
                         Control::RemoveSelected(selected.clone()),
                         focus
                     ),
@@ -346,7 +344,7 @@ impl Settings {
             .selected_folders
             .iter()
             .any(|(item, _)| item.eq_ignore_ascii_case(path));
-        let command = self.control_message(&target);
+        let command = self.folder_message(path, name);
         let mut control = checkbox(added || selected)
             .size(15)
             .text_size(12)

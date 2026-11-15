@@ -111,11 +111,15 @@ impl Settings {
                 }
                 controls.push(SelectCurrent);
                 for (path, _) in &self.snapshot.folders {
-                    controls.extend([SelectFolder(path.clone()), OpenFolder(path.clone())]);
+                    if self.folder_is_selectable(path) {
+                        controls.push(SelectFolder(path.clone()));
+                    }
+                    controls.push(OpenFolder(path.clone()));
                 }
                 controls.extend(
                     self.selected_folders
                         .iter()
+                        .filter(|(path, _)| self.folder_is_selectable(path))
                         .map(|(path, _)| RemoveSelected(path.clone())),
                 );
                 if !self.selected_folders.is_empty() {
@@ -128,7 +132,11 @@ impl Settings {
         } else if !connected {
             controls.extend([AppKey, Connect]);
         }
-        controls.retain(|control| control.is_field() || self.control_message(control).is_some());
+        controls.retain(|control| {
+            control.is_field()
+                || matches!(control, SelectFolder(_) | OpenFolder(_) | RemoveSelected(_))
+                || self.control_message(control).is_some()
+        });
         controls
     }
 
@@ -139,12 +147,23 @@ impl Settings {
         Some(Message::Dropbox(control.action(self)?))
     }
 
-    fn toggle_folder(&self, path: &str, label: &str) -> Option<Action> {
-        (!self
+    pub(super) fn folder_message(&self, path: &str, name: &str) -> Option<Message> {
+        if self.busy {
+            return None;
+        }
+        self.toggle_folder(path, name).map(Message::Dropbox)
+    }
+
+    fn folder_is_selectable(&self, path: &str) -> bool {
+        !self
             .snapshot
             .added_paths
             .iter()
-            .any(|added| added.eq_ignore_ascii_case(path)))
-        .then(|| Action::SelectFolder(path.into(), label.into()))
+            .any(|added| added.eq_ignore_ascii_case(path))
+    }
+
+    fn toggle_folder(&self, path: &str, label: &str) -> Option<Action> {
+        self.folder_is_selectable(path)
+            .then(|| Action::SelectFolder(path.into(), label.into()))
     }
 }
