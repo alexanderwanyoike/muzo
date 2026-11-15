@@ -15,7 +15,9 @@ use std::{
     time::Duration,
 };
 
-use rusqlite::{Connection, OpenFlags, Transaction, TransactionBehavior, backup::Backup};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, backup::Backup,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CatalogueError {
@@ -177,20 +179,23 @@ impl Catalogue {
         library: &str,
         id: &str,
     ) -> Result<crate::artwork_cache::Revision, CatalogueError> {
-        Ok(self.database.query_row(
-            "SELECT file_path, file_size, file_mtime FROM tracks WHERE id=?1 AND library_id=?2",
-            rusqlite::params![id, library],
-            |row| {
-                let path = row.get::<_, String>(0)?;
-                Ok(crate::artwork_cache::Revision::new(
-                    library,
-                    id,
-                    &path,
-                    row.get(1)?,
-                    row.get(2)?,
-                ))
-            },
-        )?)
+        self.database
+            .query_row(
+                "SELECT file_path, file_size, file_mtime FROM tracks WHERE id=?1 AND library_id=?2",
+                rusqlite::params![id, library],
+                |row| {
+                    let path = row.get::<_, String>(0)?;
+                    Ok(crate::artwork_cache::Revision::new(
+                        library,
+                        id,
+                        &path,
+                        row.get(1)?,
+                        row.get(2)?,
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or(CatalogueError::UnknownTrack)
     }
 }
 

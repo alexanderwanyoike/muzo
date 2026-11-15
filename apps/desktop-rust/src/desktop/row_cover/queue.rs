@@ -139,9 +139,7 @@ fn changed_versions(
             };
             match catalogue.artwork_revision(&old.library, &id) {
                 Ok(current) if current != previous => Some((id, Some(current))),
-                Err(CatalogueError::Database(rusqlite::Error::QueryReturnedNoRows)) => {
-                    Some((id, None))
-                }
+                Err(CatalogueError::UnknownTrack) => Some((id, None)),
                 _ => None,
             }
         })
