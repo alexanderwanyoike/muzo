@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { access, mkdir, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -31,6 +31,26 @@ async function waitFor(check, timeoutMs, description) {
     }
   }
   throw new Error(description, { cause: failure });
+}
+
+async function verifyDurablePreferences(leveldb, preferences) {
+  const names = await readdir(leveldb);
+  const journals = names.filter((name) => /^\d+\.log$/u.test(name));
+  const records = await Promise.all(
+    journals.map((name) => readFile(join(leveldb, name))),
+  );
+  const preferenceExists = (key, value) => {
+    const bytes = Buffer.from(JSON.stringify(value));
+    // Chromium encodes a short Latin-1 DOMStorage string as its length and an encoding byte.
+    const record = Buffer.concat([
+      Buffer.from(key),
+      Buffer.from([bytes.length + 1, 1]),
+      bytes,
+    ]);
+    return records.some((journal) => journal.includes(record));
+  };
+  assert(preferenceExists("muzo.appearance.v1", preferences.appearance));
+  assert(preferenceExists("muzo.sidebar-width.v1", preferences.sidebar));
 }
 
 async function waitForUpdateButton(evaluate, label) {
@@ -68,7 +88,13 @@ const legacyMain = join(
   "dist-electron",
   "main.cjs",
 );
-await assert.rejects(access(join(profile.data, "muzo-rust.sqlite")));
+for (const path of [
+  join(profile.data, "muzo.sqlite"),
+  join(profile.data, "muzo-rust.sqlite"),
+  profile.leveldb,
+]) {
+  await assert.rejects(access(path), { code: "ENOENT" });
+}
 await mkdir(fixture);
 const feed = await startLegacyUpdateFeed(candidate, manifest, legacyMain);
 const legacy = spawn(legacyExecutable, ["--remote-debugging-port=0"], {
@@ -122,6 +148,11 @@ try {
     await waitForUpdateButton(evaluate, "Update available to " + version);
     await evaluate(rendererButton + ".click()");
     await waitForUpdateButton(evaluate, "Restart to install v" + version);
+    await waitFor(
+      () => verifyDurablePreferences(profile.leveldb, preferences),
+      downloadTimeoutMs,
+      "The installed Electron app did not commit its fixture preferences",
+    );
     expected = captureLegacyProfile(profile, preferences);
     await evaluate(rendererButton + ".click()");
     await driveWindow("Confirm");

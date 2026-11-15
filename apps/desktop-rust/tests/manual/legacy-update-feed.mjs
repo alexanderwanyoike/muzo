@@ -47,11 +47,13 @@ function configureLegacyApp(source, address) {
   const requestTarget = JSON.stringify(new URL("release", address).href);
   const fixture = [
     "const fixtureFetch = globalThis.fetch;",
-    "globalThis.fetch = (input, options) => fixtureFetch(input === " +
-      JSON.stringify(releaseEndpoint) +
-      " ? " +
-      requestTarget +
-      " : input, options);",
+    "globalThis.fetch = (input, options) => {",
+    "  if (input === " + JSON.stringify(releaseEndpoint) + ") {",
+    '    require("electron").session.defaultSession.flushStorageData();',
+    "    return fixtureFetch(" + requestTarget + ", options);",
+    "  }",
+    "  return fixtureFetch(input, options);",
+    "};",
   ];
   return fixture.join("\n") + "\n" + routed;
 }
