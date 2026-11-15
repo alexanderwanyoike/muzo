@@ -11,7 +11,7 @@ import {
 } from "./release-contract";
 import { releaseVersion } from "./release-context";
 import { publishNativePackage } from "./native-package-output";
-import { readReleaseVersions } from "./release-versions";
+import { readPackagerConfig, readReleaseVersions } from "./release-versions";
 import {
   distributionFailure,
   type DistributionResult,
@@ -133,11 +133,14 @@ async function buildPayload(
     return;
   }
 
+  // Cargo Packager 0.11.8 ignores the binary directory flag for file configs.
+  const config = {
+    ...(await readPackagerConfig()),
+    "binaries-dir": dirname(executable),
+  };
   await run("cargo-packager", [
     "--config",
-    "Packager.toml",
-    "--binaries-dir",
-    dirname(executable),
+    JSON.stringify(config),
     "--out-dir",
     stage,
     "--formats",

@@ -12,13 +12,19 @@ async function workspaceVersion(path: string): Promise<unknown> {
     : undefined;
 }
 
+async function readToml(path: string) {
+  return parse(await readFile(new URL(path, root), "utf8"));
+}
+
+export function readPackagerConfig() {
+  return readToml("apps/desktop-rust/Packager.toml");
+}
+
 async function nativeVersions() {
-  const readToml = async (path: string) =>
-    parse(await readFile(new URL(path, root), "utf8"));
   const [workspace, cargo, packager] = await Promise.all([
     workspaceVersion("apps/desktop-rust/package.json"),
     readToml("apps/desktop-rust/Cargo.toml"),
-    readToml("apps/desktop-rust/Packager.toml"),
+    readPackagerConfig(),
   ]);
   const { package: crate } = cargo;
   return {
