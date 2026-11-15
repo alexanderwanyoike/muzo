@@ -17,7 +17,8 @@ const FOLDER_ICON_EDGE: f32 = 15.0;
 impl Settings {
     pub fn view(&self, surfaces: Surfaces) -> Column<'_, Message> {
         let mut inner = column![].spacing(14);
-        if self.snapshot.account.is_some() && !self.snapshot.reconnect {
+        let connected = self.snapshot.account.is_some() && !self.snapshot.reconnect;
+        if connected {
             inner = inner
                 .push(text("Connected to Dropbox").size(13))
                 .push(
@@ -36,7 +37,8 @@ impl Settings {
             if !self.snapshot.path.is_empty() {
                 inner = inner.push(self.folder_browser(surfaces));
             }
-        } else {
+        }
+        if self.auth.is_some() || !connected {
             inner = inner.push(self.authorization(surfaces));
         }
         if self.busy {
@@ -73,6 +75,10 @@ impl Settings {
                     .on_submit_maybe(submit.clone()),
                 row![
                     accent_button("Finish connecting").on_press_maybe(submit),
+                    quiet_button("Restart authorization").on_press_maybe(
+                        self.command(Action::Begin)
+                            .filter(|_| !self.app_key.trim().is_empty())
+                    ),
                     quiet_button("Cancel")
                         .on_press_maybe(self.command(Action::CancelAuthorization)),
                 ]
