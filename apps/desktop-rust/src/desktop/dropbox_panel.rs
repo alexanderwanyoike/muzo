@@ -719,6 +719,54 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_labels_sync_controls_and_fits_the_folder_name_at_a_narrow_width() {
+        use iced::{
+            Element, Font, Pixels, Rectangle, Renderer, Size,
+            advanced::{
+                Layout, layout,
+                widget::{Id, Operation, Tree},
+            },
+        };
+
+        #[derive(Default)]
+        struct Labels(std::collections::HashMap<String, Rectangle>);
+
+        impl Operation for Labels {
+            fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+                visit(self);
+            }
+
+            fn text(&mut self, _: Option<&Id>, bounds: Rectangle, value: &str) {
+                self.0.insert(value.into(), bounds);
+            }
+        }
+
+        let folder = "A long folder name for a whole record collection";
+        let mut settings = Settings::default();
+        settings.snapshot.account = Some("fixture".into());
+        settings.snapshot.path = "/Music".into();
+        settings.snapshot.folders = vec![("/Music/Long".into(), folder.into())];
+        let appearance = crate::appearance::Appearance::default();
+        let mut element: Element<'_, Message> = settings.view(appearance.surfaces()).into();
+        let mut tree = Tree::new(&element);
+        let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let size = Size::new(318.0, 660.0);
+        let widget = element.as_widget_mut();
+        let node = widget.layout(&mut tree, &renderer, &layout::Limits::new(Size::ZERO, size));
+        let mut labels = Labels::default();
+        widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+        assert!(labels.0.contains_key("Sync now"));
+        assert!(labels.0.contains_key("Sync interval"));
+        assert!(labels.0.contains_key("minutes"));
+        assert!(
+            !labels
+                .0
+                .keys()
+                .any(|label| label == &format!("Select {folder}"))
+        );
+    }
+
+    #[test]
     fn it_reopens_authorization_when_the_displayed_account_needs_reconnecting() {
         let mut settings = Settings {
             snapshot: Snapshot {
