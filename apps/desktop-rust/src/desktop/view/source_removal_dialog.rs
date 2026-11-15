@@ -32,6 +32,7 @@ const MAX_COPY_HEIGHT: f32 =
     LIBRARY_MIN.height - 2.0 * (SHADOW_INSET + CONTENT_INSET) - ACTION_INSET - ACTION_HEIGHT;
 const LINE_SCROLL: f32 = 23.0;
 const PAGE_SCROLL: f32 = MAX_COPY_HEIGHT - LINE_SCROLL;
+const SCROLLBAR_GAP: f32 = 4.0;
 
 pub(in crate::desktop) fn layer<'a>(
     page: Element<'a, Message>,
@@ -110,6 +111,7 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         scrollable(copy)
             .id(DETAILS)
             .width(Fill)
+            .spacing(SCROLLBAR_GAP)
             .height(Length::Shrink),
     )
     .padding([0.0, FOCUS_OUTSET])
