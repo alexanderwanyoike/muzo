@@ -155,10 +155,29 @@ fn it_suppresses_retries_for_m4a_artwork_beyond_the_range_budget() {
     data[movie_header..movie_header + 4].copy_from_slice(&movie_length.to_be_bytes());
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let address = format!("http://{}", listener.local_addr().unwrap());
     let server = std::thread::spawn(move || {
+        use std::{
+            io::ErrorKind,
+            time::{Duration, Instant},
+        };
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let io_timeout = Some(Duration::from_secs(2));
         for index in 0..MAX_RANGES {
-            let (mut stream, _) = listener.accept().unwrap();
+            let mut stream = loop {
+                match listener.accept() {
+                    Ok((stream, _)) => break stream,
+                    Err(error) if error.kind() == ErrorKind::WouldBlock => {
+                        assert!(Instant::now() < deadline, "received only {index} ranges");
+                        std::thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => panic!("could not accept artwork range: {error}"),
+                }
+            };
+            stream.set_read_timeout(io_timeout).unwrap();
+            stream.set_write_timeout(io_timeout).unwrap();
             let (start, end, _) = range_request(&stream);
             assert_eq!((start, end), (index * RANGE, (index + 1) * RANGE - 1));
             write!(stream, "HTTP/1.1 206 Partial Content\r\nContent-Length: {RANGE}\r\nContent-Range: bytes {start}-{end}/{}\r\nConnection: close\r\n\r\n", data.len()).unwrap();
