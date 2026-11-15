@@ -130,7 +130,7 @@ pub enum Message {
     MiniOpened(window::Id),
     LibraryVisibilityKnown(window::Id, bool),
     LibraryVisibilityChecked(window::Id, bool),
-    InPlaceMiniPrepared(window::Id, iced::Size, bool),
+    WaylandMiniPrepared(window::Id, iced::Size, bool),
     WaylandMiniOpened(window::Id),
     ShowLibrary,
     ToggleQueue,
@@ -1069,8 +1069,8 @@ impl Desktop {
             Message::LibraryVisibilityChecked(id, wayland) => {
                 self.windows.library_visibility_checked(id, wayland)
             }
-            Message::InPlaceMiniPrepared(id, size, maximized) => {
-                self.windows.prepare_in_place_mini(id, size, maximized)
+            Message::WaylandMiniPrepared(id, size, maximized) => {
+                self.windows.open_wayland_mini(id, size, maximized)
             }
             Message::WaylandMiniOpened(id) => {
                 if self.windows.is_mini(id) {

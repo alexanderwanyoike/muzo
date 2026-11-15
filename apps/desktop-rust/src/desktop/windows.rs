@@ -157,11 +157,11 @@ impl Windows {
         self.mini = Some(id);
         window::size(id).then(move |size| {
             window::is_maximized(id)
-                .map(move |maximized| Message::InPlaceMiniPrepared(id, size, maximized))
+                .map(move |maximized| Message::WaylandMiniPrepared(id, size, maximized))
         })
     }
 
-    pub fn prepare_in_place_mini(
+    pub fn open_wayland_mini(
         &mut self,
         id: window::Id,
         size: Size,
@@ -437,7 +437,7 @@ mod tests {
         let initial_mini = windows.mini_id().unwrap();
 
         let _ = windows.library_visibility_checked(initial_mini, true);
-        let _ = windows.prepare_in_place_mini(library, super::LIBRARY_SIZE, false);
+        let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
 
         assert_ne!(windows.mini_id(), Some(library));
         let _ = windows.show_library();
@@ -456,7 +456,7 @@ mod tests {
         windows.library_visibility_known(id, true);
         let _ = windows.show_mini();
         let size = iced::Size::new(1050.0, 750.0);
-        let _ = windows.prepare_in_place_mini(id, size, true);
+        let _ = windows.open_wayland_mini(id, size, true);
         let mini = windows.mini_id().unwrap();
 
         let mut actions = task::into_stream(windows.show_library()).unwrap();
@@ -480,7 +480,7 @@ mod tests {
         let library = windows.library_id();
         windows.library_visibility_known(library, true);
         let _ = windows.show_mini();
-        let _ = windows.prepare_in_place_mini(library, super::LIBRARY_SIZE, false);
+        let _ = windows.open_wayland_mini(library, super::LIBRARY_SIZE, false);
         let compact = windows.mini_id().unwrap();
 
         let expanded = windows.toggle_queue();
