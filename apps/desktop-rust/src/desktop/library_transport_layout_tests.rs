@@ -81,14 +81,15 @@ fn click_header(desktop: &mut Desktop, width: f32, position: Point) -> Vec<Messa
 }
 
 #[test]
-fn it_uses_the_original_volume_slider_width_and_position_in_each_layout() {
+fn it_uses_the_original_volume_slider_geometry_and_five_percent_steps() {
     let (mut desktop, _) = setup();
-    for (width, x) in [(850.0, 781.0), (1200.0, 1111.33)] {
-        let messages = click_header(&mut desktop, width, Point::new(x, 40.0));
+    for (width, x) in [(850.0, 784.0), (1200.0, 1114.0)] {
+        let messages = click_header(&mut desktop, width, Point::new(x, 34.0));
         assert!(
-            matches!(messages.as_slice(), [Message::SetVolume(value)] if (value - 0.33).abs() < 0.005),
+            matches!(messages.as_slice(), [Message::SetVolume(value)] if (value - 0.35).abs() < 0.005),
             "click on the reference slider at {width}px gave {messages:?}"
         );
+        assert!(click_header(&mut desktop, width, Point::new(x, 29.0)).is_empty());
     }
 }
 
