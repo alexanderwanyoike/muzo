@@ -22,6 +22,11 @@ face. [The FontTools generator](../../../apps/desktop-rust/assets/fonts/generate
 remaps the font's `tnum` glyphs and subsets the characters used by the
 numeric cells into the bundled Muzo Table Text face.
 
+The track table follows the original `music-views.css` grid at wide and compact
+widths, including the `themes.css` and `pulse-material.css` row colors. It
+reuses the sidebar's width-aware text widget for track titles and artist details
+and follows `formatDuration.ts` for tracks that last an hour or more.
+
 The library matches the Electron window dimensions and the
 `styles.css` and `transport.css` arrangement of the top transport,
 resizable navigation sidebar, content toolbar and bottom update status.
