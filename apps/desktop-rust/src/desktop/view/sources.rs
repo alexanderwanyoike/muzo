@@ -163,7 +163,11 @@ pub(super) fn indexed_sources<'a>(
         );
     }
     if let Some((_, status)) = &dropbox.refresh_status {
-        body = body.push(text(status).size(11).color(surfaces.muted));
+        body = body.push(
+            text(single_paragraph(status.as_str()))
+                .size(11)
+                .color(surfaces.muted),
+        );
     }
     library::settings_section(
         "Indexed sources",

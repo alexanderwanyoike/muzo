@@ -43,7 +43,7 @@ pub(in crate::desktop) fn library<'a>(
         Space::new().width(sidebar::SPLITTER_WIDTH),
         column![
             toolbar(sources, page, surfaces),
-            error_line(sources.error.as_deref()),
+            error_line(sources.error.as_deref().map(single_paragraph)),
             library_content(sources, dropbox, preferences, session, (page, focus), cover)
                 .height(Fill),
         ]

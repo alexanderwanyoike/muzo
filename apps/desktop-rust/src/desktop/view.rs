@@ -211,7 +211,7 @@ fn clock(duration: Duration) -> String {
     format!("{}:{:02}", seconds / 60, seconds % 60)
 }
 
-fn error_line(error: Option<&str>) -> Element<'_, Message> {
+fn error_line<'a>(error: Option<impl text::IntoFragment<'a>>) -> Element<'a, Message> {
     match error {
         Some(error) => text(error).size(12).color(color!(0xf6aca1)).into(),
         None => Space::new().into(),
