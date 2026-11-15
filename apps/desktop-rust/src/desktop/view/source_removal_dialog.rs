@@ -6,7 +6,7 @@ use iced::{
 
 use crate::{
     appearance::{Appearance, Surfaces},
-    desktop::{Message, source_removal::Removal},
+    desktop::{Message, library_sources::Operation, source_removal::Removal},
 };
 
 use super::{bold, label_text::replace_embedded_breaks, library, modal::Modal};
@@ -88,7 +88,8 @@ fn view<'a>(removal: &'a Removal, appearance: &Appearance) -> Element<'a, Messag
         } else {
             "Remove source"
         },
-        (!removal.busy).then(|| Message::ConfirmSourceRemoval(removal.source.id.clone())),
+        (!removal.busy)
+            .then(|| Message::SourceOperation(Operation::Remove(removal.source.id.clone()))),
         removal.show_keyboard_focus && !removal.cancel_focused,
         (surfaces, accent, Some(danger)),
     );

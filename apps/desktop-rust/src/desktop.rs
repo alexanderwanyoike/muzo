@@ -75,7 +75,6 @@ pub enum Message {
     UpdateInstalled(Result<(), String>),
     RequestSourceRemoval(String),
     CancelSourceRemoval,
-    ConfirmSourceRemoval(String),
     CycleSourceRemovalFocus,
     ActivateSourceRemovalFocus,
     PlayIndexed(usize),
@@ -340,6 +339,7 @@ impl Desktop {
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
             }
+            Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
             Message::SourceOperation(operation) => {
                 if let Operation::Select(id) = &operation {
                     self.page = LibraryPage::Songs;
@@ -534,7 +534,6 @@ impl Desktop {
                 self.sources.cancel_removal();
                 Task::none()
             }
-            Message::ConfirmSourceRemoval(id) => self.sources.confirm_removal(&id),
             Message::CycleSourceRemovalFocus => {
                 if let Some(removal) = &mut self.sources.removal {
                     removal.focus_next();
@@ -546,7 +545,7 @@ impl Desktop {
                     let message = if removal.cancel_focused {
                         Message::CancelSourceRemoval
                     } else {
-                        Message::ConfirmSourceRemoval(removal.source.id.clone())
+                        Message::SourceOperation(Operation::Remove(removal.source.id.clone()))
                     };
                     self.update(message)
                 } else {
