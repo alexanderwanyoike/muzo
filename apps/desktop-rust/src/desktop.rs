@@ -1843,19 +1843,19 @@ impl Desktop {
             self.queue_artwork.keep_download_cover(id, indexed.clone());
             return track;
         }
-        if let Some(result) = revision.as_ref().or(indexed_download_revision.as_ref()) {
-            if self.queue_artwork.has_conflicting_revision(id, result) {
-                let fresh = self
-                    .session
-                    .as_ref()
-                    .and_then(|session| session.tracks().get(index))
-                    .and_then(Track::artwork)
-                    .map(<[u8]>::to_vec);
-                return match fresh {
-                    Some(bytes) => track.with_artwork(bytes),
-                    None => track.without_artwork(),
-                };
-            }
+        if let Some(result) = revision.as_ref().or(indexed_download_revision.as_ref())
+            && self.queue_artwork.has_conflicting_revision(id, result)
+        {
+            let fresh = self
+                .session
+                .as_ref()
+                .and_then(|session| session.tracks().get(index))
+                .and_then(Track::artwork)
+                .map(<[u8]>::to_vec);
+            return match fresh {
+                Some(bytes) => track.with_artwork(bytes),
+                None => track.without_artwork(),
+            };
         }
         if let Some(revision) = revision {
             self.queue_artwork.remember(id, revision);
