@@ -108,6 +108,37 @@ fn it_shows_the_original_singular_and_plural_play_counts() {
 }
 
 #[test]
+fn it_ellipsizes_long_track_metadata_without_disturbing_the_numeric_columns() {
+    const TITLE: &str =
+        "Field recordings from the headland during a windy afternoon in early spring";
+    const ARTIST: &str = "The small ensemble for field recordings and live improvisation on the North Atlantic coast";
+    let mut desktop = track_table(850.0);
+    let short = track_table_layout(&desktop, 850.0);
+    let first = &mut desktop.sources.snapshot.as_mut().unwrap().tracks[0];
+    first.title = TITLE.into();
+    first.artist = ARTIST.into();
+    let narrow = track_table_layout(&desktop, 850.0);
+
+    for full in [TITLE, ARTIST] {
+        let shortened = narrow.labels.keys().find(|label| {
+            label
+                .strip_suffix('…')
+                .is_some_and(|prefix| !prefix.is_empty() && full.starts_with(prefix))
+        });
+        let shortened = shortened.unwrap_or_else(|| panic!("{full:?} was not abbreviated"));
+        let bounds = narrow.labels[shortened];
+        assert!(bounds.x + bounds.width <= narrow.labels["0:11"].x);
+    }
+    assert_eq!(narrow.labels["0:11"], short.labels["0:11"]);
+    assert_eq!(narrow.labels["2 plays"], short.labels["2 plays"]);
+
+    desktop.sidebar.layout_width(1200.0);
+    let wide = track_table_layout(&desktop, 1200.0);
+    assert!(wide.labels.contains_key(TITLE));
+    assert!(wide.labels.contains_key(ARTIST));
+}
+
+#[test]
 fn it_reserves_the_original_insets_before_and_after_the_track_list() {
     let mut desktop = track_table(1200.0);
     let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
