@@ -267,12 +267,16 @@ pub(super) fn settings<'a>(
     focus: Option<&crate::desktop::appearance_focus::Choice>,
 ) -> iced::widget::Scrollable<'a, Message> {
     let surfaces = preferences.surfaces();
+    let dropbox_focus = focus.and_then(|choice| match choice {
+        crate::desktop::appearance_focus::Choice::Dropbox(control) => Some(control),
+        _ => None,
+    });
     let body = column![
         appearance::controls(preferences, focus),
         container(settings_section(
             "Dropbox",
             "Choose the folders you want in your music collection.",
-            dropbox.view(surfaces).into(),
+            dropbox.view_with_focus(surfaces, dropbox_focus).into(),
             preferences,
         ))
         .id(crate::desktop::settings_scroll::SOURCE_SETUP)

@@ -10,7 +10,10 @@ use crate::{
 use super::{Message, library_sources::CataloguePaths};
 
 mod browser;
+mod focus;
 mod view;
+
+pub(super) use focus::Control;
 
 #[derive(Debug, Clone)]
 pub enum Action {

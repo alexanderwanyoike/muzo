@@ -446,7 +446,30 @@ impl Desktop {
                 };
                 Task::batch([local, remote, self.load_row_covers()])
             }
-            Message::Dropbox(action) => self.dropbox.update(action, self.sources.paths()),
+            Message::Dropbox(action) => {
+                let field = match &action {
+                    dropbox_panel::Action::Begin => Some(dropbox_panel::Control::Code),
+                    dropbox_panel::Action::CancelAuthorization => {
+                        Some(dropbox_panel::Control::AppKey)
+                    }
+                    _ => None,
+                };
+                let task = self.dropbox.update(action, self.sources.paths());
+                if let Some(control) = field
+                    && matches!(
+                        self.appearance_focus,
+                        Some(appearance_focus::Choice::Dropbox(_))
+                    )
+                    && self.dropbox.focus_stops().contains(&control)
+                {
+                    let choice = appearance_focus::Choice::Dropbox(control);
+                    let focus = choice.take_focus();
+                    self.appearance_focus = Some(choice);
+                    Task::batch([task, focus])
+                } else {
+                    task
+                }
+            }
             Message::AppImageIntegration(result) => {
                 if let Err(error) = result {
                     self.error = Some(error);
@@ -953,6 +976,7 @@ impl Desktop {
                         self.appearance_focus.as_ref(),
                         backwards,
                         &self.sources,
+                        &self.dropbox,
                     );
                     let task = next.take_focus();
                     self.appearance_focus = Some(next);
@@ -1003,7 +1027,7 @@ impl Desktop {
                     && let Some(choice) = &self.appearance_focus
                 {
                     return choice
-                        .message()
+                        .message(&self.dropbox)
                         .map_or_else(Task::none, |message| self.update(message));
                 }
                 if let Some(control) = self.mini_focus.filter(|_| self.windows.is_mini(id)) {
