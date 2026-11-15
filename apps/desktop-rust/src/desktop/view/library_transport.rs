@@ -22,6 +22,7 @@ use super::{
 mod glow;
 mod seek_halo;
 mod volume;
+mod volume_halo;
 use glow::Glow;
 
 const TRANSPORT_HEIGHT: f32 = 81.0;
@@ -173,7 +174,7 @@ pub(super) fn view<'a>(
         });
     let volume = volume::within_thumb_travel(volume, level);
     let volume = match glow {
-        Some(glow) => glow.surround_volume(volume, columns.volume_slider, level),
+        Some(glow) => glow.surround_volume(volume, level),
         None => volume,
     };
     let volume = row![
