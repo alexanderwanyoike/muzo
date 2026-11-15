@@ -422,27 +422,24 @@ mod tests {
     }
 
     #[test]
-    fn it_uses_one_wayland_window_for_the_library_and_mini_player() {
+    fn it_replaces_the_visible_wayland_surface_between_library_and_mini_player() {
         let (mut windows, _) = Windows::open();
         let library = windows.library_id();
         let _ = windows.show_mini();
         let initial_mini = windows.mini_id().unwrap();
 
         let _ = windows.library_visibility_checked(initial_mini, true);
+        let _ = windows.prepare_in_place_mini(library, super::LIBRARY_SIZE, false);
 
-        assert_eq!(
-            windows.mini_id(),
-            Some(library),
-            "Wayland compact mode should reuse the library window"
-        );
-        assert!(!windows.is_library(library));
+        assert_ne!(windows.mini_id(), Some(library));
         let _ = windows.show_library();
-        assert!(windows.is_library(library));
+        assert_ne!(windows.library_id(), library);
+        assert!(windows.is_library(windows.library_id()));
         assert!(windows.mini_id().is_none());
     }
 
     #[test]
-    fn it_does_not_request_an_unmaximize_configure_for_a_floating_wayland_window() {
+    fn it_restores_the_original_wayland_library_size_and_maximized_state() {
         use iced::futures::{FutureExt, StreamExt};
         use iced_runtime::{Action, task};
 
@@ -450,13 +447,47 @@ mod tests {
         let id = windows.library_id();
         windows.library_visibility_known(id, true);
         let _ = windows.show_mini();
+        let size = iced::Size::new(1050.0, 750.0);
+        let _ = windows.prepare_in_place_mini(id, size, true);
+        let mini = windows.mini_id().unwrap();
 
-        let compact = windows.prepare_in_place_mini(id, super::LIBRARY_SIZE, false);
-        let mut actions = task::into_stream(compact).unwrap();
+        let mut actions = task::into_stream(windows.show_library()).unwrap();
         assert!(matches!(
             actions.next().now_or_never().flatten(),
-            Some(Action::Window(iced::window::Action::SetMinSize(window, _))) if window == id
+            Some(Action::Window(iced::window::Action::Close(window))) if window == mini
         ));
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Window(iced::window::Action::Open(window, settings, _)))
+                if window == windows.library_id() && settings.size == size && settings.maximized
+        ));
+    }
+
+    #[test]
+    fn it_opens_wayland_queue_with_a_new_surface_at_the_target_size() {
+        use iced::futures::{FutureExt, StreamExt};
+        use iced_runtime::{Action, task};
+
+        let (mut windows, _) = Windows::open();
+        let library = windows.library_id();
+        windows.library_visibility_known(library, true);
+        let _ = windows.show_mini();
+        let _ = windows.prepare_in_place_mini(library, super::LIBRARY_SIZE, false);
+        let compact = windows.mini_id().unwrap();
+
+        let expanded = windows.toggle_queue();
+        let id = windows.mini_id().unwrap();
+        let mut actions = task::into_stream(expanded).unwrap();
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Window(iced::window::Action::Close(window))) if window == compact
+        ));
+        assert!(matches!(
+            actions.next().now_or_never().flatten(),
+            Some(Action::Window(iced::window::Action::Open(window, settings, _)))
+                if window == id && window != compact && settings.size == iced::Size::new(740.0, 560.0)
+        ));
+        assert!(windows.queue_open());
     }
 
     #[test]
