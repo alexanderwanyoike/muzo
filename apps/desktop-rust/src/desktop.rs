@@ -18,6 +18,8 @@ pub use mini_focus::Control as MiniControl;
 mod track_editor_focus;
 mod updates;
 mod view;
+#[cfg(test)]
+mod window_chrome_tests;
 mod windows;
 
 use std::{path::PathBuf, time::Duration};
