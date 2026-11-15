@@ -1,5 +1,5 @@
 use iced::{
-    Font, Pixels, Rectangle, Renderer, Size, Vector,
+    Element, Font, Pixels, Rectangle, Renderer, Size, Vector,
     advanced::{
         Layout, layout,
         widget::{Id, Operation, Tree, operation},
@@ -8,15 +8,18 @@ use iced::{
 
 use crate::{appearance::Appearance, catalogue::Playlist, desktop::queue_tests::snapshot};
 
-use super::{Sources, sidebar};
+use super::{Message, Sources, sidebar};
 
-const TRACK_COUNT: &str = "47";
+const TRACK_COUNT: u64 = 47;
 const SCROLLBAR_WIDTH: f32 = 10.0;
+const PANEL_SIZE: Size<u32> = Size::new(224, 250);
+const PLAYLIST_ROWS: usize = 16;
 
 #[derive(Default)]
 struct SidebarBounds {
     viewport: Option<Rectangle>,
     track_count: Option<Rectangle>,
+    count_label: String,
 }
 
 impl Operation for SidebarBounds {
@@ -36,36 +39,55 @@ impl Operation for SidebarBounds {
     }
 
     fn text(&mut self, _id: Option<&Id>, bounds: Rectangle, text: &str) {
-        if text == TRACK_COUNT {
+        if text == self.count_label {
             self.track_count = Some(bounds);
         }
     }
 }
 
-fn space_after_count(sources: &Sources, tree: &mut Tree, renderer: &Renderer) -> f32 {
-    let mut panel = sidebar(sources, Appearance::default().surfaces());
+fn layout_sidebar(
+    panel: &mut Element<'_, Message>,
+    tree: &mut Tree,
+    renderer: &Renderer,
+) -> (layout::Node, SidebarBounds) {
     let widget = panel.as_widget_mut();
     tree.diff(&*widget);
-    let size = Size::new(224.0, 250.0);
+    let size = Size::new(PANEL_SIZE.width as f32, PANEL_SIZE.height as f32);
     let node = widget.layout(tree, renderer, &layout::Limits::new(size, size));
-    let mut bounds = SidebarBounds::default();
+    let mut bounds = SidebarBounds {
+        count_label: TRACK_COUNT.to_string(),
+        ..SidebarBounds::default()
+    };
     widget.operate(tree, Layout::new(&node), renderer, &mut bounds);
+    (node, bounds)
+}
+
+fn space_after_count(sources: &Sources, tree: &mut Tree, renderer: &Renderer) -> f32 {
+    let mut panel = sidebar(sources, Appearance::default().surfaces());
+    let (_, bounds) = layout_sidebar(&mut panel, tree, renderer);
     let right = |rectangle: Rectangle| rectangle.x + rectangle.width;
     right(bounds.viewport.unwrap()) - right(bounds.track_count.unwrap())
 }
 
-#[test]
-fn it_keeps_playlist_counts_clear_of_the_scrollbar_until_filtering_removes_it() {
+fn playlists() -> Sources {
     let mut sources = Sources::new(None);
     let mut catalogue = snapshot(&[]);
-    catalogue.playlists = (0..16)
+    catalogue.playlists = (0..PLAYLIST_ROWS)
         .map(|index| Playlist {
             id: index.to_string(),
             name: format!("Playlist {index:02}"),
         })
         .collect();
-    catalogue.playlist_counts.insert("0".into(), 47);
+    catalogue
+        .playlist_counts
+        .insert(catalogue.playlists[0].id.clone(), TRACK_COUNT);
     sources.snapshot = Some(catalogue);
+    sources
+}
+
+#[test]
+fn it_keeps_playlist_counts_clear_of_the_scrollbar_until_filtering_removes_it() {
+    let mut sources = playlists();
     let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::empty();
 
