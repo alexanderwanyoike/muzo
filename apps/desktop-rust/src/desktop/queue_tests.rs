@@ -211,6 +211,8 @@ fn it_does_not_cache_a_downloaded_cover_under_a_newer_catalogue_revision() {
 
 #[test]
 fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
+    use iced::futures::StreamExt;
+    use iced_runtime::{Action, task};
     use std::{
         io::{Read, Write},
         net::TcpListener,
@@ -233,7 +235,7 @@ fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
     let track = Track::new(PathBuf::new(), row.title.clone(), None, None, None)
         .with_indexed_id(row.id.clone())
         .with_library(library.id.clone())
-        .with_remote(library.id, path.into());
+        .with_remote(library.id.clone(), path.into());
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let client =
@@ -284,6 +286,30 @@ fn it_does_not_cache_a_new_dropbox_download_under_the_older_indexed_revision() {
     assert!(
         playing.artwork() == Some(expected.as_slice()),
         "playback should display the cover embedded in the downloaded revision"
+    );
+
+    let latest = serde_json::from_value(serde_json::json!({
+        ".tag":"file", "name":"Track.mp3", "path_display":path, "size":body.len(), "rev":"new"
+    }))
+    .unwrap();
+    catalogue.sync_dropbox(&library.id, &[latest]).unwrap();
+    let reconcile = desktop
+        .queue_artwork
+        .reconcile(Some(paths), [row.id.as_str()]);
+    let mut updates = task::into_stream(reconcile).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let Some(Action::Output(message)) = runtime.block_on(updates.next()) else {
+        panic!("expected catalogue reconciliation");
+    };
+    let _ = desktop.update(message);
+
+    let playing = desktop.session.as_ref().unwrap().current().unwrap();
+    assert!(
+        playing.artwork() == Some(expected.as_slice()) && desktop.cover.sleeve().is_some(),
+        "indexing the revision already playing should keep its embedded cover"
     );
 }
 
