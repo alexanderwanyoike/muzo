@@ -39,13 +39,9 @@ const cargoHosts = {
   "macos-x64": /^x86_64-apple-darwin$/u,
 };
 
-async function run(
-  executable: string,
-  args: string[],
-  cwd: string = native,
-): Promise<string> {
+async function run(executable: string, args: string[]): Promise<string> {
   const result = await execute(executable, args, {
-    cwd,
+    cwd: native,
     maxBuffer: 16 * 1024 * 1024,
     env: {
       ...process.env,

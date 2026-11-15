@@ -27,11 +27,7 @@ it.each([
     const fixture = await mkdtemp(join(tmpdir(), "muzo-package-drift-"));
     try {
       const source = new URL("../../", import.meta.url);
-      const workspaces = [
-        "apps/desktop",
-        "apps/desktop-rust",
-        "packages/distribution",
-      ];
+      const workspaces = ["apps/desktop-rust", "packages/distribution"];
       await Promise.all(
         workspaces.map((dir) => mkdir(join(fixture, dir), { recursive: true })),
       );
@@ -46,7 +42,6 @@ it.each([
       ];
       const paths = [
         "package.json",
-        "apps/desktop/package.json",
         "apps/desktop-rust/package.json",
         "apps/desktop-rust/Cargo.toml",
         "apps/desktop-rust/Packager.toml",
