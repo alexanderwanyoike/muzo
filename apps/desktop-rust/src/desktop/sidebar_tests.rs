@@ -47,34 +47,36 @@ impl Library {
     }
 
     fn batch(&mut self, events: &[Event], cursor: Point) {
-        let id = self.desktop.windows.library_id();
-        let mut messages = Vec::new();
-        {
-            let mut view = self.desktop.view(id);
-            let widget = view.as_widget_mut();
-            let bounds = Rectangle::with_size(Size::new(self.width, VIEW_HEIGHT));
-            let node = layout_library(widget, &mut self.tree, &self.renderer, bounds.size());
-            for event in events {
-                let status = {
-                    let mut shell = Shell::new(&mut messages);
-                    widget.update(
-                        &mut self.tree,
-                        event,
-                        Layout::new(&node),
-                        mouse::Cursor::Available(cursor),
-                        &self.renderer,
-                        &mut clipboard::Null,
-                        &mut shell,
-                        &bounds,
-                    );
-                    shell.event_status()
-                };
-                messages.extend(input_message(event.clone(), status, id));
-            }
-        }
-        for message in messages {
+        for message in self.messages(events, cursor) {
             let _ = self.desktop.update(message);
         }
+    }
+
+    fn messages(&mut self, events: &[Event], cursor: Point) -> Vec<Message> {
+        let id = self.desktop.windows.library_id();
+        let mut messages = Vec::new();
+        let mut view = self.desktop.view(id);
+        let widget = view.as_widget_mut();
+        let bounds = Rectangle::with_size(Size::new(self.width, VIEW_HEIGHT));
+        let node = layout_library(widget, &mut self.tree, &self.renderer, bounds.size());
+        for event in events {
+            let status = {
+                let mut shell = Shell::new(&mut messages);
+                widget.update(
+                    &mut self.tree,
+                    event,
+                    Layout::new(&node),
+                    mouse::Cursor::Available(cursor),
+                    &self.renderer,
+                    &mut clipboard::Null,
+                    &mut shell,
+                    &bounds,
+                );
+                shell.event_status()
+            };
+            messages.extend(input_message(event.clone(), status, id));
+        }
+        messages
     }
 
     fn drag_inward(&mut self) {
@@ -116,7 +118,10 @@ impl Library {
                 Modifiers::empty()
             },
         );
-        let message = input_message(tab, iced::event::Status::Ignored, id).unwrap();
+        let [message]: [Message; 1] = self
+            .messages(&[tab], Point::ORIGIN)
+            .try_into()
+            .expect("one message for a Tab key press");
         let tasks = self.desktop.update(message);
         let mut actions = task::into_stream(tasks).expect("Tab schedules a focus change");
         let mut view = self.desktop.view(id);
@@ -256,6 +261,47 @@ fn it_takes_and_leaves_divider_focus_in_both_library_panels() {
         library.input(left, 0.0);
         assert_eq!(library.desktop.sidebar.visible_width(), 263.0);
     }
+}
+
+#[test]
+fn it_reaches_the_sidebar_divider_in_settings_and_returns_to_appearance() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut library = Library::new(CataloguePaths::in_directory(temp.path()));
+    library.desktop.page = LibraryPage::Settings;
+    let initial_accent = library.desktop.appearance.accent.clone();
+    let enter = key(Named::Enter, Modifiers::empty());
+
+    library.tab(true);
+    library.input(key(Named::Home, Modifiers::empty()), 0.0);
+    assert_eq!(library.desktop.sidebar.visible_width(), 192.0);
+    library.input(enter.clone(), 0.0);
+    assert_eq!(library.desktop.appearance.accent, initial_accent);
+
+    let divider = Point::new(192.5, DRAG_HEIGHT);
+    library.batch(&click_at(divider), divider);
+    library.tab(true);
+    library.input(key(Named::End, Modifiers::empty()), 0.0);
+    assert_eq!(library.desktop.sidebar.visible_width(), 192.0);
+    library.input(enter, 0.0);
+    assert_eq!(library.desktop.appearance.accent, "glow-orange");
+}
+
+#[test]
+fn it_commits_the_last_pointer_width_after_a_keyboard_resize_during_a_drag() {
+    let temp = tempfile::tempdir().unwrap();
+    let paths = CataloguePaths::in_directory(temp.path());
+    let mut library = Library::new(paths.clone());
+    library.drag_inward();
+
+    library.input(key(Named::Home, Modifiers::empty()), 245.5);
+    assert_eq!(library.desktop.sidebar.visible_width(), 192.0);
+    library.release();
+
+    assert_eq!(library.desktop.sidebar.visible_width(), 245.0);
+    assert_eq!(
+        load_or_import(&paths.sidebar(), None).unwrap(),
+        SidebarWidth::new(245.0)
+    );
 }
 
 #[test]
