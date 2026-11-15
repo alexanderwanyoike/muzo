@@ -1495,6 +1495,15 @@ fn input_message(
     status: iced::event::Status,
     id: window::Id,
 ) -> Option<Message> {
+    input_message_for_platform(event, status, id, cfg!(target_os = "macos"))
+}
+
+fn input_message_for_platform(
+    event: iced::Event,
+    status: iced::event::Status,
+    id: window::Id,
+    macos: bool,
+) -> Option<Message> {
     if matches!(
         &event,
         iced::Event::Mouse(iced::mouse::Event::ButtonPressed(iced::mouse::Button::Left))
@@ -1515,7 +1524,12 @@ fn input_message(
         return None;
     };
     use iced::keyboard::{Key, key::Named};
-    match (key.as_ref(), modifiers.command()) {
+    let command = if macos {
+        modifiers.logo()
+    } else {
+        modifiers.control()
+    };
+    match (key.as_ref(), command) {
         (Key::Named(Named::Tab), false) => Some(Message::CycleMiniFocus(id, modifiers.shift())),
         (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id, repeat)),
         (Key::Named(Named::Space), false) => Some(Message::MiniSpace(id, repeat)),
@@ -1526,7 +1540,7 @@ fn input_message(
         (Key::Named(Named::ArrowDown), false) => Some(Message::PlaylistPickerVerticalArrow(id, 1)),
         (Key::Character("m"), true) => Some(Message::ToggleMini(id)),
         (Key::Character("o"), true) => Some(Message::OpenFiles),
-        (Key::Character("q"), true) if !cfg!(target_os = "macos") => Some(Message::ToggleQueue),
+        (Key::Character("q"), true) if !macos => Some(Message::ToggleQueue),
         (Key::Character("q"), true) if modifiers.shift() => Some(Message::ToggleQueue),
         _ => None,
     }
