@@ -92,6 +92,7 @@ pub(in crate::desktop) fn library<'a>(
 struct TransportColumns {
     controls: f32,
     volume: f32,
+    volume_slider: f32,
     padding: f32,
     gap: f32,
 }
@@ -102,6 +103,7 @@ impl TransportColumns {
             Self {
                 controls: 150.0,
                 volume: 112.0,
+                volume_slider: 75.0,
                 padding: 17.0,
                 gap: 14.0,
             }
@@ -109,6 +111,7 @@ impl TransportColumns {
             Self {
                 controls: 218.0,
                 volume: 170.0,
+                volume_slider: 94.0,
                 padding: 24.0,
                 gap: 20.0,
             }
@@ -191,14 +194,17 @@ fn transport<'a>(
         icon_tinted(Icon::Volume, move |_| surfaces.muted)
             .width(16)
             .height(16),
-        slider(
-            0.0..=1.0,
-            session.map_or(1.0, Session::volume),
-            Message::SetVolume
+        container(
+            slider(
+                0.0..=1.0,
+                session.map_or(1.0, Session::volume),
+                Message::SetVolume
+            )
+            .width(columns.volume_slider)
+            .step(0.01)
+            .style(move |theme, _| compact::slider_style(theme, surfaces, true))
         )
-        .width(100)
-        .step(0.01)
-        .style(move |theme, _| compact::slider_style(theme, surfaces, true)),
+        .padding([0, 2]),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
