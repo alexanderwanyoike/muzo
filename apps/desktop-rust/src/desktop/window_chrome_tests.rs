@@ -42,6 +42,34 @@ fn it_draws_the_close_control_inside_both_muzo_windows() {
     }
 }
 
+#[test]
+fn it_keeps_caption_actions_on_the_top_and_right_edges() {
+    let (mut desktop, _) = Desktop::with_session(Err(String::new()));
+    let _ = desktop.update(Message::ShowMini);
+    for (id, size) in [
+        (desktop.windows.library_id(), Size::new(1200.0, 800.0)),
+        (desktop.windows.mini_id().unwrap(), Size::new(420.0, 560.0)),
+    ] {
+        let minimize = click(&desktop, id, size, Point::new(size.width - 80.0, 2.0));
+        assert!(
+            matches!(minimize.as_slice(), [Message::MinimizeWindow(target)] if *target == id),
+            "top edge of Minimize sent {minimize:?}"
+        );
+        let maximize = click(&desktop, id, size, Point::new(size.width - 48.0, 2.0));
+        assert!(
+            matches!(maximize.as_slice(), [Message::ToggleWindowMaximized(target)] if *target == id),
+            "top edge of Maximize sent {maximize:?}"
+        );
+        for y in [2.0, 16.0] {
+            let close = click(&desktop, id, size, Point::new(size.width - 2.0, y));
+            assert!(
+                matches!(close.as_slice(), [Message::CloseRequested(target)] if *target == id),
+                "right edge of Close at y={y} sent {close:?}"
+            );
+        }
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 #[test]
 fn it_starts_native_resizing_from_the_edges_of_both_muzo_windows() {
