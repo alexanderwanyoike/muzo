@@ -377,9 +377,13 @@ pub(in crate::desktop) fn settings_button(
     label: &str,
     surfaces: Surfaces,
 ) -> button::Button<'_, Message> {
-    button(text(label).size(13))
-        .height(31)
-        .padding([5, 11])
+    const BUTTON_HEIGHT: f32 = 31.0;
+    let label = container(text(label).size(13).align_y(iced::Center))
+        .center_y(BUTTON_HEIGHT)
+        .padding([0, 11]);
+    button(label)
+        .height(BUTTON_HEIGHT)
+        .padding(0)
         .style(move |theme, status| bordered_button(theme, status, surfaces))
 }
 
