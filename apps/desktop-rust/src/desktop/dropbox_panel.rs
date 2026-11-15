@@ -854,6 +854,106 @@ mod tests {
     }
 
     #[test]
+    fn it_keeps_feedback_on_the_rejected_dropbox_path_until_it_is_deselected() {
+        use iced::{
+            Element, Font, Pixels, Rectangle, Renderer, Size,
+            advanced::{
+                Layout, layout,
+                widget::{Id, Operation, Tree},
+            },
+        };
+
+        #[derive(Default)]
+        struct Labels(Vec<String>);
+        impl Operation for Labels {
+            fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+                visit(self);
+            }
+
+            fn text(&mut self, _: Option<&Id>, _: Rectangle, value: &str) {
+                self.0.push(value.into());
+            }
+        }
+
+        fn labels(settings: &Settings) -> Vec<String> {
+            let mut view: Element<'_, Message> = settings
+                .view(crate::appearance::Appearance::default().surfaces())
+                .into();
+            let mut tree = Tree::new(&view);
+            let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+            let widget = view.as_widget_mut();
+            let limits = layout::Limits::new(Size::ZERO, Size::new(700.0, 750.0));
+            let node = widget.layout(&mut tree, &renderer, &limits);
+            let mut labels = Labels::default();
+            widget.operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+            labels.0
+        }
+
+        let directory = tempfile::tempdir().unwrap();
+        let paths = CataloguePaths::in_directory(directory.path());
+        let mut catalogue = paths.open().unwrap();
+        catalogue.save_dropbox_account("account", "key").unwrap();
+        let mut settings = Settings {
+            snapshot: Snapshot {
+                account: Some("account".into()),
+                path: "/A".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        for selected in ["/A/Music", "/B/Music"] {
+            let _ = settings.update(Action::SelectFolder(selected.into(), "Music".into()), None);
+        }
+        let mut added = settings.snapshot.clone();
+        index_selected_folders(
+            &mut catalogue,
+            "account",
+            settings.selected_folders.clone(),
+            &mut added,
+            |path| {
+                if path == "/A/Music" {
+                    return Ok(Vec::new());
+                }
+                assert_eq!(path, "/B/Music");
+                Ok(serde_json::from_str(r#"[{".tag":"file","name":"song.mp3","path_display":"/B/Music/song.mp3","size":10}]"#).unwrap())
+            },
+        );
+        settings.apply(Ok(added));
+        assert_eq!(
+            catalogue.libraries().unwrap()[0].location,
+            PathBuf::from("/B/Music")
+        );
+        assert_eq!(
+            settings.selected_folders,
+            [("/A/Music".into(), "Music".into())]
+        );
+        let expected = format!("/A/Music: {}", CatalogueError::NoSupportedAudio);
+        assert!(
+            labels(&settings).contains(&expected),
+            "the rejected folder should be identified by path"
+        );
+
+        let _ = settings.update(Action::Sync, Some(paths));
+        settings.apply(Ok(Snapshot {
+            folder_error: None,
+            added_folders: Vec::new(),
+            ..settings.snapshot.clone()
+        }));
+        assert!(
+            labels(&settings).contains(&expected),
+            "sync cleared an unrelated folder error"
+        );
+        let _ = settings.update(
+            Action::SelectFolder("/A/Music".into(), "Music".into()),
+            None,
+        );
+        assert!(
+            !labels(&settings).contains(&expected),
+            "deselecting a folder should dismiss its error"
+        );
+    }
+
+    #[test]
     fn it_retains_selected_dropbox_folders_across_browsing_and_partial_success() {
         let mut settings = Settings::default();
         let _ = settings.update(Action::SelectFolder("/First".into(), "First".into()), None);
