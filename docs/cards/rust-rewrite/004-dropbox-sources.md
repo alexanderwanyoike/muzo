@@ -22,4 +22,7 @@ catalogue only after that write succeeds.
 
 On Linux, authorization opens through the registered desktop HTTPS handler
 using [GIO](https://gnome.pages.gitlab.gnome.org/gtk/gio/type_func.AppInfo.launch_default_for_uri.html).
-On macOS and Windows, authorization uses the platform URL opener.
+KDE and Xfce use [xdg-open](https://portland.freedesktop.org/doc/xdg-open.html)
+first so their desktop browser preference applies. The Linux fallback uses
+xdg-open with the desktop configuration. On macOS and Windows, authorization
+uses the platform URL opener.
