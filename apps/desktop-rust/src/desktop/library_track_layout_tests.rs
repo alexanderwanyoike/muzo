@@ -1,9 +1,9 @@
 use std::{collections::HashMap, ops::Range};
 
 use iced::{
-    Color, Font, Pixels, Rectangle, Renderer, Size, Vector,
+    Color, Font, Pixels, Point, Rectangle, Renderer, Size, Vector,
     advanced::{
-        Layout, layout,
+        Layout, layout, mouse,
         widget::{Id, Operation, Tree, operation::Scrollable},
     },
 };
@@ -11,8 +11,8 @@ use iced::{
 use crate::catalogue::IndexedTrack;
 
 use super::{
-    Desktop,
-    cover_layout_tests::paint,
+    Desktop, Message,
+    cover_layout_tests::{paint, paint_with_cursor},
     queue_tests::{setup, snapshot},
     sidebar,
 };
@@ -213,6 +213,57 @@ fn it_draws_the_original_alternating_fill_and_dividers() {
         palette.text,
         0.02,
     );
+}
+
+#[test]
+fn it_draws_the_original_hover_and_current_track_fills() {
+    let mut desktop = track_table(850.0);
+    let track = &desktop.session.as_ref().unwrap().tracks()[0];
+    desktop.sources.snapshot.as_mut().unwrap().tracks[0].path = track.path().to_owned();
+    let _ = desktop.update(Message::Select(0));
+    assert!(desktop.now_playing().is_some());
+
+    let id = desktop.windows.library_id();
+    let (viewport, _) = track_table_layout(&desktop, 850.0).scroll.unwrap();
+    let first_row = viewport.y.round() as usize + 8 + 28;
+    let second_row = first_row + 57;
+    let cursor = mouse::Cursor::Available(Point::new(789.0, second_row as f32));
+
+    for (material, mode, pulse_hover, pulse_current) in [
+        ("studio", "light", None, None),
+        (
+            "pulse",
+            "light",
+            Some(iced::color!(0xdedede)),
+            Some(iced::color!(0xd8d8d8)),
+        ),
+        (
+            "pulse",
+            "dark",
+            Some(iced::color!(0x2a2a2a)),
+            Some(iced::color!(0x2a2a2a)),
+        ),
+    ] {
+        desktop.appearance.theme = material.into();
+        desktop.appearance.mode = mode.into();
+        let palette = desktop.theme(id).palette();
+        let frame = paint_with_cursor(&desktop, id, Size::new(850, 800), cursor);
+        let (hover, hover_opacity) = pulse_hover.map_or((palette.text, 0.05), |color| (color, 1.0));
+        let (current, current_opacity) =
+            pulse_current.map_or((palette.primary, 0.13), |color| (color, 1.0));
+        assert_colour(
+            pixel(&frame, 850, 845, second_row),
+            palette.background,
+            hover,
+            hover_opacity,
+        );
+        assert_colour(
+            pixel(&frame, 850, 845, first_row),
+            palette.background,
+            current,
+            current_opacity,
+        );
+    }
 }
 
 fn ink_width(frame: &[u8], columns: Range<usize>, middle: usize, background: [u8; 4]) -> usize {

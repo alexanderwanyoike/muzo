@@ -68,6 +68,15 @@ fn show_queue(desktop: &mut Desktop) -> window::Id {
 }
 
 pub(super) fn paint(desktop: &Desktop, id: window::Id, size: Size<u32>) -> Vec<u8> {
+    paint_with_cursor(desktop, id, size, mouse::Cursor::Unavailable)
+}
+
+pub(super) fn paint_with_cursor(
+    desktop: &Desktop,
+    id: window::Id,
+    size: Size<u32>,
+    cursor: mouse::Cursor,
+) -> Vec<u8> {
     let mut view = desktop.view(id);
     let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
     let mut tree = Tree::new(&view);
@@ -85,7 +94,7 @@ pub(super) fn paint(desktop: &Desktop, id: window::Id, size: Size<u32>) -> Vec<u
         &theme,
         &Style::default(),
         Layout::new(&node),
-        mouse::Cursor::Unavailable,
+        cursor,
         &bounds,
     );
     renderer.screenshot(size, 1.0, theme.palette().background)
