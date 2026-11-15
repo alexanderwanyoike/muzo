@@ -16,8 +16,8 @@ use crate::{
 };
 
 use super::{
-    SOURCE_ACTION_FOCUS_TINT, bold, compact::tint, label_text::replace_embedded_breaks, library,
-    modal::Modal, pulse_row_fills,
+    SOURCE_ACTION_FOCUS_TINT, bold, label_text::replace_embedded_breaks, library, modal::Modal,
+    pulse_row_fills, tint,
 };
 
 const DESCRIPTION: &str = "This removes the source, its indexed tracks, metadata edits and play counts from Muzo. Your music files stay where they are. Playlist entries remain, marked unavailable.";

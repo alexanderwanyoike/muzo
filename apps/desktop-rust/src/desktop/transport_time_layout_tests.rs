@@ -75,7 +75,7 @@ pub(super) fn rendered_labels(
     id: window::Id,
     frame: Size,
 ) -> HashMap<String, Rectangle> {
-    let mut view = desktop.view(id);
+    let mut view = desktop.workspace(id);
     let mut tree = Tree::new(&view);
     let renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let widget = view.as_widget_mut();

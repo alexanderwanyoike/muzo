@@ -24,6 +24,8 @@ pub use mini_focus::Control as MiniControl;
 mod track_editor_focus;
 mod updates;
 mod view;
+#[cfg(test)]
+mod window_chrome_tests;
 mod windows;
 
 use std::{path::PathBuf, time::Duration};
@@ -134,6 +136,11 @@ pub enum Message {
     PlaylistPickerVerticalArrow(window::Id, i8),
     ClickMiniControl(MiniControl),
     CloseRequested(window::Id),
+    DragWindow(window::Id),
+    #[cfg(not(target_os = "macos"))]
+    ResizeWindow(window::Id, window::Direction),
+    MinimizeWindow(window::Id),
+    ToggleWindowMaximized(window::Id),
     MiniResized(window::Id, iced::Size),
     CheckQueueSize(window::Id, u64),
     QueueResizeTimedOut(window::Id, u64, iced::Size),
@@ -1064,6 +1071,11 @@ impl Desktop {
                 }
                 self.windows.close_requested(id)
             }
+            Message::DragWindow(id) => window::drag(id),
+            #[cfg(not(target_os = "macos"))]
+            Message::ResizeWindow(id, direction) => window::drag_resize(id, direction),
+            Message::MinimizeWindow(id) => window::minimize(id, true),
+            Message::ToggleWindowMaximized(id) => window::toggle_maximize(id),
             Message::MiniResized(id, size) => {
                 if self.windows.is_mini(id) {
                     self.windows.resized(id, size);
@@ -1522,9 +1534,31 @@ impl Desktop {
     }
 
     pub fn view(&self, id: window::Id) -> Element<'_, Message> {
+        let workspace = self.workspace(id);
+        let content = if self.windows.is_library(id) {
+            iced::widget::column![
+                view::window_chrome::title_bar(
+                    id,
+                    &self.appearance,
+                    iced::widget::Space::new().into(),
+                ),
+                workspace,
+            ]
+            .height(iced::Fill)
+            .into()
+        } else {
+            workspace
+        };
+        #[cfg(not(target_os = "macos"))]
+        let content = view::window_chrome::resize_edges(id, content);
+        content
+    }
+
+    fn workspace(&self, id: window::Id) -> Element<'_, Message> {
         if self.windows.is_mini(id) {
             let error = self.error.as_deref().or(self.queue_resize_error.as_deref());
             view::mini(
+                id,
                 self.session.as_ref(),
                 self.windows.mini_view(),
                 (&self.cover, Some(&self.queue_covers), &self.direct_covers),

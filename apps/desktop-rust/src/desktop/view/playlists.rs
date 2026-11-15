@@ -14,8 +14,8 @@ use crate::{
 };
 
 use super::{
-    Icon, action, bold, compact, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
-    label_text::replace_embedded_breaks, library, track_play_button,
+    Icon, action, bold, ellipsized_label::EllipsizedLabel, icon_button, icon_tinted,
+    label_text::replace_embedded_breaks, library, tint, track_play_button,
 };
 
 #[cfg(test)]
@@ -60,7 +60,7 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
             let mut style = action(theme, status);
             if active {
                 style.background =
-                    Some(compact::tint(surfaces.sidebar, theme.palette().primary, 0.13).into());
+                    Some(tint(surfaces.sidebar, theme.palette().primary, 0.13).into());
             }
             style
         })
@@ -279,9 +279,9 @@ pub fn tracks<'a>(
                     .style(move |theme: &iced::Theme| {
                         let base = theme.palette().background;
                         let background = if active {
-                            compact::tint(base, theme.palette().primary, 0.12)
+                            tint(base, theme.palette().primary, 0.12)
                         } else if index % 2 == 1 {
-                            compact::tint(base, surfaces.line, 0.24)
+                            tint(base, surfaces.line, 0.24)
                         } else {
                             base
                         };

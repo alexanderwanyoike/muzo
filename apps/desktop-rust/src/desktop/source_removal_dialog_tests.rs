@@ -250,7 +250,7 @@ fn it_reaches_the_source_location_using_the_keyboard_when_the_details_overflow()
         .collect();
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let mut ui = UserInterface::build(
-        desktop.view(desktop.windows.library_id()),
+        desktop.workspace(desktop.windows.library_id()),
         Size::new(800.0, 600.0),
         Cache::new(),
         &mut renderer,
@@ -330,7 +330,7 @@ fn it_reserves_space_for_the_scrollbar_only_when_source_details_overflow() {
 fn details_gutter(desktop: &Desktop) -> f32 {
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let mut ui = UserInterface::build(
-        desktop.view(desktop.windows.library_id()),
+        desktop.workspace(desktop.windows.library_id()),
         Size::new(800.0, 600.0),
         Cache::new(),
         &mut renderer,
@@ -413,7 +413,12 @@ fn it_uses_pulses_neutral_pointer_hover_colors_in_both_modes() {
 fn dialog_pixels(desktop: &Desktop, cursor: mouse::Cursor) -> Vec<u8> {
     let window = desktop.windows.library_id();
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
-    let mut ui = UserInterface::build(desktop.view(window), FRAME, Cache::new(), &mut renderer);
+    let mut ui = UserInterface::build(
+        desktop.workspace(window),
+        FRAME,
+        Cache::new(),
+        &mut renderer,
+    );
     ui.update(
         &[Event::Window(window::Event::RedrawRequested(
             iced::time::Instant::now(),
@@ -464,8 +469,12 @@ fn it_preserves_the_panel_and_backdrop_when_only_the_focused_button_repaints() {
     let render =
         |desktop: &Desktop, frame: &mut tiny_skia::Pixmap, mask: &mut tiny_skia::Mask, damage| {
             let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
-            let mut ui =
-                UserInterface::build(desktop.view(window), FRAME, Cache::new(), &mut renderer);
+            let mut ui = UserInterface::build(
+                desktop.workspace(window),
+                FRAME,
+                Cache::new(),
+                &mut renderer,
+            );
             ui.draw(
                 &mut renderer,
                 &theme,
@@ -559,7 +568,7 @@ fn send_keys(desktop: &mut Desktop, events: &[Event]) {
 fn dispatch(desktop: &Desktop, events: &[Event], point: Point) -> (Vec<Status>, Vec<Message>) {
     let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let mut ui = UserInterface::build(
-        desktop.view(desktop.windows.library_id()),
+        desktop.workspace(desktop.windows.library_id()),
         FRAME,
         Cache::new(),
         &mut renderer,

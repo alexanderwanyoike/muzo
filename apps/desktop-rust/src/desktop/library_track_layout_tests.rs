@@ -76,7 +76,7 @@ fn track_table(width: f32) -> Desktop {
 
 fn track_table_layout(desktop: &Desktop, width: f32) -> Table {
     let frame = Size::new(width, 800.0);
-    let mut view = desktop.view(desktop.windows.library_id());
+    let mut view = desktop.workspace(desktop.windows.library_id());
     let mut tree = Tree::new(&view);
     let renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
     let widget = view.as_widget_mut();
@@ -197,18 +197,19 @@ fn it_draws_the_original_alternating_fill_and_dividers() {
     desktop.appearance.mode = "dark".into();
     let id = desktop.windows.library_id();
     let palette = desktop.theme(id).palette();
-    let line = desktop.appearance.surfaces().line;
+    let surfaces = desktop.appearance.surfaces();
     let (viewport, _) = track_table_layout(&desktop, 850.0).scroll.unwrap();
     let first_row = viewport.y.round() as usize + 8;
+    let sample = viewport.center_x().round() as usize;
     let frames = paint(&desktop, id, Size::new(850, 800));
     assert_colour(
-        pixel(&frames, 850, 845, first_row + 56),
-        palette.background,
-        line,
+        pixel(&frames, 850, sample, first_row + 56),
+        surfaces.raised,
+        surfaces.line,
         0.5,
     );
     assert_colour(
-        pixel(&frames, 850, 845, first_row + 57 + 28),
+        pixel(&frames, 850, sample, first_row + 57 + 28),
         palette.background,
         palette.text,
         0.02,
@@ -227,7 +228,8 @@ fn it_draws_the_original_hover_and_current_track_fills() {
     let (viewport, _) = track_table_layout(&desktop, 850.0).scroll.unwrap();
     let first_row = viewport.y.round() as usize + 8 + 28;
     let second_row = first_row + 57;
-    let cursor = mouse::Cursor::Available(Point::new(789.0, second_row as f32));
+    let sample = viewport.center_x().round() as usize;
+    let cursor = mouse::Cursor::Available(Point::new(sample as f32, second_row as f32));
 
     for (material, mode, pulse_hover, pulse_current) in [
         ("studio", "light", None, None),
@@ -252,13 +254,13 @@ fn it_draws_the_original_hover_and_current_track_fills() {
         let (current, current_opacity) =
             pulse_current.map_or((palette.primary, 0.13), |color| (color, 1.0));
         assert_colour(
-            pixel(&frame, 850, 845, second_row),
+            pixel(&frame, 850, sample, second_row),
             palette.background,
             hover,
             hover_opacity,
         );
         assert_colour(
-            pixel(&frame, 850, 845, first_row),
+            pixel(&frame, 850, sample, first_row),
             palette.background,
             current,
             current_opacity,

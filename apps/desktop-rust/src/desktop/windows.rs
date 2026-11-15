@@ -45,6 +45,31 @@ struct QueueResize {
     target: Size,
 }
 
+impl QueueResize {
+    fn reached(self, size: Size) -> bool {
+        (size.width - self.target.width).abs() <= RESIZE_TOLERANCE
+            && (size.height - self.target.height).abs() <= RESIZE_TOLERANCE
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct MiniPlayerLayout {
+    queue_open: bool,
+    resize: Option<QueueResize>,
+}
+
+impl MiniPlayerLayout {
+    pub(super) fn is_resizing(self) -> bool {
+        self.resize.is_some()
+    }
+
+    pub(super) fn queue_open_at(self, viewport: Size) -> bool {
+        self.resize
+            .filter(|resize| resize.reached(viewport))
+            .map_or(self.queue_open, |resize| resize.expanded)
+    }
+}
+
 pub struct Windows {
     library: window::Id,
     mini: Option<window::Id>,
@@ -88,8 +113,11 @@ impl Windows {
         self.mini
     }
 
-    pub(super) fn mini_view(&self) -> (bool, bool, Size) {
-        (self.queue_open, self.queue_pending(), self.mini_size)
+    pub(super) fn mini_view(&self) -> MiniPlayerLayout {
+        MiniPlayerLayout {
+            queue_open: self.queue_open,
+            resize: self.queue_resize,
+        }
     }
 
     pub fn queue_open(&self) -> bool {
@@ -173,9 +201,7 @@ impl Windows {
             return;
         }
         if let Some(request) = self.queue_resize {
-            if (size.width - request.target.width).abs() > RESIZE_TOLERANCE
-                || (size.height - request.target.height).abs() > RESIZE_TOLERANCE
-            {
+            if !request.reached(size) {
                 return;
             }
             self.queue_open = request.expanded;
@@ -242,6 +268,7 @@ fn settings(size: Size, min: Size) -> window::Settings {
         size,
         min_size: Some(min),
         exit_on_close_request: false,
+        decorations: false,
         icon,
         platform_specific,
         ..Default::default()
@@ -296,7 +323,7 @@ mod tests {
         assert_eq!(expanded, iced::Size::new(740.0, 560.0));
         windows.resized(id, expanded);
         windows.resized(id, iced::Size::new(640.0, 480.0));
-        assert_eq!(windows.mini_view().2, iced::Size::new(640.0, 480.0));
+        assert_eq!(windows.mini_size, iced::Size::new(640.0, 480.0));
 
         let _ = windows.toggle_queue();
         assert_eq!(

@@ -8,7 +8,7 @@ use iced::{
 
 use crate::appearance::Appearance;
 
-use super::{Message, compact::tint, pulse_row_fills, selection_fill};
+use super::{Message, pulse_row_fills, selection_fill, tint};
 
 #[derive(Clone, Copy)]
 pub(super) struct Colors {

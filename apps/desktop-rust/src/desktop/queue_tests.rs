@@ -575,7 +575,7 @@ fn it_pauses_the_active_playlist_entry_and_plays_duplicates_independently() {
 }
 
 #[test]
-fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
+fn it_clears_the_mini_player_artwork_when_the_next_song_has_no_cover() {
     let (mut desktop, plain) = setup();
     let fixture =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/embedded-cover.mp3");
@@ -588,11 +588,13 @@ fn it_drops_the_mini_artwork_background_when_the_next_song_has_no_cover() {
 
     let _ = desktop.update(Message::Select(0));
 
-    assert!(desktop.cover.background().is_some());
+    assert!(desktop.cover.sleeve().is_some());
+    assert!(desktop.cover.thumbnail().is_some());
 
     let _ = desktop.update(Message::Select(1));
 
-    assert!(desktop.cover.background().is_none());
+    assert!(desktop.cover.sleeve().is_none());
+    assert!(desktop.cover.thumbnail().is_none());
 }
 
 #[test]
@@ -758,47 +760,6 @@ fn it_reports_current_after_a_successful_check_without_an_update() {
 
     assert_eq!(desktop.update_status.notice_label(), "Up to date");
     assert!(desktop.update_status.can_check());
-}
-
-#[test]
-fn it_paints_the_walnut_material_in_the_mini_window() {
-    use iced::{
-        Color, Font, Pixels, Rectangle, Renderer, Size,
-        advanced::{
-            Layout, layout, mouse,
-            renderer::{Headless, Style},
-            widget::Tree,
-        },
-    };
-
-    let (mut desktop, _) = setup();
-    let _ = desktop.update(Message::Material("walnut"));
-    let _ = desktop.update(Message::ShowMini);
-    let mini = desktop.windows.mini_id().unwrap();
-    let mut view = desktop.view(mini);
-    let theme = desktop.theme(mini);
-    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
-    let mut tree = Tree::new(&view);
-    let bounds = Rectangle::with_size(Size::new(420.0, 560.0));
-    let widget = view.as_widget_mut();
-    let node = widget.layout(
-        &mut tree,
-        &renderer,
-        &layout::Limits::new(bounds.size(), bounds.size()),
-    );
-    widget.draw(
-        &tree,
-        &mut renderer,
-        &theme,
-        &Style::default(),
-        Layout::new(&node),
-        mouse::Cursor::Unavailable,
-        &bounds,
-    );
-    let pixels = renderer.screenshot(Size::new(420, 560), 1.0, Color::WHITE);
-    let header = pixels.chunks_exact(420 * 4).nth(9).unwrap();
-    let grain = &header[70 * 4..230 * 4];
-    assert!(grain.chunks_exact(4).any(|pixel| pixel != &grain[..4]));
 }
 
 #[test]
