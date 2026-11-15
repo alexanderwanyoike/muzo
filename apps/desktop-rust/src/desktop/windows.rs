@@ -84,7 +84,6 @@ impl Windows {
         self.library
     }
 
-    #[cfg(test)]
     pub(super) fn mini_id(&self) -> Option<window::Id> {
         self.mini
     }

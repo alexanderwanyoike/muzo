@@ -804,7 +804,9 @@ impl Desktop {
             }
             Message::ShowMini => {
                 self.mini_focus = None;
-                self.queue_resize_error = None;
+                if self.windows.mini_id().is_none() {
+                    self.queue_resize_error = None;
+                }
                 self.windows.show_mini()
             }
             Message::CycleFocusFromSidebarDivider(backwards) => {
