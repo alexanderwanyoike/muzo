@@ -11,7 +11,7 @@ import {
 } from "./release-contract";
 import { releaseVersion } from "./release-context";
 import { publishNativePackage } from "./native-package-output";
-import { readReleaseVersions } from "./release-versions";
+import { readPackagerConfig, readReleaseVersions } from "./release-versions";
 import {
   distributionFailure,
   type DistributionResult,
@@ -54,7 +54,9 @@ async function run(executable: string, args: string[]): Promise<string> {
   return result.stdout;
 }
 
-async function buildExecutables(target: ReleaseTarget) {
+async function cargoDirectories(
+  target: ReleaseTarget,
+): Promise<DistributionResult<{ target: string; build: string }>> {
   const { stdout } = await execute("cargo", ["-vV"], { cwd: native });
   const host = /^host: (.*)$/mu.exec(stdout)?.[1]?.trim();
   if (!host || !cargoHosts[target.id].test(host))
@@ -63,15 +65,51 @@ async function buildExecutables(target: ReleaseTarget) {
       "The Rust toolchain must match the requested installer architecture.",
     );
 
+  const { stdout: description } = await execute(
+    "cargo",
+    ["metadata", "--locked", "--no-deps", "--format-version", "1"],
+    { cwd: native },
+  );
+  const metadata: unknown = JSON.parse(description);
+  if (
+    !metadata ||
+    typeof metadata !== "object" ||
+    !("target_directory" in metadata) ||
+    typeof metadata.target_directory !== "string"
+  )
+    return distributionFailure(
+      "storage",
+      "Cargo did not report its build directory.",
+    );
+  const buildDirectory =
+    "build_directory" in metadata &&
+    typeof metadata.build_directory === "string"
+      ? metadata.build_directory
+      : metadata.target_directory;
+
+  return {
+    ok: true,
+    value: { target: metadata.target_directory, build: buildDirectory },
+  };
+}
+
+async function buildExecutables(artifacts: string, buildDirectory: string) {
   const { stdout: messages, stderr } = await execute(
     "cargo",
     [
       "build",
       "--locked",
       "--release",
+      "--target-dir",
+      artifacts,
       "--message-format=json-render-diagnostics",
     ],
-    { cwd: native, maxBuffer: 16 * 1024 * 1024 },
+    {
+      cwd: native,
+      maxBuffer: 16 * 1024 * 1024,
+      // Keep reusable intermediates in Cargo's cache and publish this run's executables privately.
+      env: { ...process.env, CARGO_BUILD_BUILD_DIR: buildDirectory },
+    },
   );
   process.stderr.write(stderr);
   const executables = new Map<string, string>();
@@ -133,11 +171,14 @@ async function buildPayload(
     return;
   }
 
+  // Cargo Packager 0.11.8 ignores the binary directory flag for file configs.
+  const config = {
+    ...(await readPackagerConfig()),
+    "binaries-dir": dirname(executable),
+  };
   await run("cargo-packager", [
     "--config",
-    "Packager.toml",
-    "--binaries-dir",
-    dirname(executable),
+    JSON.stringify(config),
     "--out-dir",
     stage,
     "--formats",
@@ -177,23 +218,35 @@ async function packageNative(): Promise<DistributionResult<string>> {
         "Build the requested Muzo installer on its native operating system and architecture.",
       );
 
-    const version = releaseVersion(await readReleaseVersions(true));
+    const version = releaseVersion(await readReleaseVersions());
     if (!version.ok) return version;
 
     const output = values.output
       ? resolve(process.env.INIT_CWD ?? process.cwd(), values.output)
       : join(native, "out/rust-distribution");
-    const executables = await buildExecutables(target);
-    if (!executables.ok) return executables;
-    const builtTarget = await execute(executables.value.namer, ["--target-id"]);
-    if (builtTarget.stdout.trim() !== target.id)
-      return distributionFailure(
-        "invalidRelease",
-        "Cargo built a different installer target.",
-      );
+    const cargo = await cargoDirectories(target);
+    if (!cargo.ok) return cargo;
+
     await mkdir(output, { recursive: true });
-    const stage = await mkdtemp(join(output, ".muzo-package-"));
+    await mkdir(cargo.value.target, { recursive: true });
+    const artifacts = await mkdtemp(
+      join(cargo.value.target, ".muzo-package-bin-"),
+    );
+    let publication: string | undefined;
     try {
+      // Cargo Packager runs generated helpers from its own output directory.
+      const stage = join(artifacts, "package");
+      await mkdir(stage);
+      const executables = await buildExecutables(artifacts, cargo.value.build);
+      if (!executables.ok) return executables;
+      const builtTarget = await execute(executables.value.namer, [
+        "--target-id",
+      ]);
+      if (builtTarget.stdout.trim() !== target.id)
+        return distributionFailure(
+          "invalidRelease",
+          "Cargo built a different installer target.",
+        );
       await buildPayload(
         target,
         version.value,
@@ -210,15 +263,20 @@ async function packageNative(): Promise<DistributionResult<string>> {
           "storage",
           "The expected native installer was not produced.",
         );
-      await publishNativePackage(
-        stage,
-        output,
-        name,
-        packageFiles[target.platform],
-      );
+      publication = await mkdtemp(join(output, ".muzo-package-"));
+      await cp(join(stage, name), join(publication, name));
+      const metadata = packageFiles[target.platform];
+      if (metadata)
+        await cp(join(stage, metadata), join(publication, metadata));
+      await publishNativePackage(publication, output, name, metadata);
       return { ok: true, value: join(output, name) };
     } finally {
-      await rm(stage, { recursive: true, force: true });
+      await Promise.all([
+        rm(artifacts, { recursive: true, force: true }),
+        publication
+          ? rm(publication, { recursive: true, force: true })
+          : Promise.resolve(),
+      ]);
     }
   } catch (error) {
     if (

@@ -131,7 +131,9 @@ pub fn launch(
                 .map_or_else(std::env::current_dir, Ok)?;
             let arguments = crate::distribution::appimage::relaunch_arguments(
                 &original_directory,
-                std::env::args_os().skip(1),
+                super::launch_files(std::env::args_os().skip(1))
+                    .into_iter()
+                    .map(PathBuf::into_os_string),
             );
             return crate::distribution::appimage::replace_and_launch(
                 expected,

@@ -1,9 +1,9 @@
 # 006: Package native Rust desktop builds
 
-- [ ] Produce and validate Linux AppImage, Windows NSIS and both macOS DMGs.
-- [ ] Retain established installer filenames and release manifest compatibility.
+- [x] Produce and validate Linux AppImage, Windows NSIS and both macOS DMGs.
+- [x] Retain established installer filenames and release manifest compatibility.
 - [ ] Exercise installed upgrades and explicit download and restart.
-- [ ] Preserve catalogue and preferences on upgrade.
+- [x] Preserve catalogue and preferences on upgrade. [Installed upgrade evidence](https://github.com/alexanderwanyoike/muzo/pull/183)
 
 All installers use the icons and licence notices under `apps/desktop-rust/assets`.
 Cargo Packager builds the AppImage and macOS app bundle. The Linux release job
@@ -24,5 +24,5 @@ The release filename and manifest contracts remain shared with the website.
 The Rust desktop installers workflow prepares the release draft for annotated
 version tags on `main`. It validates the root version, the Rust workspace
 version, Cargo and Packager before starting the four installer jobs. The draft
-uses the assembled native installer set and its verified checksums. The Electron
-distribution workflow still runs on pull requests and manual runs during the port.
+uses the assembled native installer set and its verified checksums.
+The upgrade fixtures verify installs using the published v0.0.6 installers.

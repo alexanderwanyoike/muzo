@@ -1,8 +1,8 @@
 # 005: Port desktop appearance
 
-- [ ] Offer Muzo's eight materials, light/dark modes and all classic/glow accents.
-- [ ] Restore the appearance on restart and apply it to both player windows.
-- [ ] Verify representative appearances in a private desktop session.
+- [x] Offer Muzo's eight materials, light/dark modes and all classic/glow accents.
+- [x] Restore the appearance on restart and apply it to both player windows.
+- [x] Verify representative appearances in a private desktop session. [Material comparison](https://github.com/alexanderwanyoike/muzo/pull/144)
 - [ ] Preserve legacy preferences and complete native keyboard and layout parity.
 
 The window shell follows Showbiz's inset workspace and solid rounded panels.

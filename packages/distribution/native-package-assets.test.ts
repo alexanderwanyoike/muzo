@@ -29,6 +29,16 @@ it("packages the native icons and licence notices from the Rust workspace", () =
     );
 });
 
+it("lets the native packager use Cargo's external build directory", () => {
+  const packager = parse(
+    readFileSync(
+      new URL("../../apps/desktop-rust/Packager.toml", import.meta.url),
+      "utf8",
+    ),
+  );
+  expect(packager).not.toHaveProperty("binaries-dir");
+});
+
 it("keeps the existing Windows installer identity in the native packaging configuration", () => {
   const workspace = new URL("../../apps/desktop-rust/", import.meta.url);
   const config: unknown = JSON.parse(
