@@ -1661,6 +1661,10 @@ mod cover_layout_tests;
 mod direct_file_row_tests;
 
 #[cfg(test)]
+#[path = "desktop/library_track_layout_tests.rs"]
+mod library_track_layout_tests;
+
+#[cfg(test)]
 #[path = "desktop/queue_tests.rs"]
 mod queue_tests;
 
