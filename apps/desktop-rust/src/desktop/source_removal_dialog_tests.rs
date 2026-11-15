@@ -284,6 +284,7 @@ struct CopyPosition {
     offset: f32,
     bottom: f32,
     location_y: f32,
+    gutter: f32,
 }
 
 impl WidgetOperation for CopyPosition {
@@ -295,12 +296,13 @@ impl WidgetOperation for CopyPosition {
         &mut self,
         _: Option<&Id>,
         bounds: Rectangle,
-        _: Rectangle,
+        content: Rectangle,
         translation: Vector,
         _: &mut dyn Scrollable,
     ) {
         self.bottom = bounds.y + bounds.height;
         self.offset = translation.y;
+        self.gutter = bounds.width - content.width;
     }
 
     fn text(&mut self, _: Option<&Id>, bounds: Rectangle, text: &str) {
@@ -308,6 +310,35 @@ impl WidgetOperation for CopyPosition {
             self.location_y = bounds.y + bounds.height;
         }
     }
+}
+
+#[test]
+fn it_reserves_space_for_the_scrollbar_only_when_source_details_overflow() {
+    let (mut desktop, _root) = desktop();
+    request(&mut desktop);
+    assert_eq!(details_gutter(&desktop), 0.0);
+    let _ = desktop.update(Message::CancelSourceRemoval);
+    desktop.sources.snapshot.as_mut().unwrap().libraries[0].location =
+        format!("/music/{}", "c".repeat(3_800)).into();
+    request(&mut desktop);
+    let gutter = details_gutter(&desktop);
+    assert!(
+        gutter > 10.0,
+        "expected a gap beyond the 10px rail: {gutter}"
+    );
+}
+
+fn details_gutter(desktop: &Desktop) -> f32 {
+    let mut renderer = Renderer::new(Font::with_name("Manrope"), Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.view(desktop.windows.library_id()),
+        Size::new(800.0, 600.0),
+        Cache::new(),
+        &mut renderer,
+    );
+    let mut details = CopyPosition::default();
+    ui.operate(&renderer, &mut details);
+    details.gutter
 }
 
 #[test]
