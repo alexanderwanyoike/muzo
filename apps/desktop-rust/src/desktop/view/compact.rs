@@ -281,25 +281,21 @@ fn transport(
         .width(124)
         .height(17)
         .step(0.01)
-        .style(move |theme, _| slider_style(theme, surfaces, true)),
+        .style(move |theme, _| {
+            let mut style = slider_style(theme, surfaces, true);
+            if focus == Some(Control::Volume) {
+                style.handle.border_width = VOLUME_FOCUS_BORDER_WIDTH;
+                style.handle.border_color = theme.extended_palette().background.base.text;
+            }
+            style
+        }),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
-    column![
-        timeline,
-        controls,
-        container(volume).padding(2).style(move |theme: &Theme| {
-            if focus == Some(Control::Volume) {
-                container::Style::default()
-                    .border(border::rounded(4).width(2).color(theme.palette().primary))
-            } else {
-                container::Style::default()
-            }
-        })
-    ]
-    .spacing(if tight { 10 } else { 18 })
-    .align_x(Alignment::Center)
-    .into()
+    column![timeline, controls, container(volume).padding(2)]
+        .spacing(if tight { 10 } else { 18 })
+        .align_x(Alignment::Center)
+        .into()
 }
 
 fn play_button(
@@ -342,6 +338,7 @@ fn play_button(
 
 pub(super) const SLIDER_RAIL_HEIGHT: f32 = 3.0;
 pub(super) const VOLUME_THUMB_RADIUS: f32 = 7.0;
+const VOLUME_FOCUS_BORDER_WIDTH: f32 = 2.0;
 
 pub(super) fn slider_style(theme: &Theme, surfaces: Surfaces, volume: bool) -> slider::Style {
     let primary = theme.palette().primary;
