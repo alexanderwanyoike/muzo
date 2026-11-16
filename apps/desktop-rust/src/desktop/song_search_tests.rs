@@ -292,3 +292,35 @@ fn it_keeps_new_play_counts_when_a_global_result_arrives_late() {
         "the late search result lost the confirmed play count"
     );
 }
+
+#[test]
+fn it_closes_the_editor_when_its_global_result_stops_matching() {
+    use super::{
+        Message,
+        library_sources::{CataloguePaths, Sources, TrackEditor},
+        queue_tests::snapshot,
+    };
+
+    let data = tempfile::tempdir().unwrap();
+    let (mut desktop, file) = setup();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(data.path())));
+    desktop.sources.snapshot = Some(snapshot(&["local"]));
+    let task = desktop.update(Message::TrackSearchText("fern".into()));
+    let first = search_reply(task, vec![search_row("fern", "Fern grove", file.path())]);
+    let _ = desktop.update(first);
+    desktop.sources.editing = Some(Box::new(TrackEditor {
+        track_id: "fern".into(),
+        library_id: "local".into(),
+        fields: Default::default(),
+        overridden: false,
+        error: None,
+        action_focus: None,
+    }));
+    let refreshed = search_reply(desktop.refresh_track_search(), Vec::new());
+    let _ = desktop.update(refreshed);
+
+    assert!(
+        desktop.sources.editing.is_none(),
+        "an invisible editor still held keyboard navigation"
+    );
+}
