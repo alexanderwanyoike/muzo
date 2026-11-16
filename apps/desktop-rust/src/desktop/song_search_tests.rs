@@ -417,3 +417,44 @@ fn it_opens_global_search_from_the_keyboard_while_a_source_is_selected() {
         );
     }
 }
+
+#[test]
+fn it_clears_playlist_search_when_the_selected_playlist_changes() {
+    use super::{LibraryPage, Message, queue_tests::snapshot};
+    use crate::catalogue::Playlist;
+
+    let (mut desktop, _) = setup();
+    let mut source = snapshot(&[]);
+    source.playlists = vec![
+        Playlist {
+            id: "one".into(),
+            name: "First".into(),
+        },
+        Playlist {
+            id: "two".into(),
+            name: "Second".into(),
+        },
+    ];
+    source.selected_playlist = Some("one".into());
+    desktop.sources.snapshot = Some(source.clone());
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Playlists));
+    let _ = desktop.update(Message::TrackSearchText("fern".into()));
+    let _ = desktop.update(Message::SourcesUpdated(Ok(source.clone())));
+    assert_eq!(
+        desktop
+            .sources
+            .track_search
+            .query(LibraryPage::Playlists, Some(&source)),
+        "fern"
+    );
+    source.selected_playlist = Some("two".into());
+    let _ = desktop.update(Message::SourcesUpdated(Ok(source.clone())));
+    assert_eq!(
+        desktop
+            .sources
+            .track_search
+            .query(LibraryPage::Playlists, Some(&source)),
+        "",
+        "a new playlist inherited another playlist's search"
+    );
+}
