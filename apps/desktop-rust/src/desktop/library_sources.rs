@@ -21,6 +21,7 @@ use super::{
     Message,
     source_removal::{Launcher, Removal},
     track_editor_focus::Control,
+    track_search::TrackSearch,
 };
 
 #[derive(Clone)]
@@ -360,6 +361,7 @@ pub(super) struct Sources {
     paths: Option<CataloguePaths>,
     pub snapshot: Option<Snapshot>,
     pub search: String,
+    pub track_search: TrackSearch,
     pub removal: Option<Removal>,
     pub error: Option<String>,
     pub source_tracks_error: Option<String>,
@@ -400,6 +402,7 @@ impl Sources {
             paths,
             snapshot: None,
             search: String::new(),
+            track_search: TrackSearch::default(),
             removal: None,
             error: None,
             source_tracks_error: None,
@@ -435,6 +438,20 @@ impl Sources {
         }
     }
 
+    pub(super) fn visible_snapshot(&self) -> Option<&Snapshot> {
+        self.track_search
+            .projection
+            .as_ref()
+            .or(self.snapshot.as_ref())
+    }
+
+    pub(super) fn visible_snapshot_mut(&mut self) -> Option<&mut Snapshot> {
+        self.track_search
+            .projection
+            .as_mut()
+            .or(self.snapshot.as_mut())
+    }
+
     pub(super) fn paths(&self) -> Option<CataloguePaths> {
         self.paths.clone()
     }
@@ -444,7 +461,10 @@ impl Sources {
     }
 
     pub fn confirm_play_count(&mut self, id: &str, count: u32) {
-        if let Some(snapshot) = &mut self.snapshot {
+        for snapshot in [&mut self.snapshot, &mut self.track_search.projection]
+            .into_iter()
+            .flatten()
+        {
             for track in &mut snapshot.tracks {
                 if track.id == id {
                     track.plays = track.plays.max(count);
@@ -825,6 +845,8 @@ impl Sources {
         if let Some(previous) = &mut self.snapshot {
             if previous.selected != snapshot.selected {
                 self.song_viewport = None;
+                self.track_search
+                    .selected_source(snapshot.selected.is_some());
             }
             preserved_songs = loading_playlist_selection
                 && !selection_changed
@@ -861,17 +883,23 @@ impl Sources {
                 .pending_editor
                 .take()
                 .is_some_and(|(id, library)| id == editor.track_id && library == editor.library_id)
-            && snapshot.selected.as_deref() == Some(editor.library_id.as_str())
+            && (snapshot.selected.as_deref() == Some(editor.library_id.as_str())
+                || self
+                    .track_search
+                    .global_hit(&editor.library_id, &editor.track_id))
         {
             self.editing = Some(editor);
         }
         if saving_editor
             || self.editing.as_ref().is_some_and(|editor| {
-                snapshot.selected.as_deref() != Some(editor.library_id.as_str())
-                    || !snapshot
-                        .tracks
-                        .iter()
-                        .any(|track| track.id == editor.track_id)
+                !self
+                    .track_search
+                    .global_hit(&editor.library_id, &editor.track_id)
+                    && (snapshot.selected.as_deref() != Some(editor.library_id.as_str())
+                        || !snapshot
+                            .tracks
+                            .iter()
+                            .any(|track| track.id == editor.track_id))
             })
         {
             self.editing = None;
@@ -891,11 +919,14 @@ impl Sources {
             self.playlist_message = Some(format!("Added {} to {}.", addition.title, playlist.name));
         }
         if let Some(draft) = self.playlist_picker.as_mut() {
-            if snapshot.selected.as_ref() != Some(&draft.library_id)
-                || !snapshot
-                    .tracks
-                    .iter()
-                    .any(|track| track.id == draft.track_id)
+            if !self
+                .track_search
+                .global_hit(&draft.library_id, &draft.track_id)
+                && (snapshot.selected.as_ref() != Some(&draft.library_id)
+                    || !snapshot
+                        .tracks
+                        .iter()
+                        .any(|track| track.id == draft.track_id))
             {
                 self.playlist_picker = None;
             } else if !snapshot

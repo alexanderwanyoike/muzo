@@ -179,12 +179,15 @@ pub fn sidebar(sources: &Sources, surfaces: Surfaces) -> Element<'_, Message> {
     .into()
 }
 
+pub(in crate::desktop) const PLAYLIST_TRACKS_SCROLL: &str = "playlist-tracks";
+
 pub fn tracks<'a>(
     snapshot: &'a Snapshot,
     busy: bool,
     session: Option<&Session>,
     cover: Option<&image::Handle>,
     surfaces: Surfaces,
+    full_playlist: &'a [crate::catalogue::PlaylistEntry],
 ) -> iced::widget::Column<'a, Message> {
     const TRACK_HEIGHT: f32 = 58.0;
     let Some(playlist) = &snapshot.selected_playlist else {
@@ -194,11 +197,22 @@ pub fn tracks<'a>(
         .and_then(Session::current)
         .and_then(Track::playlist_entry);
     let playing = session.is_some_and(Session::is_playing);
+    let searching = full_playlist.len() != snapshot.playlist_entries.len();
+    let positions: std::collections::HashMap<_, _> = if searching {
+        full_playlist
+            .iter()
+            .enumerate()
+            .map(|(position, entry)| (entry.id.as_str(), position))
+            .collect()
+    } else {
+        Default::default()
+    };
     let rows = snapshot
         .playlist_entries
         .iter()
         .enumerate()
         .map(|(index, entry)| {
+            let position = positions.get(entry.id.as_str()).copied().unwrap_or(index);
             let active = active_entry == Some(entry.id.as_str());
             let (label, artist, play) =
                 entry
@@ -249,14 +263,14 @@ pub fn tracks<'a>(
                 icon_button(
                     Icon::Up,
                     "Move up",
-                    (!busy && index > 0).then(|| Message::SourceOperation(
+                    (!busy && position > 0).then(|| Message::SourceOperation(
                         Operation::MovePlaylistEntry(playlist.clone(), entry.id.clone(), -1)
                     ))
                 ),
                 icon_button(
                     Icon::Down,
                     "Move down",
-                    (!busy && index + 1 < snapshot.playlist_entries.len()).then(|| {
+                    (!busy && position + 1 < full_playlist.len()).then(|| {
                         Message::SourceOperation(Operation::MovePlaylistEntry(
                             playlist.clone(),
                             entry.id.clone(),
@@ -311,8 +325,7 @@ pub fn tracks<'a>(
             .padding([6, 11])
             .style(move |theme, status| library::bordered_button(theme, status, surfaces))
             .on_press_maybe(
-                snapshot
-                    .playlist_entries
+                full_playlist
                     .iter()
                     .any(|entry| entry.track.is_some())
                     .then(|| Message::StartPlaylist(playlist.clone()))
@@ -321,14 +334,19 @@ pub fn tracks<'a>(
     .spacing(14)
     .align_y(Alignment::Center);
     let list: Element<'_, Message> = if count == 0 {
-        text("Playlist is empty")
-            .size(13)
-            .color(surfaces.muted)
-            .into()
+        text(if searching {
+            "No matching tracks."
+        } else {
+            "Playlist is empty"
+        })
+        .size(13)
+        .color(surfaces.muted)
+        .into()
     } else {
         let page = crate::desktop::LibraryPage::Playlists;
         let row_height = TRACK_HEIGHT + library::DIVIDER_HEIGHT;
         let list = scrollable(column(rows))
+            .id(PLAYLIST_TRACKS_SCROLL)
             .height(Fill)
             .on_scroll(move |viewport| {
                 Message::ArtworkViewport(
