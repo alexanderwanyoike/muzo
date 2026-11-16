@@ -101,6 +101,7 @@ pub enum Message {
     ReleaseSourceRemovalSpace,
     ScrollSourceRemoval(source_removal::Scroll),
     PlayIndexed(usize),
+    PlaySearchResult(String),
     PlayPlaylist(String),
     StartPlaylist(String),
     PlaylistName(String),
@@ -819,6 +820,15 @@ impl Desktop {
                 }
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
+            Message::PlaySearchResult(id) => self
+                .sources
+                .track_search
+                .projection
+                .as_ref()
+                .and_then(|snapshot| snapshot.tracks.iter().position(|track| track.id == id))
+                .map_or_else(Task::none, |index| {
+                    self.play_indexed(CatalogueSelection::Source(index))
+                }),
             Message::PlayPlaylist(entry) => {
                 self.play_indexed(CatalogueSelection::PlaylistEntry(&entry, false))
             }
@@ -1553,17 +1563,31 @@ impl Desktop {
             return Task::none();
         };
         let (position, tracks): (_, Vec<_>) = match selection {
-            CatalogueSelection::Source(index) => (
-                index,
-                self.sources
-                    .visible_snapshot()
-                    .unwrap_or(snapshot)
-                    .tracks
-                    .iter()
-                    .cloned()
-                    .map(|track| (track, None))
-                    .collect(),
-            ),
+            CatalogueSelection::Source(index) => {
+                let visible = self.sources.visible_snapshot().unwrap_or(snapshot);
+                let (position, tracks) = if self.sources.track_search.projection.is_none()
+                    || self
+                        .sources
+                        .track_search
+                        .uses_global(self.page, Some(snapshot))
+                {
+                    (index, &visible.tracks)
+                } else {
+                    let Some(track) = visible.tracks.get(index) else {
+                        return Task::none();
+                    };
+                    let Some(position) =
+                        snapshot.tracks.iter().position(|item| item.id == track.id)
+                    else {
+                        return Task::none();
+                    };
+                    (position, &snapshot.tracks)
+                };
+                (
+                    position,
+                    tracks.iter().cloned().map(|track| (track, None)).collect(),
+                )
+            }
             CatalogueSelection::PlaylistEntry(entry, restart) => {
                 if !snapshot
                     .playlist_entries

@@ -196,6 +196,8 @@ pub(super) fn view<'a>(
             metrics.play,
             Some(if active {
                 Message::TogglePlayback
+            } else if sources.track_search.projection.is_some() {
+                Message::PlaySearchResult(track.id.clone())
             } else {
                 Message::PlayIndexed(index)
             }),
