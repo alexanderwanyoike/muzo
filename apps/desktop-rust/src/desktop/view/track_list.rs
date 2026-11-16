@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use iced::{
     Alignment, Color, Element, Fill,
-    widget::{Space, button, column, container, image, keyed, row, scrollable, text, tooltip},
+    widget::{Space, button, column, container, image, row, scrollable, text, tooltip},
 };
 
 use crate::{
@@ -21,19 +21,14 @@ use super::{
     ellipsized_label::EllipsizedLabel,
     icon_tinted,
     label_text::replace_embedded_breaks,
-    library, panel, track_metadata, track_playlist,
+    library, panel,
+    stable_rows::{Key as RowKey, StableRows},
+    track_metadata, track_playlist,
     track_row::{Colors as TrackRowColors, TrackRow},
 };
 
 const INITIAL_ROWS: usize = 32;
 const OVERSCAN_ROWS: usize = 6;
-
-#[derive(Clone, Copy, PartialEq)]
-enum RowKey {
-    Track(usize),
-    Gap(usize),
-    Notice,
-}
 
 fn rendered_rows(sources: &Sources, snapshot: &Snapshot) -> Vec<usize> {
     let count = snapshot.tracks.len();
@@ -328,34 +323,44 @@ pub(super) fn view<'a>(
         ];
     }
     let row_height = ROW_CONTENT_HEIGHT + library::DIVIDER_HEIGHT;
-    let mut songs = keyed::Column::new().padding(iced::Padding {
-        top: LIST_TOP_INSET,
-        bottom: LIST_BOTTOM_INSET,
-        ..Default::default()
-    });
+    let mut songs = Vec::new();
     let mut next = 0;
     for index in rendered_rows(sources, snapshot) {
         if index > next {
-            songs = songs.push(
+            songs.push((
                 RowKey::Gap(index),
-                Space::new().height(row_height * (index - next) as f32),
-            );
+                Space::new()
+                    .height(row_height * (index - next) as f32)
+                    .into(),
+            ));
         }
-        songs = songs.push(RowKey::Track(index), track_row(index));
+        songs.push((RowKey::Track(index), track_row(index)));
         next = index + 1;
     }
     if next < snapshot.tracks.len() {
-        songs = songs.push(
+        songs.push((
             RowKey::Gap(snapshot.tracks.len()),
-            Space::new().height(row_height * (snapshot.tracks.len() - next) as f32),
-        );
+            Space::new()
+                .height(row_height * (snapshot.tracks.len() - next) as f32)
+                .into(),
+        ));
     }
     if let Some(message) = &sources.playlist_message {
-        songs = songs.push(
+        songs.push((
             RowKey::Notice,
-            container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
-        );
+            container(text(replace_embedded_breaks(message.as_str())).size(12))
+                .padding([12, 24])
+                .into(),
+        ));
     }
+    let songs = Element::new(StableRows::new(
+        songs,
+        iced::Padding {
+            top: LIST_TOP_INSET,
+            bottom: LIST_BOTTOM_INSET,
+            ..Default::default()
+        },
+    ));
     let plain_height =
         LIST_TOP_INSET + LIST_BOTTOM_INSET + row_height * snapshot.tracks.len() as f32;
     let page = crate::desktop::LibraryPage::Songs;

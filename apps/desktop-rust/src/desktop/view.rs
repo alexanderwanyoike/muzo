@@ -26,6 +26,7 @@ mod source_removal_dialog;
 mod source_row;
 mod source_search_input;
 mod sources;
+mod stable_rows;
 mod track_list;
 mod track_metadata;
 mod track_playlist;
