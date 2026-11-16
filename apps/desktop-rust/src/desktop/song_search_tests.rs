@@ -373,14 +373,7 @@ fn it_keeps_unfiltered_row_clicks_on_the_original_track_during_filtering() {
 #[test]
 fn it_opens_global_search_from_the_keyboard_while_a_source_is_selected() {
     use super::{SongScope, input_message_for_platform, queue_tests::snapshot};
-    use iced::{
-        Event,
-        event::Status,
-        keyboard::{
-            Event as Keyboard, Key, Location, Modifiers,
-            key::{NativeCode, Physical},
-        },
-    };
+    use iced::{event::Status, keyboard::Modifiers};
 
     for (macos, command) in [(false, Modifiers::CTRL), (true, Modifiers::LOGO)] {
         let (mut desktop, _) = setup();
@@ -388,16 +381,12 @@ fn it_opens_global_search_from_the_keyboard_while_a_source_is_selected() {
         source.selected = Some("local".into());
         desktop.sources.snapshot = Some(source);
         let id = desktop.windows.library_id();
-        let key = Event::Keyboard(Keyboard::KeyPressed {
-            key: Key::Character("f".into()),
-            modified_key: Key::Character("F".into()),
-            physical_key: Physical::Unidentified(NativeCode::Unidentified),
-            location: Location::Standard,
-            modifiers: command | Modifiers::SHIFT,
-            text: None,
-            repeat: false,
-        });
-        let message = input_message_for_platform(key, Status::Ignored, id, macos)
+        let status = if macos {
+            Status::Ignored
+        } else {
+            Status::Captured
+        };
+        let message = input_message_for_platform(global_search_key(command), status, id, macos)
             .expect("the global search keyboard shortcut was unavailable");
         let focus = desktop.update(message);
         assert!(
@@ -456,5 +445,48 @@ fn it_clears_playlist_search_when_the_selected_playlist_changes() {
             .query(LibraryPage::Playlists, Some(&source)),
         "",
         "a new playlist inherited another playlist's search"
+    );
+}
+
+fn global_search_key(command: iced::keyboard::Modifiers) -> iced::Event {
+    use iced::keyboard::{
+        Event, Key, Location, Modifiers,
+        key::{NativeCode, Physical},
+    };
+
+    iced::Event::Keyboard(Event::KeyPressed {
+        key: Key::Character("f".into()),
+        modified_key: Key::Character("F".into()),
+        physical_key: Physical::Unidentified(NativeCode::Unidentified),
+        location: Location::Standard,
+        modifiers: command | Modifiers::SHIFT,
+        text: None,
+        repeat: false,
+    })
+}
+
+#[test]
+fn it_keeps_search_shortcuts_inside_the_source_removal_dialog() {
+    use iced::{event::Status, keyboard::Modifiers};
+
+    use super::{LibraryPage, Message, input_message_for_platform, queue_tests::snapshot};
+
+    let (mut desktop, _) = setup();
+    desktop.sources.snapshot = Some(snapshot(&["local"]));
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Settings));
+    let _ = desktop.update(Message::RequestSourceRemoval("local".into()));
+    assert!(desktop.sources.removal.is_some());
+
+    let event = global_search_key(Modifiers::CTRL);
+    if let Some(message) =
+        input_message_for_platform(event, Status::Captured, desktop.windows.library_id(), false)
+    {
+        let _ = desktop.update(message);
+    }
+    let _ = desktop.update(Message::CancelSourceRemoval);
+    assert_eq!(
+        desktop.page,
+        LibraryPage::Settings,
+        "search changed the page behind the modal"
     );
 }
