@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{collections::HashMap, fmt, time::Duration};
 
 use iced::{Task, task};
 
@@ -29,6 +29,7 @@ pub(super) struct TrackSearch {
     source: String,
     playlist: String,
     hits: Vec<IndexedTrack>,
+    confirmed_since_request: HashMap<String, u32>,
     pub(super) projection: Option<Snapshot>,
     pub(super) loading: bool,
     pub(super) error: Option<String>,
@@ -104,12 +105,23 @@ impl TrackSearch {
             && !self.all_songs.trim().is_empty()
     }
 
+    pub(super) fn confirm_play_count(&mut self, id: &str, count: u32) {
+        if self.loading {
+            let recorded = self.confirmed_since_request.entry(id.into()).or_default();
+            *recorded = (*recorded).max(count);
+        }
+        if let Some(track) = self.hits.iter_mut().find(|track| track.id == id) {
+            track.plays = track.plays.max(count);
+        }
+    }
+
     pub(super) fn refresh_global(
         &mut self,
         page: LibraryPage,
         snapshot: Option<&Snapshot>,
         paths: Option<CataloguePaths>,
     ) -> Task<Message> {
+        self.confirmed_since_request.clear();
         let Some(paths) = paths.filter(|_| self.uses_global(page, snapshot)) else {
             self.pending = None;
             self.request = self.request.wrapping_add(1);
@@ -157,9 +169,17 @@ impl TrackSearch {
         self.pending = None;
         self.loading = false;
         match result {
-            Ok(tracks) => self.hits = tracks,
+            Ok(mut tracks) => {
+                for track in &mut tracks {
+                    if let Some(&confirmed) = self.confirmed_since_request.get(&track.id) {
+                        track.plays = track.plays.max(confirmed);
+                    }
+                }
+                self.hits = tracks;
+            }
             Err(error) => self.error = Some(error),
         }
+        self.confirmed_since_request.clear();
         true
     }
 

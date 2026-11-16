@@ -461,6 +461,7 @@ impl Sources {
     }
 
     pub fn confirm_play_count(&mut self, id: &str, count: u32) {
+        self.track_search.confirm_play_count(id, count);
         for snapshot in [&mut self.snapshot, &mut self.track_search.projection]
             .into_iter()
             .flatten()
