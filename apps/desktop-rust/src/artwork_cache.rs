@@ -203,6 +203,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn it_keeps_direct_artwork_thumbnails_lossless() {
+        let original = image::RgbImage::from_fn(COVER_EDGE, COVER_EDGE, |x, y| {
+            image::Rgb(if (x + y) % 2 == 0 {
+                [14, 48, 111]
+            } else {
+                [240, 121, 17]
+            })
+        });
+        let mut bytes = Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(original.clone())
+            .write_to(&mut bytes, ImageFormat::Png)
+            .unwrap();
+
+        let cover = thumbnail(bytes.get_ref()).unwrap();
+        assert!(
+            decode_cover(&cover).unwrap().into_rgb8() == original,
+            "direct playback changed the album art pixels"
+        );
+    }
+
+    #[test]
     fn it_keeps_textured_covers_small_enough_to_reuse_across_a_large_library() {
         let mut seed = 257_u32;
         let image = image::RgbImage::from_fn(COVER_EDGE, COVER_EDGE, |x, y| {
