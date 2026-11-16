@@ -79,7 +79,7 @@ impl ArtworkCache {
         {
             return Ok(cached);
         }
-        let cover = read()?.as_deref().and_then(thumbnail);
+        let cover = read()?.as_deref().and_then(cache_thumbnail);
         if (cover.is_some() || remember_missing)
             && let Err(error) = self.store(&target, cover.as_deref().unwrap_or_default())
         {
@@ -173,17 +173,25 @@ impl ArtworkCache {
 }
 
 pub(crate) fn thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
+    png(decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE))
+}
+
+fn cache_thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
     let image = decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE);
     if image.color().has_alpha() {
-        let mut output = Cursor::new(Vec::new());
-        image.write_to(&mut output, ImageFormat::Png).ok()?;
-        return Some(output.into_inner());
+        return png(image);
     }
     let mut output = Vec::new();
     JpegEncoder::new_with_quality(&mut output, JPEG_QUALITY)
         .encode_image(&image.to_rgb8())
         .ok()?;
     Some(output)
+}
+
+fn png(image: DynamicImage) -> Option<Vec<u8>> {
+    let mut output = Cursor::new(Vec::new());
+    image.write_to(&mut output, ImageFormat::Png).ok()?;
+    Some(output.into_inner())
 }
 
 pub(crate) fn decode_cover(bytes: &[u8]) -> Option<DynamicImage> {
