@@ -56,6 +56,7 @@ pub(super) use library::{settings_button, settings_input};
 pub(super) use playlists::PLAYLIST_TRACKS_SCROLL;
 pub(super) use source_removal_dialog::layer as source_removal_layer;
 pub(super) use sources::SOURCE_SEARCH;
+pub(super) use track_search::TRACK_SEARCH;
 
 fn library_content<'a>(
     sources: &'a Sources,

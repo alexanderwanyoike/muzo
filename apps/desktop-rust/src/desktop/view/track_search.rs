@@ -10,6 +10,8 @@ use crate::{
 
 use super::{action, library::themed_input};
 
+pub(in crate::desktop) const TRACK_SEARCH: &str = "track-search";
+
 pub(super) fn control(
     sources: &Sources,
     page: LibraryPage,
@@ -34,7 +36,7 @@ pub(super) fn control(
     };
     let query = sources.track_search.query(page, snapshot);
     let input = themed_input(placeholder, query, surfaces)
-        .id("track-search")
+        .id(TRACK_SEARCH)
         .width(176)
         .on_input(Message::TrackSearchText);
     let mut controls = row![].spacing(8).align_y(Alignment::Center);

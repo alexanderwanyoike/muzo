@@ -63,6 +63,7 @@ pub enum Message {
     ClearSourceSearch,
     TrackSearchText(String),
     TrackSearchScope(SongScope),
+    TrackSearchShortcut(window::Id, bool),
     TrackSearchFinished(u64, Result<Vec<crate::catalogue::IndexedTrack>, String>),
     SourceRowClicked(String),
     OpenSourceSettings,
@@ -391,14 +392,37 @@ impl Desktop {
                 );
                 Task::batch([task, self.reset_search_scroll(), self.load_row_covers()])
             }
+            Message::TrackSearchShortcut(id, global) => {
+                if id != self.windows.library_id() {
+                    return Task::none();
+                }
+                if global || self.page == LibraryPage::Settings {
+                    return self.update(Message::TrackSearchScope(SongScope::AllSongs));
+                }
+                if self.page == LibraryPage::Songs {
+                    let scope = if self
+                        .sources
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.selected.is_some())
+                    {
+                        SongScope::Source
+                    } else {
+                        SongScope::AllSongs
+                    };
+                    return self.update(Message::TrackSearchScope(scope));
+                }
+                iced::widget::operation::focus(view::TRACK_SEARCH)
+            }
             Message::TrackSearchScope(scope) => {
-                self.sources.close_track_panels();
+                self.set_library_page(LibraryPage::Songs);
                 self.sources.track_search.scope = scope;
                 self.project_track_search();
                 Task::batch([
                     self.refresh_track_search(),
                     self.reset_search_scroll(),
                     self.load_row_covers(),
+                    iced::widget::operation::focus(view::TRACK_SEARCH),
                 ])
             }
             Message::TrackSearchFinished(serial, result) => {
@@ -2182,9 +2206,6 @@ fn input_message_for_platform(
     ) {
         return Some(Message::AppearancePointerPressed(id));
     }
-    if status == iced::event::Status::Captured {
-        return None;
-    }
     let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
         key,
         modifiers,
@@ -2200,6 +2221,12 @@ fn input_message_for_platform(
     } else {
         modifiers.control()
     };
+    if command && !modifiers.alt() && !repeat && matches!(key.as_ref(), Key::Character("f" | "F")) {
+        return Some(Message::TrackSearchShortcut(id, modifiers.shift()));
+    }
+    if status == iced::event::Status::Captured {
+        return None;
+    }
     match (key.as_ref(), command) {
         (Key::Named(Named::Tab), false) => Some(Message::CycleMiniFocus(id, modifiers.shift())),
         (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id, repeat)),
