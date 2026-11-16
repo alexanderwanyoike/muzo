@@ -250,9 +250,11 @@ fn it_takes_and_leaves_divider_focus_in_both_library_panels() {
         assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
 
         if page == LibraryPage::Songs {
-            library.tab(false);
-            library.input(left.clone(), 0.0);
-            assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+            for _ in 0..2 {
+                library.tab(false);
+                library.input(left.clone(), 0.0);
+                assert_eq!(library.desktop.sidebar.visible_width(), 279.0);
+            }
         }
 
         library.tab(false);
