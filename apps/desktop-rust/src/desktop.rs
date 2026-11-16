@@ -10,6 +10,8 @@ mod settings_scroll;
 mod sidebar;
 #[cfg(test)]
 mod sidebar_tests;
+#[cfg(test)]
+mod song_search_tests;
 mod source_removal;
 
 #[cfg(test)]
@@ -22,6 +24,8 @@ mod source_removal_focus_tests;
 mod source_sidebar_layout_tests;
 pub use mini_focus::Control as MiniControl;
 mod track_editor_focus;
+mod track_search;
+pub use track_search::SongScope;
 mod updates;
 mod view;
 #[cfg(test)]
@@ -57,6 +61,10 @@ pub enum Message {
     SubmitFolder,
     SourceSearch(String),
     ClearSourceSearch,
+    TrackSearchText(String),
+    TrackSearchScope(SongScope),
+    TrackSearchShortcut(window::Id, bool),
+    TrackSearchFinished(u64, Result<Vec<crate::catalogue::IndexedTrack>, String>),
     SourceRowClicked(String),
     OpenSourceSettings,
     LibraryPage(LibraryPage),
@@ -94,6 +102,7 @@ pub enum Message {
     ReleaseSourceRemovalSpace,
     ScrollSourceRemoval(source_removal::Scroll),
     PlayIndexed(usize),
+    PlaySearchResult(String),
     PlayPlaylist(String),
     StartPlaylist(String),
     PlaylistName(String),
@@ -157,6 +166,7 @@ pub enum Message {
 
 enum CatalogueSelection<'a> {
     Source(usize),
+    GlobalSearch(usize),
     PlaylistEntry(&'a str, bool),
 }
 
@@ -355,7 +365,7 @@ impl Desktop {
             }
             Message::LibraryPage(page) => {
                 self.set_library_page(page);
-                self.load_row_covers()
+                Task::batch([self.refresh_track_search(), self.load_row_covers()])
             }
             Message::OpenSourceSettings => {
                 self.set_library_page(LibraryPage::Settings);
@@ -371,10 +381,67 @@ impl Desktop {
                     iced::advanced::widget::operation::focusable::focus(view::SOURCE_SEARCH.into()),
                 )
             }
+            Message::TrackSearchText(query) => {
+                self.sources.close_track_panels();
+                let paths = self.sources.paths();
+                let task = self.sources.track_search.change(
+                    self.page,
+                    self.sources.snapshot.as_ref(),
+                    query,
+                    paths,
+                );
+                Task::batch([task, self.reset_search_scroll(), self.load_row_covers()])
+            }
+            Message::TrackSearchShortcut(id, global) => {
+                if id != self.windows.library_id() || self.sources.removal.is_some() {
+                    return Task::none();
+                }
+                if global || self.page == LibraryPage::Settings {
+                    return self.update(Message::TrackSearchScope(SongScope::AllSongs));
+                }
+                if self.page == LibraryPage::Songs {
+                    let scope = if self
+                        .sources
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.selected.is_some())
+                    {
+                        SongScope::Source
+                    } else {
+                        SongScope::AllSongs
+                    };
+                    return self.update(Message::TrackSearchScope(scope));
+                }
+                iced::widget::operation::focus(view::TRACK_SEARCH)
+            }
+            Message::TrackSearchScope(scope) => {
+                self.set_library_page(LibraryPage::Songs);
+                self.sources.track_search.scope = scope;
+                self.project_track_search();
+                Task::batch([
+                    self.refresh_track_search(),
+                    self.reset_search_scroll(),
+                    self.load_row_covers(),
+                    iced::widget::operation::focus(view::TRACK_SEARCH),
+                ])
+            }
+            Message::TrackSearchFinished(serial, result) => {
+                if !self.sources.track_search.finish(serial, result) {
+                    return Task::none();
+                }
+                self.project_track_search();
+                self.load_row_covers()
+            }
             Message::SourceRowClicked(id) => {
                 if let Some(task) = self.sources.toggle_selection(&id) {
+                    let selected = self
+                        .sources
+                        .snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot.selected.is_some());
+                    self.sources.track_search.selected_source(selected);
                     self.set_library_page(LibraryPage::Songs);
-                    task
+                    task.chain(self.refresh_track_search())
                 } else {
                     Task::none()
                 }
@@ -426,14 +493,21 @@ impl Desktop {
                 } else {
                     Task::none()
                 };
+                let updated = result.is_ok();
                 let reveal_added_folder = self.sources.apply(result);
+                self.project_track_search();
+                let refresh = if updated {
+                    self.refresh_track_search()
+                } else {
+                    Task::none()
+                };
                 let artwork = if reveal_added_folder && self.page == LibraryPage::Settings {
                     self.update(Message::LibraryPage(LibraryPage::Songs))
                 } else {
                     self.load_row_covers()
                 };
                 let queued = self.sources.start_pending().unwrap_or_else(Task::none);
-                Task::batch([queued, artwork, revisions])
+                Task::batch([queued, artwork, revisions, refresh])
             }
             Message::QueueArtworkReconciled(result) => {
                 let changed = self.queue_artwork.apply(result, &mut self.queue_covers);
@@ -469,8 +543,7 @@ impl Desktop {
                     queued.then_some(&mut self.queue_covers)
                 } else {
                     self.sources
-                        .snapshot
-                        .as_mut()
+                        .visible_snapshot_mut()
                         .map(|source| &mut source.covers)
                 };
                 let ready = self.row_covers.complete(cover, covers);
@@ -767,6 +840,7 @@ impl Desktop {
                 }
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
+            Message::PlaySearchResult(id) => self.play_search_result(&id),
             Message::PlayPlaylist(entry) => {
                 self.play_indexed(CatalogueSelection::PlaylistEntry(&entry, false))
             }
@@ -1496,20 +1570,51 @@ impl Desktop {
         self.sources.start(operation)
     }
 
+    fn play_search_result(&mut self, id: &str) -> Task<Message> {
+        let (Some(snapshot), Some(visible)) = (
+            self.sources.snapshot.as_ref(),
+            self.sources.track_search.projection.as_ref(),
+        ) else {
+            return Task::none();
+        };
+        if self.page != LibraryPage::Songs {
+            return Task::none();
+        }
+        let Some(hit) = visible.tracks.iter().position(|track| track.id == id) else {
+            return Task::none();
+        };
+        if self
+            .sources
+            .track_search
+            .uses_global(self.page, Some(snapshot))
+        {
+            return self.play_indexed(CatalogueSelection::GlobalSearch(hit));
+        }
+        let Some(index) = snapshot.tracks.iter().position(|track| track.id == id) else {
+            return Task::none();
+        };
+        self.play_indexed(CatalogueSelection::Source(index))
+    }
+
     fn play_indexed(&mut self, selection: CatalogueSelection<'_>) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
         let (position, tracks): (_, Vec<_>) = match selection {
-            CatalogueSelection::Source(index) => (
-                index,
-                snapshot
-                    .tracks
-                    .iter()
-                    .cloned()
-                    .map(|track| (track, None))
-                    .collect(),
-            ),
+            CatalogueSelection::Source(index) | CatalogueSelection::GlobalSearch(index) => {
+                let rows = if matches!(selection, CatalogueSelection::GlobalSearch(_)) {
+                    let Some(visible) = self.sources.track_search.projection.as_ref() else {
+                        return Task::none();
+                    };
+                    &visible.tracks
+                } else {
+                    &snapshot.tracks
+                };
+                (
+                    index,
+                    rows.iter().cloned().map(|track| (track, None)).collect(),
+                )
+            }
             CatalogueSelection::PlaylistEntry(entry, restart) => {
                 if !snapshot
                     .playlist_entries
@@ -1811,6 +1916,40 @@ impl Desktop {
         self.dropbox_request_focus = None;
         self.editor_navigation.reset();
         self.sources.close_track_panels();
+        self.project_track_search();
+    }
+
+    fn project_track_search(&mut self) {
+        self.sources
+            .track_search
+            .project(self.page, self.sources.snapshot.as_ref());
+        if self.page == LibraryPage::Songs && self.sources.close_hidden_track_panels() {
+            self.editor_navigation.reset();
+        }
+    }
+
+    fn refresh_track_search(&mut self) -> Task<Message> {
+        let paths = self.sources.paths();
+        self.sources
+            .track_search
+            .refresh_global(self.page, self.sources.snapshot.as_ref(), paths)
+    }
+
+    fn reset_search_scroll(&mut self) -> Task<Message> {
+        self.sources.song_viewport = None;
+        self.row_covers.visible(self.page, 0..16);
+        let id = match self.page {
+            LibraryPage::Songs => track_editor_focus::SONGS_SCROLL,
+            LibraryPage::Playlists => view::PLAYLIST_TRACKS_SCROLL,
+            LibraryPage::Settings => return Task::none(),
+        };
+        iced::widget::operation::scroll_to(
+            id,
+            iced::widget::scrollable::AbsoluteOffset {
+                x: None,
+                y: Some(0.0),
+            },
+        )
     }
 
     fn apply_completed_cover(&mut self, id: &str, bytes: &[u8]) {
@@ -1879,7 +2018,7 @@ impl Desktop {
         self.queue_covers.remove(id);
         if let Some(handle) = track.artwork().and_then(row_cover::row_handle) {
             self.row_covers.cover_available(id);
-            if let Some(snapshot) = &mut self.sources.snapshot {
+            if let Some(snapshot) = self.sources.visible_snapshot_mut() {
                 row_cover::fill_snapshot_cover(snapshot, id, handle.clone());
             }
             if self.queue_covers.len() < row_cover::ROW_LIMIT {
@@ -1949,7 +2088,7 @@ impl Desktop {
                 return queue;
             }
         }
-        let Some(snapshot) = &mut self.sources.snapshot else {
+        let Some(snapshot) = self.sources.visible_snapshot_mut() else {
             return Task::none();
         };
         self.row_covers.request(&paths, snapshot, self.page)
@@ -2062,9 +2201,6 @@ fn input_message_for_platform(
     ) {
         return Some(Message::AppearancePointerPressed(id));
     }
-    if status == iced::event::Status::Captured {
-        return None;
-    }
     let iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
         key,
         modifiers,
@@ -2080,6 +2216,12 @@ fn input_message_for_platform(
     } else {
         modifiers.control()
     };
+    if command && !modifiers.alt() && !repeat && matches!(key.as_ref(), Key::Character("f" | "F")) {
+        return Some(Message::TrackSearchShortcut(id, modifiers.shift()));
+    }
+    if status == iced::event::Status::Captured {
+        return None;
+    }
     match (key.as_ref(), command) {
         (Key::Named(Named::Tab), false) => Some(Message::CycleMiniFocus(id, modifiers.shift())),
         (Key::Named(Named::Enter), false) => Some(Message::ActivateMiniFocus(id, repeat)),

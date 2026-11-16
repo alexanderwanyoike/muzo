@@ -146,11 +146,21 @@ pub(super) fn view<'a>(
     const DIVIDER_OPACITY: f32 = 0.5;
     const STATUS_INSET: f32 = 20.0;
     let surfaces = appearance.surfaces();
-    let status = sources.source_tracks_error.as_deref().or_else(|| {
-        sources
-            .source_tracks_loading()
-            .then_some("Loading tracks...")
-    });
+    let global = sources.track_search.uses_global(
+        crate::desktop::LibraryPage::Songs,
+        sources.snapshot.as_ref(),
+    );
+    let status = if global {
+        sources.track_search.error.as_deref().or_else(|| {
+            (sources.track_search.loading && snapshot.tracks.is_empty()).then_some("Searching…")
+        })
+    } else {
+        sources.source_tracks_error.as_deref().or_else(|| {
+            sources
+                .source_tracks_loading()
+                .then_some("Loading tracks...")
+        })
+    };
     if let Some(message) = status {
         return column![
             container(
@@ -186,6 +196,8 @@ pub(super) fn view<'a>(
             metrics.play,
             Some(if active {
                 Message::TogglePlayback
+            } else if sources.track_search.projection.is_some() {
+                Message::PlaySearchResult(track.id.clone())
             } else {
                 Message::PlayIndexed(index)
             }),
@@ -315,9 +327,13 @@ pub(super) fn view<'a>(
     if snapshot.tracks.is_empty() {
         return column![
             container(
-                text("No tracks yet. Muzo syncs filesystem libraries automatically.")
-                    .size(13)
-                    .color(surfaces.muted),
+                text(if sources.track_search.projection.is_some() {
+                    "No matching songs."
+                } else {
+                    "No tracks yet. Muzo syncs filesystem libraries automatically."
+                })
+                .size(13)
+                .color(surfaces.muted),
             )
             .center(Fill)
         ];

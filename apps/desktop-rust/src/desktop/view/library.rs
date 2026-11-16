@@ -14,7 +14,7 @@ use super::{
     label_text::replace_embedded_breaks,
     library_content, library_transport, playback_error, playlists,
     sidebar_divider::Divider,
-    sources, tint,
+    sources, tint, track_search,
     window_chrome::{PANE_GUTTER, PANE_RADIUS, pane_style},
 };
 
@@ -219,6 +219,10 @@ fn toolbar(sources: &Sources, page: LibraryPage, surfaces: Surfaces) -> Element<
                         .iter()
                         .find(|library| library.id == selected)
                 })
+                .filter(|_| {
+                    sources.track_search.song_scope(sources.snapshot.as_ref())
+                        != crate::desktop::SongScope::AllSongs
+                })
                 .map_or("Songs", |source| source.name.as_str()),
         ),
         LibraryPage::Playlists => ("COLLECTIONS", "Playlists"),
@@ -226,11 +230,23 @@ fn toolbar(sources: &Sources, page: LibraryPage, surfaces: Surfaces) -> Element<
     };
     column![
         container(
-            column![
-                text(eyebrow).size(9).color(surfaces.muted),
-                text(replace_embedded_breaks(title)).size(18).font(bold()),
+            row![
+                column![
+                    text(eyebrow).size(9).color(surfaces.muted),
+                    Element::new(
+                        super::ellipsized_label::EllipsizedLabel::new(
+                            replace_embedded_breaks(title),
+                            18.0,
+                        )
+                        .font(bold())
+                    ),
+                ]
+                .spacing(3)
+                .width(Fill),
+                track_search::control(sources, page, surfaces),
             ]
-            .spacing(3)
+            .spacing(14)
+            .align_y(Alignment::Center)
         )
         .padding([0, 26])
         .center_y(64)
@@ -396,9 +412,17 @@ pub(in crate::desktop) fn settings_input(
     value: &str,
     surfaces: Surfaces,
 ) -> iced::widget::TextInput<'_, Message> {
+    themed_input("", value, surfaces)
+}
+
+pub(super) fn themed_input<'a>(
+    placeholder: &str,
+    value: &str,
+    surfaces: Surfaces,
+) -> iced::widget::TextInput<'a, Message> {
     use iced::widget::text_input;
 
-    text_input("", value)
+    text_input(placeholder, value)
         .size(13)
         .padding([6, 9])
         .style(move |theme, status| {
