@@ -239,3 +239,56 @@ fn it_finds_a_track_within_the_selected_source_or_playlist_and_plays_its_origina
     assert_eq!(session.current().unwrap().playlist_entry(), Some("entry-0"));
     assert_eq!(session.tracks().len(), 2);
 }
+
+fn search_row(id: &str, title: &str, path: &std::path::Path) -> crate::catalogue::IndexedTrack {
+    crate::catalogue::IndexedTrack {
+        id: id.into(),
+        title: title.into(),
+        artist: "Fixture artist".into(),
+        album: None,
+        metadata_overridden: false,
+        path: path.to_owned(),
+        plays: 0,
+        duration_seconds: 1,
+        library_id: "local".into(),
+        file_size: 0,
+        file_mtime: 0,
+    }
+}
+
+fn search_reply(
+    task: iced::Task<super::Message>,
+    tracks: Vec<crate::catalogue::IndexedTrack>,
+) -> super::Message {
+    use super::Message;
+    let Message::TrackSearchFinished(serial, _) = next_output(task, |event| {
+        matches!(event, Message::TrackSearchFinished(..))
+    }) else {
+        unreachable!()
+    };
+    Message::TrackSearchFinished(serial, Ok(tracks))
+}
+
+#[test]
+fn it_keeps_new_play_counts_when_a_global_result_arrives_late() {
+    use super::{
+        Message,
+        library_sources::{CataloguePaths, Sources},
+        queue_tests::snapshot,
+    };
+
+    let data = tempfile::tempdir().unwrap();
+    let (mut desktop, file) = setup();
+    desktop.sources = Sources::new(Some(CataloguePaths::in_directory(data.path())));
+    desktop.sources.snapshot = Some(snapshot(&["local"]));
+    let task = desktop.update(Message::TrackSearchText("fern".into()));
+    let stale = search_reply(task, vec![search_row("fern", "Fern grove", file.path())]);
+    let _ = desktop.update(Message::PlayRecorded("fern".into(), Ok(2)));
+    let _ = desktop.update(stale);
+
+    assert_eq!(
+        desktop.sources.visible_snapshot().unwrap().tracks[0].plays,
+        2,
+        "the late search result lost the confirmed play count"
+    );
+}
