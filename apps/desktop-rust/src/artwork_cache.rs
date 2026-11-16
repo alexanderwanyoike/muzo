@@ -6,7 +6,7 @@ use std::{
     time::SystemTime,
 };
 
-use image::{DynamicImage, ImageFormat, ImageReader, Limits};
+use image::{DynamicImage, ImageFormat, ImageReader, Limits, codecs::jpeg::JpegEncoder};
 use sha2::{Digest, Sha256};
 
 mod source;
@@ -16,10 +16,12 @@ pub(crate) use source::{ReadFailure, load_indexed};
 const BUDGET_BYTES: u64 = 128 * 1024 * 1024;
 const BUDGET_ENTRIES: usize = 4_096;
 const COVER_EDGE: u32 = 384;
+const JPEG_QUALITY: u8 = 84;
 const MAX_ARTWORK_EDGE: u32 = 8192;
 const DIGEST_BYTES: usize = 32;
 const ENTRY_EXT: &str = "cover";
 const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+const JPEG_SIGNATURE: &[u8] = b"\xff\xd8\xff";
 const MAX_CACHE_RECORD: u64 = 1_048_576;
 static PUBLISH: Mutex<()> = Mutex::new(());
 
@@ -77,7 +79,7 @@ impl ArtworkCache {
         {
             return Ok(cached);
         }
-        let cover = read()?.as_deref().and_then(thumbnail);
+        let cover = read()?.as_deref().and_then(cache_thumbnail);
         if (cover.is_some() || remember_missing)
             && let Err(error) = self.store(&target, cover.as_deref().unwrap_or_default())
         {
@@ -105,7 +107,9 @@ impl ArtworkCache {
             return None;
         }
         let (digest, bytes) = record.split_at_checked(DIGEST_BYTES)?;
-        if (!bytes.is_empty() && !bytes.starts_with(PNG_SIGNATURE))
+        if (!bytes.is_empty()
+            && !bytes.starts_with(PNG_SIGNATURE)
+            && !bytes.starts_with(JPEG_SIGNATURE))
             || Sha256::digest(bytes).as_slice() != digest
         {
             return None;
@@ -169,7 +173,22 @@ impl ArtworkCache {
 }
 
 pub(crate) fn thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
+    png(decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE))
+}
+
+fn cache_thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
     let image = decode_cover(bytes)?.thumbnail(COVER_EDGE, COVER_EDGE);
+    if image.color().has_alpha() {
+        return png(image);
+    }
+    let mut output = Vec::new();
+    JpegEncoder::new_with_quality(&mut output, JPEG_QUALITY)
+        .encode_image(&image.to_rgb8())
+        .ok()?;
+    Some(output)
+}
+
+fn png(image: DynamicImage) -> Option<Vec<u8>> {
     let mut output = Cursor::new(Vec::new());
     image.write_to(&mut output, ImageFormat::Png).ok()?;
     Some(output.into_inner())
@@ -190,6 +209,62 @@ pub(crate) fn decode_cover(bytes: &[u8]) -> Option<DynamicImage> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn it_keeps_direct_artwork_thumbnails_lossless() {
+        let original = image::RgbImage::from_fn(COVER_EDGE, COVER_EDGE, |x, y| {
+            image::Rgb(if (x + y) % 2 == 0 {
+                [14, 48, 111]
+            } else {
+                [240, 121, 17]
+            })
+        });
+        let mut bytes = Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(original.clone())
+            .write_to(&mut bytes, ImageFormat::Png)
+            .unwrap();
+
+        let cover = thumbnail(bytes.get_ref()).unwrap();
+        assert!(
+            decode_cover(&cover).unwrap().into_rgb8() == original,
+            "direct playback changed the album art pixels"
+        );
+    }
+
+    #[test]
+    fn it_keeps_textured_covers_small_enough_to_reuse_across_a_large_library() {
+        let mut seed = 257_u32;
+        let image = image::RgbImage::from_fn(COVER_EDGE, COVER_EDGE, |x, y| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let texture = (seed >> 26) as u8;
+            image::Rgb([
+                38 + (x / 5) as u8 + texture,
+                60 + (y / 6) as u8 + texture,
+                80 + texture,
+            ])
+        });
+        let mut original = Cursor::new(Vec::new());
+        DynamicImage::ImageRgb8(image)
+            .write_to(&mut original, ImageFormat::Png)
+            .unwrap();
+        let folder = tempfile::tempdir().unwrap();
+        let cache = ArtworkCache::new(folder.path().into());
+        let revision = Revision::new("library", "track", "/Music/Track.mp3", 200, 1);
+        let cover = cache
+            .get_or_read(&revision, || Some(original.into_inner()))
+            .unwrap();
+
+        const LARGE_LIBRARY: u64 = 1_382;
+        let stored = fs::metadata(cache.entry_path(&revision)).unwrap().len();
+        assert!(
+            stored <= BUDGET_BYTES / LARGE_LIBRARY,
+            "{stored} bytes per cover would evict artwork in a {LARGE_LIBRARY}-track collection"
+        );
+        let reopened = ArtworkCache::new(folder.path().into());
+        assert_eq!(reopened.lookup(&revision), Some(cover.clone()));
+        let image = decode_cover(&cover).unwrap();
+        assert_eq!((image.width(), image.height()), (COVER_EDGE, COVER_EDGE));
+    }
 
     #[test]
     fn it_remembers_an_absent_cover_for_the_same_revision_until_full_audio_is_available() {

@@ -121,6 +121,97 @@ fn it_reads_artwork_with_a_new_token_after_dropbox_rejects_the_cached_token() {
     server.join().unwrap();
 }
 
+#[test]
+fn it_reopens_downloaded_dropbox_artwork_without_credentials() {
+    use std::path::Path;
+
+    use crate::{
+        artwork_cache::{ArtworkCache, load_indexed},
+        dropbox::Entry,
+    };
+
+    const MEDIA_PATH: &str = "/Music/Track.mp3";
+    let fixture = tempfile::tempdir().unwrap();
+    let database = fixture.path().join("catalogue.sqlite");
+    let artwork = fixture.path().join("artwork");
+    let audio = include_bytes!("../../../tests/fixtures/embedded-cover.mp3");
+    let mut catalogue = Catalogue::open(&database, None).unwrap();
+    catalogue
+        .save_native_dropbox_account(ACCOUNT, CLIENT, "keyring")
+        .unwrap();
+    let library = catalogue
+        .add_dropbox_indexed(
+            ACCOUNT,
+            "/Music",
+            "Music",
+            &[Entry {
+                kind: "file".into(),
+                name: "Track.mp3".into(),
+                path_display: Some(MEDIA_PATH.into()),
+                path_lower: None,
+                size: Some(audio.len() as i64),
+                server_modified: None,
+                rev: Some("artwork-revision".into()),
+            }],
+        )
+        .unwrap();
+    let track = catalogue.tracks(&library.id).unwrap().remove(0);
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let endpoint = format!("http://{}", listener.local_addr().unwrap());
+    let server = std::thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        let (route, headers, _) = request(&stream);
+        assert!(route.starts_with("GET /2/files/download "));
+        assert!(headers.contains("authorization: bearer artwork-token"));
+        reply(
+            &mut stream,
+            "206 Partial Content",
+            &format!(
+                "Content-Range: bytes 0-{}/{}\r\n",
+                audio.len() - 1,
+                audio.len()
+            ),
+            audio,
+        );
+    });
+    let access = ArtworkAccess(Mutex::new(Authorizations {
+        client: Some(Arc::new(Client::for_endpoint(&endpoint).unwrap())),
+        tokens: HashMap::from([(
+            ACCOUNT.into(),
+            Access {
+                key: CLIENT.into(),
+                token: "artwork-token".into(),
+                expires: Instant::now() + Duration::from_secs(60),
+            },
+        )]),
+    }));
+    let load = |catalogue: &Catalogue, access: &ArtworkAccess| {
+        load_indexed(
+            &ArtworkCache::new(artwork.clone()),
+            catalogue,
+            &library.id,
+            &track.id,
+            Path::new(MEDIA_PATH),
+            Some(access),
+        )
+    };
+
+    let (revision, original) = load(&catalogue, &access).unwrap();
+    assert!(
+        original
+            .as_deref()
+            .is_some_and(|image| image::load_from_memory(image).is_ok())
+    );
+    server.join().unwrap();
+    catalogue.disconnect_dropbox(ACCOUNT).unwrap();
+    drop(catalogue);
+    drop(access);
+
+    let catalogue = Catalogue::open(&database, None).unwrap();
+    let cached = load(&catalogue, &ArtworkAccess::default()).unwrap();
+    assert_eq!(cached, (revision, original));
+}
+
 fn request(stream: &std::net::TcpStream) -> (String, String, String) {
     stream
         .set_read_timeout(Some(Duration::from_secs(3)))
