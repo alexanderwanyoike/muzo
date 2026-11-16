@@ -138,7 +138,7 @@ fn it_finds_indexed_local_and_dropbox_songs_and_opens_a_result_without_switching
         .position(|track| track.id == local_track.id)
         .unwrap();
     let local_result = found[index].clone();
-    let play = desktop.update(Message::PlayIndexed(index));
+    let play = desktop.update(Message::PlaySearchResult(local_track.id.clone()));
     let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
     let _ = desktop.update(prepared);
     assert_eq!(
@@ -215,7 +215,7 @@ fn it_finds_a_track_within_the_selected_source_or_playlist_and_plays_its_origina
     let visible = &desktop.sources.visible_snapshot().unwrap().tracks;
     assert_eq!(visible.len(), 1);
     assert_eq!(visible[0].id, "second");
-    let play = desktop.update(Message::PlayIndexed(0));
+    let play = desktop.update(Message::PlaySearchResult("second".into()));
     let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
     let _ = desktop.update(prepared);
     let session = desktop.session.as_ref().unwrap();

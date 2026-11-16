@@ -165,6 +165,7 @@ pub enum Message {
 
 enum CatalogueSelection<'a> {
     Source(usize),
+    GlobalSearch(usize),
     PlaylistEntry(&'a str, bool),
 }
 
@@ -820,15 +821,7 @@ impl Desktop {
                 }
             }
             Message::PlayIndexed(index) => self.play_indexed(CatalogueSelection::Source(index)),
-            Message::PlaySearchResult(id) => self
-                .sources
-                .track_search
-                .projection
-                .as_ref()
-                .and_then(|snapshot| snapshot.tracks.iter().position(|track| track.id == id))
-                .map_or_else(Task::none, |index| {
-                    self.play_indexed(CatalogueSelection::Source(index))
-                }),
+            Message::PlaySearchResult(id) => self.play_search_result(&id),
             Message::PlayPlaylist(entry) => {
                 self.play_indexed(CatalogueSelection::PlaylistEntry(&entry, false))
             }
@@ -1558,34 +1551,49 @@ impl Desktop {
         self.sources.start(operation)
     }
 
+    fn play_search_result(&mut self, id: &str) -> Task<Message> {
+        let (Some(snapshot), Some(visible)) = (
+            self.sources.snapshot.as_ref(),
+            self.sources.track_search.projection.as_ref(),
+        ) else {
+            return Task::none();
+        };
+        if self.page != LibraryPage::Songs {
+            return Task::none();
+        }
+        let Some(hit) = visible.tracks.iter().position(|track| track.id == id) else {
+            return Task::none();
+        };
+        if self
+            .sources
+            .track_search
+            .uses_global(self.page, Some(snapshot))
+        {
+            return self.play_indexed(CatalogueSelection::GlobalSearch(hit));
+        }
+        let Some(index) = snapshot.tracks.iter().position(|track| track.id == id) else {
+            return Task::none();
+        };
+        self.play_indexed(CatalogueSelection::Source(index))
+    }
+
     fn play_indexed(&mut self, selection: CatalogueSelection<'_>) -> Task<Message> {
         let Some(snapshot) = &self.sources.snapshot else {
             return Task::none();
         };
         let (position, tracks): (_, Vec<_>) = match selection {
-            CatalogueSelection::Source(index) => {
-                let visible = self.sources.visible_snapshot().unwrap_or(snapshot);
-                let (position, tracks) = if self.sources.track_search.projection.is_none()
-                    || self
-                        .sources
-                        .track_search
-                        .uses_global(self.page, Some(snapshot))
-                {
-                    (index, &visible.tracks)
+            CatalogueSelection::Source(index) | CatalogueSelection::GlobalSearch(index) => {
+                let rows = if matches!(selection, CatalogueSelection::GlobalSearch(_)) {
+                    let Some(visible) = self.sources.track_search.projection.as_ref() else {
+                        return Task::none();
+                    };
+                    &visible.tracks
                 } else {
-                    let Some(track) = visible.tracks.get(index) else {
-                        return Task::none();
-                    };
-                    let Some(position) =
-                        snapshot.tracks.iter().position(|item| item.id == track.id)
-                    else {
-                        return Task::none();
-                    };
-                    (position, &snapshot.tracks)
+                    &snapshot.tracks
                 };
                 (
-                    position,
-                    tracks.iter().cloned().map(|track| (track, None)).collect(),
+                    index,
+                    rows.iter().cloned().map(|track| (track, None)).collect(),
                 )
             }
             CatalogueSelection::PlaylistEntry(entry, restart) => {
