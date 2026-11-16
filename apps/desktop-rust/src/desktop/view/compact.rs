@@ -505,6 +505,7 @@ mod tests {
             widget::Tree,
         },
     };
+    use iced_runtime::user_interface::{Cache, UserInterface};
 
     use super::*;
 
@@ -553,5 +554,57 @@ mod tests {
             dark >= 10,
             "expected two filled pause bars, found {dark} dark pixels"
         );
+    }
+
+    #[test]
+    fn it_shows_volume_focus_on_the_thumb_without_outlining_the_row() {
+        const FRAME: Size<u32> = Size::new(360, 150);
+
+        for mode in ["dark", "light"] {
+            let appearance = Appearance {
+                theme: "pulse".into(),
+                mode: mode.into(),
+                accent: "glow-green".into(),
+            };
+            let theme = appearance.theme();
+            let surfaces = appearance.surfaces();
+            let paint = |focus| {
+                let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+                let mut ui = UserInterface::build(
+                    transport(None, false, focus, surfaces, false),
+                    Size::new(FRAME.width as f32, FRAME.height as f32),
+                    Cache::new(),
+                    &mut renderer,
+                );
+                ui.draw(
+                    &mut renderer,
+                    &theme,
+                    &Style::default(),
+                    mouse::Cursor::Unavailable,
+                );
+                renderer.screenshot(FRAME, 1.0, surfaces.raised)
+            };
+            let idle = paint(None);
+            let focused = paint(Some(Control::Volume));
+            let changed_columns: Vec<_> = idle
+                .chunks_exact(4)
+                .zip(focused.chunks_exact(4))
+                .enumerate()
+                .filter_map(|(index, (before, after))| {
+                    (before != after).then_some(index % FRAME.width as usize)
+                })
+                .collect();
+            let left = changed_columns
+                .iter()
+                .min()
+                .expect("volume focus must be visible");
+            let right = changed_columns.iter().max().unwrap();
+            let width = right - left + 1;
+            let thumb_diameter = (2.0 * VOLUME_THUMB_RADIUS) as usize;
+            assert!(
+                width <= thumb_diameter + 1,
+                "{mode} volume focus spans {width} pixels, beyond the {thumb_diameter}-pixel thumb"
+            );
+        }
     }
 }
