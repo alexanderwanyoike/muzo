@@ -337,7 +337,7 @@ fn it_preserves_metadata_focus_when_the_visible_rows_shift() {
     };
 
     desktop.sources.song_viewport = Some(100..115);
-    let mut retained = Tree::new(&desktop.workspace(desktop.windows.library_id()));
+    let mut retained = Tree::new(desktop.workspace(desktop.windows.library_id()));
     assert!(focused_title(&desktop, &mut retained, true));
     desktop.sources.song_viewport = Some(101..116);
     assert!(
