@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use iced::{
     Alignment, Color, Element, Fill,
-    widget::{button, column, container, image, row, scrollable, text, tooltip},
+    widget::{Space, button, column, container, image, row, scrollable, text, tooltip},
 };
 
 use crate::{
@@ -21,9 +21,47 @@ use super::{
     ellipsized_label::EllipsizedLabel,
     icon_tinted,
     label_text::replace_embedded_breaks,
-    library, panel, track_metadata, track_playlist,
+    library, panel,
+    stable_rows::{Key as RowKey, StableRows},
+    track_metadata, track_playlist,
     track_row::{Colors as TrackRowColors, TrackRow},
 };
+
+const INITIAL_ROWS: usize = 32;
+const OVERSCAN_ROWS: usize = 6;
+
+fn rendered_rows(sources: &Sources, snapshot: &Snapshot) -> Vec<usize> {
+    let count = snapshot.tracks.len();
+    let viewport = sources.song_viewport.clone().unwrap_or(0..INITIAL_ROWS);
+    let visible = viewport.len().min(count);
+    let start = viewport.start.min(count - visible);
+    let first = start.saturating_sub(OVERSCAN_ROWS);
+    let last = (start + visible + OVERSCAN_ROWS).min(count);
+    let mut rows: Vec<_> = (first..last).collect();
+
+    // Keep expanded widgets in the layout so their real heights and focus survive scrolling.
+    for track_id in [
+        sources.editing.as_ref().map(|editor| &editor.track_id),
+        sources
+            .playlist_picker
+            .as_ref()
+            .map(|picker| &picker.track_id),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(index) = snapshot
+            .tracks
+            .iter()
+            .position(|track| &track.id == track_id)
+        {
+            rows.push(index);
+        }
+    }
+    rows.sort_unstable();
+    rows.dedup();
+    rows
+}
 
 #[derive(Clone, Copy)]
 struct TrackRowMetrics {
@@ -108,11 +146,21 @@ pub(super) fn view<'a>(
     const DIVIDER_OPACITY: f32 = 0.5;
     const STATUS_INSET: f32 = 20.0;
     let surfaces = appearance.surfaces();
-    let status = sources.source_tracks_error.as_deref().or_else(|| {
-        sources
-            .source_tracks_loading()
-            .then_some("Loading tracks...")
-    });
+    let global = sources.track_search.uses_global(
+        crate::desktop::LibraryPage::Songs,
+        sources.snapshot.as_ref(),
+    );
+    let status = if global {
+        sources.track_search.error.as_deref().or_else(|| {
+            (sources.track_search.loading && snapshot.tracks.is_empty()).then_some("Searching…")
+        })
+    } else {
+        sources.source_tracks_error.as_deref().or_else(|| {
+            sources
+                .source_tracks_loading()
+                .then_some("Loading tracks...")
+        })
+    };
     if let Some(message) = status {
         return column![
             container(
@@ -131,7 +179,8 @@ pub(super) fn view<'a>(
     let adding_track = sources.track_add_pending();
     let playing = session.is_some_and(Session::is_playing);
     let current = session.and_then(Session::current);
-    let list = snapshot.tracks.iter().enumerate().map(|(index, track)| {
+    let track_row = |index| -> Element<'a, Message> {
+        let track: &crate::catalogue::IndexedTrack = &snapshot.tracks[index];
         let active = current.is_some_and(|current| {
             current
                 .indexed_id()
@@ -147,6 +196,8 @@ pub(super) fn view<'a>(
             metrics.play,
             Some(if active {
                 Message::TogglePlayback
+            } else if sources.track_search.projection.is_some() {
+                Message::PlaySearchResult(track.id.clone())
             } else {
                 Message::PlayIndexed(index)
             }),
@@ -272,28 +323,60 @@ pub(super) fn view<'a>(
             }),
         ]
         .into()
-    });
+    };
     if snapshot.tracks.is_empty() {
         return column![
             container(
-                text("No tracks yet. Muzo syncs filesystem libraries automatically.")
-                    .size(13)
-                    .color(surfaces.muted),
+                text(if sources.track_search.projection.is_some() {
+                    "No matching songs."
+                } else {
+                    "No tracks yet. Muzo syncs filesystem libraries automatically."
+                })
+                .size(13)
+                .color(surfaces.muted),
             )
             .center(Fill)
         ];
     }
-    let mut songs = column(list).padding(iced::Padding {
-        top: LIST_TOP_INSET,
-        bottom: LIST_BOTTOM_INSET,
-        ..Default::default()
-    });
-    if let Some(message) = &sources.playlist_message {
-        songs = songs.push(
-            container(text(replace_embedded_breaks(message.as_str())).size(12)).padding([12, 24]),
-        );
-    }
     let row_height = ROW_CONTENT_HEIGHT + library::DIVIDER_HEIGHT;
+    let mut songs = Vec::new();
+    let mut next = 0;
+    for index in rendered_rows(sources, snapshot) {
+        if index > next {
+            songs.push((
+                RowKey::Gap(index),
+                Space::new()
+                    .height(row_height * (index - next) as f32)
+                    .into(),
+            ));
+        }
+        songs.push((RowKey::Track(index), track_row(index)));
+        next = index + 1;
+    }
+    if next < snapshot.tracks.len() {
+        songs.push((
+            RowKey::Gap(snapshot.tracks.len()),
+            Space::new()
+                .height(row_height * (snapshot.tracks.len() - next) as f32)
+                .into(),
+        ));
+    }
+    if let Some(message) = &sources.playlist_message {
+        songs.push((
+            RowKey::Notice,
+            container(text(replace_embedded_breaks(message.as_str())).size(12))
+                .padding([12, 24])
+                .into(),
+        ));
+    }
+    let songs = Element::new(StableRows::new(
+        songs,
+        iced::Padding {
+            top: LIST_TOP_INSET,
+            bottom: LIST_BOTTOM_INSET,
+            ..Default::default()
+        },
+    ));
     let plain_height =
         LIST_TOP_INSET + LIST_BOTTOM_INSET + row_height * snapshot.tracks.len() as f32;
     let page = crate::desktop::LibraryPage::Songs;

@@ -1,9 +1,13 @@
 use std::{
-    io::{self, Read, Seek, SeekFrom},
+    io::{self, Cursor, Read, Seek, SeekFrom},
     time::{Duration, Instant},
 };
 
-use lofty::{config::ParseOptions, probe::Probe};
+use lofty::{
+    config::{ParseOptions, ParsingMode},
+    file::FileType,
+    probe::Probe,
+};
 use reqwest::{StatusCode, header::CONTENT_RANGE};
 
 use crate::local_track::embedded_cover;
@@ -36,6 +40,12 @@ impl Client {
         };
         let result = (|| {
             stream.fetch(0)?;
+            if stream.length > stream.block.len() as u64
+                && stream.block.starts_with(b"ID3")
+                && let Some(cover) = mp3_cover_in_prefix(&stream.block)
+            {
+                return Ok(Some(cover));
+            }
             let file = Probe::new(&mut stream)
                 .options(ParseOptions::new().read_properties(false))
                 .guess_file_type()?
@@ -55,6 +65,23 @@ impl Client {
         }
         result
     }
+}
+
+fn mp3_cover_in_prefix(bytes: &[u8]) -> Option<Vec<u8>> {
+    // A complete leading ID3 tag can provide the cover without searching the MP3 tail.
+    let probe = Probe::new(Cursor::new(bytes))
+        .options(
+            ParseOptions::new()
+                .read_properties(false)
+                .parsing_mode(ParsingMode::Strict),
+        )
+        .guess_file_type()
+        .ok()?;
+    if probe.file_type() != Some(FileType::Mpeg) {
+        return None;
+    }
+    let file = probe.read().ok()?;
+    embedded_cover(&file).map(|picture| picture.data().to_vec())
 }
 
 struct ArtworkStream<'a> {

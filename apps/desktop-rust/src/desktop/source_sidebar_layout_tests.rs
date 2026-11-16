@@ -174,7 +174,7 @@ fn it_closes_the_selected_song_list_on_a_second_source_click_and_keeps_playing()
             desktop.windows.library_id(),
             Size::new(FRAME.width as f32, FRAME.height as f32),
         )
-        .contains_key("No music yet")
+        .contains_key("Search by title, artist or album.")
     );
     let session = desktop.session.as_ref().unwrap();
     assert_eq!(

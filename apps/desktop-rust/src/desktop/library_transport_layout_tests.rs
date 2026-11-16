@@ -289,7 +289,7 @@ fn it_keeps_a_soft_glow_around_the_play_control_when_a_track_is_available() {
 }
 
 #[test]
-fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
+fn it_only_glows_on_the_active_part_of_the_transport_rails() {
     const SIZE: Size<u32> = Size::new(850, 800);
     let (mut desktop, _) = setup();
     desktop.appearance.theme = "walnut".into();
@@ -300,21 +300,143 @@ fn it_draws_the_original_glow_around_the_seek_and_volume_rails() {
     desktop.appearance.accent = "glow-cyan".into();
     let glow = paint(&desktop, id, SIZE);
     let at = |x, y| (y * SIZE.width as usize + x) * 4;
-    for (x, y) in [(500, 59), (790, 37)] {
-        let green = at(x, y) + 1;
-        assert!(
-            glow[green] > classic[green] + 4,
-            "missing halo around the rail at ({x}, {y})"
-        );
-    }
+    let active_volume = at(790, 37) + 1;
+    assert!(
+        glow[active_volume] > classic[active_volume] + 4,
+        "the active volume rail needs a subtle glow"
+    );
     for y in [59, 62] {
         let green = at(500, y) + 1;
-        let difference = glow[green].saturating_sub(classic[green]);
-        assert!(
-            difference <= 16,
-            "the transport rail halo is too bright at {y}: {difference}"
+        assert_eq!(
+            glow[green], classic[green],
+            "the seek rail has no played section at {y}"
         );
     }
     let volume_fill = at(790, 40);
     assert_eq!(&glow[volume_fill..volume_fill + 4], &[66, 233, 255, 255]);
+}
+
+#[test]
+fn it_keeps_the_unplayed_seek_rail_clear_at_partial_progress() {
+    use crate::session::Session;
+
+    use super::transport_time_layout_tests::LongRecording;
+
+    const SIZE: Size<u32> = Size::new(850, 800);
+    const HALO_SAMPLE_Y: usize = 59;
+    let (mut desktop, _) = Desktop::with_session(Ok(Session::new(LongRecording)));
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let labels = rendered_labels(
+        &desktop,
+        id,
+        Size::new(SIZE.width as f32, SIZE.height as f32),
+    );
+    let elapsed = labels["10:00:01"];
+    let total = labels["11:00:05"];
+    let played = (elapsed.x + elapsed.width + 40.0) as usize;
+    let unplayed = (total.x - 14.0) as usize;
+    let classic = paint(&desktop, id, SIZE);
+    desktop.appearance.accent = "glow-cyan".into();
+    let glow = paint(&desktop, id, SIZE);
+    let at = |x| (HALO_SAMPLE_Y * SIZE.width as usize + x) * 4 + 1;
+
+    assert!(
+        glow[at(played)] > classic[at(played)] + 2,
+        "played progress has no halo"
+    );
+    assert_eq!(
+        glow[at(unplayed)],
+        classic[at(unplayed)],
+        "the unplayed seek rail picked up a halo"
+    );
+}
+
+#[test]
+fn it_clears_the_old_volume_halo_when_the_thumb_moves() {
+    use iced::advanced::{
+        graphics::{Viewport, damage},
+        renderer::Style,
+    };
+    use iced_tiny_skia::Layer;
+
+    const SIZE: Size<u32> = Size::new(850, 800);
+    let viewport = Viewport::with_physical_size(SIZE, 1.0);
+    let bounds = Rectangle::with_size(viewport.logical_size());
+    let (mut desktop, _) = setup();
+    desktop.appearance.theme = "pulse".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.appearance.accent = "glow-green".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let theme = desktop.theme(id);
+    let background = theme.palette().background;
+    let paint_volume = |desktop: &mut Desktop, volume: f32| {
+        let _ = desktop.update(Message::SetVolume(volume));
+        let mut view = desktop.workspace(id);
+        let mut tree = Tree::new(&view);
+        let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+        let widget = view.as_widget_mut();
+        let node = widget.layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(bounds.size(), bounds.size()),
+        );
+        widget.draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &bounds,
+        );
+        renderer
+    };
+
+    let mut previous = paint_volume(&mut desktop, 0.25);
+    let mut current = paint_volume(&mut desktop, 0.85);
+    let damage = damage::group(
+        damage::diff(
+            previous.layers(),
+            current.layers(),
+            |layer| vec![layer.bounds],
+            Layer::damage,
+        ),
+        bounds,
+    );
+    let mut partial = tiny_skia::Pixmap::new(SIZE.width, SIZE.height).unwrap();
+    let mut fresh = tiny_skia::Pixmap::new(SIZE.width, SIZE.height).unwrap();
+    let mut mask = tiny_skia::Mask::new(SIZE.width, SIZE.height).unwrap();
+    previous.draw(
+        &mut partial.as_mut(),
+        &mut mask,
+        &viewport,
+        &[bounds],
+        background,
+    );
+    current.draw(
+        &mut partial.as_mut(),
+        &mut mask,
+        &viewport,
+        &damage,
+        background,
+    );
+    current.draw(
+        &mut fresh.as_mut(),
+        &mut mask,
+        &viewport,
+        &[bounds],
+        background,
+    );
+    let differing = (30..52)
+        .flat_map(|y| (750..845).map(move |x| (x, y)))
+        .filter(|&(x, y)| partial.pixel(x, y) != fresh.pixel(x, y))
+        .count();
+    assert_eq!(
+        differing, 0,
+        "pixels from the old volume glow survived redraw"
+    );
 }

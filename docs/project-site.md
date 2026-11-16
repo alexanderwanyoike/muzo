@@ -54,27 +54,15 @@ No network call or release parsing runs in the visitor's browser.
 
 ## Publication
 
-PRs to dev/main verify source and build behavior. Main pushes and manual runs on main can deploy. A published stable release
-event dispatches a fresh run on main; checking out main within a tag-triggered
-job would not satisfy the main-only environment policy. Deployment checks out main,
-then rebuilds against the current complete published release. Main/release runs
-share one production concurrency group so Pages deployments cannot race.
+PRs to dev and main verify the site. Pushes to main and manual runs deploy
+through the `github-pages` environment, which is restricted to main. Publishing a
+stable release automatically dispatches a run on main. Each deployment rebuilds
+against the current complete published release. Production deployments run one at
+a time.
 
-The feature PR does not merge dev/main, enable hosting or publish a release.
-Merge prerequisites using merge commits, then promote dev through a release PR.
-The distribution workflow prepares installers from the new immutable main tag;
-publish the reviewed draft release with all its assets. In Settings > Pages,
-select GitHub Actions and keep the github-pages environment limited to main.
-A published release event dispatches the main rebuild automatically. If Pages is configured
-later, run Project site manually on main.
-
-Intended address: https://alexanderwanyoike.github.io/muzo/
-The existing v0.0.1 tag stays immutable. Current development captures can contain
-changes after that tag; download versions always come from the published manifest.
-Muzo is MIT licensed. The footer links to `site/public/LICENSE.txt`, an exact
-copy of the root `LICENSE`, so the licence is available on the deployed site.
-Third-party font and icon notices retain their original terms. Initial packages
-are unsigned.
+The site is served at https://muzo.alphaneuron.net/. The footer links to
+`site/public/LICENSE.txt`, a copy of the root `LICENSE`. Third-party font and
+icon notices are included with the assets.
 
 ## Visual assets
 

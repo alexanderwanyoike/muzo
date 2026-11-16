@@ -145,17 +145,34 @@ impl Catalogue {
     }
 
     pub fn tracks(&self, library_id: &str) -> Result<Vec<IndexedTrack>, CatalogueError> {
+        self.indexed_track_rows(Some(library_id))
+    }
+
+    pub(crate) fn all_indexed_tracks(&self) -> Result<Vec<IndexedTrack>, CatalogueError> {
+        self.indexed_track_rows(None)
+    }
+
+    fn indexed_track_rows(
+        &self,
+        library_id: Option<&str>,
+    ) -> Result<Vec<IndexedTrack>, CatalogueError> {
         use metadata::HAS_METADATA_OVERRIDE;
+
+        let scope = if library_id.is_some() {
+            "WHERE library_id = ?1"
+        } else {
+            ""
+        };
 
         let mut statement = self.database.prepare(&format!(
             "SELECT id, COALESCE(override_title, title), COALESCE(override_artist, artist),
              COALESCE(override_album, album), file_path,
              (SELECT COUNT(*) FROM play_history h WHERE h.library_id=tracks.library_id AND h.track_id=tracks.id),
              library_id, MAX(duration_seconds, 0), {HAS_METADATA_OVERRIDE}, file_size, file_mtime
-             FROM tracks WHERE library_id = ?1 ORDER BY rowid"
+             FROM tracks {scope} ORDER BY rowid"
         ))?;
         let tracks = statement
-            .query_map([library_id], |row| {
+            .query_map(rusqlite::params_from_iter(library_id), |row| {
                 Ok(IndexedTrack {
                     id: row.get(0)?,
                     title: row.get(1)?,

@@ -24,7 +24,7 @@ These are not negotiable.
 - Frameworks point **inward** at the domain. The domain never imports them.
 - Define **repositories** as interfaces in the inner layer; implement them in infrastructure.
 - Value objects over primitives. A `LibraryPath` is not a `String`.
-- Language matters - use the [Ubiquitous Language](./docs/cards) consistently. If a term is contested, add it to the glossary and stop arguing.
+- Use the domain terms consistently across code and documentation, including libraries, tracks, playlists and sources.
 
 ### 3. Clean Architecture
 
@@ -69,25 +69,24 @@ packages/
   distribution/           installer tooling and the release manifest contract
 site/                      project website and downloads
 docs/
-  cards/<sprint>/          sprint cards, one file per card
   adr/                     ADRs, numbered, immutable once merged
 ```
 
 ## GitOps flow
 
 ```
-main  <-  dev  <-  feature/<card-slug>
+main  <-  dev  <-  feature/<feature-slug>
 ```
 
 - `main`: stable. Always green, always buildable, always tagged for release. Never commit to `main` directly.
 - `dev`: integration branch. PRs land here. Trunk for the next release.
-- `feature/<card-slug>`: one branch per card. Examples: `feature/library-domain-model`, `feature/fs-adapter`.
+- `feature/<feature-slug>`: one branch per change. Examples: `feature/library-domain-model`, `feature/fs-adapter`.
 
 ### Branch rules
 
 - Branch from `dev`. Rebase onto `dev` before opening the PR.
-- One card per PR. If the PR does two things, split the card.
-- PR title: `<card-id>: <imperative summary>`, e.g. `001: scaffold desktop shell`.
+- Keep each feature PR focused on one change.
+- Use an imperative title and include the issue number if there is one.
 
 ### Commit messages
 
@@ -129,14 +128,12 @@ yarn desktop:package
 yarn desktop:make
 ```
 
-If any of those fails, the card is not done.
+These checks must pass before pushing.
 
-## Cards and sprints
+## Work items
 
-- One markdown card per unit of work under `docs/cards/<sprint>/<NNN>-<slug>.md`.
-- Each card is a vertical slice through every layer it touches (domain, application, infrastructure, UI). Not a horizontal layer slice.
-- Acceptance criteria are a checklist. A card is done when every box is ticked and the verification commands above are green.
-- A PR is the card made real. The PR description links the card.
+Record acceptance criteria and verification in the issue or PR. Link the
+originating issue or spec when one exists.
 
 ## ADRs
 
@@ -153,4 +150,4 @@ Numbered, immutable once merged. New decision? Write a new ADR superseding the o
 
 ## When in doubt
 
-Read the relevant card. Then the ADRs. Then ask in the PR. Do not guess - state the assumption you are making and let a reviewer catch it.
+Check the issue, PR requirements and relevant ADRs. State assumptions in the PR.

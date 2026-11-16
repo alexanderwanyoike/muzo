@@ -6,7 +6,16 @@ use iced::{
 
 use super::Message;
 
-pub(super) struct SeekHalo(pub(super) Color);
+pub(super) struct SeekHalo {
+    accent: Color,
+    progress: f32,
+}
+
+impl SeekHalo {
+    pub(super) fn new(accent: Color, progress: f32) -> Self {
+        Self { accent, progress }
+    }
+}
 
 impl Widget<Message, Theme, Renderer> for SeekHalo {
     fn size(&self) -> Size<Length> {
@@ -27,8 +36,11 @@ impl Widget<Message, Theme, Renderer> for SeekHalo {
         _: mouse::Cursor,
         _: &Rectangle,
     ) {
-        const HEIGHT: f32 = 28.0;
-        const END_OVERHANG: f32 = 4.0;
+        if self.progress == 0.0 {
+            return;
+        }
+        const HEIGHT: f32 = 12.0;
+        const END_OVERHANG: f32 = 2.0;
         const BLURRED_RAIL: [(f32, f32); 7] = [
             (0.0, 0.0),
             (0.10, 0.01),
@@ -42,7 +54,7 @@ impl Widget<Message, Theme, Renderer> for SeekHalo {
         let fill = gradient::Linear::new(0.0).add_stops(BLURRED_RAIL.map(|(offset, alpha)| {
             gradient::ColorStop {
                 offset,
-                color: self.0.scale_alpha(alpha),
+                color: self.accent.scale_alpha(alpha),
             }
         }));
         // Use the full halo bounds so partial redraws clear the glow outside the rail.
@@ -51,7 +63,7 @@ impl Widget<Message, Theme, Renderer> for SeekHalo {
                 bounds: Rectangle {
                     x: rail.x - END_OVERHANG,
                     y: rail.center().y - HEIGHT / 2.0,
-                    width: rail.width + END_OVERHANG * 2.0,
+                    width: rail.width * self.progress + END_OVERHANG * 2.0,
                     height: HEIGHT,
                 },
                 border: border::rounded(HEIGHT / 2.0),

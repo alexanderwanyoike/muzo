@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("Muzo project site", () => {
-  it("introduces the desktop preview with one main heading and working section navigation", () => {
+  it("introduces the native desktop app with one main heading and working section navigation", () => {
     expect(document.querySelectorAll("h1")).toHaveLength(1);
     expect(document.querySelector("main")).not.toBeNull();
     expect(document.querySelector('a[href="#main"]')).not.toBeNull();
@@ -47,8 +47,16 @@ describe("Muzo project site", () => {
         document.getElementById(link.getAttribute("href")?.slice(1) ?? ""),
       ).not.toBeNull();
     }
-    expect(document.body.textContent?.replace(/\s+/g, " ")).toContain(
-      "desktop preview",
+    expect(document.querySelector(".hero .eyebrow")?.textContent).toContain(
+      "Native desktop",
+    );
+    expect(
+      document
+        .querySelector('meta[property="og:description"]')
+        ?.getAttribute("content"),
+    ).toContain("native desktop");
+    expect(document.querySelector("#downloads")?.textContent).not.toMatch(
+      /desktop preview/i,
     );
   });
 
@@ -70,6 +78,9 @@ describe("Muzo project site", () => {
       expect(text).toContain(platform);
     }
     expect(text).toContain("Preparing release");
+    expect(downloads?.querySelector("[data-release-status]")?.textContent).toBe(
+      "",
+    );
     expect(document.body.textContent).not.toContain("yarn desktop:dev");
     expect(document.body.textContent).not.toContain("git clone");
     expect(document.querySelector('a[href*="/releases/download/"]')).toBeNull();
@@ -78,6 +89,18 @@ describe("Muzo project site", () => {
         'a[href="https://github.com/alexanderwanyoike/muzo/releases"]',
       ),
     ).not.toBeNull();
+  });
+
+  it("describes the current material and accent options", () => {
+    expect(document.querySelectorAll(".materials li")).toHaveLength(8);
+    expect(document.querySelector(".materials")?.textContent).toContain(
+      "Pulse",
+    );
+    expect(
+      document
+        .querySelector(".appearance-heading")
+        ?.textContent?.replace(/\s+/g, " "),
+    ).toContain("Sixteen accent colours");
   });
 
   it("uses the current canonical screenshots with descriptive alternative text and dimensions", () => {
@@ -113,10 +136,16 @@ describe("Muzo project site", () => {
     }
   });
 
-  it("provides canonical sharing metadata with a real project screenshot", () => {
+  it("shares the native desktop screenshot from the public site", () => {
+    const publicSite = "https://muzo.alphaneuron.net/";
     expect(
       document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
-    ).toBe(base);
+    ).toBe(publicSite);
+    expect(
+      document
+        .querySelector('meta[property="og:url"]')
+        ?.getAttribute("content"),
+    ).toBe(publicSite);
     expect(document.querySelector('meta[name="viewport"]')).not.toBeNull();
     expect(
       document
@@ -127,8 +156,9 @@ describe("Muzo project site", () => {
       document
         .querySelector('meta[property="og:image"]')
         ?.getAttribute("content") ?? "";
-    expect(share.startsWith(base)).toBe(true);
-    localFile(share);
+    const screenshot = "images/muzo-player.jpg";
+    expect(share).toBe(`${publicSite}${screenshot}`);
+    localFile(screenshot);
     expect(document.querySelectorAll("script")).toHaveLength(0);
   });
 });

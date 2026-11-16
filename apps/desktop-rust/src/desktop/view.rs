@@ -26,10 +26,12 @@ mod source_removal_dialog;
 mod source_row;
 mod source_search_input;
 mod sources;
+mod stable_rows;
 mod track_list;
 mod track_metadata;
 mod track_playlist;
 mod track_row;
+mod track_search;
 pub(super) mod window_chrome;
 
 use super::{Message, library_sources::Sources};
@@ -51,8 +53,10 @@ fn muted(theme: &Theme) -> iced::widget::text::Style {
 
 pub(super) use library::library;
 pub(super) use library::{settings_button, settings_input};
+pub(super) use playlists::PLAYLIST_TRACKS_SCROLL;
 pub(super) use source_removal_dialog::layer as source_removal_layer;
 pub(super) use sources::SOURCE_SEARCH;
+pub(super) use track_search::TRACK_SEARCH;
 
 fn library_content<'a>(
     sources: &'a Sources,
@@ -70,8 +74,7 @@ fn library_content<'a>(
     }
     if page == LibraryPage::Playlists {
         let Some(snapshot) = sources
-            .snapshot
-            .as_ref()
+            .visible_snapshot()
             .filter(|snapshot| snapshot.selected_playlist.is_some())
         else {
             return container(text("No playlists yet").size(18).font(bold()))
@@ -84,14 +87,18 @@ fn library_content<'a>(
             session,
             cover,
             preferences.surfaces(),
+            sources
+                .snapshot
+                .as_ref()
+                .map_or(&[][..], |source| source.playlist_entries.as_slice()),
         )
         .into();
     }
-    if let Some(snapshot) = sources
-        .snapshot
-        .as_ref()
-        .filter(|snapshot| snapshot.selected.is_some())
-    {
+    if let Some(snapshot) = sources.visible_snapshot().filter(|snapshot| {
+        (snapshot.selected.is_some()
+            && sources.track_search.song_scope(Some(snapshot)) == super::SongScope::Source)
+            || sources.track_search.projection.is_some()
+    }) {
         track_list::view(
             snapshot,
             session,
@@ -111,6 +118,18 @@ fn library_content<'a>(
         column![heading, scrollable(list).height(Fill)]
             .spacing(5)
             .into()
+    } else if sources
+        .snapshot
+        .as_ref()
+        .is_some_and(|snapshot| !snapshot.libraries.is_empty())
+    {
+        container(
+            text("Search by title, artist or album.")
+                .size(13)
+                .color(preferences.surfaces().muted),
+        )
+        .center(Fill)
+        .into()
     } else {
         column![library::empty(preferences.surfaces())].into()
     }

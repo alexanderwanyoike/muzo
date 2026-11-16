@@ -1,4 +1,5 @@
 use std::{
+    ops::Range,
     path::PathBuf,
     sync::{
         Arc,
@@ -20,6 +21,7 @@ use super::{
     Message,
     source_removal::{Launcher, Removal},
     track_editor_focus::Control,
+    track_search::TrackSearch,
 };
 
 #[derive(Clone)]
@@ -267,14 +269,14 @@ fn run_with_selection(
                 error: None,
                 action_focus: None,
             }));
-            previous_source.or(Some(library_id))
+            previous_source
         }
         Operation::EditTrack(id, library_id, edit) => {
             let transaction = catalogue.begin_write()?;
             catalogue.override_library_track(&id, &library_id, &edit)?;
             let snapshot = read_snapshot(
                 &catalogue,
-                previous_source.or(Some(library_id)),
+                previous_source,
                 selected_playlist,
                 None,
                 warnings,
@@ -359,9 +361,11 @@ pub(super) struct Sources {
     paths: Option<CataloguePaths>,
     pub snapshot: Option<Snapshot>,
     pub search: String,
+    pub track_search: TrackSearch,
     pub removal: Option<Removal>,
     pub error: Option<String>,
     pub source_tracks_error: Option<String>,
+    pub song_viewport: Option<Range<usize>>,
     pub playlist_name: String,
     pub playlist_search: String,
     pub show_playlist_form: bool,
@@ -398,9 +402,11 @@ impl Sources {
             paths,
             snapshot: None,
             search: String::new(),
+            track_search: TrackSearch::default(),
             removal: None,
             error: None,
             source_tracks_error: None,
+            song_viewport: None,
             playlist_name: String::new(),
             playlist_search: String::new(),
             show_playlist_form: false,
@@ -432,6 +438,20 @@ impl Sources {
         }
     }
 
+    pub(super) fn visible_snapshot(&self) -> Option<&Snapshot> {
+        self.track_search
+            .projection
+            .as_ref()
+            .or(self.snapshot.as_ref())
+    }
+
+    pub(super) fn visible_snapshot_mut(&mut self) -> Option<&mut Snapshot> {
+        self.track_search
+            .projection
+            .as_mut()
+            .or(self.snapshot.as_mut())
+    }
+
     pub(super) fn paths(&self) -> Option<CataloguePaths> {
         self.paths.clone()
     }
@@ -441,7 +461,11 @@ impl Sources {
     }
 
     pub fn confirm_play_count(&mut self, id: &str, count: u32) {
-        if let Some(snapshot) = &mut self.snapshot {
+        self.track_search.confirm_play_count(id, count);
+        for snapshot in [&mut self.snapshot, &mut self.track_search.projection]
+            .into_iter()
+            .flatten()
+        {
             for track in &mut snapshot.tracks {
                 if track.id == id {
                     track.plays = track.plays.max(count);
@@ -563,6 +587,31 @@ impl Sources {
             self.choose_track_playlist(next);
             None
         }
+    }
+
+    pub(super) fn close_hidden_track_panels(&mut self) -> bool {
+        let Some(visible) = &self.track_search.projection else {
+            return false;
+        };
+        let visible_track = |library: &str, id: &str| {
+            self.track_search.error.is_none()
+                && visible
+                    .tracks
+                    .iter()
+                    .any(|track| track.library_id == library && track.id == id)
+        };
+        let hidden = self
+            .editing
+            .as_ref()
+            .is_some_and(|editor| !visible_track(&editor.library_id, &editor.track_id))
+            || self
+                .playlist_picker
+                .as_ref()
+                .is_some_and(|picker| !visible_track(&picker.library_id, &picker.track_id));
+        if hidden {
+            self.close_track_panels();
+        }
+        hidden
     }
 
     pub fn close_track_panels(&mut self) {
@@ -734,6 +783,7 @@ impl Sources {
         snapshot.selected.clone_from(&selected);
         snapshot.tracks.clear();
         self.source_tracks_error = None;
+        self.song_viewport = None;
         self.selection_changed_during_operation |= self.busy;
         self.pending
             .retain(|queued| !matches!(queued.operation, Operation::Select(_)));
@@ -819,6 +869,14 @@ impl Sources {
         }
         let mut preserved_songs = false;
         if let Some(previous) = &mut self.snapshot {
+            if previous.selected_playlist != snapshot.selected_playlist {
+                self.track_search.clear_playlist();
+            }
+            if previous.selected != snapshot.selected {
+                self.song_viewport = None;
+                self.track_search
+                    .selected_source(snapshot.selected.is_some());
+            }
             preserved_songs = loading_playlist_selection
                 && !selection_changed
                 && previous.selected == snapshot.selected;
@@ -854,17 +912,23 @@ impl Sources {
                 .pending_editor
                 .take()
                 .is_some_and(|(id, library)| id == editor.track_id && library == editor.library_id)
-            && snapshot.selected.as_deref() == Some(editor.library_id.as_str())
+            && (snapshot.selected.as_deref() == Some(editor.library_id.as_str())
+                || self
+                    .track_search
+                    .global_hit(&editor.library_id, &editor.track_id))
         {
             self.editing = Some(editor);
         }
         if saving_editor
             || self.editing.as_ref().is_some_and(|editor| {
-                snapshot.selected.as_deref() != Some(editor.library_id.as_str())
-                    || !snapshot
-                        .tracks
-                        .iter()
-                        .any(|track| track.id == editor.track_id)
+                !self
+                    .track_search
+                    .global_hit(&editor.library_id, &editor.track_id)
+                    && (snapshot.selected.as_deref() != Some(editor.library_id.as_str())
+                        || !snapshot
+                            .tracks
+                            .iter()
+                            .any(|track| track.id == editor.track_id))
             })
         {
             self.editing = None;
@@ -884,11 +948,14 @@ impl Sources {
             self.playlist_message = Some(format!("Added {} to {}.", addition.title, playlist.name));
         }
         if let Some(draft) = self.playlist_picker.as_mut() {
-            if snapshot.selected.as_ref() != Some(&draft.library_id)
-                || !snapshot
-                    .tracks
-                    .iter()
-                    .any(|track| track.id == draft.track_id)
+            if !self
+                .track_search
+                .global_hit(&draft.library_id, &draft.track_id)
+                && (snapshot.selected.as_ref() != Some(&draft.library_id)
+                    || !snapshot
+                        .tracks
+                        .iter()
+                        .any(|track| track.id == draft.track_id))
             {
                 self.playlist_picker = None;
             } else if !snapshot

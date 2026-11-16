@@ -250,7 +250,7 @@ h3 {
 }
 .materials {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 16px;
   padding: 0;
   margin-block: 18px 56px;
@@ -270,6 +270,9 @@ h3 {
 }
 .studio {
   background: #d2d7e0;
+}
+.pulse {
+  background: linear-gradient(145deg, #313e4b, #1b2632);
 }
 .aluminium {
   background: linear-gradient(135deg, #f0f2f4, #d9dde1 55%, #e7eaed);
