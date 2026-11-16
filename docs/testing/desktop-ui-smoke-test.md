@@ -71,8 +71,8 @@ For installer and upgrade checks, see [desktop distribution](../distribution.md)
     Errors should remain visible in the danger colour and keyboard focus clear.
 
 18. Check Carbon fibre, Walnut and Porcelain in light/dark, plus Teal, Rose, Slate,
-    Violet and Ice accents. Restart to confirm persistence. All ten swatches should
-    fit or wrap cleanly with a wide sidebar at the minimum size. In Cinnamon,
+    Violet and Ice accents. Restart to confirm persistence. All sixteen swatches
+    should fit or wrap cleanly with a wide sidebar at the minimum size. In Cinnamon,
     restart the packaged player and check the waveform has distinct bars at the
     panel's 24/32px icon size.
 

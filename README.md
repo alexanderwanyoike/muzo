@@ -58,18 +58,21 @@ and location. Unsigned macOS builds open the release page for manual installatio
 
 Create a scoped app in the [Dropbox App Console](https://www.dropbox.com/developers/apps)
 with Full Dropbox access and the `files.metadata.read` and `files.content.read`
-permissions. In Muzo Settings, enter its public app key, choose Connect Dropbox,
-approve access in your system browser, then paste the displayed authorization code.
-No client secret or redirect URI is needed. Enable your OS keyring for encrypted
-credential storage. Muzo refuses Linux basic_text storage.
+permissions. In Muzo Settings, enter its public app key and choose **Connect Dropbox**.
+Approve access in your system browser, paste the authorization code into Muzo and
+choose **Finish connecting**. No client secret or redirect URI is needed. Enable
+your OS keyring for encrypted credential storage. Muzo refuses Linux basic_text
+storage.
 
-Choose Browse Dropbox folders, navigate with the breadcrumbs, and select one or
-several folders. Selections stay with you as you browse. Add the selected folders
-to create libraries using their folder names; subfolders are included automatically.
-Already-added folders are marked, and failed additions remain selected for retry.
-Choose Entire Dropbox if you want the account root. Each library syncs on startup
-and at the interval set in Settings. Refresh under Indexed sources runs a
-sync immediately. Each library stays bound to the account that created it.
+Choose **Browse folders**. Open folders by name or choose **Parent folder** to go
+back. Check the folders you want to add. To add the account root, use **Select this
+folder** while viewing Dropbox at the top level. Selections stay with you as you
+browse. Use **Add 1 folder** or **Add N folders** to create libraries using the
+folder names, including their subfolders. Already-added folders are marked, and
+failed additions remain selected for retry. Each library syncs on startup and at
+the interval set in Settings. Choose **Sync now** to sync all Dropbox libraries or
+**Refresh** under **Indexed sources** to sync one. Each library stays bound to the
+account that created it.
 
 Dropbox tracks download when selected, then use the normal playback controls.
 Downloads require an internet connection, and retained audio is capped at 1 GiB.
