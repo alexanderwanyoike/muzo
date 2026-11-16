@@ -22,6 +22,7 @@ use super::{
 mod glow;
 mod seek_halo;
 mod volume;
+mod volume_halo;
 use glow::Glow;
 
 const TRANSPORT_HEIGHT: f32 = 81.0;
@@ -112,16 +113,16 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
     let controls = container(controls).center_x(columns.controls);
 
-    let seek = slider(
-        0.0..=duration.as_secs_f32().max(0.1),
-        position.as_secs_f32(),
-        Message::Seek,
-    )
-    .height(SEEK_INPUT_HEIGHT)
-    .step(0.1)
-    .style(move |theme, _| compact::slider_style(theme, surfaces, false));
+    let seek_end = duration.as_secs_f32().max(0.1);
+    let seek = slider(0.0..=seek_end, position.as_secs_f32(), Message::Seek)
+        .height(SEEK_INPUT_HEIGHT)
+        .step(0.1)
+        .style(move |theme, _| compact::slider_style(theme, surfaces, false));
     let seek = match glow {
-        Some(glow) => glow.surround_seek(seek.into()),
+        Some(glow) => {
+            let progress = (position.as_secs_f32() / seek_end).clamp(0.0, 1.0);
+            glow.surround_seek(seek.into(), progress)
+        }
         None => seek.into(),
     };
     let timeline = row![
@@ -173,7 +174,7 @@ pub(super) fn view<'a>(
         });
     let volume = volume::within_thumb_travel(volume, level);
     let volume = match glow {
-        Some(glow) => glow.surround_volume(volume, columns.volume_slider, level),
+        Some(glow) => glow.surround_volume(volume, level),
         None => volume,
     };
     let volume = row![

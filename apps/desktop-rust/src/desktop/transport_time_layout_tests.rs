@@ -13,7 +13,7 @@ use crate::session::{AudioError, AudioPlayback, Session};
 
 use super::{Desktop, Message};
 
-struct LongRecording;
+pub(super) struct LongRecording;
 
 impl AudioPlayback for LongRecording {
     fn play(&mut self, _: &Path) -> Result<(), AudioError> {
