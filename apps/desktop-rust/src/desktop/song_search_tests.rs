@@ -369,3 +369,51 @@ fn it_keeps_unfiltered_row_clicks_on_the_original_track_during_filtering() {
         Some("fern")
     );
 }
+
+#[test]
+fn it_opens_global_search_from_the_keyboard_while_a_source_is_selected() {
+    use super::{SongScope, input_message_for_platform, queue_tests::snapshot};
+    use iced::{
+        Event,
+        event::Status,
+        keyboard::{
+            Event as Keyboard, Key, Location, Modifiers,
+            key::{NativeCode, Physical},
+        },
+    };
+
+    for (macos, command) in [(false, Modifiers::CTRL), (true, Modifiers::LOGO)] {
+        let (mut desktop, _) = setup();
+        let mut source = snapshot(&["local"]);
+        source.selected = Some("local".into());
+        desktop.sources.snapshot = Some(source);
+        let id = desktop.windows.library_id();
+        let key = Event::Keyboard(Keyboard::KeyPressed {
+            key: Key::Character("f".into()),
+            modified_key: Key::Character("F".into()),
+            physical_key: Physical::Unidentified(NativeCode::Unidentified),
+            location: Location::Standard,
+            modifiers: command | Modifiers::SHIFT,
+            text: None,
+            repeat: false,
+        });
+        let message = input_message_for_platform(key, Status::Ignored, id, macos)
+            .expect("the global search keyboard shortcut was unavailable");
+        let focus = desktop.update(message);
+        assert!(
+            focus.units() > 0,
+            "the search field should receive keyboard focus"
+        );
+        assert_eq!(desktop.sources.track_search.scope, SongScope::AllSongs);
+        assert_eq!(
+            desktop
+                .sources
+                .snapshot
+                .as_ref()
+                .unwrap()
+                .selected
+                .as_deref(),
+            Some("local")
+        );
+    }
+}
