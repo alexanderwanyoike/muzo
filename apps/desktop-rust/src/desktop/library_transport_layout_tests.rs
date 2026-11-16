@@ -317,6 +317,44 @@ fn it_only_glows_on_the_active_part_of_the_transport_rails() {
 }
 
 #[test]
+fn it_keeps_the_unplayed_seek_rail_clear_at_partial_progress() {
+    use crate::session::Session;
+
+    use super::transport_time_layout_tests::LongRecording;
+
+    const SIZE: Size<u32> = Size::new(850, 800);
+    const HALO_SAMPLE_Y: usize = 59;
+    let (mut desktop, _) = Desktop::with_session(Ok(Session::new(LongRecording)));
+    desktop.appearance.theme = "walnut".into();
+    desktop.appearance.mode = "dark".into();
+    desktop.sidebar.layout_width(SIZE.width as f32);
+    let id = desktop.windows.library_id();
+    let labels = rendered_labels(
+        &desktop,
+        id,
+        Size::new(SIZE.width as f32, SIZE.height as f32),
+    );
+    let elapsed = labels["10:00:01"];
+    let total = labels["11:00:05"];
+    let played = (elapsed.x + elapsed.width + 40.0) as usize;
+    let unplayed = (total.x - 14.0) as usize;
+    let classic = paint(&desktop, id, SIZE);
+    desktop.appearance.accent = "glow-cyan".into();
+    let glow = paint(&desktop, id, SIZE);
+    let at = |x| (HALO_SAMPLE_Y * SIZE.width as usize + x) * 4 + 1;
+
+    assert!(
+        glow[at(played)] > classic[at(played)] + 2,
+        "played progress has no halo"
+    );
+    assert_eq!(
+        glow[at(unplayed)],
+        classic[at(unplayed)],
+        "the unplayed seek rail picked up a halo"
+    );
+}
+
+#[test]
 fn it_clears_the_old_volume_halo_when_the_thumb_moves() {
     use iced::advanced::{
         graphics::{Viewport, damage},
