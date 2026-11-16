@@ -1896,6 +1896,9 @@ impl Desktop {
         self.sources
             .track_search
             .project(self.page, self.sources.snapshot.as_ref());
+        if self.page == LibraryPage::Songs && self.sources.close_hidden_track_panels() {
+            self.editor_navigation.reset();
+        }
     }
 
     fn refresh_track_search(&mut self) -> Task<Message> {

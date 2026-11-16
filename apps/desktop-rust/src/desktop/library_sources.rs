@@ -589,6 +589,31 @@ impl Sources {
         }
     }
 
+    pub(super) fn close_hidden_track_panels(&mut self) -> bool {
+        let Some(visible) = &self.track_search.projection else {
+            return false;
+        };
+        let visible_track = |library: &str, id: &str| {
+            self.track_search.error.is_none()
+                && visible
+                    .tracks
+                    .iter()
+                    .any(|track| track.library_id == library && track.id == id)
+        };
+        let hidden = self
+            .editing
+            .as_ref()
+            .is_some_and(|editor| !visible_track(&editor.library_id, &editor.track_id))
+            || self
+                .playlist_picker
+                .as_ref()
+                .is_some_and(|picker| !visible_track(&picker.library_id, &picker.track_id));
+        if hidden {
+            self.close_track_panels();
+        }
+        hidden
+    }
+
     pub fn close_track_panels(&mut self) {
         self.close_editor();
         self.playlist_picker = None;
