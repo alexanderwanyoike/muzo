@@ -447,11 +447,6 @@ impl Desktop {
                 }
             }
             Message::SourceOperation(Operation::Remove(id)) => self.sources.confirm_removal(&id),
-            Message::SourceOperation(Operation::SelectPlaylist(id)) => {
-                self.sources.track_search.clear_playlist();
-                self.project_track_search();
-                self.sources.start(Operation::SelectPlaylist(id))
-            }
             Message::SourceOperation(operation) => self.sources.start(operation),
             Message::SourcesUpdated(result) => {
                 if let (Some(previous), Ok(next)) = (&self.sources.snapshot, &result) {

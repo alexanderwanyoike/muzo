@@ -869,6 +869,9 @@ impl Sources {
         }
         let mut preserved_songs = false;
         if let Some(previous) = &mut self.snapshot {
+            if previous.selected_playlist != snapshot.selected_playlist {
+                self.track_search.clear_playlist();
+            }
             if previous.selected != snapshot.selected {
                 self.song_viewport = None;
                 self.track_search
