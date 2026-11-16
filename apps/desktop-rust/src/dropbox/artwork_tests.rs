@@ -4,7 +4,12 @@ use std::{
 };
 
 use image::{DynamicImage, ImageFormat, Rgba, RgbaImage};
-use lofty::{config::WriteOptions, id3::v2::Id3v2Tag, picture::Picture, tag::TagExt};
+use lofty::{
+    config::WriteOptions,
+    id3::v2::Id3v2Tag,
+    picture::{Picture, PictureType},
+    tag::TagExt,
+};
 
 use super::Client;
 
@@ -12,6 +17,7 @@ use super::Client;
 fn it_reads_front_cover_in_the_first_dropbox_range_without_fetching_the_mp3_tail() {
     use std::{
         io::ErrorKind,
+        sync::mpsc,
         time::{Duration, Instant},
     };
 
@@ -25,23 +31,31 @@ fn it_reads_front_cover_in_the_first_dropbox_range_without_fetching_the_mp3_tail
     let path = fixture.path().join("track.mp3");
     std::fs::write(&path, include_bytes!("../../tests/fixtures/tone.mp3")).unwrap();
     let mut tag = Id3v2Tag::new();
-    tag.insert_picture(Picture::from_reader(&mut cover.as_slice()).unwrap());
+    let mut picture = Picture::from_reader(&mut cover.as_slice()).unwrap();
+    picture.set_pic_type(PictureType::CoverFront);
+    tag.insert_picture(picture);
     tag.save_to_path(&path, WriteOptions::default()).unwrap();
     let data = std::fs::read(path).unwrap();
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let address = format!("http://{}", listener.local_addr().unwrap());
+    let (finished, completion) = mpsc::channel::<()>();
     let server = std::thread::spawn(move || {
         let mut requests = 0;
         for expected_start in [0, FILE_LENGTH - 64 * 1024] {
-            let deadline = Instant::now() + Duration::from_millis(500);
+            let deadline = Instant::now() + Duration::from_secs(3);
             let mut stream = loop {
                 match listener.accept() {
                     Ok((stream, _)) => break stream,
                     Err(error) if error.kind() == ErrorKind::WouldBlock => {
-                        if Instant::now() >= deadline {
+                        if completion.try_recv().is_ok() {
                             return requests;
                         }
+                        assert!(
+                            Instant::now() < deadline,
+                            "Dropbox fixture did not complete"
+                        );
                         std::thread::sleep(Duration::from_millis(1));
                     }
                     Err(error) => panic!("Could not accept Dropbox range: {error}"),
@@ -65,13 +79,13 @@ fn it_reads_front_cover_in_the_first_dropbox_range_without_fetching_the_mp3_tail
             )
             .unwrap();
             stream.write_all(&body).unwrap();
-            listener.set_nonblocking(true).unwrap();
         }
         requests
     });
 
     let client = Client::for_endpoint(&address).unwrap();
     let result = client.read_artwork("fixture-token", "/Music/Track.mp3");
+    let _ = finished.send(());
     assert_eq!(result.unwrap().as_deref(), Some(cover.as_slice()));
     assert_eq!(
         server.join().unwrap(),
