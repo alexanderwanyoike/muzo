@@ -19,7 +19,7 @@ pub(super) fn control(
     let selected = match page {
         LibraryPage::Songs => snapshot.is_some_and(|snapshot| snapshot.selected.is_some()),
         LibraryPage::Playlists => {
-            if !snapshot.is_some_and(|snapshot| snapshot.selected_playlist.is_some()) {
+            if snapshot.is_none_or(|snapshot| snapshot.selected_playlist.is_none()) {
                 return Space::new().into();
             }
             false
