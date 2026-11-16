@@ -174,6 +174,178 @@ fn it_reserves_the_original_insets_before_and_after_the_track_list() {
     assert_eq!(content.height, 16.0 * 57.0 + 8.0 + 30.0);
 }
 
+#[test]
+fn it_only_lays_out_nearby_rows_but_keeps_the_full_library_scroll_extent() {
+    const TRACKS: usize = 1_382;
+    let mut desktop = track_table(1200.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    let template = tracks[0].clone();
+    *tracks = (0..TRACKS)
+        .map(|index| {
+            let title = format!("Fixture track {index:04}");
+            IndexedTrack {
+                id: title.clone(),
+                title,
+                ..template.clone()
+            }
+        })
+        .collect();
+
+    let Table { labels, scroll } = track_table_layout(&desktop, 1200.0);
+    let (_, content) = scroll.expect("indexed tracks");
+    assert_eq!(content.height, TRACKS as f32 * 57.0 + 8.0 + 30.0);
+    assert!(labels.contains_key("Fixture track 0000"));
+    let laid_out = labels
+        .keys()
+        .filter(|label| label.starts_with("Fixture track"))
+        .count();
+    assert!(
+        laid_out <= 48,
+        "laid out {laid_out} tracks for an 800px window"
+    );
+}
+
+#[test]
+fn it_renders_the_new_viewport_after_a_scrollbar_jump() {
+    use iced::{
+        Event,
+        advanced::{
+            clipboard,
+            widget::operation::scrollable::{AbsoluteOffset, scroll_to},
+        },
+        window,
+    };
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use super::{LibraryPage, track_editor_focus::SONGS_SCROLL};
+
+    const TRACKS: usize = 1_382;
+    const DESTINATION: usize = 900;
+    let mut desktop = track_table(1200.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    let template = tracks[0].clone();
+    *tracks = (0..TRACKS)
+        .map(|index| IndexedTrack {
+            id: index.to_string(),
+            title: format!("Fixture track {index:04}"),
+            ..template.clone()
+        })
+        .collect();
+
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.workspace(desktop.windows.library_id()),
+        Size::new(1200.0, 800.0),
+        Cache::default(),
+        &mut renderer,
+    );
+    ui.operate(
+        &renderer,
+        &mut scroll_to(
+            SONGS_SCROLL.into(),
+            AbsoluteOffset {
+                x: None,
+                y: Some(8.0 + DESTINATION as f32 * 57.0),
+            },
+        ),
+    );
+    let mut events = Vec::new();
+    ui.update(
+        &[Event::Window(window::Event::RedrawRequested(
+            iced::time::Instant::now(),
+        ))],
+        mouse::Cursor::Unavailable,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut events,
+    );
+    drop(ui);
+    let jump = events.into_iter().find(|event| {
+        matches!(event, Message::ArtworkViewport(LibraryPage::Songs, rows) if rows.contains(&DESTINATION))
+    }).expect("the scrollbar should report the destination viewport");
+    let _ = desktop.update(jump);
+
+    let Table { labels, scroll } = track_table_layout(&desktop, 1200.0);
+    assert!(
+        labels.contains_key("Fixture track 0900"),
+        "the destination song was not laid out"
+    );
+    assert!(!labels.contains_key("Fixture track 0000"));
+    let (_, content) = scroll.expect("indexed tracks");
+    assert_eq!(content.height, TRACKS as f32 * 57.0 + 8.0 + 30.0);
+}
+
+#[test]
+fn it_preserves_metadata_focus_when_the_visible_rows_shift() {
+    use iced::advanced::widget::operation::{Focusable, focusable::focus};
+
+    use super::{library_sources::TrackEditor, track_editor_focus::Field};
+
+    #[derive(Default)]
+    struct FocusedTitle(bool);
+
+    impl Operation for FocusedTitle {
+        fn traverse(&mut self, visit: &mut dyn FnMut(&mut dyn Operation)) {
+            visit(self);
+        }
+
+        fn focusable(&mut self, id: Option<&Id>, _: Rectangle, state: &mut dyn Focusable) {
+            if id == Some(&Field::Title.id().into()) {
+                self.0 = state.is_focused();
+            }
+        }
+    }
+
+    let mut desktop = track_table(1200.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    let template = tracks[0].clone();
+    *tracks = (0..150)
+        .map(|index| IndexedTrack {
+            id: index.to_string(),
+            ..template.clone()
+        })
+        .collect();
+    desktop.sources.editing = Some(Box::new(TrackEditor {
+        track_id: "105".into(),
+        library_id: "records".into(),
+        fields: Default::default(),
+        overridden: false,
+        error: None,
+        action_focus: None,
+    }));
+
+    let frame = Size::new(1200.0, 800.0);
+    let limits = layout::Limits::new(frame, frame);
+    let renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let focused_title = |desktop: &Desktop, tree: &mut Tree, should_focus: bool| {
+        let mut view = desktop.workspace(desktop.windows.library_id());
+        tree.diff(view.as_widget());
+        let widget = view.as_widget_mut();
+        let node = widget.layout(tree, &renderer, &limits);
+        let layout = Layout::new(&node);
+        if should_focus {
+            widget.operate(
+                tree,
+                layout,
+                &renderer,
+                &mut focus::<()>(Field::Title.id().into()),
+            );
+        }
+        let mut result = FocusedTitle::default();
+        widget.operate(tree, layout, &renderer, &mut result);
+        result.0
+    };
+
+    desktop.sources.song_viewport = Some(100..115);
+    let mut retained = Tree::new(desktop.workspace(desktop.windows.library_id()));
+    assert!(focused_title(&desktop, &mut retained, true));
+    desktop.sources.song_viewport = Some(101..116);
+    assert!(
+        focused_title(&desktop, &mut retained, false),
+        "the inline title field lost focus when the viewport moved one row"
+    );
+}
+
 fn pixel(frame: &[u8], width: usize, x: usize, y: usize) -> [u8; 4] {
     let offset = (y * width + x) * 4;
     frame[offset..offset + 4].try_into().unwrap()

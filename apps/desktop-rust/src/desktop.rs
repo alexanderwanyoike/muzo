@@ -444,6 +444,9 @@ impl Desktop {
                 if page != self.page || rows.is_empty() {
                     return Task::none();
                 }
+                if page == LibraryPage::Songs {
+                    self.sources.song_viewport = Some(rows.clone());
+                }
                 self.row_covers.visible(page, rows);
                 self.load_row_covers()
             }
@@ -1800,6 +1803,9 @@ impl Desktop {
     }
 
     fn set_library_page(&mut self, page: LibraryPage) {
+        if self.page != page {
+            self.sources.song_viewport = None;
+        }
         self.page = page;
         self.appearance_focus = None;
         self.dropbox_request_focus = None;
