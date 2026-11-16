@@ -393,7 +393,7 @@ impl Desktop {
                 Task::batch([task, self.reset_search_scroll(), self.load_row_covers()])
             }
             Message::TrackSearchShortcut(id, global) => {
-                if id != self.windows.library_id() {
+                if id != self.windows.library_id() || self.sources.removal.is_some() {
                     return Task::none();
                 }
                 if global || self.page == LibraryPage::Settings {
