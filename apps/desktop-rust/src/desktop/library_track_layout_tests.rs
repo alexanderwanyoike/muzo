@@ -206,6 +206,76 @@ fn it_only_lays_out_nearby_rows_but_keeps_the_full_library_scroll_extent() {
 }
 
 #[test]
+fn it_renders_the_new_viewport_after_a_scrollbar_jump() {
+    use iced::{
+        Event,
+        advanced::{
+            clipboard,
+            widget::operation::scrollable::{AbsoluteOffset, scroll_to},
+        },
+        window,
+    };
+    use iced_runtime::{UserInterface, user_interface::Cache};
+
+    use super::{LibraryPage, track_editor_focus::SONGS_SCROLL};
+
+    const TRACKS: usize = 1_382;
+    const DESTINATION: usize = 900;
+    let mut desktop = track_table(1200.0);
+    let tracks = &mut desktop.sources.snapshot.as_mut().unwrap().tracks;
+    let template = tracks[0].clone();
+    *tracks = (0..TRACKS)
+        .map(|index| IndexedTrack {
+            id: index.to_string(),
+            title: format!("Fixture track {index:04}"),
+            ..template.clone()
+        })
+        .collect();
+
+    let mut renderer = Renderer::new(Font::DEFAULT, Pixels(16.0));
+    let mut ui = UserInterface::build(
+        desktop.workspace(desktop.windows.library_id()),
+        Size::new(1200.0, 800.0),
+        Cache::default(),
+        &mut renderer,
+    );
+    ui.operate(
+        &renderer,
+        &mut scroll_to(
+            SONGS_SCROLL.into(),
+            AbsoluteOffset {
+                x: None,
+                y: Some(8.0 + DESTINATION as f32 * 57.0),
+            },
+        ),
+    );
+    let mut events = Vec::new();
+    ui.update(
+        &[Event::Window(window::Event::RedrawRequested(
+            iced::time::Instant::now(),
+        ))],
+        mouse::Cursor::Unavailable,
+        &mut renderer,
+        &mut clipboard::Null,
+        &mut events,
+    );
+    drop(ui);
+    let jump = events.into_iter().find(|event| {
+        matches!(event, Message::ArtworkViewport(LibraryPage::Songs, rows) if rows.contains(&DESTINATION))
+    }).expect("the scrollbar should report the destination viewport");
+    let _ = desktop.update(jump);
+
+    let Table { labels, scroll } = track_table_layout(&desktop, 1200.0);
+    assert!(
+        labels.contains_key("Fixture track 0900"),
+        "the destination song was not laid out"
+    );
+    assert!(!labels.contains_key("Fixture track 0000"));
+    let (_, content) = scroll.expect("indexed tracks");
+    assert_eq!(content.height, TRACKS as f32 * 57.0 + 8.0 + 30.0);
+}
+
+#[test]
 fn it_preserves_metadata_focus_when_the_visible_rows_shift() {
     use iced::advanced::widget::operation::{Focusable, focusable::focus};
 
