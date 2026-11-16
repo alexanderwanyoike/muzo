@@ -324,3 +324,48 @@ fn it_closes_the_editor_when_its_global_result_stops_matching() {
         "an invisible editor still held keyboard navigation"
     );
 }
+
+#[test]
+fn it_keeps_unfiltered_row_clicks_on_the_original_track_during_filtering() {
+    use super::{Message, queue_tests::snapshot};
+
+    let (mut desktop, file) = setup();
+    let mut source = snapshot(&["local"]);
+    source.libraries[0].kind = "filesystem".into();
+    source.selected = Some("local".into());
+    source.tracks = vec![
+        search_row("ferry", "Ferry lights", file.path()),
+        search_row("fern", "Fern grove", file.path()),
+    ];
+    desktop.sources.snapshot = Some(source);
+
+    let click = Message::PlayIndexed(0);
+    let _ = desktop.update(Message::TrackSearchText("fern".into()));
+    let play = desktop.update(click);
+    let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
+    let _ = desktop.update(prepared);
+    assert_eq!(
+        desktop
+            .session
+            .as_ref()
+            .unwrap()
+            .current()
+            .unwrap()
+            .indexed_id(),
+        Some("ferry"),
+        "a stale unfiltered row index played a different track"
+    );
+    let play = desktop.update(Message::PlaySearchResult("fern".into()));
+    let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
+    let _ = desktop.update(prepared);
+    assert_eq!(
+        desktop
+            .session
+            .as_ref()
+            .unwrap()
+            .current()
+            .unwrap()
+            .indexed_id(),
+        Some("fern")
+    );
+}
