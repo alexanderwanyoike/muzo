@@ -171,3 +171,71 @@ fn it_finds_indexed_local_and_dropbox_songs_and_opens_a_result_without_switching
         local_track.id
     );
 }
+
+#[test]
+fn it_finds_a_track_within_the_selected_source_or_playlist_and_plays_its_original_queue() {
+    use super::{LibraryPage, Message, queue_tests::snapshot};
+    use crate::catalogue::{IndexedTrack, Playlist, PlaylistEntry};
+
+    let (mut desktop, file) = setup();
+    let mut source = snapshot(&["local"]);
+    source.libraries[0].kind = "filesystem".into();
+    source.selected = Some("local".into());
+    let song = |id: &str, title: &str| IndexedTrack {
+        id: id.into(),
+        title: title.into(),
+        artist: "Fixture artist".into(),
+        album: None,
+        metadata_overridden: false,
+        path: file.path().to_owned(),
+        plays: 0,
+        duration_seconds: 1,
+        library_id: "local".into(),
+        file_size: 0,
+        file_mtime: 0,
+    };
+    source.tracks = vec![song("first", "Ferry lights"), song("second", "Fern grove")];
+    source.playlists = vec![Playlist {
+        id: "mix".into(),
+        name: "After hours".into(),
+    }];
+    source.selected_playlist = Some("mix".into());
+    source.playlist_entries = source
+        .tracks
+        .iter()
+        .enumerate()
+        .map(|(index, track)| PlaylistEntry {
+            id: format!("entry-{index}"),
+            track: Some(track.clone()),
+        })
+        .collect();
+    desktop.sources.snapshot = Some(source);
+
+    let _ = desktop.update(Message::TrackSearchText("FERN".into()));
+    let visible = &desktop.sources.visible_snapshot().unwrap().tracks;
+    assert_eq!(visible.len(), 1);
+    assert_eq!(visible[0].id, "second");
+    let play = desktop.update(Message::PlayIndexed(0));
+    let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
+    let _ = desktop.update(prepared);
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current().unwrap().indexed_id(), Some("second"));
+    assert_eq!(
+        session.tracks().len(),
+        2,
+        "the source search changed its playback queue"
+    );
+
+    let _ = desktop.update(Message::LibraryPage(LibraryPage::Playlists));
+    let _ = desktop.update(Message::TrackSearchText("lights".into()));
+    let visible = &desktop.sources.visible_snapshot().unwrap().playlist_entries;
+    assert_eq!(visible.len(), 1);
+    assert_eq!(visible[0].id, "entry-0");
+    let entry = visible[0].id.clone();
+    let play = desktop.update(Message::PlayPlaylist(entry));
+    let prepared = next_output(play, |event| matches!(event, Message::RemoteTrackReady(..)));
+    let _ = desktop.update(prepared);
+    let session = desktop.session.as_ref().unwrap();
+    assert_eq!(session.current().unwrap().playlist_entry(), Some("entry-0"));
+    assert_eq!(session.tracks().len(), 2);
+}
