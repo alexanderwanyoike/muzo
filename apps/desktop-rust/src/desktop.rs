@@ -416,7 +416,7 @@ impl Desktop {
                         .is_some_and(|snapshot| snapshot.selected.is_some());
                     self.sources.track_search.selected_source(selected);
                     self.set_library_page(LibraryPage::Songs);
-                    Task::batch([task, self.refresh_track_search()])
+                    task.chain(self.refresh_track_search())
                 } else {
                     Task::none()
                 }
