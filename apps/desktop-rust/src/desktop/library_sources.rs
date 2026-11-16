@@ -269,14 +269,14 @@ fn run_with_selection(
                 error: None,
                 action_focus: None,
             }));
-            previous_source.or(Some(library_id))
+            previous_source
         }
         Operation::EditTrack(id, library_id, edit) => {
             let transaction = catalogue.begin_write()?;
             catalogue.override_library_track(&id, &library_id, &edit)?;
             let snapshot = read_snapshot(
                 &catalogue,
-                previous_source.or(Some(library_id)),
+                previous_source,
                 selected_playlist,
                 None,
                 warnings,
